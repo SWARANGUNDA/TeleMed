@@ -70,6 +70,25 @@ def predict_v3(
         result["effective_pathway"] = result.get("routing_metadata", {}).get("effective_pathway", "C")
         result["pathway_used"] = result.get("routing_metadata", {}).get("effective_pathway", "C")
         result["active_modalities"] = result.get("routing_metadata", {}).get("modalities_supplied", ["clinical"])
+
+        user_id = current_user.get("user_id")
+        if user_id:
+            try:
+                from .. import database
+                record = database.upsert_health_record(
+                    user_id=user_id,
+                    source_session_id=f"sess_{request.patient_id}",
+                    effective_pathway=result["effective_pathway"],
+                    data_quality_score=0.92,
+                    active_modalities=", ".join(result["active_modalities"]),
+                    confirmed_features={"clinical": raw_payload.get("clinical_data"), "wearable": raw_payload.get("wearable_data"), "gut": raw_payload.get("gut_data")},
+                    prediction_snapshot=result,
+                    status="ANALYZED"
+                )
+                result["record_id"] = record.get("record_id")
+            except Exception as db_err:
+                logger.warning(f"Non-blocking health record persistence error: {db_err}")
+
         return result
 
     except HTTPException:
@@ -106,6 +125,15 @@ def xai_v3(
             )
 
         xai_res = generate_v3_xai_attribution(_engine, validated_intake, request.disease)
+        
+        user_id = current_user.get("user_id")
+        if user_id:
+            try:
+                from .. import database
+                database.attach_xai_snapshot_to_record(f"sess_{request.patient_id}", xai_res)
+            except Exception as db_err:
+                logger.warning(f"Non-blocking XAI snapshot persistence error: {db_err}")
+
         return xai_res
 
     except HTTPException:
@@ -128,6 +156,16 @@ def report_v3(
     """
     try:
         report_res = generate_v3_rag_report(request.predict_response)
+        
+        user_id = current_user.get("user_id")
+        if user_id:
+            try:
+                from .. import database
+                patient_id = request.predict_response.get("patient_id", request.patient_id)
+                database.attach_report_snapshot_to_record(f"sess_{patient_id}", report_res)
+            except Exception as db_err:
+                logger.warning(f"Non-blocking RAG report snapshot persistence error: {db_err}")
+
         return report_res
 
     except HTTPException:

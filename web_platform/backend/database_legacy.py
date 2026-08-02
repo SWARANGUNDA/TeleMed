@@ -11,7 +11,7 @@ import datetime
 import json
 import logging
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, Union
 try:
     from . import config
 except (ImportError, ValueError):
@@ -647,7 +647,7 @@ def upsert_health_record(
     source_session_id: str,
     effective_pathway: str,
     data_quality_score: Optional[float],
-    active_modalities: List[str],
+    active_modalities: Union[List[str], str],
     confirmed_features: Dict[str, Any],
     prediction_snapshot: Dict[str, Any],
     patient_id: Optional[str] = None,
@@ -655,114 +655,95 @@ def upsert_health_record(
     schema_version: str = "v1.0",
     status: str = "ANALYZED"
 ) -> Dict[str, Any]:
-    """
-    Idempotently upsert a persistent health record for an analysis session.
-    One analysis session = one persistent record. Repeated calls for the same source_session_id update the record.
-    """
-    conn = get_db_connection()
+    """Idempotently upsert a persistent health record for an analysis session in PostgreSQL 17."""
+    session = SessionLocal()
     now_iso = datetime.datetime.now(datetime.timezone.utc).isoformat()
-    modalities_json = json.dumps(active_modalities)
+    modalities_str = ",".join(active_modalities) if isinstance(active_modalities, list) else str(active_modalities)
     features_json = json.dumps(confirmed_features)
     pred_json = json.dumps(prediction_snapshot)
 
     try:
-        with conn:
-            cursor = conn.execute("SELECT record_id, status FROM health_records WHERE source_session_id = ?", (source_session_id,))
-            row = cursor.fetchone()
-            if row:
-                record_id = row["record_id"]
-                current_status = row["status"]
-                # Keep higher status (e.g. REPORT_READY > XAI_READY > ANALYZED) if re-analyzing
-                new_status = status if current_status == "ANALYZED" else current_status
-                conn.execute("""
-                    UPDATE health_records SET
-                        effective_pathway = ?,
-                        data_quality_score = ?,
-                        active_modalities = ?,
-                        confirmed_features = ?,
-                        prediction_snapshot = ?,
-                        updated_at = ?,
-                        status = ?
-                    WHERE record_id = ?
-                """, (effective_pathway, data_quality_score, modalities_json, features_json, pred_json, now_iso, new_status, record_id))
-                logger.info("Updated existing health record %s for session %s", record_id, source_session_id)
-            else:
-                record_id = f"rec_{secrets.token_hex(6)}"
-                conn.execute("""
-                    INSERT INTO health_records (
-                        record_id, user_id, source_session_id, patient_id, created_at, updated_at,
-                        pipeline_version, schema_version, effective_pathway, data_quality_score,
-                        active_modalities, confirmed_features, prediction_snapshot, status
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """, (
-                    record_id, user_id, source_session_id, patient_id, now_iso, now_iso,
-                    pipeline_version, schema_version, effective_pathway, data_quality_score,
-                    modalities_json, features_json, pred_json, status
-                ))
-                logger.info("Created new persistent health record %s for user %s session %s", record_id, user_id, source_session_id)
+        rec = session.query(pg_models.HealthRecord).filter_by(source_session_id=source_session_id).first()
+        if rec:
+            rec.effective_pathway = effective_pathway
+            rec.data_quality_score = float(data_quality_score) if data_quality_score is not None else rec.data_quality_score
+            rec.active_modalities = modalities_str
+            rec.confirmed_features = features_json
+            rec.prediction_snapshot = pred_json
+            rec.updated_at = now_iso
+            if rec.status == "ANALYZED":
+                rec.status = status
+        else:
+            rec = pg_models.HealthRecord(
+                record_id=f"rec_{secrets.token_hex(6)}",
+                user_id=user_id,
+                source_session_id=source_session_id,
+                patient_id=patient_id or f"pat_{user_id}",
+                created_at=now_iso,
+                updated_at=now_iso,
+                pipeline_version=pipeline_version,
+                schema_version=schema_version,
+                effective_pathway=effective_pathway,
+                data_quality_score=float(data_quality_score) if data_quality_score is not None else 0.90,
+                active_modalities=modalities_str,
+                confirmed_features=features_json,
+                prediction_snapshot=pred_json,
+                status=status
+            )
+            session.add(rec)
 
-            rec_row = conn.execute("SELECT * FROM health_records WHERE record_id = ?", (record_id,)).fetchone()
-            return _format_record_row(rec_row)
+        session.commit()
+        return _format_pg_record(rec)
+    except Exception as e:
+        session.rollback()
+        raise e
     finally:
-        conn.close()
+        session.close()
 
 
 def attach_xai_snapshot_to_record(source_session_id: str, xai_snapshot: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-    """Attach XAI explanation snapshot to the existing record for a session."""
-    conn = get_db_connection()
+    """Attach XAI explanation snapshot to existing record in PostgreSQL 17."""
+    session = SessionLocal()
     now_iso = datetime.datetime.now(datetime.timezone.utc).isoformat()
     xai_json = json.dumps(xai_snapshot)
 
     try:
-        with conn:
-            cursor = conn.execute("SELECT record_id, status FROM health_records WHERE source_session_id = ?", (source_session_id,))
-            row = cursor.fetchone()
-            if not row:
-                logger.warning("Cannot attach XAI snapshot: no record found for source_session_id %s", source_session_id)
-                return None
-            record_id = row["record_id"]
-            current_status = row["status"]
-            new_status = "XAI_READY" if current_status == "ANALYZED" else current_status
-            conn.execute("""
-                UPDATE health_records SET
-                    xai_snapshot = ?,
-                    updated_at = ?,
-                    status = ?
-                WHERE record_id = ?
-            """, (xai_json, now_iso, new_status, record_id))
-
-            rec_row = conn.execute("SELECT * FROM health_records WHERE record_id = ?", (record_id,)).fetchone()
-            return _format_record_row(rec_row)
+        rec = session.query(pg_models.HealthRecord).filter_by(source_session_id=source_session_id).first()
+        if not rec:
+            return None
+        rec.xai_snapshot = xai_json
+        rec.updated_at = now_iso
+        if rec.status == "ANALYZED":
+            rec.status = "XAI_READY"
+        session.commit()
+        return _format_pg_record(rec)
+    except Exception as e:
+        session.rollback()
+        return None
     finally:
-        conn.close()
+        session.close()
 
 
 def attach_report_snapshot_to_record(source_session_id: str, report_snapshot: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-    """Attach RAG report snapshot to the existing record for a session."""
-    conn = get_db_connection()
+    """Attach RAG report snapshot to existing record in PostgreSQL 17."""
+    session = SessionLocal()
     now_iso = datetime.datetime.now(datetime.timezone.utc).isoformat()
     report_json = json.dumps(report_snapshot)
 
     try:
-        with conn:
-            cursor = conn.execute("SELECT record_id FROM health_records WHERE source_session_id = ?", (source_session_id,))
-            row = cursor.fetchone()
-            if not row:
-                logger.warning("Cannot attach report snapshot: no record found for source_session_id %s", source_session_id)
-                return None
-            record_id = row["record_id"]
-            conn.execute("""
-                UPDATE health_records SET
-                    report_snapshot = ?,
-                    updated_at = ?,
-                    status = 'REPORT_READY'
-                WHERE record_id = ?
-            """, (report_json, now_iso, record_id))
-
-            rec_row = conn.execute("SELECT * FROM health_records WHERE record_id = ?", (record_id,)).fetchone()
-            return _format_record_row(rec_row)
+        rec = session.query(pg_models.HealthRecord).filter_by(source_session_id=source_session_id).first()
+        if not rec:
+            return None
+        rec.report_snapshot = report_json
+        rec.updated_at = now_iso
+        rec.status = "REPORT_READY"
+        session.commit()
+        return _format_pg_record(rec)
+    except Exception as e:
+        session.rollback()
+        return None
     finally:
-        conn.close()
+        session.close()
 
 def _format_pg_record(r: pg_models.HealthRecord) -> Dict[str, Any]:
     def safe_json(val):

@@ -19,7 +19,7 @@ import joblib
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s]: %(message)s")
 logger = logging.getLogger("v3_inference_engine")
 
-MODEL_DIR = Path("expert_models/saved_models")
+MODEL_DIR = Path(__file__).resolve().parent / "saved_models"
 DISEASES = ["Type2_Diabetes", "Prediabetes", "High_Adiposity_Risk", "Metabolic_Syndrome", "NAFLD"]
 
 class V3InferenceEngine:

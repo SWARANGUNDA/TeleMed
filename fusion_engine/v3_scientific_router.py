@@ -26,7 +26,7 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s]: %(m
 logger = logging.getLogger("v3_scientific_router")
 
 DISEASES = ["Type2_Diabetes", "Prediabetes", "High_Adiposity_Risk", "Metabolic_Syndrome", "NAFLD"]
-STACKER_PATH = Path("expert_models/saved_models/fusion_v3/wg_logistic_regression_stacker.joblib")
+STACKER_PATH = Path(__file__).resolve().parent.parent / "expert_models" / "saved_models" / "fusion_v3" / "wg_logistic_regression_stacker.joblib"
 
 class V3ScientificRouter:
     def __init__(self, inference_engine: V3InferenceEngine):
