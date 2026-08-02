@@ -21,7 +21,6 @@ export default function LoginPage({ onLogin, user }) {
       if (onLogin) {
         await onLogin(email, password, role);
       }
-      navigate('/dashboard');
     } catch (err) {
       setErrorMsg(err.message || 'Login failed. Please check your credentials.');
     } finally {
