@@ -8,7 +8,6 @@ from typing import Dict, Any
 router = APIRouter(prefix="/api/v1", tags=["Health & Status"])
 
 import shutil
-import sqlite3
 import sys
 from fastapi import APIRouter
 from typing import Dict, Any
@@ -23,15 +22,12 @@ router = APIRouter(prefix="", tags=["Health & Observability"])
 def get_system_health() -> Dict[str, Any]:
     """Return comprehensive system health status, DB connectivity, and subsystem readiness."""
 
-    # 1. Database Connectivity Test
-    db_status = "HEALTHY"
+    # 1. PostgreSQL 17 Database Connectivity Test
+    db_status = "HEALTHY (PostgreSQL 17)"
     try:
-        from .. import database
-        conn = database.get_db_connection()
-        cursor = conn.cursor()
-        cursor.execute("SELECT 1;")
-        cursor.fetchone()
-        conn.close()
+        from ..database import check_db_connection
+        if not check_db_connection():
+            db_status = "DEGRADED (PostgreSQL unreachable, SQLite active)"
     except Exception as exc:
         db_status = f"UNHEALTHY: {str(exc)}"
 

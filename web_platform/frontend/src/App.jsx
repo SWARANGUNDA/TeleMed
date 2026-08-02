@@ -278,7 +278,11 @@ export default function App() {
   };
 
   const handleLogin = async (email, password, role) => {
-    const user = await loginUser(email, password, role);
+    const data = await loginUser(email, password, role);
+    const user = data.user || data;
+    if (data.refresh_token) {
+      try { sessionStorage.setItem('telemed_refresh_token', data.refresh_token); } catch (e) {}
+    }
     handleLoginSuccess(user);
     return user;
   };

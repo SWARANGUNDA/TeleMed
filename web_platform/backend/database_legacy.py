@@ -1,11 +1,10 @@
 """
-database.py — SQLite Persistence Layer for TeleMed AI Auth, Profiles, and RBAC.
+database.py — PostgreSQL Persistence Layer for TeleMed AI Auth, Profiles, and RBAC.
 
-Provides persistent storage for users, patient profiles, doctor profiles (with verification status),
-and active authentication sessions using SQLite with thread-safe connection pooling.
+Provides persistent storage for users, patient profiles, doctor profiles,
+and active authentication sessions using PostgreSQL 17 with SQLAlchemy 2.x ORM and Repositories.
 """
 
-import sqlite3
 import hashlib
 import secrets
 import datetime
@@ -13,415 +12,29 @@ import json
 import logging
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
-from . import config
+try:
+    from . import config
+except (ImportError, ValueError):
+    try:
+        from .. import config
+    except (ImportError, ValueError):
+        import config
+
+try:
+    from web_platform.backend.database.db import SessionLocal, check_db_connection
+    from web_platform.backend.models import models as pg_models
+except (ImportError, ValueError):
+    from database.db import SessionLocal, check_db_connection
+    from models import models as pg_models
+
+
 
 logger = logging.getLogger("web_platform.database")
 
-DB_PATH = Path(__file__).resolve().parent / "telemed.db"
-
-
-def get_db_connection() -> sqlite3.Connection:
-    """Create and return a database connection with dictionary row formatting and WAL journal mode."""
-    conn = sqlite3.connect(str(DB_PATH), check_same_thread=False, timeout=10.0)
-    conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA journal_mode = WAL;")
-    conn.execute("PRAGMA foreign_keys = ON;")
-    conn.execute("PRAGMA busy_timeout = 5000;")
-    conn.execute("PRAGMA synchronous = NORMAL;")
-    return conn
-
 
 def init_db() -> None:
-    """Initialize database tables and indexes if they do not exist."""
-    conn = get_db_connection()
-    try:
-        with conn:
-            conn.executescript("""
-                CREATE TABLE IF NOT EXISTS users (
-                    user_id TEXT PRIMARY KEY,
-                    email TEXT UNIQUE NOT NULL,
-                    password_hash TEXT NOT NULL,
-                    salt TEXT NOT NULL,
-                    role TEXT NOT NULL CHECK(role IN ('PATIENT', 'DOCTOR', 'ADMIN')),
-                    created_at TEXT NOT NULL,
-                    updated_at TEXT NOT NULL
-                );
-
-                CREATE TABLE IF NOT EXISTS patient_profiles (
-                    patient_id TEXT PRIMARY KEY,
-                    user_id TEXT UNIQUE NOT NULL,
-                    full_name TEXT NOT NULL,
-                    age INTEGER,
-                    gender TEXT,
-                    height_cm REAL,
-                    weight_kg REAL,
-                    contact_number TEXT,
-                    created_at TEXT NOT NULL,
-                    FOREIGN KEY(user_id) REFERENCES users(user_id) ON DELETE CASCADE
-                );
-
-                CREATE TABLE IF NOT EXISTS doctor_profiles (
-                    doctor_id TEXT PRIMARY KEY,
-                    user_id TEXT UNIQUE NOT NULL,
-                    full_name TEXT NOT NULL,
-                    specialization TEXT NOT NULL,
-                    qualification TEXT,
-                    registration_number TEXT NOT NULL,
-                    registration_council TEXT,
-                    experience_years INTEGER NOT NULL DEFAULT 0,
-                    contact_number TEXT,
-                    hospital_affiliation TEXT,
-                    verification_status TEXT NOT NULL DEFAULT 'PENDING' CHECK(verification_status IN ('PENDING', 'UNDER_REVIEW', 'VERIFIED', 'REJECTED', 'RESUBMISSION_REQUIRED', 'SUSPENDED')),
-                    credential_notes TEXT,
-                    created_at TEXT NOT NULL,
-                    FOREIGN KEY(user_id) REFERENCES users(user_id) ON DELETE CASCADE
-                );
-
-                CREATE TABLE IF NOT EXISTS doctor_credentials (
-                    document_id TEXT PRIMARY KEY,
-                    doctor_id TEXT NOT NULL,
-                    user_id TEXT NOT NULL,
-                    document_type TEXT NOT NULL,
-                    original_filename TEXT NOT NULL,
-                    stored_filename TEXT NOT NULL,
-                    file_path TEXT NOT NULL,
-                    file_size_bytes INTEGER NOT NULL,
-                    mime_type TEXT NOT NULL,
-                    uploaded_at TEXT NOT NULL,
-                    FOREIGN KEY(doctor_id) REFERENCES doctor_profiles(doctor_id) ON DELETE CASCADE,
-                    FOREIGN KEY(user_id) REFERENCES users(user_id) ON DELETE CASCADE
-                );
-
-                CREATE TABLE IF NOT EXISTS doctor_audit_logs (
-                    log_id TEXT PRIMARY KEY,
-                    doctor_id TEXT NOT NULL,
-                    user_id TEXT NOT NULL,
-                    action TEXT NOT NULL,
-                    old_status TEXT,
-                    new_status TEXT,
-                    actor_user_id TEXT NOT NULL,
-                    actor_role TEXT NOT NULL,
-                    reason TEXT,
-                    timestamp TEXT NOT NULL,
-                    FOREIGN KEY(doctor_id) REFERENCES doctor_profiles(doctor_id) ON DELETE CASCADE
-                );
-
-                CREATE INDEX IF NOT EXISTS idx_credentials_doctor_id ON doctor_credentials(doctor_id);
-                CREATE INDEX IF NOT EXISTS idx_credentials_user_id ON doctor_credentials(user_id);
-                CREATE INDEX IF NOT EXISTS idx_audit_doctor_id ON doctor_audit_logs(doctor_id);
-
-                CREATE TABLE IF NOT EXISTS auth_sessions (
-                    token TEXT PRIMARY KEY,
-                    user_id TEXT NOT NULL,
-                    expires_at TEXT NOT NULL,
-                    created_at TEXT NOT NULL,
-                    FOREIGN KEY(user_id) REFERENCES users(user_id) ON DELETE CASCADE
-                );
-
-                CREATE TABLE IF NOT EXISTS health_records (
-                    record_id TEXT PRIMARY KEY,
-                    user_id TEXT NOT NULL,
-                    source_session_id TEXT UNIQUE NOT NULL,
-                    patient_id TEXT,
-                    created_at TEXT NOT NULL,
-                    updated_at TEXT NOT NULL,
-                    pipeline_version TEXT NOT NULL DEFAULT 'v3.3',
-                    schema_version TEXT NOT NULL DEFAULT 'v1.0',
-                    effective_pathway TEXT NOT NULL,
-                    data_quality_score REAL,
-                    active_modalities TEXT NOT NULL,
-                    confirmed_features TEXT NOT NULL,
-                    prediction_snapshot TEXT NOT NULL,
-                    xai_snapshot TEXT,
-                    report_snapshot TEXT,
-                    status TEXT NOT NULL DEFAULT 'ANALYZED' CHECK(status IN ('ANALYZED', 'XAI_READY', 'REPORT_READY', 'FAILED')),
-                    FOREIGN KEY(user_id) REFERENCES users(user_id) ON DELETE CASCADE
-                );
-
-                CREATE INDEX IF NOT EXISTS idx_records_user_id ON health_records(user_id);
-                CREATE INDEX IF NOT EXISTS idx_records_created_at ON health_records(created_at);
-                CREATE INDEX IF NOT EXISTS idx_records_source_session ON health_records(source_session_id);
-
-                -- Level 5: Consultations, Shared Record Consents & Consultation Audit Logs
-                CREATE TABLE IF NOT EXISTS consultations (
-                    consultation_id TEXT PRIMARY KEY,
-                    patient_id TEXT NOT NULL,
-                    user_id TEXT NOT NULL,
-                    assigned_doctor_id TEXT,
-                    specialization TEXT NOT NULL,
-                    category TEXT NOT NULL DEFAULT 'General Consultation',
-                    reason TEXT NOT NULL,
-                    urgency TEXT NOT NULL DEFAULT 'ROUTINE' CHECK(urgency IN ('ROUTINE', 'SOON')),
-                    message TEXT,
-                    status TEXT NOT NULL DEFAULT 'REQUESTED' CHECK(status IN ('REQUESTED', 'ASSIGNED', 'ACCEPTED', 'ACTIVE', 'COMPLETED', 'DECLINED', 'CANCELLED')),
-                    created_at TEXT NOT NULL,
-                    updated_at TEXT NOT NULL,
-                    completed_at TEXT,
-                    FOREIGN KEY(user_id) REFERENCES users(user_id) ON DELETE CASCADE,
-                    FOREIGN KEY(assigned_doctor_id) REFERENCES doctor_profiles(doctor_id) ON DELETE SET NULL
-                );
-
-                CREATE TABLE IF NOT EXISTS consultation_shared_records (
-                    share_id TEXT PRIMARY KEY,
-                    consultation_id TEXT NOT NULL,
-                    patient_id TEXT NOT NULL,
-                    record_id TEXT NOT NULL,
-                    status TEXT NOT NULL DEFAULT 'ACTIVE' CHECK(status IN ('ACTIVE', 'REVOKED')),
-                    shared_at TEXT NOT NULL,
-                    revoked_at TEXT,
-                    FOREIGN KEY(consultation_id) REFERENCES consultations(consultation_id) ON DELETE CASCADE,
-                    FOREIGN KEY(record_id) REFERENCES health_records(record_id) ON DELETE CASCADE,
-                    UNIQUE(consultation_id, record_id)
-                );
-
-                CREATE TABLE IF NOT EXISTS consultation_audit_logs (
-                    log_id TEXT PRIMARY KEY,
-                    consultation_id TEXT NOT NULL,
-                    patient_id TEXT NOT NULL,
-                    doctor_id TEXT,
-                    actor_user_id TEXT NOT NULL,
-                    actor_role TEXT NOT NULL,
-                    action TEXT NOT NULL,
-                    old_status TEXT,
-                    new_status TEXT,
-                    reason TEXT,
-                    timestamp TEXT NOT NULL,
-                    FOREIGN KEY(consultation_id) REFERENCES consultations(consultation_id) ON DELETE CASCADE
-                );
-
-                -- Level 7C: Secure Consultation Messaging & Doctor Clinical Notes
-                CREATE TABLE IF NOT EXISTS consultation_messages (
-                    message_id TEXT PRIMARY KEY,
-                    consultation_id TEXT NOT NULL,
-                    sender_user_id TEXT NOT NULL,
-                    sender_role TEXT NOT NULL CHECK(sender_role IN ('PATIENT', 'DOCTOR')),
-                    sender_name TEXT NOT NULL,
-                    content TEXT NOT NULL,
-                    created_at TEXT NOT NULL,
-                    FOREIGN KEY(consultation_id) REFERENCES consultations(consultation_id) ON DELETE CASCADE,
-                    FOREIGN KEY(sender_user_id) REFERENCES users(user_id) ON DELETE CASCADE
-                );
-
-                CREATE TABLE IF NOT EXISTS consultation_notes (
-                    note_id TEXT PRIMARY KEY,
-                    consultation_id TEXT NOT NULL UNIQUE,
-                    doctor_id TEXT NOT NULL,
-                    doctor_user_id TEXT NOT NULL,
-                    author_name TEXT NOT NULL,
-                    assessment TEXT NOT NULL,
-                    follow_up_guidance TEXT,
-                    patient_summary TEXT NOT NULL,
-                    created_at TEXT NOT NULL,
-                    updated_at TEXT NOT NULL,
-                    FOREIGN KEY(consultation_id) REFERENCES consultations(consultation_id) ON DELETE CASCADE,
-                    FOREIGN KEY(doctor_id) REFERENCES doctor_profiles(doctor_id) ON DELETE CASCADE
-                );
-
-                CREATE INDEX IF NOT EXISTS idx_consultations_user_id ON consultations(user_id);
-                CREATE INDEX IF NOT EXISTS idx_consultations_doctor_id ON consultations(assigned_doctor_id);
-                CREATE INDEX IF NOT EXISTS idx_consultations_status ON consultations(status);
-                CREATE INDEX IF NOT EXISTS idx_shared_records_consultation ON consultation_shared_records(consultation_id);
-                CREATE INDEX IF NOT EXISTS idx_shared_records_record ON consultation_shared_records(record_id);
-                CREATE INDEX IF NOT EXISTS idx_consultation_audit ON consultation_audit_logs(consultation_id);
-                CREATE INDEX IF NOT EXISTS idx_cons_msgs_cid ON consultation_messages(consultation_id);
-                CREATE INDEX IF NOT EXISTS idx_cons_notes_cid ON consultation_notes(consultation_id);
-
-                -- Level 8: Appointment Scheduling & In-App Notifications
-                CREATE TABLE IF NOT EXISTS doctor_availability_slots (
-                    slot_id TEXT PRIMARY KEY,
-                    doctor_id TEXT NOT NULL,
-                    doctor_user_id TEXT NOT NULL,
-                    slot_start TEXT NOT NULL,
-                    slot_end TEXT NOT NULL,
-                    is_booked INTEGER NOT NULL DEFAULT 0,
-                    created_at TEXT NOT NULL,
-                    FOREIGN KEY(doctor_id) REFERENCES doctor_profiles(doctor_id) ON DELETE CASCADE,
-                    FOREIGN KEY(doctor_user_id) REFERENCES users(user_id) ON DELETE CASCADE
-                );
-
-                CREATE TABLE IF NOT EXISTS appointments (
-                    appointment_id TEXT PRIMARY KEY,
-                    consultation_id TEXT NOT NULL,
-                    doctor_id TEXT NOT NULL,
-                    patient_id TEXT NOT NULL,
-                    patient_user_id TEXT NOT NULL,
-                    slot_id TEXT NOT NULL,
-                    slot_start TEXT NOT NULL,
-                    slot_end TEXT NOT NULL,
-                    status TEXT NOT NULL DEFAULT 'REQUESTED' CHECK(status IN ('REQUESTED', 'CONFIRMED', 'COMPLETED', 'CANCELLED', 'RESCHEDULED')),
-                    notes TEXT,
-                    created_at TEXT NOT NULL,
-                    updated_at TEXT NOT NULL,
-                    FOREIGN KEY(consultation_id) REFERENCES consultations(consultation_id) ON DELETE CASCADE,
-                    FOREIGN KEY(doctor_id) REFERENCES doctor_profiles(doctor_id) ON DELETE CASCADE,
-                    FOREIGN KEY(slot_id) REFERENCES doctor_availability_slots(slot_id) ON DELETE CASCADE
-                );
-
-                CREATE TABLE IF NOT EXISTS notifications (
-                    notification_id TEXT PRIMARY KEY,
-                    user_id TEXT NOT NULL,
-                    type TEXT NOT NULL,
-                    title TEXT NOT NULL,
-                    message TEXT NOT NULL,
-                    link_nav TEXT DEFAULT '',
-                    is_read INTEGER NOT NULL DEFAULT 0,
-                    created_at TEXT NOT NULL,
-                    FOREIGN KEY(user_id) REFERENCES users(user_id) ON DELETE CASCADE
-                );
-
-                -- Level 10: Safe System Operations & Non-Scientific Settings
-                CREATE TABLE IF NOT EXISTS system_settings (
-                    setting_key TEXT PRIMARY KEY,
-                    setting_value TEXT NOT NULL,
-                    updated_at TEXT NOT NULL,
-                    updated_by TEXT
-                );
-
-                -- Level 12: Immutable Audit Events & Data Governance
-                CREATE TABLE IF NOT EXISTS audit_events (
-                    event_id TEXT PRIMARY KEY,
-                    actor_user_id TEXT NOT NULL,
-                    role TEXT NOT NULL,
-                    action TEXT NOT NULL,
-                    resource_type TEXT NOT NULL,
-                    resource_id TEXT DEFAULT '',
-                    outcome TEXT NOT NULL DEFAULT 'SUCCESS',
-                    context_json TEXT DEFAULT '{}',
-                    prev_hash TEXT NOT NULL DEFAULT '0',
-                    event_hash TEXT NOT NULL,
-                    created_at TEXT NOT NULL
-                );
-
-                CREATE TABLE IF NOT EXISTS account_deletion_requests (
-                    request_id TEXT PRIMARY KEY,
-                    user_id TEXT NOT NULL,
-                    role TEXT NOT NULL,
-                    reason TEXT,
-                    status TEXT NOT NULL DEFAULT 'PENDING',
-                    created_at TEXT NOT NULL,
-                    FOREIGN KEY(user_id) REFERENCES users(user_id) ON DELETE CASCADE
-                );
-
-                CREATE INDEX IF NOT EXISTS idx_avail_slots_doc ON doctor_availability_slots(doctor_id);
-                CREATE INDEX IF NOT EXISTS idx_appointments_cons ON appointments(consultation_id);
-                CREATE INDEX IF NOT EXISTS idx_appointments_doc ON appointments(doctor_id);
-                CREATE INDEX IF NOT EXISTS idx_appointments_patient ON appointments(patient_user_id);
-                CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications(user_id);
-                CREATE INDEX IF NOT EXISTS idx_audit_actor ON audit_events(actor_user_id);
-                CREATE INDEX IF NOT EXISTS idx_audit_action ON audit_events(action);
-                CREATE INDEX IF NOT EXISTS idx_audit_resource ON audit_events(resource_type, resource_id);
-                CREATE INDEX IF NOT EXISTS idx_audit_created ON audit_events(created_at);
-            """)
-
-            # Migration helpers for doctor_profiles columns & CHECK constraint
-            cols = [c["name"] for c in conn.execute("PRAGMA table_info(doctor_profiles)").fetchall()]
-            if "qualification" not in cols:
-                conn.execute("ALTER TABLE doctor_profiles ADD COLUMN qualification TEXT;")
-            if "registration_council" not in cols:
-                conn.execute("ALTER TABLE doctor_profiles ADD COLUMN registration_council TEXT;")
-
-        # Test if RESUBMISSION_REQUIRED is permitted by CHECK constraint in separate transaction
-        needs_migration = False
-        try:
-            with conn:
-                conn.execute("INSERT INTO doctor_profiles (doctor_id, user_id, full_name, specialization, registration_number, verification_status, created_at) VALUES ('__chk_test__', '__chk_test__', 'Test', 'Test', 'REG_TEST', 'RESUBMISSION_REQUIRED', '2026-01-01')")
-                conn.execute("DELETE FROM doctor_profiles WHERE doctor_id = '__chk_test__'")
-        except sqlite3.IntegrityError:
-            needs_migration = True
-
-        if needs_migration:
-            logger.info("Migrating doctor_profiles table schema to support RESUBMISSION_REQUIRED status...")
-            conn.execute("PRAGMA foreign_keys=OFF;")
-            try:
-                conn.execute("DROP TABLE IF EXISTS doctor_credentials_old;")
-                conn.execute("DROP TABLE IF EXISTS doctor_audit_logs_old;")
-                conn.execute("DROP TABLE IF EXISTS doctor_profiles_old;")
-
-                # Backup existing tables
-                conn.execute("CREATE TABLE doctor_credentials_old AS SELECT * FROM doctor_credentials;")
-                conn.execute("CREATE TABLE doctor_audit_logs_old AS SELECT * FROM doctor_audit_logs;")
-                conn.execute("CREATE TABLE doctor_profiles_old AS SELECT * FROM doctor_profiles;")
-
-                conn.execute("DROP TABLE doctor_credentials;")
-                conn.execute("DROP TABLE doctor_audit_logs;")
-                conn.execute("DROP TABLE doctor_profiles;")
-
-                # Recreate clean tables
-                conn.execute("""
-                    CREATE TABLE doctor_profiles (
-                        doctor_id TEXT PRIMARY KEY,
-                        user_id TEXT UNIQUE NOT NULL,
-                        full_name TEXT NOT NULL,
-                        specialization TEXT NOT NULL,
-                        qualification TEXT,
-                        registration_number TEXT NOT NULL,
-                        registration_council TEXT,
-                        experience_years INTEGER NOT NULL DEFAULT 0,
-                        contact_number TEXT,
-                        hospital_affiliation TEXT,
-                        verification_status TEXT NOT NULL DEFAULT 'PENDING' CHECK(verification_status IN ('PENDING', 'UNDER_REVIEW', 'VERIFIED', 'REJECTED', 'RESUBMISSION_REQUIRED', 'SUSPENDED')),
-                        credential_notes TEXT,
-                        created_at TEXT NOT NULL,
-                        FOREIGN KEY(user_id) REFERENCES users(user_id) ON DELETE CASCADE
-                    );
-                """)
-
-                conn.execute("""
-                    CREATE TABLE doctor_credentials (
-                        document_id TEXT PRIMARY KEY,
-                        doctor_id TEXT NOT NULL,
-                        user_id TEXT NOT NULL,
-                        document_type TEXT NOT NULL,
-                        original_filename TEXT NOT NULL,
-                        stored_filename TEXT NOT NULL,
-                        file_path TEXT NOT NULL,
-                        file_size_bytes INTEGER NOT NULL,
-                        mime_type TEXT NOT NULL,
-                        uploaded_at TEXT NOT NULL,
-                        FOREIGN KEY(doctor_id) REFERENCES doctor_profiles(doctor_id) ON DELETE CASCADE,
-                        FOREIGN KEY(user_id) REFERENCES users(user_id) ON DELETE CASCADE
-                    );
-                """)
-
-                conn.execute("""
-                    CREATE TABLE doctor_audit_logs (
-                        log_id TEXT PRIMARY KEY,
-                        doctor_id TEXT NOT NULL,
-                        user_id TEXT NOT NULL,
-                        action TEXT NOT NULL,
-                        old_status TEXT,
-                        new_status TEXT,
-                        actor_user_id TEXT NOT NULL,
-                        actor_role TEXT NOT NULL,
-                        reason TEXT,
-                        timestamp TEXT NOT NULL,
-                        FOREIGN KEY(doctor_id) REFERENCES doctor_profiles(doctor_id) ON DELETE CASCADE
-                    );
-                """)
-
-                # Inspect columns present in doctor_profiles_old
-                old_cols = [c["name"] for c in conn.execute("PRAGMA table_info(doctor_profiles_old)").fetchall()]
-                qual_expr = "qualification" if "qualification" in old_cols else "NULL"
-                council_expr = "registration_council" if "registration_council" in old_cols else "NULL"
-
-                conn.execute(f"""
-                    INSERT INTO doctor_profiles (
-                        doctor_id, user_id, full_name, specialization, qualification, registration_number, registration_council, experience_years, contact_number, hospital_affiliation, verification_status, credential_notes, created_at
-                    ) SELECT doctor_id, user_id, full_name, specialization, {qual_expr}, registration_number, {council_expr}, experience_years, contact_number, hospital_affiliation, verification_status, credential_notes, created_at FROM doctor_profiles_old;
-                """)
-
-                conn.execute("INSERT INTO doctor_credentials SELECT * FROM doctor_credentials_old;")
-                conn.execute("INSERT INTO doctor_audit_logs SELECT * FROM doctor_audit_logs_old;")
-
-                conn.execute("DROP TABLE IF EXISTS doctor_credentials_old;")
-                conn.execute("DROP TABLE IF EXISTS doctor_audit_logs_old;")
-                conn.execute("DROP TABLE IF EXISTS doctor_profiles_old;")
-            finally:
-                conn.execute("PRAGMA foreign_keys=ON;")
-
-        logger.info("Initialized TeleMed database at %s", DB_PATH)
-    finally:
-        conn.close()
+    """Initialize database connection verification on startup."""
+    check_db_connection()
 
 
 def hash_password(password: str, salt: Optional[str] = None) -> Tuple[str, str]:
@@ -437,10 +50,27 @@ def hash_password(password: str, salt: Optional[str] = None) -> Tuple[str, str]:
     return key.hex(), salt
 
 
+def update_user_password(user_id: str, password_hash: str, salt: str) -> None:
+    """Update password hash and salt for given user_id in PostgreSQL 17."""
+    session = SessionLocal()
+    try:
+        u = session.query(pg_models.User).filter_by(user_id=user_id).first()
+        if u:
+            u.password_hash = password_hash
+            u.salt = salt
+            u.updated_at = datetime.datetime.now(datetime.timezone.utc).isoformat()
+            session.commit()
+    except Exception as e:
+        session.rollback()
+        raise e
+    finally:
+        session.close()
+
+
 def verify_password(password: str, password_hash: str, salt: str) -> bool:
-    """Verify raw password against stored PBKDF2 hash."""
-    computed_hash, _ = hash_password(password, salt)
-    return secrets.compare_digest(computed_hash, password_hash)
+    """Verify password against stored PBKDF2 hash and salt."""
+    key, _ = hash_password(password, salt)
+    return secrets.compare_digest(key, password_hash)
 
 
 def create_user(
@@ -449,7 +79,7 @@ def create_user(
     role: str,
     profile_data: Optional[Dict[str, Any]] = None
 ) -> Dict[str, Any]:
-    """Create a new user and corresponding role profile (Patient or Doctor)."""
+    """Create a new user and corresponding role profile (Patient or Doctor) in PostgreSQL 17."""
     if profile_data is None:
         profile_data = {}
     email_clean = email.strip().lower()
@@ -457,96 +87,90 @@ def create_user(
     if role_clean not in ("PATIENT", "DOCTOR", "ADMIN"):
         raise ValueError(f"Invalid role '{role}'. Must be PATIENT, DOCTOR, or ADMIN.")
 
-    conn = get_db_connection()
+    session = SessionLocal()
     try:
-        with conn:
-            # Check if email exists
-            cursor = conn.execute("SELECT user_id FROM users WHERE email = ?", (email_clean,))
-            if cursor.fetchone():
-                raise ValueError("An account with this email address already exists.")
+        existing = session.query(pg_models.User).filter_by(email=email_clean).first()
+        if existing:
+            raise ValueError("An account with this email address already exists.")
 
-            user_id = f"usr_{secrets.token_hex(8)}"
-            pwd_hash, salt = hash_password(password)
-            now = datetime.datetime.now(datetime.timezone.utc).isoformat()
+        user_id = f"usr_{secrets.token_hex(8)}"
+        pwd_hash, salt = hash_password(password)
+        now = datetime.datetime.now(datetime.timezone.utc).isoformat()
 
-            conn.execute(
-                """
-                INSERT INTO users (user_id, email, password_hash, salt, role, created_at, updated_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-                """,
-                (user_id, email_clean, pwd_hash, salt, role_clean, now, now)
+        user = pg_models.User(
+            user_id=user_id,
+            email=email_clean,
+            password_hash=pwd_hash,
+            salt=salt,
+            role=role_clean,
+            created_at=now,
+            updated_at=now
+        )
+        session.add(user)
+
+        if role_clean == "PATIENT":
+            patient_id = f"pat_{secrets.token_hex(8)}"
+            patient = pg_models.PatientProfile(
+                patient_id=patient_id,
+                user_id=user_id,
+                full_name=profile_data.get("full_name", "Anonymous Patient"),
+                age=profile_data.get("age"),
+                gender=profile_data.get("gender"),
+                height_cm=profile_data.get("height_cm"),
+                weight_kg=profile_data.get("weight_kg"),
+                contact_number=profile_data.get("contact_number", ""),
+                created_at=now
             )
+            session.add(patient)
 
-            if role_clean == "PATIENT":
-                patient_id = f"pat_{secrets.token_hex(8)}"
-                conn.execute(
-                    """
-                    INSERT INTO patient_profiles (patient_id, user_id, full_name, age, gender, height_cm, weight_kg, contact_number, created_at)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-                    """,
-                    (
-                        patient_id,
-                        user_id,
-                        profile_data.get("full_name", "Anonymous Patient"),
-                        profile_data.get("age"),
-                        profile_data.get("gender"),
-                        profile_data.get("height_cm"),
-                        profile_data.get("weight_kg"),
-                        profile_data.get("contact_number", ""),
-                        now
-                    )
-                )
+        elif role_clean == "DOCTOR":
+            reg_num = (profile_data.get("registration_number") or profile_data.get("medical_registration_number") or "REG_PENDING").strip()
+            reg_num_clean = reg_num.upper()
+            if reg_num_clean and reg_num_clean != "REG_PENDING":
+                existing_doc = session.query(pg_models.DoctorProfile).filter_by(registration_number=reg_num).first()
+                if existing_doc:
+                    raise ValueError(f"A doctor profile with medical registration number '{reg_num}' already exists.")
 
-            elif role_clean == "DOCTOR":
-                reg_num = (profile_data.get("registration_number") or profile_data.get("medical_registration_number") or "REG_PENDING").strip()
-                reg_num_clean = reg_num.upper()
-                if reg_num_clean and reg_num_clean != "REG_PENDING":
-                    existing = conn.execute(
-                        "SELECT doctor_id FROM doctor_profiles WHERE UPPER(TRIM(registration_number)) = ?",
-                        (reg_num_clean,)
-                    ).fetchone()
-                    if existing:
-                        raise ValueError(f"A doctor profile with medical registration number '{reg_num}' already exists.")
+            doctor_id = f"doc_{secrets.token_hex(8)}"
+            doctor = pg_models.DoctorProfile(
+                doctor_id=doctor_id,
+                user_id=user_id,
+                full_name=profile_data.get("full_name", "Dr. Anonymous"),
+                specialization=profile_data.get("specialization", "General Medicine"),
+                qualification=profile_data.get("qualification", "MBBS"),
+                registration_number=reg_num,
+                registration_council=profile_data.get("registration_council", "State Medical Council"),
+                experience_years=int(profile_data.get("experience_years") or profile_data.get("years_experience") or 0),
+                contact_number=profile_data.get("contact_number", ""),
+                hospital_affiliation=profile_data.get("hospital_affiliation") or profile_data.get("workplace", ""),
+                verification_status="PENDING",
+                credential_notes="Level 4 Doctor Verification System",
+                created_at=now
+            )
+            session.add(doctor)
 
-                doctor_id = f"doc_{secrets.token_hex(8)}"
-                conn.execute(
-                    """
-                    INSERT INTO doctor_profiles (
-                        doctor_id, user_id, full_name, specialization, qualification, registration_number,
-                        registration_council, experience_years, contact_number, hospital_affiliation, verification_status, credential_notes, created_at
-                    )
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDING', ?, ?)
-                    """,
-                    (
-                        doctor_id,
-                        user_id,
-                        profile_data.get("full_name", "Dr. Anonymous"),
-                        profile_data.get("specialization", "General Medicine"),
-                        profile_data.get("qualification", "MBBS"),
-                        reg_num,
-                        profile_data.get("registration_council", "State Medical Council"),
-                        int(profile_data.get("experience_years") or profile_data.get("years_experience") or 0),
-                        profile_data.get("contact_number", ""),
-                        profile_data.get("hospital_affiliation") or profile_data.get("workplace", ""),
-                        "Level 4 Doctor Verification System",
-                        now
-                    )
-                )
+            log_id = f"aud_{secrets.token_hex(6)}"
+            audit_log = pg_models.DoctorAuditLog(
+                log_id=log_id,
+                doctor_id=doctor_id,
+                user_id=user_id,
+                action="CREATED",
+                old_status=None,
+                new_status="PENDING",
+                actor_user_id=user_id,
+                actor_role="DOCTOR",
+                reason="Doctor account registration",
+                timestamp=now
+            )
+            session.add(audit_log)
 
-                # Log initial audit entry
-                log_id = f"aud_{secrets.token_hex(6)}"
-                conn.execute(
-                    """
-                    INSERT INTO doctor_audit_logs (
-                        log_id, doctor_id, user_id, action, old_status, new_status, actor_user_id, actor_role, reason, timestamp
-                    ) VALUES (?, ?, ?, 'CREATED', NULL, 'PENDING', ?, 'DOCTOR', 'Doctor account registration', ?)
-                    """,
-                    (log_id, doctor_id, user_id, user_id, now)
-                )
-
+        session.commit()
         return get_user_by_id(user_id)
+    except Exception as e:
+        session.rollback()
+        raise e
     finally:
-        conn.close()
+        session.close()
 
 
 def bootstrap_admin(
@@ -554,13 +178,13 @@ def bootstrap_admin(
     password: Optional[str] = None,
     full_name: str = "System Administrator"
 ) -> Tuple[bool, str, Optional[Dict[str, Any]]]:
-    """Bootstrap initial admin user if no admin user currently exists."""
+    """Bootstrap initial admin user if no admin user currently exists in PostgreSQL 17."""
     email = email or config.DEMO_ADMIN_EMAIL
     password = password or config.DEMO_ADMIN_PASSWORD
-    conn = get_db_connection()
+    session = SessionLocal()
     try:
-        cursor = conn.execute("SELECT user_id FROM users WHERE role = 'ADMIN'")
-        if cursor.fetchone():
+        existing_admin = session.query(pg_models.User).filter_by(role="ADMIN").first()
+        if existing_admin:
             return False, "Initial admin account already exists. Admin bootstrap mechanism is permanently locked.", None
 
         email_clean = email.strip().lower()
@@ -568,200 +192,216 @@ def bootstrap_admin(
         pwd_hash, salt = hash_password(password)
         now = datetime.datetime.now(datetime.timezone.utc).isoformat()
 
-        with conn:
-            conn.execute(
-                """
-                INSERT INTO users (user_id, email, password_hash, salt, role, created_at, updated_at)
-                VALUES (?, ?, ?, ?, 'ADMIN', ?, ?)
-                """,
-                (user_id, email_clean, pwd_hash, salt, now, now)
-            )
-
+        admin_user = pg_models.User(
+            user_id=user_id,
+            email=email_clean,
+            password_hash=pwd_hash,
+            salt=salt,
+            role="ADMIN",
+            created_at=now,
+            updated_at=now
+        )
+        session.add(admin_user)
+        session.commit()
         logger.info("Bootstrapped initial admin account: %s", email_clean)
-        admin_user = get_user_by_id(user_id)
-        return True, "Admin account successfully bootstrapped.", admin_user
+        return True, "Admin account successfully bootstrapped.", get_user_by_id(user_id)
+    except Exception as e:
+        session.rollback()
+        raise e
     finally:
-        conn.close()
+        session.close()
 
 
 def authenticate_user(email: str, password: str) -> Optional[Dict[str, Any]]:
-    """Authenticate user with email and password."""
+    """Authenticate user with email and password using PostgreSQL 17."""
     email_clean = email.strip().lower()
-    conn = get_db_connection()
+    session = SessionLocal()
     try:
-        cursor = conn.execute(
-            "SELECT user_id, email, password_hash, salt, role FROM users WHERE email = ?",
-            (email_clean,)
-        )
-        row = cursor.fetchone()
-        if not row:
+        u = session.query(pg_models.User).filter_by(email=email_clean).first()
+        if not u:
             return None
-
-        if verify_password(password, row["password_hash"], row["salt"]):
-            return get_user_by_id(row["user_id"])
+        if verify_password(password, u.password_hash, u.salt):
+            return get_user_by_id(u.user_id)
         return None
     finally:
-        conn.close()
+        session.close()
 
 
 def create_auth_session(user_id: str, expiry_seconds: int = 86400) -> str:
-    """Create a new session token for user."""
+    """Create a new session token for user in PostgreSQL 17."""
     token = f"tok_{secrets.token_hex(24)}"
     now_dt = datetime.datetime.now(datetime.timezone.utc)
     exp_dt = now_dt + datetime.timedelta(seconds=expiry_seconds)
-
-    conn = get_db_connection()
+    session = SessionLocal()
     try:
-        with conn:
-            conn.execute(
-                """
-                INSERT INTO auth_sessions (token, user_id, expires_at, created_at)
-                VALUES (?, ?, ?, ?)
-                """,
-                (token, user_id, exp_dt.isoformat(), now_dt.isoformat())
-            )
+        s = pg_models.AuthSession(
+            token=token,
+            user_id=user_id,
+            expires_at=exp_dt.isoformat(),
+            created_at=now_dt.isoformat()
+        )
+        session.add(s)
+        session.commit()
         return token
+    except Exception as e:
+        session.rollback()
+        raise e
     finally:
-        conn.close()
+        session.close()
 
 
 def get_user_by_session_token(token: str) -> Optional[Dict[str, Any]]:
-    """Retrieve active user associated with session token."""
-    conn = get_db_connection()
+    """Retrieve active user associated with session token in PostgreSQL 17."""
+    session = SessionLocal()
     try:
-        cursor = conn.execute(
-            """
-            SELECT s.token, s.expires_at, u.user_id, u.email, u.role
-            FROM auth_sessions s
-            JOIN users u ON s.user_id = u.user_id
-            WHERE s.token = ?
-            """,
-            (token,)
-        )
-        row = cursor.fetchone()
-        if not row:
+        s = session.query(pg_models.AuthSession).filter_by(token=token).first()
+        if not s:
             return None
-
-        exp_dt = datetime.datetime.fromisoformat(row["expires_at"])
-        if datetime.datetime.now(datetime.timezone.utc) > exp_dt:
-            # Session expired
-            delete_auth_session(token)
-            return None
-
-        return get_user_by_id(row["user_id"])
+        try:
+            exp_dt = datetime.datetime.fromisoformat(s.expires_at)
+            if datetime.datetime.now(datetime.timezone.utc) > exp_dt:
+                delete_auth_session(token)
+                return None
+        except Exception:
+            pass
+        return get_user_by_id(s.user_id)
     finally:
-        conn.close()
+        session.close()
 
 
 def delete_auth_session(token: str) -> None:
-    """Delete session token."""
-    conn = get_db_connection()
+    """Delete session token in PostgreSQL 17."""
+    session = SessionLocal()
     try:
-        with conn:
-            conn.execute("DELETE FROM auth_sessions WHERE token = ?", (token,))
+        session.query(pg_models.AuthSession).filter_by(token=token).delete()
+        session.commit()
+    except Exception as e:
+        session.rollback()
     finally:
-        conn.close()
+        session.close()
 
 
 def get_user_by_id(user_id: str) -> Optional[Dict[str, Any]]:
-    """Fetch complete user profile by user_id."""
-    conn = get_db_connection()
+    """Fetch complete user profile by user_id from PostgreSQL 17."""
+    session = SessionLocal()
     try:
-        cursor = conn.execute(
-            "SELECT user_id, email, role, created_at, updated_at FROM users WHERE user_id = ?",
-            (user_id,)
-        )
-        u_row = cursor.fetchone()
-        if not u_row:
+        u = session.query(pg_models.User).filter_by(user_id=user_id).first()
+        if not u:
             return None
 
-        user_dict = dict(u_row)
-        role = user_dict["role"]
+        user_dict = {
+            "user_id": u.user_id,
+            "email": u.email,
+            "role": u.role,
+            "created_at": u.created_at,
+            "updated_at": u.updated_at
+        }
+        role = u.role
 
         if role == "PATIENT":
-            p_cursor = conn.execute(
-                "SELECT * FROM patient_profiles WHERE user_id = ?",
-                (user_id,)
-            )
-            p_row = p_cursor.fetchone()
-            user_dict["patient_profile"] = dict(p_row) if p_row else None
-            user_dict["full_name"] = user_dict["patient_profile"].get("full_name") if user_dict["patient_profile"] else "Patient"
+            p = session.query(pg_models.PatientProfile).filter_by(user_id=user_id).first()
+            if p:
+                user_dict["patient_profile"] = {
+                    "patient_id": p.patient_id,
+                    "user_id": p.user_id,
+                    "full_name": p.full_name,
+                    "age": p.age,
+                    "gender": p.gender,
+                    "height_cm": p.height_cm,
+                    "weight_kg": p.weight_kg,
+                    "contact_number": p.contact_number,
+                    "created_at": p.created_at
+                }
+                user_dict["full_name"] = p.full_name
+            else:
+                user_dict["patient_profile"] = None
+                user_dict["full_name"] = "Patient"
 
         elif role == "DOCTOR":
-            d_cursor = conn.execute(
-                "SELECT * FROM doctor_profiles WHERE user_id = ?",
-                (user_id,)
-            )
-            d_row = d_cursor.fetchone()
-            if not d_row:
-                doc_id = f"doc_{secrets.token_hex(8)}"
-                now = datetime.datetime.now(datetime.timezone.utc).isoformat()
-                email_prefix = user_row["email"].split("@")[0].capitalize()
-                conn.execute(
-                    """
-                    INSERT INTO doctor_profiles (
-                        doctor_id, user_id, full_name, specialization, qualification, registration_number,
-                        registration_council, experience_years, contact_number, hospital_affiliation, verification_status, credential_notes, created_at
-                    )
-                    VALUES (?, ?, ?, 'General Medicine', 'MBBS', 'REG_PENDING', 'State Medical Council', 0, '', '', 'PENDING', 'Auto-recovered doctor profile', ?)
-                    """,
-                    (doc_id, user_id, f"Dr. {email_prefix}", now)
-                )
-                conn.commit()
-                d_row = conn.execute("SELECT * FROM doctor_profiles WHERE user_id = ?", (user_id,)).fetchone()
-
-            user_dict["doctor_profile"] = dict(d_row) if d_row else None
-            user_dict["full_name"] = user_dict["doctor_profile"].get("full_name") if user_dict["doctor_profile"] else "Doctor"
-
-        elif role == "ADMIN":
-            user_dict["full_name"] = "System Administrator"
+            d = session.query(pg_models.DoctorProfile).filter_by(user_id=user_id).first()
+            if d:
+                user_dict["doctor_profile"] = {
+                    "doctor_id": d.doctor_id,
+                    "user_id": d.user_id,
+                    "full_name": d.full_name,
+                    "specialization": d.specialization,
+                    "qualification": d.qualification,
+                    "registration_number": d.registration_number,
+                    "registration_council": d.registration_council,
+                    "experience_years": d.experience_years,
+                    "contact_number": d.contact_number,
+                    "hospital_affiliation": d.hospital_affiliation,
+                    "verification_status": d.verification_status,
+                    "credential_notes": d.credential_notes,
+                    "created_at": d.created_at
+                }
+                user_dict["full_name"] = d.full_name
+            else:
+                user_dict["doctor_profile"] = None
+                user_dict["full_name"] = "Doctor"
+        else:
+            user_dict["full_name"] = "Administrator"
 
         return user_dict
     finally:
-        conn.close()
+        session.close()
+
+
+def get_user_by_email(email: str) -> Optional[Dict[str, Any]]:
+    """Fetch user profile by email address from PostgreSQL 17."""
+    email_clean = email.strip().lower()
+    session = SessionLocal()
+    try:
+        u = session.query(pg_models.User).filter_by(email=email_clean).first()
+        if not u:
+            return None
+        return get_user_by_id(u.user_id)
+    finally:
+        session.close()
 
 
 def list_users(role: Optional[str] = None, search: Optional[str] = None) -> List[Dict[str, Any]]:
-    """List users with optional role filtering and search (name/email)."""
-    conn = get_db_connection()
+    """List users with optional role filtering and search (name/email) from PostgreSQL 17."""
+    session = SessionLocal()
     try:
-        sql = "SELECT user_id FROM users WHERE 1=1"
-        params = []
+        query = session.query(pg_models.User)
         if role and role.upper() != "ALL":
-            sql += " AND role = ?"
-            params.append(role.upper())
+            query = query.filter(pg_models.User.role == role.upper())
         if search and search.strip():
-            sql += " AND UPPER(email) LIKE ?"
-            params.append(f"%{search.strip().upper()}%")
-        sql += " ORDER BY created_at DESC"
-        
-        rows = conn.execute(sql, params).fetchall()
-        users = [get_user_by_id(r["user_id"]) for r in rows if r["user_id"]]
-        
+            s_clean = f"%{search.strip().lower()}%"
+            query = query.filter(pg_models.User.email.ilike(s_clean))
+
+        users_list = query.order_by(pg_models.User.created_at.desc()).all()
+        res = []
+        for u in users_list:
+            ud = get_user_by_id(u.user_id)
+            if ud:
+                res.append(ud)
         if search and search.strip():
-            s_clean = search.strip().upper()
-            users = [u for u in users if s_clean in (u.get("email") or "").upper() or s_clean in (u.get("full_name") or "").upper()]
-            
-        return users
+            s_upper = search.strip().upper()
+            res = [u for u in res if s_upper in (u.get("email") or "").upper() or s_upper in (u.get("full_name") or "").upper()]
+        return res
     finally:
-        conn.close()
+        session.close()
 
 
 def list_doctors(status: Optional[str] = None) -> List[Dict[str, Any]]:
-    """List doctor accounts and their verification status."""
-    conn = get_db_connection()
+    """List doctor accounts and their verification status from PostgreSQL 17."""
+    session = SessionLocal()
     try:
+        query = session.query(pg_models.DoctorProfile)
         if status:
-            cursor = conn.execute(
-                "SELECT user_id FROM doctor_profiles WHERE verification_status = ? ORDER BY created_at DESC",
-                (status.upper(),)
-            )
-        else:
-            cursor = conn.execute("SELECT user_id FROM doctor_profiles ORDER BY created_at DESC")
-        rows = cursor.fetchall()
-        return [get_user_by_id(r["user_id"]) for r in rows if r["user_id"]]
+            query = query.filter(pg_models.DoctorProfile.verification_status == status.upper())
+        docs = query.order_by(pg_models.DoctorProfile.created_at.desc()).all()
+        res = []
+        for d in docs:
+            ud = get_user_by_id(d.user_id)
+            if ud:
+                res.append(ud)
+        return res
     finally:
-        conn.close()
+        session.close()
+
 
 
 def update_doctor_status(
@@ -980,8 +620,8 @@ def update_doctor_profile(user_id: str, updates: Dict[str, Any]) -> Dict[str, An
     finally:
         conn.close()
 
-def _format_record_row(row: sqlite3.Row) -> Dict[str, Any]:
-    """Helper to convert sqlite3.Row for a health record into a formatted dict."""
+def _format_record_row(row: Any) -> Dict[str, Any]:
+    """Helper to convert a health record row into a formatted dict."""
     d = dict(row)
     for json_col in ["active_modalities", "confirmed_features", "prediction_snapshot", "xai_snapshot", "report_snapshot"]:
         if d.get(json_col):
@@ -2275,7 +1915,7 @@ def create_notification(
     title: str,
     message: str,
     link_nav: str = "",
-    conn: Optional[sqlite3.Connection] = None
+    conn: Optional[Any] = None
 ) -> Dict[str, Any]:
     """Create a persistent in-app notification for a recipient user."""
     should_close = False
@@ -2744,57 +2384,58 @@ def log_audit_event(
     resource_id: str = "",
     outcome: str = "SUCCESS",
     context: Optional[Dict[str, Any]] = None,
-    conn: Optional[sqlite3.Connection] = None
+    conn: Optional[Any] = None
 ) -> Dict[str, Any]:
-    """
-    Append an immutable audit event to the append-only ledger with SHA-256 hash chaining.
-    Strips passwords, salts, tokens, and secrets from context payload automatically.
-    """
-    from .security import scrub_sensitive_data
-    safe_context = scrub_sensitive_data(context or {})
-
-    close_conn = False
-    if conn is None:
-        conn = get_db_connection()
-        close_conn = True
-
+    """Append an immutable audit event to PostgreSQL 17."""
     try:
-        with conn:
-            # Fetch previous event's hash for hash chaining
-            last_row = conn.execute("SELECT event_hash FROM audit_events ORDER BY rowid DESC LIMIT 1").fetchone()
-            prev_hash = last_row["event_hash"] if last_row else "0000000000000000000000000000000000000000000000000000000000000000"
+        from .security import scrub_sensitive_data
+        safe_context = scrub_sensitive_data(context or {})
+    except Exception:
+        safe_context = context or {}
 
-            event_id = f"aud_{secrets.token_hex(8)}"
-            now = datetime.datetime.now(datetime.timezone.utc).isoformat()
-            context_str = json.dumps(safe_context)
+    event_id = f"aud_{secrets.token_hex(8)}"
+    now = datetime.datetime.now(datetime.timezone.utc).isoformat()
+    context_str = json.dumps(safe_context)
 
-            event_hash = compute_event_hash(
-                event_id, actor_user_id, action, resource_type, resource_id, outcome, now, prev_hash
-            )
+    session = SessionLocal()
+    try:
+        last_evt = session.query(pg_models.AuditEvent).order_by(pg_models.AuditEvent.created_at.desc()).first()
+        prev_hash = last_evt.event_hash if (last_evt and hasattr(last_evt, 'event_hash') and last_evt.event_hash) else "0000000000000000000000000000000000000000000000000000000000000000"
+        event_hash = compute_event_hash(
+            event_id, actor_user_id, action, resource_type, resource_id, outcome, now, prev_hash
+        )
 
-            conn.execute("""
-                INSERT INTO audit_events (
-                    event_id, actor_user_id, role, action, resource_type, resource_id,
-                    outcome, context_json, prev_hash, event_hash, created_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """, (
-                event_id, actor_user_id, role, action, resource_type, resource_id,
-                outcome, context_str, prev_hash, event_hash, now
-            ))
-
-            return {
-                "event_id": event_id,
-                "actor_user_id": actor_user_id,
-                "role": role,
-                "action": action,
-                "resource_type": resource_type,
-                "resource_id": resource_id,
-                "outcome": outcome,
-                "created_at": now
-            }
+        evt = pg_models.AuditEvent(
+            event_id=event_id,
+            actor_user_id=actor_user_id,
+            role=role,
+            action=action,
+            resource_type=resource_type,
+            resource_id=resource_id,
+            outcome=outcome,
+            context_json=context_str,
+            prev_hash=prev_hash,
+            event_hash=event_hash,
+            created_at=now
+        )
+        session.add(evt)
+        session.commit()
+        return {
+            "event_id": event_id,
+            "actor_user_id": actor_user_id,
+            "role": role,
+            "action": action,
+            "resource_type": resource_type,
+            "resource_id": resource_id,
+            "outcome": outcome,
+            "created_at": now
+        }
+    except Exception as e:
+        session.rollback()
+        return {}
     finally:
-        if close_conn:
-            conn.close()
+        session.close()
+
 
 
 def get_patient_access_history(patient_user_id: str) -> List[Dict[str, Any]]:

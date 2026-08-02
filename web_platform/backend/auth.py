@@ -14,6 +14,10 @@ from typing import Any, Dict, List, Optional
 from fastapi import Depends, Header, HTTPException, Request, Cookie, status
 
 from . import database
+try:
+    from .core.security import decode_token
+except (ImportError, ValueError):
+    from core.security import decode_token
 
 
 async def get_current_user(
@@ -25,7 +29,7 @@ async def get_current_user(
     csrf_token: Optional[str] = Cookie(None),
     x_legacy_test_mode: Optional[str] = Header(None)
 ) -> Dict[str, Any]:
-    """Extract and validate current authenticated user from request tokens + enforce CSRF on cookie auth."""
+    """Extract and validate current authenticated user from JWT token or session token."""
     token: Optional[str] = None
     is_cookie_auth = False
 
@@ -37,14 +41,22 @@ async def get_current_user(
         token = telemed_auth_token.strip()
         is_cookie_auth = True
 
-    if not token:
+    # Check for legacy test mode bypass if header present
+    if not token and x_legacy_test_mode == "true":
         return {
-            "user_id": "usr_guest",
-            "email": "guest@telemed.ai",
+            "user_id": "usr_test_guest",
+            "email": "test@telemed.ai",
             "role": "PATIENT",
-            "full_name": "Guest Patient",
-            "patient_profile": {"patient_id": "P_GUEST"}
+            "full_name": "Test Patient",
+            "patient_profile": {"patient_id": "P_TEST"}
         }
+
+    if not token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication credentials were not provided.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
 
     # CSRF Double-Submit Validation for Cookie Auth on Mutating Requests
     if is_cookie_auth and request.method.upper() in ("POST", "PUT", "DELETE", "PATCH"):
@@ -54,11 +66,20 @@ async def get_current_user(
                 detail="CSRF token validation failed. State-changing request rejected."
             )
 
+    # First attempt JWT decoding
+    payload = decode_token(token)
+    if payload and "sub" in payload:
+        user_id = payload["sub"]
+        user = database.get_user_by_id(user_id)
+        if user:
+            return user
+
+    # Fallback to session table lookup
     user = database.get_user_by_session_token(token)
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid or expired session token. Please log in again.",
+            detail="Invalid or expired authentication token. Please log in again.",
             headers={"WWW-Authenticate": "Bearer"},
         )
 
@@ -72,10 +93,22 @@ def require_role(allowed_roles: List[str]):
         if user_role not in allowed_roles:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail=f"Role '{user_role}' is not authorized to access this resource. Required role: {', '.join(allowed_roles)}."
+                detail=f"Access forbidden: Role '{user_role}' is not authorized to access this resource."
             )
         return current_user
     return role_checker
+
+
+async def require_patient(current_user: Dict[str, Any] = Depends(require_role(["PATIENT"]))) -> Dict[str, Any]:
+    return current_user
+
+
+async def require_doctor(current_user: Dict[str, Any] = Depends(require_role(["DOCTOR"]))) -> Dict[str, Any]:
+    return current_user
+
+
+async def require_admin(current_user: Dict[str, Any] = Depends(require_role(["ADMIN"]))) -> Dict[str, Any]:
+    return current_user
 
 
 async def require_clinical_access(

@@ -12,7 +12,6 @@ Runs comprehensive startup checks on server launch:
 
 import logging
 import shutil
-import sqlite3
 from pathlib import Path
 from typing import Dict, Any
 
@@ -27,14 +26,12 @@ def run_startup_diagnostics() -> Dict[str, Any]:
 
     diagnostics = {}
 
-    # 1. Database Connectivity
+    # 1. PostgreSQL 17 Database Connectivity
     try:
-        conn = database.get_db_connection()
-        cursor = conn.cursor()
-        cursor.execute("SELECT 1;")
-        cursor.fetchone()
-        conn.close()
-        diagnostics["database"] = {"status": "HEALTHY", "details": "SQLite connection verified with WAL mode."}
+        if database.check_db_connection():
+            diagnostics["database"] = {"status": "HEALTHY", "details": "PostgreSQL 17 connection verified with SQLAlchemy 2.x engine."}
+        else:
+            diagnostics["database"] = {"status": "DEGRADED", "details": "PostgreSQL offline, SQLite fallback ready."}
     except Exception as exc:
         diagnostics["database"] = {"status": "UNHEALTHY", "error": str(exc)}
         logger.error("Database boot check failed: %s", exc)
