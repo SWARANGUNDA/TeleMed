@@ -122,8 +122,10 @@ def register_patient(req: PatientRegisterRequest, response: Response):
         }
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
-    except Exception:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Registration failed. Please try again.")
+    except Exception as e:
+        import traceback, logging
+        logging.getLogger(__name__).error("PATIENT REGISTRATION EXCEPTION: %s\n%s", e, traceback.format_exc())
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Registration failed: {type(e).__name__}: {e}")
 
 
 @router.post("/register/doctor", status_code=status.HTTP_201_CREATED)
@@ -153,8 +155,10 @@ def register_doctor(req: DoctorRegisterRequest, response: Response):
         }
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
-    except Exception:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Registration failed. Please try again.")
+    except Exception as e:
+        import traceback, logging
+        logging.getLogger(__name__).error("DOCTOR REGISTRATION EXCEPTION: %s\n%s", e, traceback.format_exc())
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Registration failed: {type(e).__name__}: {e}")
 
 
 try:

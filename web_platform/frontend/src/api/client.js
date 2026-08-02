@@ -3,7 +3,9 @@
  * Handles Authentication, RBAC, Admin Management, and v3.3 Multimodal Analysis.
  */
 
-const API_BASE = '/api/v1';
+const API_BASE = (typeof window !== 'undefined' && (window.location.port === '5173' || window.location.port === '5174'))
+  ? 'http://localhost:8000/api/v1'
+  : '/api/v1';
 
 export function getCsrfToken() {
   try {
