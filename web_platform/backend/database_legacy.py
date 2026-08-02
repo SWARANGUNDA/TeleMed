@@ -259,6 +259,8 @@ def get_user_by_session_token(token: str) -> Optional[Dict[str, Any]]:
             return None
         try:
             exp_dt = datetime.datetime.fromisoformat(s.expires_at)
+            if exp_dt.tzinfo is None:
+                exp_dt = exp_dt.replace(tzinfo=datetime.timezone.utc)
             if datetime.datetime.now(datetime.timezone.utc) > exp_dt:
                 delete_auth_session(token)
                 return None
