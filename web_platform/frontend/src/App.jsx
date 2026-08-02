@@ -1,0 +1,611 @@
+import React, { useState, useEffect, lazy, Suspense } from 'react';
+import { Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom';
+import { AlertCircle, RefreshCw } from 'lucide-react';
+import { Layout } from './components/layout/Layout';
+import AuthModal from './components/AuthModal';
+import ErrorBoundary from './components/ErrorBoundary';
+import ProtectedRoute from './components/ProtectedRoute';
+import GuidedDemoBar from './components/GuidedDemoBar';
+import AssessmentComparisonModal from './components/AssessmentComparisonModal';
+import useTheme from './utils/useTheme';
+import { predictV3, fetchXAIV3, analyzePredictions, confirmFeatures, getCurrentUser, logoutUser } from './api/client';
+
+// Lazy-loaded pages (code split per route)
+const DashboardPage = lazy(() => import('./pages/DashboardPage'));
+const IntakePage = lazy(() => import('./pages/IntakePage'));
+
+// Lazy-loaded secondary & role-specific pages
+const XAIPage = lazy(() => import('./pages/XAIPage'));
+const ReportPage = lazy(() => import('./pages/ReportPage'));
+const HealthRecordsPage = lazy(() => import('./pages/HealthRecordsPage'));
+const CarePage = lazy(() => import('./pages/CarePage'));
+const AccountPage = lazy(() => import('./pages/AccountPage'));
+const DoctorDashboardPage = lazy(() => import('./pages/DoctorDashboardPage'));
+const DoctorVerificationPage = lazy(() => import('./pages/DoctorVerificationPage'));
+const AdminDashboardPage = lazy(() => import('./pages/AdminDashboardPage'));
+const AdminDoctorVerificationPage = lazy(() => import('./pages/AdminDoctorVerificationPage'));
+const AdminUsersPage = lazy(() => import('./pages/AdminUsersPage'));
+const AdminSystemPage = lazy(() => import('./pages/AdminSystemPage'));
+const AdminAuditPage = lazy(() => import('./pages/AdminAuditPage'));
+const PatientPrivacyPage = lazy(() => import('./pages/PatientPrivacyPage'));
+const ConsultationWorkspacePage = lazy(() => import('./pages/ConsultationWorkspacePage'));
+const AdminConsultationManagementPage = lazy(() => import('./pages/AdminConsultationManagementPage'));
+const AppointmentsPage = lazy(() => import('./pages/AppointmentsPage'));
+const PlaceholderPage = lazy(() => import('./pages/PlaceholderPage'));
+
+function PageSkeleton() {
+  return (
+    <div className="page-container" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '60vh' }}>
+      <div className="glass-card" style={{ padding: '36px 48px', textAlign: 'center' }}>
+        <RefreshCw size={32} className="spin" style={{ color: 'var(--accent-cyan)', marginBottom: '12px' }} />
+        <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', margin: 0 }}>Loading page module...</p>
+      </div>
+    </div>
+  );
+}
+
+export function getNavFromPath(path, role) {
+  switch (path) {
+    case '/intake':
+      return { activeNav: 'analysis', activeSubNav: 'new_analysis' };
+    case '/xai':
+      return { activeNav: 'results', activeSubNav: 'xai' };
+    case '/report':
+      return { activeNav: 'results', activeSubNav: 'report' };
+    case '/records':
+      return { activeNav: 'records', activeSubNav: 'reports_history' };
+    case '/consultations':
+      return { activeNav: 'consultations', activeSubNav: '' };
+    case '/appointments':
+      return { activeNav: 'appointments', activeSubNav: '' };
+    case '/care':
+      return { activeNav: 'care', activeSubNav: '' };
+    case '/privacy':
+      return { activeNav: 'patient_privacy', activeSubNav: '' };
+    case '/account':
+      return { activeNav: 'account', activeSubNav: 'settings' };
+    case '/doctor/verification':
+      return { activeNav: 'verification', activeSubNav: '' };
+    case '/doctor/dashboard':
+      return { activeNav: 'dashboard', activeSubNav: '' };
+    case '/doctor/consultations':
+      return { activeNav: 'assigned_patients', activeSubNav: '' };
+    case '/admin/dashboard':
+      return { activeNav: 'admin_dashboard', activeSubNav: '' };
+    case '/admin/doctors':
+      return { activeNav: 'admin_verification', activeSubNav: '' };
+    case '/admin/consultations':
+      return { activeNav: 'admin_assignments', activeSubNav: '' };
+    case '/admin/users':
+      return { activeNav: 'admin_users', activeSubNav: '' };
+    case '/admin/system':
+      return { activeNav: 'admin_system', activeSubNav: '' };
+    case '/admin/audit':
+      return { activeNav: 'admin_audit', activeSubNav: '' };
+    case '/dashboard':
+    case '/':
+    default:
+      if (role === 'ADMIN') return { activeNav: 'admin_dashboard', activeSubNav: '' };
+      if (role === 'DOCTOR') return { activeNav: 'dashboard', activeSubNav: '' };
+      return { activeNav: 'dashboard', activeSubNav: '' };
+  }
+}
+
+export function getPathFromNav(primaryNav, subNav, role) {
+  if (primaryNav === 'analysis') return '/intake';
+  if (primaryNav === 'results') {
+    if (subNav === 'xai') return '/xai';
+    if (subNav === 'report') return '/report';
+    return '/dashboard';
+  }
+  if (primaryNav === 'records') return '/records';
+  if (primaryNav === 'consultations') return '/consultations';
+  if (primaryNav === 'appointments') return '/appointments';
+  if (primaryNav === 'care') return '/care';
+  if (primaryNav === 'patient_privacy') return '/privacy';
+  if (primaryNav === 'account') return '/account';
+  if (primaryNav === 'verification') return '/doctor/verification';
+  if (primaryNav === 'assigned_patients') return '/doctor/consultations';
+  if (primaryNav === 'admin_dashboard') return '/admin/dashboard';
+  if (primaryNav === 'admin_verification') return '/admin/doctors';
+  if (primaryNav === 'admin_assignments') return '/admin/consultations';
+  if (primaryNav === 'admin_users') return '/admin/users';
+  if (primaryNav === 'admin_system') return '/admin/system';
+  if (primaryNav === 'admin_audit') return '/admin/audit';
+  if (primaryNav === 'dashboard') {
+    if (role === 'ADMIN') return '/admin/dashboard';
+    if (role === 'DOCTOR') return '/doctor/dashboard';
+    return '/dashboard';
+  }
+  return '/dashboard';
+}
+
+export default function App() {
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  const { themeMode, setThemeMode } = useTheme();
+  const [currentUser, setCurrentUser] = useState(null);
+  const [authChecking, setAuthChecking] = useState(true);
+  const [isDemoActive, setIsDemoActive] = useState(true);
+  const [isComparisonOpen, setIsComparisonOpen] = useState(false);
+
+  const refreshCurrentUser = async () => {
+    try {
+      const user = await getCurrentUser();
+      if (user) {
+        setCurrentUser(user);
+      }
+    } catch (e) {}
+  };
+
+  // Check active user session on startup
+  useEffect(() => {
+    async function checkAuth() {
+      try {
+        const user = await getCurrentUser();
+        if (user) {
+          setCurrentUser(user);
+        }
+      } catch (e) {
+        setCurrentUser(null);
+      } finally {
+        setAuthChecking(false);
+      }
+    }
+    checkAuth();
+  }, []);
+
+  // Listen for user profile/verification update & session-expired events
+  useEffect(() => {
+    const handleSessionExpired = () => {
+      setCurrentUser(null);
+      navigate('/');
+      window._telemedSessionExpired = false;
+    };
+    const handleUserUpdated = () => {
+      refreshCurrentUser();
+    };
+
+    window.addEventListener('telemed:session-expired', handleSessionExpired);
+    window.addEventListener('telemed:user-updated', handleUserUpdated);
+    return () => {
+      window.removeEventListener('telemed:session-expired', handleSessionExpired);
+      window.removeEventListener('telemed:user-updated', handleUserUpdated);
+    };
+  }, [navigate]);
+
+  const [session, setSession] = useState(() => {
+    try {
+      const saved = sessionStorage.getItem('telemed_session');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed?.v3_payload?.pipeline_version && parsed.v3_payload.pipeline_version !== 'v3.3') {
+          sessionStorage.clear();
+          return null;
+        }
+        return parsed;
+      }
+      return null;
+    } catch (e) {
+      return null;
+    }
+  });
+
+  const [predictionData, setPredictionData] = useState(() => {
+    try {
+      const saved = sessionStorage.getItem('telemed_pred');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed?.pipeline_version && parsed.pipeline_version !== 'v3.3') {
+          sessionStorage.removeItem('telemed_pred');
+          return null;
+        }
+        return parsed;
+      }
+      return null;
+    } catch (e) {
+      return null;
+    }
+  });
+
+  const [xaiData, setXaiData] = useState(() => {
+    try {
+      const saved = sessionStorage.getItem('telemed_xai');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed?.pipeline_version && parsed.pipeline_version !== 'v3.3') {
+          sessionStorage.removeItem('telemed_xai');
+          return null;
+        }
+        return parsed;
+      }
+      return null;
+    } catch (e) {
+      return null;
+    }
+  });
+
+  const [selectedDiseaseForXAI, setSelectedDiseaseForXAI] = useState('Type2_Diabetes');
+  const [guardNotice, setGuardNotice] = useState(null);
+  const [consultationContext, setConsultationContext] = useState(null);
+
+  const currentState = session?.status || 'CREATED';
+  const isPredictionComplete = ['ANALYZED', 'XAI_READY', 'REPORT_READY'].includes(currentState) || Boolean(predictionData);
+
+  const { activeNav, activeSubNav } = getNavFromPath(location.pathname, currentUser?.role);
+
+  // Sync state to sessionStorage
+  useEffect(() => {
+    try {
+      if (session) sessionStorage.setItem('telemed_session', JSON.stringify(session));
+      else sessionStorage.removeItem('telemed_session');
+    } catch (e) {}
+  }, [session]);
+
+  useEffect(() => {
+    try {
+      if (predictionData) sessionStorage.setItem('telemed_pred', JSON.stringify(predictionData));
+      else sessionStorage.removeItem('telemed_pred');
+    } catch (e) {}
+  }, [predictionData]);
+
+  useEffect(() => {
+    try {
+      if (xaiData) sessionStorage.setItem('telemed_xai', JSON.stringify(xaiData));
+      else sessionStorage.removeItem('telemed_xai');
+    } catch (e) {}
+  }, [xaiData]);
+
+  const handleLoginSuccess = (user) => {
+    setCurrentUser(user);
+    const targetPath = getPathFromNav('dashboard', '', user.role);
+    navigate(targetPath);
+  };
+
+  const handleLogout = async () => {
+    await logoutUser();
+    setCurrentUser(null);
+    setSession(null);
+    setPredictionData(null);
+    setXaiData(null);
+    sessionStorage.clear();
+    localStorage.clear();
+    navigate('/');
+  };
+
+  const handleNavigate = (primaryNav, subNav = '') => {
+    if (primaryNav === 'results' && !isPredictionComplete) {
+      setGuardNotice('Complete patient data intake and run prediction first before viewing AI Results.');
+      navigate('/intake');
+      return;
+    }
+    setGuardNotice(null);
+    const targetPath = getPathFromNav(primaryNav, subNav, currentUser?.role);
+    navigate(targetPath);
+  };
+
+  const handleDiscussWithDoctor = (initialTopic = '') => {
+    setConsultationContext({ initialTopic });
+    handleNavigate('consultations');
+  };
+
+  const handleStartAnalysis = () => {
+    handleNavigate('analysis', 'new_analysis');
+  };
+
+  const handleAnalysisComplete = async (payloadData) => {
+    try {
+      const confirmed = payloadData?.confirmed_features || session?.confirmed_features || {};
+      const sid = payloadData?.session_id || session?.session_id;
+
+      if (sid && sid.startsWith('sess_')) {
+        try {
+          await confirmFeatures(sid, confirmed);
+          await analyzePredictions(sid);
+        } catch (e) {
+          console.warn('V1 prediction analysis non-blocking warning:', e);
+        }
+      }
+
+      const v3Payload = {
+        patient_id: payloadData?.patient_id || sid || 'P_USER_001',
+        clinical_data: payloadData?.clinical_data || payloadData?.clinical || confirmed.clinical || null,
+        wearable_data: payloadData?.wearable_data || payloadData?.wearable || confirmed.wearable || null,
+        gut_data: payloadData?.gut_data || payloadData?.gut || confirmed.gut || null,
+      };
+
+      const pred = await predictV3(v3Payload);
+      setPredictionData(pred);
+      setSession((prev) => ({
+        ...prev,
+        session_id: v3Payload.patient_id,
+        confirmed_features: confirmed,
+        active_modalities: pred.active_modalities || pred.routing_metadata?.modalities_supplied || [],
+        effective_pathway: pred.pathway_used || pred.routing_metadata?.effective_pathway || 'C',
+        v3_payload: v3Payload,
+        status: 'ANALYZED'
+      }));
+
+      const xai = await fetchXAIV3(v3Payload, 'Type2_Diabetes');
+      setXaiData(xai);
+      setSession((prev) => ({ ...prev, status: 'XAI_READY' }));
+
+      setGuardNotice(null);
+      navigate('/dashboard');
+    } catch (err) {
+      setGuardNotice(`v3 Analysis Error: ${err.message || 'Pipeline execution failed'}`);
+    }
+  };
+
+  const handleInvalidateDownstream = () => {
+    setPredictionData(null);
+    setXaiData(null);
+    try {
+      sessionStorage.removeItem('telemed_pred');
+      sessionStorage.removeItem('telemed_xai');
+    } catch (e) {}
+  };
+
+  const handleResetSession = () => {
+    setSession(null);
+    setPredictionData(null);
+    setXaiData(null);
+    setGuardNotice(null);
+    try {
+      sessionStorage.clear();
+    } catch (e) {}
+    navigate('/intake');
+  };
+
+  if (authChecking) {
+    return (
+      <div style={{
+        minHeight: '100vh',
+        background: '#0f172a',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        color: '#64748b',
+        fontFamily: 'Inter, sans-serif'
+      }}>
+        Initializing TeleMed AI RBAC Engine...
+      </div>
+    );
+  }
+
+  // If user is not logged in, render Auth View
+  if (!currentUser) {
+    return <AuthModal onLoginSuccess={handleLoginSuccess} />;
+  }
+
+  const defaultRoleDashboard =
+    currentUser.role === 'ADMIN'
+      ? '/admin/dashboard'
+      : currentUser.role === 'DOCTOR'
+      ? '/doctor/dashboard'
+      : '/dashboard';
+
+  return (
+    <Layout
+      user={currentUser}
+      onLogout={handleLogout}
+      onToggleTheme={() => setThemeMode(themeMode === 'dark' ? 'light' : 'dark')}
+      theme={themeMode}
+    >
+      {/* Guided Demo Progress Bar */}
+      <GuidedDemoBar
+        isDemoActive={isDemoActive}
+        onToggleDemo={() => setIsDemoActive(false)}
+      />
+
+      {/* Assessment Comparison Modal */}
+      <AssessmentComparisonModal
+        isOpen={isComparisonOpen}
+        onClose={() => setIsComparisonOpen(false)}
+        currentSession={session}
+        historicalSession={null}
+      />
+
+      {guardNotice && (
+        <div style={{
+          background: 'rgba(245, 158, 11, 0.12)',
+          borderBottom: '1px solid rgba(245, 158, 11, 0.3)',
+          padding: '12px 24px',
+          color: 'var(--accent-amber)',
+          fontSize: '0.875rem',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: '10px',
+          borderRadius: '12px',
+          marginBottom: '16px'
+        }}>
+          <AlertCircle size={18} style={{ flexShrink: 0 }} />
+          <span><strong>Navigation Guard:</strong> {guardNotice}</span>
+        </div>
+      )}
+
+      <ErrorBoundary key={location.pathname} onReset={() => navigate(defaultRoleDashboard)}>
+        <Suspense fallback={<PageSkeleton />}>
+          <Routes>
+            {/* ROOT ROUTE */}
+            <Route path="/" element={<Navigate to={defaultRoleDashboard} replace />} />
+
+            {/* PATIENT ROUTES */}
+            <Route path="/dashboard" element={
+              <ProtectedRoute currentUser={currentUser} authChecking={authChecking} allowedRoles={['PATIENT']}>
+                <DashboardPage
+                  session={session}
+                  predictionData={predictionData}
+                  onNavigate={handleNavigate}
+                  onStartNewAnalysis={() => {
+                    setSession(null);
+                    setPredictionData(null);
+                    setXaiData(null);
+                    sessionStorage.clear();
+                    navigate('/intake');
+                  }}
+                />
+              </ProtectedRoute>
+            } />
+
+            <Route path="/intake" element={
+              <ProtectedRoute currentUser={currentUser} authChecking={authChecking} allowedRoles={['PATIENT']}>
+                <IntakePage
+                  session={session}
+                  setSession={setSession}
+                  onAnalysisComplete={handleAnalysisComplete}
+                  onInvalidateDownstream={handleInvalidateDownstream}
+                  onResetSession={() => {
+                    setSession(null);
+                    setPredictionData(null);
+                    setXaiData(null);
+                    sessionStorage.clear();
+                  }}
+                  activeSubNav={activeSubNav}
+                />
+              </ProtectedRoute>
+            } />
+
+            <Route path="/xai" element={
+              <ProtectedRoute currentUser={currentUser} authChecking={authChecking} allowedRoles={['PATIENT']}>
+                <XAIPage
+                  predictionData={predictionData}
+                  xaiData={xaiData}
+                  onStartAnalysis={() => navigate('/intake')}
+                />
+              </ProtectedRoute>
+            } />
+
+            <Route path="/report" element={
+              <ProtectedRoute currentUser={currentUser} authChecking={authChecking} allowedRoles={['PATIENT']}>
+                <ReportPage
+                  user={currentUser}
+                  session={session}
+                  predictionData={predictionData}
+                  onDiscussWithDoctor={(rec) => {
+                    setConsultationContext({
+                      reason: `Discussion regarding health report findings: ${rec.what || ''}`,
+                      recordId: null
+                    });
+                    navigate('/consultations');
+                  }}
+                />
+              </ProtectedRoute>
+            } />
+
+            <Route path="/records" element={
+              <ProtectedRoute currentUser={currentUser} authChecking={authChecking} allowedRoles={['PATIENT']}>
+                <HealthRecordsPage
+                  currentUser={currentUser}
+                  session={session}
+                  predictionData={predictionData}
+                  onStartAnalysis={() => navigate('/intake')}
+                  onShareWithDoctor={(recId) => {
+                    setConsultationContext({
+                      reason: 'Sharing persistent health record for doctor review',
+                      recordId: recId
+                    });
+                    navigate('/consultations');
+                  }}
+                />
+              </ProtectedRoute>
+            } />
+
+            <Route path="/consultations" element={
+              <ProtectedRoute currentUser={currentUser} authChecking={authChecking} allowedRoles={['PATIENT', 'DOCTOR']}>
+                <ConsultationWorkspacePage
+                  currentUser={currentUser}
+                  initialContext={consultationContext}
+                  onNavigate={handleNavigate}
+                />
+              </ProtectedRoute>
+            } />
+
+            <Route path="/appointments" element={
+              <ProtectedRoute currentUser={currentUser} authChecking={authChecking} allowedRoles={['PATIENT', 'DOCTOR']}>
+                <AppointmentsPage currentUser={currentUser} onNavigate={handleNavigate} />
+              </ProtectedRoute>
+            } />
+
+            <Route path="/care" element={
+              <ProtectedRoute currentUser={currentUser} authChecking={authChecking} allowedRoles={['PATIENT']}>
+                <CarePage
+                  predictionData={predictionData}
+                  onNavigate={handleNavigate}
+                />
+              </ProtectedRoute>
+            } />
+
+            <Route path="/privacy" element={
+              <ProtectedRoute currentUser={currentUser} authChecking={authChecking} allowedRoles={['PATIENT']}>
+                <PatientPrivacyPage />
+              </ProtectedRoute>
+            } />
+
+            <Route path="/account" element={
+              <ProtectedRoute currentUser={currentUser} authChecking={authChecking} allowedRoles={['PATIENT', 'DOCTOR', 'ADMIN']}>
+                <AccountPage user={currentUser} onNavigate={handleNavigate} />
+              </ProtectedRoute>
+            } />
+
+            {/* DOCTOR ROUTES */}
+            <Route path="/doctor/dashboard" element={
+              <ProtectedRoute currentUser={currentUser} authChecking={authChecking} allowedRoles={['DOCTOR']}>
+                <DoctorDashboardPage user={currentUser} onNavigate={handleNavigate} />
+              </ProtectedRoute>
+            } />
+
+            <Route path="/doctor/verification" element={
+              <ProtectedRoute currentUser={currentUser} authChecking={authChecking} allowedRoles={['DOCTOR']}>
+                <DoctorVerificationPage currentUser={currentUser} />
+              </ProtectedRoute>
+            } />
+
+            {/* ADMIN ROUTES */}
+            <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
+            <Route path="/admin/dashboard" element={
+              <ProtectedRoute currentUser={currentUser} authChecking={authChecking} allowedRoles={['ADMIN']}>
+                <AdminDashboardPage onNavigate={handleNavigate} />
+              </ProtectedRoute>
+            } />
+
+            <Route path="/admin/doctors" element={
+              <ProtectedRoute currentUser={currentUser} authChecking={authChecking} allowedRoles={['ADMIN']}>
+                <AdminDoctorVerificationPage />
+              </ProtectedRoute>
+            } />
+
+            <Route path="/admin/users" element={
+              <ProtectedRoute currentUser={currentUser} authChecking={authChecking} allowedRoles={['ADMIN']}>
+                <AdminUsersPage />
+              </ProtectedRoute>
+            } />
+
+            <Route path="/admin/consultations" element={
+              <ProtectedRoute currentUser={currentUser} authChecking={authChecking} allowedRoles={['ADMIN']}>
+                <AdminConsultationManagementPage />
+              </ProtectedRoute>
+            } />
+
+            <Route path="/admin/system" element={
+              <ProtectedRoute currentUser={currentUser} authChecking={authChecking} allowedRoles={['ADMIN']}>
+                <AdminSystemPage />
+              </ProtectedRoute>
+            } />
+
+            <Route path="/admin/audit" element={
+              <ProtectedRoute currentUser={currentUser} authChecking={authChecking} allowedRoles={['ADMIN']}>
+                <AdminAuditPage />
+              </ProtectedRoute>
+            } />
+
+            {/* FALLBACK 404 ROUTE */}
+            <Route path="*" element={<Navigate to={defaultRoleDashboard} replace />} />
+          </Routes>
+        </Suspense>
+      </ErrorBoundary>
+    </Layout>
+  );
+}
