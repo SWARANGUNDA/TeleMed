@@ -5,7 +5,26 @@ celery_app.py — Celery App Instance Configuration for Asynchronous Background 
 import os
 from celery import Celery
 
-REDIS_URL = os.getenv("REDIS_URL", "redis://redis:6379/0")
+import socket
+
+def resolve_redis_url():
+    env_url = os.getenv("REDIS_URL")
+    if env_url:
+        return env_url
+    try:
+        socket.gethostbyname("redis")
+        return "redis://redis:6379/0"
+    except Exception:
+        try:
+            s = socket.socket()
+            s.settimeout(1)
+            s.connect(("localhost", 6380))
+            s.close()
+            return "redis://localhost:6380/0"
+        except Exception:
+            return "redis://localhost:6379/0"
+
+REDIS_URL = resolve_redis_url()
 
 celery_app = Celery(
     "telemed_tasks",

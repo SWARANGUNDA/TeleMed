@@ -43,19 +43,21 @@ def get_ops_metrics(admin_user: Dict[str, Any] = Depends(require_role(["ADMIN"])
     redis_memory = "N/A"
     try:
         import redis
-        r = redis.Redis(host="redis", port=6379, socket_connect_timeout=2)
-        if r.ping():
+        r = None
+        for host, port in [("redis", 6379), ("localhost", 6380), ("localhost", 6379)]:
+            try:
+                test_r = redis.Redis(host=host, port=port, socket_connect_timeout=1)
+                if test_r.ping():
+                    r = test_r
+                    break
+            except Exception:
+                continue
+        if r:
             redis_status = "HEALTHY (Connected)"
             info = r.info("memory")
             redis_memory = f"{round(info.get('used_memory', 0) / (1024 * 1024), 2)} MB"
     except Exception:
-        try:
-            import redis
-            r = redis.Redis(host="localhost", port=6379, socket_connect_timeout=1)
-            if r.ping():
-                redis_status = "HEALTHY (Localhost)"
-        except Exception:
-            redis_status = "DISCONNECTED (Background jobs in fallback mode)"
+        redis_status = "DISCONNECTED (Fallback Mode)"
 
     # 4. Celery Worker Status
     celery_status = "READY"
