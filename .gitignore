@@ -29,3 +29,6 @@ Thumbs.db
 .env.local
 .env.development
 .env.production
+
+# Temp uploads
+web_platform/backend/temp_uploads/

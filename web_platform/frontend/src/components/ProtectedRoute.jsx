@@ -17,8 +17,8 @@ export default function ProtectedRoute({ currentUser, authChecking, allowedRoles
   }
 
   if (!currentUser) {
-    // Redirect to root, keeping state for post-login return if needed
-    return <Navigate to="/" state={{ from: location }} replace />;
+    // Redirect to /login on unauthenticated protected access
+    return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
   if (allowedRoles && allowedRoles.length > 0 && !allowedRoles.includes(currentUser.role)) {

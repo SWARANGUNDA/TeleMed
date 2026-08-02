@@ -64,7 +64,14 @@ async function handleApiResponse(res, fallbackMsg = 'Request failed') {
   let detail = fallbackMsg;
   try {
     const data = await res.json();
-    detail = data.message || data.detail || fallbackMsg;
+    const rawDetail = data.detail || data.message || fallbackMsg;
+    if (Array.isArray(rawDetail)) {
+      detail = rawDetail.map(item => typeof item === 'object' ? `${item.msg || JSON.stringify(item)}${item.loc ? ` (${item.loc.join('.')})` : ''}` : String(item)).join('; ');
+    } else if (typeof rawDetail === 'object') {
+      detail = rawDetail.msg || rawDetail.message || JSON.stringify(rawDetail);
+    } else {
+      detail = String(rawDetail);
+    }
   } catch { /* response wasn't JSON */ }
 
   if (res.status === 401) {
@@ -275,7 +282,18 @@ export async function uploadReports(files, sessionId = null) {
   return data;
 }
 
-export async function confirmFeatures(sessionId, confirmedFeatures) {
+export async function confirmFeatures(arg1, arg2) {
+  let sessionId = null;
+  let confirmedFeatures = null;
+
+  if (typeof arg1 === 'string') {
+    sessionId = arg1;
+    confirmedFeatures = arg2;
+  } else if (typeof arg1 === 'object') {
+    confirmedFeatures = arg1;
+    sessionId = typeof arg2 === 'string' ? arg2 : (arg2?.session_id || null);
+  }
+
   const res = await fetch(`${API_BASE}/intake/confirm`, {
     method: 'POST',
     headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
@@ -285,11 +303,8 @@ export async function confirmFeatures(sessionId, confirmedFeatures) {
     }),
   });
 
-  const data = await res.json();
-  if (!res.ok) {
-    throw new Error(data.message || data.detail || 'Failed to confirm features');
-  }
-  return data;
+  const data = await handleApiResponse(res, 'Failed to confirm features');
+  return data.json ? await data.json() : data;
 }
 
 export async function analyzePredictions(sessionId) {

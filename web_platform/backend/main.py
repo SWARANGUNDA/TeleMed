@@ -50,10 +50,13 @@ app = FastAPI(
     # docs_url=None, redoc_url=None,
 )
 
+from .database import check_db_connection
+
 @app.on_event("startup")
 def startup_event():
-    """Run production boot diagnostics on server launch."""
+    """Run production boot diagnostics and database connectivity checks on server launch."""
     startup_diagnostics.run_startup_diagnostics()
+    check_db_connection()
 
 from .platform_observability import RequestObservabilityMiddleware
 

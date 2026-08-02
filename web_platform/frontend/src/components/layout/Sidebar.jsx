@@ -17,7 +17,8 @@ import {
   ChevronRight,
   Activity,
   UserCheck,
-  Calendar
+  Calendar,
+  Sparkles
 } from 'lucide-react';
 
 export function Sidebar({ isCollapsed, onToggleCollapse, userRole = 'PATIENT', className = '' }) {
@@ -37,6 +38,11 @@ export function Sidebar({ isCollapsed, onToggleCollapse, userRole = 'PATIENT', c
     {
       group: "Records & Care",
       items: [
+        { label: "AI Health Copilot", icon: Sparkles, path: "/copilot" },
+        { label: "Profile Workspace", icon: UserCheck, path: "/profile" },
+        { label: "Compare & Analytics", icon: BarChart3, path: "/compare" },
+        { label: "Secure Messages", icon: Activity, path: "/messages" },
+        { label: "Notifications", icon: Lock, path: "/notifications" },
         { label: "Health Records", icon: History, path: "/records" },
         { label: "Consultations", icon: Stethoscope, path: "/consultations" },
         { label: "Appointments", icon: Calendar, path: "/appointments" },

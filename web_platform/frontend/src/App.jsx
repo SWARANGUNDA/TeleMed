@@ -8,7 +8,7 @@ import ProtectedRoute from './components/ProtectedRoute';
 import GuidedDemoBar from './components/GuidedDemoBar';
 import AssessmentComparisonModal from './components/AssessmentComparisonModal';
 import useTheme from './utils/useTheme';
-import { predictV3, fetchXAIV3, analyzePredictions, confirmFeatures, getCurrentUser, logoutUser } from './api/client';
+import { predictV3, fetchXAIV3, analyzePredictions, confirmFeatures, getCurrentUser, logoutUser, loginUser } from './api/client';
 
 // Lazy-loaded pages (code split per route)
 const DashboardPage = lazy(() => import('./pages/DashboardPage'));
@@ -32,6 +32,20 @@ const ConsultationWorkspacePage = lazy(() => import('./pages/ConsultationWorkspa
 const AdminConsultationManagementPage = lazy(() => import('./pages/AdminConsultationManagementPage'));
 const AppointmentsPage = lazy(() => import('./pages/AppointmentsPage'));
 const PlaceholderPage = lazy(() => import('./pages/PlaceholderPage'));
+const ProfilePage = lazy(() => import('./pages/ProfilePage'));
+const CompareAssessmentsPage = lazy(() => import('./pages/CompareAssessmentsPage'));
+const NotificationsPage = lazy(() => import('./pages/NotificationsPage'));
+const MessagesPage = lazy(() => import('./pages/MessagesPage'));
+const HealthCopilotPage = lazy(() => import('./pages/HealthCopilotPage'));
+
+// Public Landing Pages
+const HomePage = lazy(() => import('./pages/HomePage'));
+const AboutPage = lazy(() => import('./pages/AboutPage'));
+const FeaturesPage = lazy(() => import('./pages/FeaturesPage'));
+const ResearchPage = lazy(() => import('./pages/ResearchPage'));
+const ContactPage = lazy(() => import('./pages/ContactPage'));
+const LoginPage = lazy(() => import('./pages/LoginPage'));
+const RegisterPage = lazy(() => import('./pages/RegisterPage'));
 
 function PageSkeleton() {
   return (
@@ -263,6 +277,12 @@ export default function App() {
     navigate(targetPath);
   };
 
+  const handleLogin = async (email, password, role) => {
+    const user = await loginUser(email, password, role);
+    handleLoginSuccess(user);
+    return user;
+  };
+
   const handleLogout = async () => {
     await logoutUser();
     setCurrentUser(null);
@@ -374,63 +394,27 @@ export default function App() {
     );
   }
 
-  // If user is not logged in, render Auth View
-  if (!currentUser) {
-    return <AuthModal onLoginSuccess={handleLoginSuccess} />;
-  }
+  const isPublicRoute = ['/', '/about', '/features', '/research', '/contact', '/login', '/register'].includes(location.pathname);
 
   const defaultRoleDashboard =
-    currentUser.role === 'ADMIN'
+    currentUser?.role === 'ADMIN'
       ? '/admin/dashboard'
-      : currentUser.role === 'DOCTOR'
+      : currentUser?.role === 'DOCTOR'
       ? '/doctor/dashboard'
       : '/dashboard';
 
-  return (
-    <Layout
-      user={currentUser}
-      onLogout={handleLogout}
-      onToggleTheme={() => setThemeMode(themeMode === 'dark' ? 'light' : 'dark')}
-      theme={themeMode}
-    >
-      {/* Guided Demo Progress Bar */}
-      <GuidedDemoBar
-        isDemoActive={isDemoActive}
-        onToggleDemo={() => setIsDemoActive(false)}
-      />
-
-      {/* Assessment Comparison Modal */}
-      <AssessmentComparisonModal
-        isOpen={isComparisonOpen}
-        onClose={() => setIsComparisonOpen(false)}
-        currentSession={session}
-        historicalSession={null}
-      />
-
-      {guardNotice && (
-        <div style={{
-          background: 'rgba(245, 158, 11, 0.12)',
-          borderBottom: '1px solid rgba(245, 158, 11, 0.3)',
-          padding: '12px 24px',
-          color: 'var(--accent-amber)',
-          fontSize: '0.875rem',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          gap: '10px',
-          borderRadius: '12px',
-          marginBottom: '16px'
-        }}>
-          <AlertCircle size={18} style={{ flexShrink: 0 }} />
-          <span><strong>Navigation Guard:</strong> {guardNotice}</span>
-        </div>
-      )}
-
-      <ErrorBoundary key={location.pathname} onReset={() => navigate(defaultRoleDashboard)}>
-        <Suspense fallback={<PageSkeleton />}>
-          <Routes>
-            {/* ROOT ROUTE */}
-            <Route path="/" element={<Navigate to={defaultRoleDashboard} replace />} />
+  const routeContent = (
+    <ErrorBoundary key={location.pathname} onReset={() => navigate(defaultRoleDashboard)}>
+      <Suspense fallback={<PageSkeleton />}>
+        <Routes>
+          {/* PUBLIC LANDING ROUTES */}
+          <Route path="/" element={<HomePage user={currentUser} onOpenAuth={(mode) => { setAuthMode(mode); setIsAuthOpen(true); }} />} />
+          <Route path="/about" element={<AboutPage user={currentUser} onOpenAuth={(mode) => { setAuthMode(mode); setIsAuthOpen(true); }} />} />
+          <Route path="/features" element={<FeaturesPage user={currentUser} onOpenAuth={(mode) => { setAuthMode(mode); setIsAuthOpen(true); }} />} />
+          <Route path="/research" element={<ResearchPage user={currentUser} onOpenAuth={(mode) => { setAuthMode(mode); setIsAuthOpen(true); }} />} />
+          <Route path="/contact" element={<ContactPage user={currentUser} onOpenAuth={(mode) => { setAuthMode(mode); setIsAuthOpen(true); }} />} />
+          <Route path="/login" element={<LoginPage onLogin={handleLogin} user={currentUser} />} />
+          <Route path="/register" element={<RegisterPage onLogin={handleLogin} user={currentUser} />} />
 
             {/* PATIENT ROUTES */}
             <Route path="/dashboard" element={
@@ -529,6 +513,46 @@ export default function App() {
               </ProtectedRoute>
             } />
 
+            <Route path="/profile" element={
+              <ProtectedRoute currentUser={currentUser} authChecking={authChecking} allowedRoles={['PATIENT']}>
+                <ProfilePage
+                  user={currentUser}
+                  session={session}
+                  predictionData={predictionData}
+                  onNavigate={handleNavigate}
+                />
+              </ProtectedRoute>
+            } />
+
+            <Route path="/compare" element={
+              <ProtectedRoute currentUser={currentUser} authChecking={authChecking} allowedRoles={['PATIENT']}>
+                <CompareAssessmentsPage
+                  user={currentUser}
+                  session={session}
+                  predictionData={predictionData}
+                  onNavigate={handleNavigate}
+                />
+              </ProtectedRoute>
+            } />
+
+            <Route path="/notifications" element={
+              <ProtectedRoute currentUser={currentUser} authChecking={authChecking} allowedRoles={['PATIENT', 'DOCTOR', 'ADMIN']}>
+                <NotificationsPage user={currentUser} />
+              </ProtectedRoute>
+            } />
+
+            <Route path="/messages" element={
+              <ProtectedRoute currentUser={currentUser} authChecking={authChecking} allowedRoles={['PATIENT', 'DOCTOR']}>
+                <MessagesPage user={currentUser} />
+              </ProtectedRoute>
+            } />
+
+            <Route path="/copilot" element={
+              <ProtectedRoute currentUser={currentUser} authChecking={authChecking} allowedRoles={['PATIENT']}>
+                <HealthCopilotPage user={currentUser} />
+              </ProtectedRoute>
+            } />
+
             <Route path="/care" element={
               <ProtectedRoute currentUser={currentUser} authChecking={authChecking} allowedRoles={['PATIENT']}>
                 <CarePage
@@ -602,10 +626,57 @@ export default function App() {
             } />
 
             {/* FALLBACK 404 ROUTE */}
-            <Route path="*" element={<Navigate to={defaultRoleDashboard} replace />} />
+            <Route path="*" element={<Navigate to={currentUser ? defaultRoleDashboard : "/"} replace />} />
           </Routes>
         </Suspense>
       </ErrorBoundary>
+    );
+
+  if (isPublicRoute) {
+    return routeContent;
+  }
+
+  return (
+    <Layout
+      user={currentUser}
+      onLogout={handleLogout}
+      onToggleTheme={() => setThemeMode(themeMode === 'dark' ? 'light' : 'dark')}
+      theme={themeMode}
+    >
+      {/* Guided Demo Progress Bar */}
+      <GuidedDemoBar
+        isDemoActive={isDemoActive}
+        onToggleDemo={() => setIsDemoActive(false)}
+      />
+
+      {/* Assessment Comparison Modal */}
+      <AssessmentComparisonModal
+        isOpen={isComparisonOpen}
+        onClose={() => setIsComparisonOpen(false)}
+        currentSession={session}
+        historicalSession={null}
+      />
+
+      {guardNotice && (
+        <div style={{
+          background: 'rgba(245, 158, 11, 0.12)',
+          borderBottom: '1px solid rgba(245, 158, 11, 0.3)',
+          padding: '12px 24px',
+          color: 'var(--accent-amber)',
+          fontSize: '0.875rem',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: '10px',
+          borderRadius: '12px',
+          marginBottom: '16px'
+        }}>
+          <AlertCircle size={18} style={{ flexShrink: 0 }} />
+          <span><strong>Navigation Guard:</strong> {guardNotice}</span>
+        </div>
+      )}
+
+      {routeContent}
     </Layout>
   );
 }

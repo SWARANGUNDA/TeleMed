@@ -1,0 +1,52 @@
+name: telemed
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: telemed-postgres
+    restart: always
+    environment:
+      POSTGRES_DB: telemed_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - telemed_postgres_data:/var/lib/postgresql/data
+      - ./docker/postgres/initdb:/docker-entrypoint-initdb.d
+    networks:
+      - telemed-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d telemed_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: .
+      dockerfile: ./web_platform/backend/Dockerfile
+    container_name: telemed-backend
+    restart: always
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./web_platform/backend:/app/web_platform/backend
+    env_file:
+      - ./web_platform/backend/.env
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/telemed_db
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - telemed-network
+
+volumes:
+  telemed_postgres_data:
+    name: telemed_postgres_data
+
+networks:
+  telemed-network:
+    name: telemed-network
+    driver: bridge

@@ -71,7 +71,8 @@ def validate_feature_value(feature_name: str, value: Any) -> Tuple[bool, str]:
         return True, ""
 
     if feature_name == "Gender":
-        if str(value).capitalize() not in ["Male", "Female", "Other"]:
+        val_str = str(value).strip().capitalize()
+        if val_str not in ["Male", "Female", "Other", "0", "1"]:
             return False, f"Gender must be Male or Female, got '{value}'"
         return True, ""
 

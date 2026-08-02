@@ -10,6 +10,13 @@ import {
 } from '../components/ui';
 import { PageContainer, PageHeader, ContentSection } from '../components/layout';
 import { fetchAdminStats, fetchAdminUsers } from '../api/client';
+import PlatformAnalytics from '../components/admin/PlatformAnalytics';
+import InfrastructureHealth from '../components/admin/InfrastructureHealth';
+import OperationsFeed from '../components/admin/OperationsFeed';
+import CompliancePanel from '../components/admin/CompliancePanel';
+import UserAnalytics from '../components/admin/UserAnalytics';
+import AIPlatformInsights from '../components/admin/AIPlatformInsights';
+import MaintenancePanel from '../components/admin/MaintenancePanel';
 
 export default function AdminDashboardPage({ onNavigate }) {
   const [activeTab, setActiveTab] = useState('overview'); // 'overview', 'verification', 'users', 'monitoring', 'security'
@@ -105,49 +112,87 @@ export default function AdminDashboardPage({ onNavigate }) {
         ))}
       </div>
 
-      {/* 1. EXECUTIVE OVERVIEW METRICS */}
+      {/* 1. EXECUTIVE COMMAND CENTER KPI CARDS WITH COMPARISON BADGES */}
       {activeTab === 'overview' && (
-        <div className="space-y-8">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <Card isGlass={true} className="p-5 flex items-center justify-between border-l-4 border-l-[var(--primary)]">
-              <div className="space-y-1">
-                <span className="text-xs font-mono text-[var(--text-muted)] uppercase font-semibold">Total Registered Patients</span>
-                <div className="text-2xl font-extrabold font-mono text-[var(--text-main)]">{stats?.total_patients || 1240}</div>
+        <div className="space-y-8 animate-fade-in">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4">
+            <Card isGlass={true} className="p-4 space-y-2 border-l-4 border-l-[var(--primary)]">
+              <div className="flex justify-between items-center text-xs">
+                <span className="font-mono text-[var(--text-muted)] uppercase font-semibold">Total Users</span>
+                <Badge variant="primary" size="sm">+14% Yest.</Badge>
               </div>
-              <div className="p-3 rounded-xl bg-[var(--primary-light)] text-[var(--primary)]">
-                <Users className="w-6 h-6" />
-              </div>
+              <div className="text-xl font-extrabold font-mono text-[var(--text-main)]">1,248</div>
+              <p className="text-[10px] text-[var(--text-muted)]">Active platform accounts</p>
             </Card>
 
-            <Card isGlass={true} className="p-5 flex items-center justify-between border-l-4 border-l-[var(--secondary)]">
-              <div className="space-y-1">
-                <span className="text-xs font-mono text-[var(--text-muted)] uppercase font-semibold">Verified Doctors</span>
-                <div className="text-2xl font-extrabold font-mono text-[var(--secondary)]">{stats?.total_doctors || 48}</div>
+            <Card isGlass={true} className="p-4 space-y-2 border-l-4 border-l-[var(--secondary)]">
+              <div className="flex justify-between items-center text-xs">
+                <span className="font-mono text-[var(--text-muted)] uppercase font-semibold">Active Doctors</span>
+                <Badge variant="secondary" size="sm">34 Verified</Badge>
               </div>
-              <div className="p-3 rounded-xl bg-teal-500/10 text-teal-500">
-                <Stethoscope className="w-6 h-6" />
-              </div>
+              <div className="text-xl font-extrabold font-mono text-[var(--secondary)]">{stats?.total_doctors || 34}</div>
+              <p className="text-[10px] text-[var(--text-muted)]">Physicians on call</p>
             </Card>
 
-            <Card isGlass={true} className="p-5 flex items-center justify-between border-l-4 border-l-[var(--warning)]">
-              <div className="space-y-1">
-                <span className="text-xs font-mono text-[var(--text-muted)] uppercase font-semibold">Pending Verifications</span>
-                <div className="text-2xl font-extrabold font-mono text-[var(--warning)]">3</div>
+            <Card isGlass={true} className="p-4 space-y-2 border-l-4 border-l-[var(--accent)]">
+              <div className="flex justify-between items-center text-xs">
+                <span className="font-mono text-[var(--text-muted)] uppercase font-semibold">Active Patients</span>
+                <Badge variant="accent" size="sm">+18.4% MoM</Badge>
               </div>
-              <div className="p-3 rounded-xl bg-amber-500/10 text-amber-500">
-                <Clock className="w-6 h-6" />
-              </div>
+              <div className="text-xl font-extrabold font-mono text-[var(--accent)]">{stats?.total_patients || 1214}</div>
+              <p className="text-[10px] text-[var(--text-muted)] font-mono">Patient workspace</p>
             </Card>
 
-            <Card isGlass={true} className="p-5 flex items-center justify-between border-l-4 border-l-[var(--success)]">
-              <div className="space-y-1">
-                <span className="text-xs font-mono text-[var(--text-muted)] uppercase font-semibold">Reports Generated</span>
-                <div className="text-2xl font-extrabold font-mono text-[var(--success)]">{stats?.total_reports || 1190}</div>
+            <Card isGlass={true} className="p-4 space-y-2 border-l-4 border-l-[var(--success)]">
+              <div className="flex justify-between items-center text-xs">
+                <span className="font-mono text-[var(--text-muted)] uppercase font-semibold">Daily Assessments</span>
+                <Badge variant="success" size="sm">+12 Today</Badge>
               </div>
-              <div className="p-3 rounded-xl bg-[var(--success-light)] text-[var(--success)]">
-                <FileText className="w-6 h-6" />
-              </div>
+              <div className="text-xl font-extrabold font-mono text-[var(--success)]">142</div>
+              <p className="text-[10px] text-[var(--text-muted)]">Evaluations run</p>
             </Card>
+
+            <Card isGlass={true} className="p-4 space-y-2 border-l-4 border-l-emerald-500">
+              <div className="flex justify-between items-center text-xs">
+                <span className="font-mono text-[var(--text-muted)] uppercase font-semibold">System Uptime</span>
+                <Badge variant="success" size="sm">99.98%</Badge>
+              </div>
+              <div className="text-xl font-extrabold font-mono text-emerald-400">99.98%</div>
+              <p className="text-[10px] text-[var(--text-muted)]">High availability</p>
+            </Card>
+
+            <Card isGlass={true} className="p-4 space-y-2 border-l-4 border-l-purple-500">
+              <div className="flex justify-between items-center text-xs">
+                <span className="font-mono text-[var(--text-muted)] uppercase font-semibold">Avg Pipeline Latency</span>
+                <Badge variant="secondary" size="sm">-0.4ms Yest.</Badge>
+              </div>
+              <div className="text-xl font-extrabold font-mono text-purple-400">4.2 ms</div>
+              <p className="text-[10px] text-[var(--text-muted)]">Stacker execution</p>
+            </Card>
+          </div>
+
+          {/* 3-COLUMN ENTERPRISE OPERATIONS CENTER GRID */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+            
+            {/* Left Column (4 cols) — Subsystems & Operations Feed */}
+            <div className="lg:col-span-4 space-y-6">
+              <InfrastructureHealth />
+              <OperationsFeed />
+            </div>
+
+            {/* Center Column (5 cols) — Platform Analytics & User Analytics */}
+            <div className="lg:col-span-5 space-y-6">
+              <PlatformAnalytics />
+              <UserAnalytics />
+              <CompliancePanel />
+            </div>
+
+            {/* Right Column (3 cols) — AI Insights & Maintenance Panel */}
+            <div className="lg:col-span-3 space-y-6">
+              <AIPlatformInsights />
+              <MaintenancePanel />
+            </div>
+
           </div>
 
           {/* System Telemetry & Performance Gauges */}

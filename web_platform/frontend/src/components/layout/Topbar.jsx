@@ -13,6 +13,7 @@ import {
   Activity
 } from 'lucide-react';
 import { Avatar } from '../ui/Avatar';
+import NotificationDrawer from '../NotificationDrawer';
 
 export function Topbar({ user, onLogout, onToggleTheme, theme = 'dark', onOpenMobileMenu, className = '' }) {
   const location = useLocation();
@@ -36,52 +37,69 @@ export function Topbar({ user, onLogout, onToggleTheme, theme = 'dark', onOpenMo
 
   const breadcrumbs = getBreadcrumbs();
 
+  const [isNotificationDrawerOpen, setIsNotificationDrawerOpen] = useState(false);
+  const [drawerNotifications, setDrawerNotifications] = useState([
+    { id: '1', category: 'Appointments', title: 'Teleconsultation Tomorrow', description: 'Video call with Dr. Vance tomorrow at 10:00 AM', timestamp: '10m ago', priority: 'HIGH', isRead: false },
+    { id: '2', category: 'AI Analysis', title: 'AI Analysis Complete', description: 'Multimodal predictions calculated (34.2% Risk)', timestamp: '1h ago', priority: 'HIGH', isRead: false },
+  ]);
+
+  const unreadBadgeCount = drawerNotifications.filter(n => !n.isRead).length;
+
   return (
-    <header className={`sticky top-0 z-[var(--z-header)] h-[72px] bg-[var(--glass-bg)] backdrop-blur-[var(--glass-blur)] border-b border-[var(--border-subtle)] px-4 md:px-8 flex items-center justify-between transition-all duration-200 ${className}`}>
-      {/* Left: Mobile Menu Button & Breadcrumb */}
-      <div className="flex items-center gap-4">
-        <button
-          onClick={onOpenMobileMenu}
-          className="lg:hidden p-2 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--bg-surface-hover)]"
-        >
-          <Menu className="w-6 h-6" />
-        </button>
+    <>
+      <header className={`sticky top-0 z-[var(--z-header)] h-[72px] bg-[var(--glass-bg)] backdrop-blur-[var(--glass-blur)] border-b border-[var(--border-subtle)] px-4 md:px-8 flex items-center justify-between transition-all duration-200 ${className}`}>
+        {/* Left: Mobile Menu Button & Breadcrumb */}
+        <div className="flex items-center gap-4">
+          <button
+            onClick={onOpenMobileMenu}
+            className="lg:hidden p-2 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--bg-surface-hover)]"
+          >
+            <Menu className="w-6 h-6" />
+          </button>
 
-        <div className="flex items-center gap-3">
-          <div className="lg:hidden w-8 h-8 rounded-lg bg-gradient-to-tr from-[var(--primary)] to-[var(--accent)] flex items-center justify-center text-white font-bold">
-            <Activity className="w-5 h-5 text-white" />
+          <div className="flex items-center gap-3">
+            <div className="lg:hidden w-8 h-8 rounded-lg bg-gradient-to-tr from-[var(--primary)] to-[var(--accent)] flex items-center justify-center text-white font-bold">
+              <Activity className="w-5 h-5 text-white" />
+            </div>
+            <nav className="flex items-center gap-2 text-xs text-[var(--text-muted)] font-medium">
+              {breadcrumbs.map((crumb, idx) => (
+                <React.Fragment key={idx}>
+                  {idx > 0 && <span className="text-[var(--text-dim)]">/</span>}
+                  <span className={idx === breadcrumbs.length - 1 ? 'text-[var(--text-main)] font-semibold' : ''}>
+                    {crumb}
+                  </span>
+                </React.Fragment>
+              ))}
+            </nav>
           </div>
-          <nav className="flex items-center gap-2 text-xs text-[var(--text-muted)] font-medium">
-            {breadcrumbs.map((crumb, idx) => (
-              <React.Fragment key={idx}>
-                {idx > 0 && <span className="text-[var(--text-dim)]">/</span>}
-                <span className={idx === breadcrumbs.length - 1 ? 'text-[var(--text-main)] font-semibold' : ''}>
-                  {crumb}
-                </span>
-              </React.Fragment>
-            ))}
-          </nav>
         </div>
-      </div>
 
-      {/* Center: Global Search Bar Placeholder */}
-      <div className="hidden md:flex items-center w-72 lg:w-96 relative">
-        <Search className="w-4 h-4 absolute left-3 text-[var(--text-muted)] pointer-events-none" />
-        <input
-          type="text"
-          placeholder="Search patient record, lab test, or biomarker..."
-          className="w-full bg-[var(--bg-surface)] text-[var(--text-main)] text-xs rounded-xl pl-9 pr-4 py-2 border border-[var(--border-subtle)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)] transition-all placeholder:text-[var(--text-dim)]"
-        />
-      </div>
+        {/* Center: Global Search Bar Placeholder */}
+        <div className="hidden md:flex items-center w-72 lg:w-96 relative">
+          <Search className="w-4 h-4 absolute left-3 text-[var(--text-muted)] pointer-events-none" />
+          <input
+            type="text"
+            placeholder="Search patient record, lab test, or biomarker..."
+            className="w-full bg-[var(--bg-surface)] text-[var(--text-main)] text-xs rounded-xl pl-9 pr-4 py-2 border border-[var(--border-subtle)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)] transition-all placeholder:text-[var(--text-dim)]"
+          />
+        </div>
 
-      {/* Right: Actions & User Profile */}
-      <div className="flex items-center gap-3">
-        {/* Notification Bell */}
-        <button className="p-2 rounded-xl text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--bg-surface-hover)] relative transition-colors">
-          <Bell className="w-5 h-5" />
-          <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-[var(--primary)] rounded-full animate-ping" />
-          <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-[var(--primary)] rounded-full" />
-        </button>
+        {/* Right: Actions & User Profile */}
+        <div className="flex items-center gap-3">
+          {/* Notification Bell */}
+          <button
+            onClick={() => setIsNotificationDrawerOpen(true)}
+            className="p-2 rounded-xl text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--bg-surface-hover)] relative transition-colors"
+            title="Open Notification Center"
+          >
+            <Bell className="w-5 h-5" />
+            {unreadBadgeCount > 0 && (
+              <>
+                <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-[var(--primary)] rounded-full animate-ping" />
+                <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-[var(--primary)] rounded-full" />
+              </>
+            )}
+          </button>
 
         {/* Theme Toggle */}
         <button
@@ -138,6 +156,16 @@ export function Topbar({ user, onLogout, onToggleTheme, theme = 'dark', onOpenMo
           )}
         </div>
       </div>
-    </header>
+      </header>
+
+      <NotificationDrawer
+        isOpen={isNotificationDrawerOpen}
+        onClose={() => setIsNotificationDrawerOpen(false)}
+        notifications={drawerNotifications}
+        onMarkAsRead={(id) => setDrawerNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n))}
+        onMarkAllRead={() => setDrawerNotifications(prev => prev.map(n => ({ ...n, isRead: true })))}
+        onDelete={(id) => setDrawerNotifications(prev => prev.filter(n => n.id !== id))}
+      />
+    </>
   );
 }
