@@ -98,12 +98,12 @@ class SessionState:
     XAI_READY = "XAI_READY"
     REPORT_READY = "REPORT_READY"
 
-# Valid State Transitions
+# Valid State Transitions (Allows forward workflow and re-analysis/re-upload entry)
 VALID_TRANSITIONS = {
     SessionState.CREATED: {SessionState.EXTRACTED},
-    SessionState.EXTRACTED: {SessionState.CONFIRMED},
-    SessionState.CONFIRMED: {SessionState.ANALYZED},
-    SessionState.ANALYZED: {SessionState.XAI_READY, SessionState.REPORT_READY},
-    SessionState.XAI_READY: {SessionState.REPORT_READY},
-    SessionState.REPORT_READY: {SessionState.REPORT_READY},
+    SessionState.EXTRACTED: {SessionState.CONFIRMED, SessionState.EXTRACTED, SessionState.ANALYZED},
+    SessionState.CONFIRMED: {SessionState.ANALYZED, SessionState.EXTRACTED, SessionState.CONFIRMED},
+    SessionState.ANALYZED: {SessionState.XAI_READY, SessionState.REPORT_READY, SessionState.EXTRACTED, SessionState.CONFIRMED, SessionState.ANALYZED},
+    SessionState.XAI_READY: {SessionState.REPORT_READY, SessionState.EXTRACTED, SessionState.CONFIRMED, SessionState.ANALYZED},
+    SessionState.REPORT_READY: {SessionState.REPORT_READY, SessionState.EXTRACTED, SessionState.CONFIRMED, SessionState.ANALYZED},
 }

@@ -230,7 +230,9 @@ export default function DashboardPage({
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
           {diseasesList.map((disease) => {
             const data = outcomes[disease.key] || {};
-            const prob = data.probability !== undefined ? data.probability : (data.risk_score || 0);
+            const prob = data.calibrated_probability !== undefined 
+              ? data.calibrated_probability 
+              : (data.probability !== undefined ? data.probability : (data.risk_score || 0));
             const probPct = Math.round(prob * 100);
             const riskLvl = data.risk_level || 'Low';
             const { variant, borderColor, badgeText } = getRiskMeta(riskLvl);

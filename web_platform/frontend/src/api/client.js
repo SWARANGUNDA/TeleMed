@@ -440,8 +440,10 @@ export async function fetchSuggestedQuestions(sessionId, predictResponse = null)
   };
 }
 
+const V3_API_BASE = API_BASE.replace(/\/api\/v1$/, '/api/v3');
+
 export async function predictV3(payload) {
-  const res = await fetch('/api/v3/predict', {
+  const res = await fetch(`${V3_API_BASE}/predict`, {
     method: 'POST',
     headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify(payload),
@@ -455,7 +457,7 @@ export async function predictV3(payload) {
 }
 
 export async function fetchXAIV3(payload, disease = 'Type2_Diabetes') {
-  const res = await fetch('/api/v3/xai', {
+  const res = await fetch(`${V3_API_BASE}/xai`, {
     method: 'POST',
     headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify({ ...payload, disease }),
@@ -469,7 +471,7 @@ export async function fetchXAIV3(payload, disease = 'Type2_Diabetes') {
 }
 
 export async function generateReportV3(predictResponse) {
-  const res = await fetch('/api/v3/report', {
+  const res = await fetch(`${V3_API_BASE}/report`, {
     method: 'POST',
     headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify({ predict_response: predictResponse }),
@@ -483,7 +485,7 @@ export async function generateReportV3(predictResponse) {
 }
 
 export async function askRAGQuestionV3(predictResponse, question) {
-  const res = await fetch('/api/v3/qanda', {
+  const res = await fetch(`${V3_API_BASE}/qanda`, {
     method: 'POST',
     headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify({

@@ -8,7 +8,7 @@ import ProtectedRoute from './components/ProtectedRoute';
 import GuidedDemoBar from './components/GuidedDemoBar';
 import AssessmentComparisonModal from './components/AssessmentComparisonModal';
 import useTheme from './utils/useTheme';
-import { predictV3, fetchXAIV3, analyzePredictions, confirmFeatures, getCurrentUser, logoutUser, loginUser } from './api/client';
+import { predictV3, fetchXAIV3, analyzePredictions, confirmFeatures, getCurrentUser, logoutUser, loginUser, fetchPatientRecords } from './api/client';
 
 // Lazy-loaded pages (code split per route)
 const DashboardPage = lazy(() => import('./pages/DashboardPage'));
@@ -188,6 +188,25 @@ export default function App() {
       window.removeEventListener('telemed:user-updated', handleUserUpdated);
     };
   }, [navigate]);
+
+  // Load latest health record from PostgreSQL on patient login
+  useEffect(() => {
+    async function loadLatestRecord() {
+      if (currentUser && currentUser.role === 'PATIENT' && !predictionData) {
+        try {
+          const res = await fetchPatientRecords();
+          if (res?.records && res.records.length > 0) {
+            const latest = res.records[0];
+            const snap = latest.prediction_snapshot || latest;
+            if (snap) {
+              setPredictionData(snap);
+            }
+          }
+        } catch (e) {}
+      }
+    }
+    loadLatestRecord();
+  }, [currentUser]);
 
   const [session, setSession] = useState(() => {
     try {
