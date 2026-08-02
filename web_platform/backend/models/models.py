@@ -32,6 +32,7 @@ class User(Base):
 
 class PatientProfile(Base):
     __tablename__ = "patient_profiles"
+    __table_args__ = {"extend_existing": True}
 
     patient_id: Mapped[str] = mapped_column(String, primary_key=True)
     user_id: Mapped[str] = mapped_column(String, ForeignKey("users.user_id", ondelete="CASCADE"), unique=True, nullable=False)
@@ -50,6 +51,7 @@ class PatientProfile(Base):
 
 class DoctorProfile(Base):
     __tablename__ = "doctor_profiles"
+    __table_args__ = {"extend_existing": True}
 
     doctor_id: Mapped[str] = mapped_column(String, primary_key=True)
     user_id: Mapped[str] = mapped_column(String, ForeignKey("users.user_id", ondelete="CASCADE"), unique=True, nullable=False)
@@ -73,6 +75,7 @@ class DoctorProfile(Base):
 
 class DoctorCredential(Base):
     __tablename__ = "doctor_credentials"
+    __table_args__ = {"extend_existing": True}
 
     document_id: Mapped[str] = mapped_column(String, primary_key=True)
     doctor_id: Mapped[str] = mapped_column(String, ForeignKey("doctor_profiles.doctor_id", ondelete="CASCADE"), nullable=False, index=True)

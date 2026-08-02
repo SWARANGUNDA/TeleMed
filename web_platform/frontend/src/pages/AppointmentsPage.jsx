@@ -9,7 +9,7 @@ import {
 } from 'lucide-react';
 import {
   fetchUserAppointments, fetchDoctorAvailability, bookAppointment,
-  updateAppointmentStatus, configureDoctorAvailability, fetchPatientConsultations
+  updateAppointmentStatus, configureDoctorAvailability, fetchPatientConsultations, fetchVerifiedDoctors
 } from '../api/client';
 
 export default function AppointmentsPage({ user, onNavigate }) {
@@ -22,6 +22,7 @@ export default function AppointmentsPage({ user, onNavigate }) {
   // Backend Async Data
   const [appointments, setAppointments] = useState([]);
   const [consultations, setConsultations] = useState([]);
+  const [doctorsList, setDoctorsList] = useState([]);
   const [availabilitySlots, setAvailabilitySlots] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -30,110 +31,6 @@ export default function AppointmentsPage({ user, onNavigate }) {
   const [showBookModal, setShowBookModal] = useState(false);
   const [bookingLoading, setBookingLoading] = useState(false);
   const [selectedAppointmentDetails, setSelectedAppointmentDetails] = useState(null);
-
-  // Doctor Directory Dataset
-  const doctorDirectory = [
-    {
-      id: 'DOC-101',
-      name: 'Dr. Marcus Vance, MD',
-      specialty: 'Endocrinology',
-      experience: '14 years exp',
-      rating: '4.9 (124 reviews)',
-      languages: 'English, Spanish',
-      hospital: 'Apex Medical Center',
-      avatar: 'MV',
-      availableToday: true,
-      nextSlot: 'Today, 02:00 PM',
-    },
-    {
-      id: 'DOC-102',
-      name: 'Dr. Sarah Jenkins, MD',
-      specialty: 'Cardiology',
-      experience: '11 years exp',
-      rating: '4.8 (98 reviews)',
-      languages: 'English, French',
-      hospital: 'Silicon Valley Heart Institute',
-      avatar: 'SJ',
-      availableToday: true,
-      nextSlot: 'Today, 04:30 PM',
-    },
-    {
-      id: 'DOC-103',
-      name: 'Dr. Aris Thorne, PhD',
-      specialty: 'Gastroenterology',
-      experience: '16 years exp',
-      rating: '5.0 (210 reviews)',
-      languages: 'English, German',
-      hospital: 'Metabolic & Microbiome Center',
-      avatar: 'AT',
-      availableToday: false,
-      nextSlot: 'Tomorrow, 10:00 AM',
-    },
-    {
-      id: 'DOC-104',
-      name: 'Dr. Elena Rostova, MD',
-      specialty: 'General Medicine',
-      experience: '9 years exp',
-      rating: '4.7 (76 reviews)',
-      languages: 'English, Russian',
-      hospital: 'Central TeleMed Clinic',
-      avatar: 'ER',
-      availableToday: true,
-      nextSlot: 'Today, 03:00 PM',
-    },
-  ];
-
-  // Default Mock Appointments if backend list empty
-  const defaultAppointments = [
-    {
-      id: 'APT-2026-9901',
-      doctorName: 'Dr. Marcus Vance, MD',
-      specialty: 'Endocrinology',
-      doctorAvatar: 'MV',
-      date: '2026-08-03',
-      time: '10:00 AM',
-      duration: '30 mins',
-      status: 'CONFIRMED',
-      statusVariant: 'success',
-      type: 'VIDEO',
-      hospital: 'Apex Medical Center',
-      reason: 'Review 90-day glycemic trend and TreeSHAP HbA1c drivers',
-      isToday: true,
-      timelineStage: 3, // 1: Booked, 2: Confirmed, 3: Reminder Sent, 4: Started, 5: Completed
-    },
-    {
-      id: 'APT-2026-8812',
-      doctorName: 'Dr. Sarah Jenkins, MD',
-      specialty: 'Cardiology',
-      doctorAvatar: 'SJ',
-      date: '2026-08-10',
-      time: '02:30 PM',
-      duration: '45 mins',
-      status: 'UPCOMING',
-      statusVariant: 'primary',
-      type: 'VIDEO',
-      hospital: 'Silicon Valley Heart Institute',
-      reason: 'Follow-up on HRV telemetry and Resting Heart Rate',
-      isToday: false,
-      timelineStage: 2,
-    },
-    {
-      id: 'APT-2026-7411',
-      doctorName: 'Dr. Aris Thorne, PhD',
-      specialty: 'Gastroenterology',
-      doctorAvatar: 'AT',
-      date: '2026-07-28',
-      time: '11:00 AM',
-      duration: '30 mins',
-      status: 'COMPLETED',
-      statusVariant: 'secondary',
-      type: 'IN_PERSON',
-      hospital: 'Metabolic & Microbiome Center',
-      reason: 'Gut microbiome sequencing & SCFA diet optimization',
-      isToday: false,
-      timelineStage: 5,
-    },
-  ];
 
   useEffect(() => {
     loadData();
@@ -144,10 +41,22 @@ export default function AppointmentsPage({ user, onNavigate }) {
     setError(null);
     try {
       const apts = await fetchUserAppointments();
-      if (apts && apts.length > 0) {
-        setAppointments(apts);
-      } else {
-        setAppointments(defaultAppointments);
+      setAppointments(apts || []);
+
+      const docs = await fetchVerifiedDoctors();
+      if (docs && docs.length > 0) {
+        setDoctorsList(docs.map(d => ({
+          id: d.doctor_profile?.doctor_id || d.user_id,
+          name: d.doctor_profile?.full_name || 'Dr. Medical Specialist',
+          specialty: d.doctor_profile?.specialization || 'General Medicine',
+          experience: `${d.doctor_profile?.experience_years || 5} years exp`,
+          rating: '4.9 (Verified)',
+          languages: 'English',
+          hospital: d.doctor_profile?.hospital_affiliation || 'TeleMed Central Academic Hospital',
+          avatar: d.doctor_profile?.full_name ? d.doctor_profile.full_name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() : 'DOC',
+          availableToday: true,
+          nextSlot: 'Available Now',
+        })));
       }
 
       if (role === 'PATIENT') {
@@ -155,7 +64,8 @@ export default function AppointmentsPage({ user, onNavigate }) {
         setConsultations(consData?.consultations || []);
       }
     } catch (err) {
-      setAppointments(defaultAppointments);
+      console.error("Failed to load appointments data:", err);
+      setAppointments([]);
     } finally {
       setLoading(false);
     }
@@ -175,7 +85,7 @@ export default function AppointmentsPage({ user, onNavigate }) {
     }
   };
 
-  const filteredDoctors = doctorDirectory.filter((doc) => {
+  const filteredDoctors = doctorsList.filter((doc) => {
     const matchesSearch = doc.name.toLowerCase().includes(searchDoctorQuery.toLowerCase()) ||
                           doc.specialty.toLowerCase().includes(searchDoctorQuery.toLowerCase()) ||
                           doc.hospital.toLowerCase().includes(searchDoctorQuery.toLowerCase());

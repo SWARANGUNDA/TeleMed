@@ -21,11 +21,11 @@ except (ImportError, ValueError):
         import config
 
 try:
-    from web_platform.backend.database.db import SessionLocal, check_db_connection
-    from web_platform.backend.models import models as pg_models
-except (ImportError, ValueError):
     from database.db import SessionLocal, check_db_connection
     from models import models as pg_models
+except (ImportError, ValueError):
+    from web_platform.backend.database.db import SessionLocal, check_db_connection
+    from web_platform.backend.models import models as pg_models
 
 
 
@@ -403,103 +403,111 @@ def list_doctors(status: Optional[str] = None) -> List[Dict[str, Any]]:
         session.close()
 
 
-
 def update_doctor_status(
     doctor_id: str,
     new_status: str,
     notes: Optional[str] = None
 ) -> Optional[Dict[str, Any]]:
-    """Update doctor verification status (PENDING, UNDER_REVIEW, VERIFIED, REJECTED, SUSPENDED)."""
+    """Update doctor verification status in PostgreSQL 17."""
     status_clean = new_status.strip().upper()
-    valid_statuses = ("PENDING", "UNDER_REVIEW", "VERIFIED", "REJECTED", "SUSPENDED")
-    if status_clean not in valid_statuses:
-        raise ValueError(f"Invalid doctor verification status '{new_status}'. Must be one of {valid_statuses}")
-
-    conn = get_db_connection()
+    session = SessionLocal()
     try:
-        cursor = conn.execute(
-            "SELECT user_id FROM doctor_profiles WHERE doctor_id = ? OR user_id = ?",
-            (doctor_id, doctor_id)
-        )
-        row = cursor.fetchone()
-        if not row:
+        doc = session.query(pg_models.DoctorProfile).filter(
+            (pg_models.DoctorProfile.doctor_id == doctor_id) | (pg_models.DoctorProfile.user_id == doctor_id)
+        ).first()
+        if not doc:
             return None
 
-        user_id = row["user_id"]
-        with conn:
-            conn.execute(
-                """
-                UPDATE doctor_profiles
-                SET verification_status = ?, credential_notes = COALESCE(?, credential_notes)
-                WHERE user_id = ?
-                """,
-                (status_clean, notes, user_id)
-            )
-            conn.execute(
-                "UPDATE users SET updated_at = ? WHERE user_id = ?",
-                (datetime.datetime.now(datetime.timezone.utc).isoformat(), user_id)
-            )
+        doc.verification_status = status_clean
+        if notes:
+            doc.credential_notes = notes
 
-        logger.info("Updated doctor %s verification status to %s", doctor_id, status_clean)
-        return get_user_by_id(user_id)
+        u = session.query(pg_models.User).filter_by(user_id=doc.user_id).first()
+        if u:
+            u.updated_at = datetime.datetime.now(datetime.timezone.utc).isoformat()
+
+        session.commit()
+        logger.info("Updated doctor %s verification status to %s in PostgreSQL 17", doctor_id, status_clean)
+        return get_user_by_id(doc.user_id)
+    except Exception as e:
+        session.rollback()
+        raise e
     finally:
-        conn.close()
+        session.close()
 
 
 def get_admin_stats() -> Dict[str, Any]:
-    """Get system summary statistics, queue previews, and recent administrative activity for Admin dashboard."""
-    conn = get_db_connection()
+    """Get system summary statistics, queue previews, and recent administrative activity for Admin dashboard from PostgreSQL 17."""
+    session = SessionLocal()
     try:
-        total_users = conn.execute("SELECT COUNT(*) FROM users").fetchone()[0]
-        total_patients = conn.execute("SELECT COUNT(*) FROM users WHERE role = 'PATIENT'").fetchone()[0]
-        total_doctors = conn.execute("SELECT COUNT(*) FROM users WHERE role = 'DOCTOR'").fetchone()[0]
+        total_users = session.query(pg_models.User).count()
+        total_patients = session.query(pg_models.User).filter_by(role="PATIENT").count()
+        total_doctors = session.query(pg_models.User).filter_by(role="DOCTOR").count()
+        today_assessments = session.query(pg_models.Assessment).count()
+
+        pending_doctors = session.query(pg_models.DoctorProfile).filter(
+            pg_models.DoctorProfile.verification_status.in_(["PENDING", "UNDER_REVIEW", "RESUBMISSION_REQUIRED"])
+        ).count()
         
-        pending_doctors = conn.execute(
-            "SELECT COUNT(*) FROM doctor_profiles WHERE verification_status IN ('PENDING', 'UNDER_REVIEW', 'RESUBMISSION_REQUIRED')"
-        ).fetchone()[0]
-        verified_doctors = conn.execute(
-            "SELECT COUNT(*) FROM doctor_profiles WHERE verification_status = 'VERIFIED'"
-        ).fetchone()[0]
+        verified_doctors = session.query(pg_models.DoctorProfile).filter_by(verification_status="VERIFIED").count()
 
-        requested_consultations = conn.execute("SELECT COUNT(*) FROM consultations WHERE status = 'REQUESTED'").fetchone()[0]
-        active_consultations = conn.execute("SELECT COUNT(*) FROM consultations WHERE status IN ('ASSIGNED', 'ACCEPTED', 'ACTIVE')").fetchone()[0]
-        completed_consultations = conn.execute("SELECT COUNT(*) FROM consultations WHERE status = 'COMPLETED'").fetchone()[0]
+        requested_consultations = session.query(pg_models.Consultation).filter_by(status="REQUESTED").count()
+        active_consultations = session.query(pg_models.Consultation).filter(
+            pg_models.Consultation.status.in_(["ASSIGNED", "ACCEPTED", "ACTIVE"])
+        ).count()
+        completed_consultations = session.query(pg_models.Consultation).filter_by(status="COMPLETED").count()
 
-        # Verification queue preview (top 5 pending doctor applications)
-        v_rows = conn.execute("""
-            SELECT d.doctor_id, d.full_name, u.email, d.specialization, d.verification_status, d.created_at
-            FROM doctor_profiles d
-            JOIN users u ON d.user_id = u.user_id
-            WHERE d.verification_status IN ('PENDING', 'UNDER_REVIEW', 'RESUBMISSION_REQUIRED')
-            ORDER BY d.created_at DESC LIMIT 5
-        """).fetchall()
-        verification_preview = [dict(r) for r in v_rows]
+        v_docs = session.query(pg_models.DoctorProfile).filter(
+            pg_models.DoctorProfile.verification_status.in_(["PENDING", "UNDER_REVIEW", "RESUBMISSION_REQUIRED"])
+        ).order_by(pg_models.DoctorProfile.created_at.desc()).limit(5).all()
+        
+        verification_preview = []
+        for d in v_docs:
+            u = session.query(pg_models.User).filter_by(user_id=d.user_id).first()
+            verification_preview.append({
+                "doctor_id": d.doctor_id,
+                "full_name": d.full_name,
+                "email": u.email if u else "",
+                "specialization": d.specialization,
+                "verification_status": d.verification_status,
+                "created_at": d.created_at
+            })
 
-        # Consultation queue preview (top 5 requested or assigned consultations)
-        c_rows = conn.execute("""
-            SELECT c.consultation_id, p.full_name AS patient_name, c.specialization, c.urgency, c.reason, c.status, c.created_at
-            FROM consultations c
-            JOIN patient_profiles p ON c.user_id = p.user_id
-            WHERE c.status IN ('REQUESTED', 'ASSIGNED')
-            ORDER BY c.created_at DESC LIMIT 5
-        """).fetchall()
-        consultation_preview = [dict(r) for r in c_rows]
+        c_list = session.query(pg_models.Consultation).filter(
+            pg_models.Consultation.status.in_(["REQUESTED", "ASSIGNED", "ACTIVE"])
+        ).order_by(pg_models.Consultation.created_at.desc()).limit(5).all()
+        
+        consultation_preview = []
+        for c in c_list:
+            p = session.query(pg_models.PatientProfile).filter_by(user_id=c.user_id).first()
+            consultation_preview.append({
+                "consultation_id": c.consultation_id,
+                "patient_name": p.full_name if p else "Patient",
+                "specialization": c.specialization,
+                "urgency": c.urgency,
+                "reason": c.reason,
+                "status": c.status,
+                "created_at": c.created_at
+            })
 
-        # Combined recent administrative activity (top 8 audit log events)
-        audit_rows = conn.execute("""
-            SELECT log_id, 'DOCTOR_VERIFICATION' AS category, action, old_status, new_status, reason, timestamp
-            FROM doctor_audit_logs
-            UNION ALL
-            SELECT log_id, 'CONSULTATION' AS category, action, old_status, new_status, reason, timestamp
-            FROM consultation_audit_logs
-            ORDER BY timestamp DESC LIMIT 8
-        """).fetchall()
-        recent_activity = [dict(a) for a in audit_rows]
+        aud_events = session.query(pg_models.AuditEvent).order_by(pg_models.AuditEvent.created_at.desc()).limit(8).all()
+        recent_activity = []
+        for a in aud_events:
+            recent_activity.append({
+                "log_id": a.event_id,
+                "category": a.resource_type,
+                "action": a.action,
+                "old_status": "",
+                "new_status": a.outcome,
+                "reason": a.context_json,
+                "timestamp": a.created_at
+            })
 
         return {
             "total_users": total_users,
             "total_patients": total_patients,
             "total_doctors": total_doctors,
+            "today_assessments": today_assessments,
             "pending_doctors": pending_doctors,
             "verified_doctors": verified_doctors,
             "requested_consultations": requested_consultations,
@@ -507,10 +515,10 @@ def get_admin_stats() -> Dict[str, Any]:
             "completed_consultations": completed_consultations,
             "verification_preview": verification_preview,
             "consultation_preview": consultation_preview,
-            "recent_activity": recent_activity,
+            "recent_activity": recent_activity
         }
     finally:
-        conn.close()
+        session.close()
 
 
 ALLOWED_PATIENT_PROFILE_FIELDS = {"full_name", "age", "gender", "height_cm", "weight_kg", "contact_number"}
@@ -756,46 +764,74 @@ def attach_report_snapshot_to_record(source_session_id: str, report_snapshot: Di
     finally:
         conn.close()
 
+def _format_pg_record(r: pg_models.HealthRecord) -> Dict[str, Any]:
+    def safe_json(val):
+        if not val:
+            return {}
+        if isinstance(val, dict):
+            return val
+        try:
+            return json.loads(val)
+        except Exception:
+            return {}
+
+    return {
+        "record_id": r.record_id,
+        "user_id": r.user_id,
+        "source_session_id": r.source_session_id,
+        "patient_id": r.patient_id,
+        "created_at": r.created_at,
+        "updated_at": r.updated_at,
+        "pipeline_version": r.pipeline_version,
+        "schema_version": r.schema_version,
+        "effective_pathway": r.effective_pathway,
+        "data_quality_score": r.data_quality_score,
+        "active_modalities": r.active_modalities.split(",") if r.active_modalities else [],
+        "confirmed_features": safe_json(r.confirmed_features),
+        "prediction_snapshot": safe_json(r.prediction_snapshot),
+        "xai_snapshot": safe_json(r.xai_snapshot),
+        "report_snapshot": safe_json(r.report_snapshot),
+        "status": r.status
+    }
+
 
 def list_patient_health_records(user_id: str) -> List[Dict[str, Any]]:
-    """Fetch all health records owned by the authenticated patient, ordered chronologically descending."""
-    conn = get_db_connection()
+    """Fetch all health records owned by the authenticated patient from PostgreSQL 17."""
+    session = SessionLocal()
     try:
-        cursor = conn.execute(
-            "SELECT * FROM health_records WHERE user_id = ? ORDER BY created_at DESC", (user_id,)
-        )
-        rows = cursor.fetchall()
-        return [_format_record_row(r) for r in rows]
+        recs = session.query(pg_models.HealthRecord).filter_by(user_id=user_id).order_by(pg_models.HealthRecord.created_at.desc()).all()
+        return [_format_pg_record(r) for r in recs]
     finally:
-        conn.close()
+        session.close()
 
 
 def get_patient_health_record(user_id: str, record_id: str) -> Optional[Dict[str, Any]]:
-    """Fetch single health record strictly verifying user_id ownership (IDOR protection)."""
-    conn = get_db_connection()
+    """Fetch single health record strictly verifying user_id ownership from PostgreSQL 17."""
+    session = SessionLocal()
     try:
-        cursor = conn.execute(
-            "SELECT * FROM health_records WHERE user_id = ? AND record_id = ?", (user_id, record_id)
-        )
-        row = cursor.fetchone()
-        if not row:
+        r = session.query(pg_models.HealthRecord).filter_by(user_id=user_id, record_id=record_id).first()
+        if not r:
             return None
-        return _format_record_row(row)
+        return _format_pg_record(r)
     finally:
-        conn.close()
+        session.close()
 
 
 def delete_patient_health_record(user_id: str, record_id: str) -> bool:
-    """Delete a health record owned by user_id. Returns True if deleted, False if not found or unauthorized."""
-    conn = get_db_connection()
+    """Delete a health record owned by user_id in PostgreSQL 17."""
+    session = SessionLocal()
     try:
-        with conn:
-            cursor = conn.execute(
-                "DELETE FROM health_records WHERE user_id = ? AND record_id = ?", (user_id, record_id)
-            )
-            return cursor.rowcount > 0
+        r = session.query(pg_models.HealthRecord).filter_by(user_id=user_id, record_id=record_id).first()
+        if not r:
+            return False
+        session.delete(r)
+        session.commit()
+        return True
+    except Exception as e:
+        session.rollback()
+        return False
     finally:
-        conn.close()
+        session.close()
 
 
 # ------------------------------------------------------------------

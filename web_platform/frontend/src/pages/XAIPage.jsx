@@ -89,17 +89,8 @@ export default function XAIPage({ session, predictionData, xaiData, setXaiData, 
       });
     });
 
-    // Fallback dummy SHAP drivers if none returned
     if (list.length === 0) {
-      return [
-        { modality: 'clinical', name: 'HbA1c', value: '6.1 %', shapVal: 0.18, absShap: 0.18, direction: 'Increases Risk', range: '4.0 - 5.6 %' },
-        { modality: 'clinical', name: 'Fasting_Blood_Glucose', value: '118 mg/dL', shapVal: 0.14, absShap: 0.14, direction: 'Increases Risk', range: '70 - 99 mg/dL' },
-        { modality: 'clinical', name: 'BMI', value: '27.4 kg/m²', shapVal: 0.09, absShap: 0.09, direction: 'Increases Risk', range: '18.5 - 24.9' },
-        { modality: 'wearable', name: 'Average_Daily_Steps', value: '8,400 steps', shapVal: -0.12, absShap: 0.12, direction: 'Decreases Risk', range: '> 8,000 steps' },
-        { modality: 'wearable', name: 'Resting_Heart_Rate', value: '64 bpm', shapVal: -0.06, absShap: 0.06, direction: 'Decreases Risk', range: '60 - 100 bpm' },
-        { modality: 'gut', name: 'Akkermansia', value: '3.2 %', shapVal: -0.10, absShap: 0.10, direction: 'Decreases Risk', range: '1.0 - 4.0 %' },
-        { modality: 'gut', name: 'Faecalibacterium', value: '8.5 %', shapVal: -0.07, absShap: 0.07, direction: 'Decreases Risk', range: '5.0 - 12.0 %' },
-      ];
+      return [];
     }
 
     return list.sort((a, b) => b.absShap - a.absShap);

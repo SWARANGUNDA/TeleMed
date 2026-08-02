@@ -96,6 +96,21 @@ def configure_doctor_availability(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
+@router.get("/doctors", status_code=status.HTTP_200_OK)
+def list_verified_doctors(
+    specialization: Optional[str] = None,
+    current_user: Dict[str, Any] = Depends(get_current_user)
+):
+    """List verified doctors for patient appointment booking and specialist consultation."""
+    doctors = database.list_doctors(status="VERIFIED")
+    if specialization and specialization.upper() != "ALL":
+        doctors = [d for d in doctors if d.get("doctor_profile", {}).get("specialization") == specialization]
+    return {
+        "status": "SUCCESS",
+        "doctors": doctors
+    }
+
+
 @router.get("/doctors/{doctor_id}/availability", status_code=status.HTTP_200_OK)
 def list_doctor_availability(
     doctor_id: str,

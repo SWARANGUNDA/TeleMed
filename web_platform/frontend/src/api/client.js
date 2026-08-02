@@ -928,6 +928,19 @@ export async function configureDoctorAvailability(slots) {
   return data;
 }
 
+export async function fetchVerifiedDoctors(specialization = '') {
+  const url = `${API_BASE}/doctors${specialization ? `?specialization=${encodeURIComponent(specialization)}` : ''}`;
+  const res = await fetch(url, {
+    method: 'GET',
+    headers: getAuthHeaders(),
+  });
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(data.message || data.detail || 'Failed to fetch doctors');
+  }
+  return data.doctors || [];
+}
+
 export async function fetchDoctorAvailability(doctorId) {
   const res = await fetch(`${API_BASE}/doctors/${doctorId}/availability`, {
     method: 'GET',
