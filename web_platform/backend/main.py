@@ -12,6 +12,7 @@ from fastapi.responses import JSONResponse
 
 from . import config, database, startup_diagnostics
 from .api import health_routes, intake_routes, predict_routes, rag_routes, xai_routes, v3_routes, auth_routes, admin_routes, records_routes, doctor_verification_routes, consultation_routes, appointment_notification_routes, audit_governance_routes, metrics_routes, websocket_routes, ops_monitoring_routes
+from . import prometheus_metrics
 from .session_manager import SessionManager
 from .security import RATE_LIMITER, SECURITY_HEADERS, safe_error_message
 
@@ -145,6 +146,7 @@ app.include_router(rag_routes.router)
 app.include_router(v3_routes.router)
 app.include_router(websocket_routes.router)
 app.include_router(ops_monitoring_routes.router)
+app.include_router(prometheus_metrics.router)
 
 
 @app.exception_handler(HTTPException)
