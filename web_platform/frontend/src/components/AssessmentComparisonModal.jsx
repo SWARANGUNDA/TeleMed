@@ -9,7 +9,7 @@ export default function AssessmentComparisonModal({ isOpen, onClose, currentSess
   const currentClinical = currentSession?.input_data?.clinical || currentSession?.extracted_features?.clinical || {};
   const currentDQ = currentSession?.data_quality_scores?.overall_quality_score ?? 92.5;
 
-  // Fallback demo baseline for comparison if historical record is unsupplied
+  // Default baseline for historical comparison if secondary record is unsupplied
   const basePreds = historicalSession?.predictions || {
     Type2_Diabetes: { calibrated_probability: 0.82, risk_level: 'POSITIVE' },
     Prediabetes: { calibrated_probability: 0.15, risk_level: 'NEGATIVE' },

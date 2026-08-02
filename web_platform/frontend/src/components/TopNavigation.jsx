@@ -443,34 +443,7 @@ export default function TopNavigation({
                       </button>
                     );
                   })}
-                  {role === 'PATIENT' && typeof onToggleDemo === 'function' && (
-                    <button
-                      onClick={() => {
-                        onToggleDemo();
-                        setShowMoreMenu(false);
-                      }}
-                      style={{
-                        width: '100%',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '8px',
-                        padding: '8px 12px',
-                        borderRadius: '6px',
-                        border: 'none',
-                        background: 'transparent',
-                        color: isDemoActive ? 'var(--accent-cyan)' : 'var(--text-muted)',
-                        fontSize: '0.83rem',
-                        cursor: 'pointer',
-                        textAlign: 'left',
-                        borderTop: '1px solid var(--border-subtle)',
-                        marginTop: '4px',
-                        paddingTop: '8px'
-                      }}
-                    >
-                      <Sparkles size={15} />
-                      <span>{isDemoActive ? 'Guided Demo Mode (On)' : 'Guided Demo Mode'}</span>
-                    </button>
-                  )}
+
                 </div>
               )}
             </div>

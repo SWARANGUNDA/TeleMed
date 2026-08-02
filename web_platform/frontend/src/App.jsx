@@ -5,7 +5,7 @@ import { Layout } from './components/layout/Layout';
 import AuthModal from './components/AuthModal';
 import ErrorBoundary from './components/ErrorBoundary';
 import ProtectedRoute from './components/ProtectedRoute';
-import GuidedDemoBar from './components/GuidedDemoBar';
+
 import AssessmentComparisonModal from './components/AssessmentComparisonModal';
 import useTheme from './utils/useTheme';
 import { predictV3, fetchXAIV3, analyzePredictions, confirmFeatures, getCurrentUser, logoutUser, loginUser, fetchPatientRecords } from './api/client';
@@ -666,11 +666,7 @@ export default function App() {
       onToggleTheme={() => setThemeMode(themeMode === 'dark' ? 'light' : 'dark')}
       theme={themeMode}
     >
-      {/* Guided Demo Progress Bar */}
-      <GuidedDemoBar
-        isDemoActive={isDemoActive}
-        onToggleDemo={() => setIsDemoActive(false)}
-      />
+
 
       {/* Assessment Comparison Modal */}
       <AssessmentComparisonModal

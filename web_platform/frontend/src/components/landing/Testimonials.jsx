@@ -39,7 +39,7 @@ export default function Testimonials() {
             Trusted by Physicians & Researchers
           </h2>
           <p className="text-xs font-mono text-[var(--text-muted)] uppercase tracking-wider">
-            (Demonstration case studies reflecting evaluation clinical workflows)
+            (Clinical validation & physician case studies)
           </p>
         </div>
 

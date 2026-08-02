@@ -53,9 +53,9 @@ export default function Hero({ onOpenAuth }) {
                 className="!px-7 !py-4 text-base hover:bg-[var(--bg-surface-hover)] transition-all"
                 leftIcon={<Activity className="w-5 h-5 text-[var(--secondary)]" />}
                 onClick={() => navigate('/dashboard')}
-                aria-label="View Live Demo"
+                aria-label="Explore Interactive Platform"
               >
-                View Live Demo
+                Explore Interactive Platform
               </Button>
             </div>
 

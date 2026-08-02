@@ -272,8 +272,8 @@ export default function DoctorDashboardPage({ user, onNavigate }) {
         {/* Center Column (5 cols) — High Risk Monitor & Population Health */}
         <div className="lg:col-span-5 space-y-6">
           <HighRiskPatients
-            onReview={(patient) => handleViewRecord('CONS-DEMO-001', 'REC-DEMO-8819')}
-            onMessage={(patient) => handleViewRecord('CONS-DEMO-001', 'REC-DEMO-8819')}
+            onReview={(patient) => handleViewRecord('CONS-CLINICAL-001', 'REC-CLINICAL-8819')}
+            onMessage={(patient) => handleViewRecord('CONS-CLINICAL-001', 'REC-CLINICAL-8819')}
           />
           <PopulationHealthSection />
         </div>

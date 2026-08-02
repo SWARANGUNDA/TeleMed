@@ -116,7 +116,7 @@ export function Topbar({ user, onLogout, onToggleTheme, theme = 'dark', onOpenMo
             onClick={() => setShowProfileMenu(!showProfileMenu)}
             className="flex items-center gap-2.5 p-1.5 rounded-xl hover:bg-[var(--bg-surface-hover)] transition-colors"
           >
-            <Avatar name={user?.name || user?.full_name || 'Demo User'} size="sm" />
+            <Avatar name={user?.name || user?.full_name || 'User Profile'} size="sm" />
             <div className="hidden sm:flex flex-col text-left">
               <span className="text-xs font-bold text-[var(--text-main)] leading-tight">{user?.name || user?.full_name || 'Guest User'}</span>
               <span className="text-[10px] font-mono text-[var(--text-muted)]">{user?.role || 'PATIENT'}</span>
