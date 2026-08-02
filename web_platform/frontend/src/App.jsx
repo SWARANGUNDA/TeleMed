@@ -418,7 +418,7 @@ export default function App() {
           <Route path="/research" element={<ResearchPage user={currentUser} onOpenAuth={(mode) => { setAuthMode(mode); setIsAuthOpen(true); }} />} />
           <Route path="/contact" element={<ContactPage user={currentUser} onOpenAuth={(mode) => { setAuthMode(mode); setIsAuthOpen(true); }} />} />
           <Route path="/login" element={<LoginPage onLogin={handleLogin} user={currentUser} />} />
-          <Route path="/register" element={<RegisterPage onLogin={handleLogin} user={currentUser} />} />
+          <Route path="/register" element={<RegisterPage onLoginSuccess={handleLoginSuccess} user={currentUser} />} />
 
             {/* PATIENT ROUTES */}
             <Route path="/dashboard" element={

@@ -120,7 +120,23 @@ export async function loginUser(email, password) {
   });
   const data = await res.json();
   if (!res.ok) {
-    throw new Error(data.message || data.detail || 'Login failed');
+    if (res.status === 401) {
+      throw new Error(data.message || 'Invalid email or password.');
+    } else if (res.status === 403) {
+      throw new Error(data.message || 'Account not verified. Please contact support.');
+    } else if (res.status === 404) {
+      throw new Error('User not found. Please check your email address.');
+    } else if (res.status === 422) {
+      const detail = data.detail;
+      if (Array.isArray(detail)) {
+        throw new Error(detail.map(d => d.msg || JSON.stringify(d)).join('; '));
+      }
+      throw new Error(data.message || 'Invalid request. Please check your input.');
+    } else if (res.status === 429) {
+      throw new Error('Too many login attempts. Please try again later.');
+    } else {
+      throw new Error(data.message || 'Unexpected server error. Please try again later.');
+    }
   }
   if (data.token) {
     setAuthToken(data.token);
@@ -136,7 +152,17 @@ export async function registerPatient(payload) {
   });
   const data = await res.json();
   if (!res.ok) {
-    throw new Error(data.message || data.detail || 'Patient registration failed');
+    if (res.status === 400) {
+      throw new Error(data.message || 'An account with this email already exists.');
+    } else if (res.status === 422) {
+      const detail = data.detail;
+      if (Array.isArray(detail)) {
+        throw new Error(detail.map(d => d.msg || JSON.stringify(d)).join('; '));
+      }
+      throw new Error(data.message || 'Invalid registration data. Please check your input.');
+    } else {
+      throw new Error(data.message || 'Registration failed. Please try again later.');
+    }
   }
   if (data.token) {
     setAuthToken(data.token);
@@ -152,7 +178,17 @@ export async function registerDoctor(payload) {
   });
   const data = await res.json();
   if (!res.ok) {
-    throw new Error(data.message || data.detail || 'Doctor registration failed');
+    if (res.status === 400) {
+      throw new Error(data.message || 'An account with this email already exists.');
+    } else if (res.status === 422) {
+      const detail = data.detail;
+      if (Array.isArray(detail)) {
+        throw new Error(detail.map(d => d.msg || JSON.stringify(d)).join('; '));
+      }
+      throw new Error(data.message || 'Invalid registration data. Please check your input.');
+    } else {
+      throw new Error(data.message || 'Registration failed. Please try again later.');
+    }
   }
   if (data.token) {
     setAuthToken(data.token);
@@ -171,15 +207,20 @@ export async function logoutUser() {
 }
 
 export async function getCurrentUser() {
-  const res = await fetch(`${API_BASE}/auth/me`, {
-    headers: getAuthHeaders(),
-  });
-  if (!res.ok) {
-    setAuthToken(null);
+  try {
+    const res = await fetch(`${API_BASE}/auth/me`, {
+      headers: getAuthHeaders(),
+    });
+    if (!res.ok) {
+      setAuthToken(null);
+      return null;
+    }
+    const data = await res.json();
+    return data.user;
+  } catch (e) {
+    // Network error or proxy unreachable — treat as unauthenticated
     return null;
   }
-  const data = await res.json();
-  return data.user;
 }
 
 export async function updateUserProfile(payload) {

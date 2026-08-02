@@ -3,15 +3,21 @@ import { useNavigate, Link } from 'react-router-dom';
 import Navbar from '../components/landing/Navbar';
 import Footer from '../components/landing/Footer';
 import { Card, Input, Button, Alert } from '../components/ui';
-import { Activity, User, Mail, Lock, ArrowRight, ShieldCheck } from 'lucide-react';
+import { Activity, User, Mail, Lock, ArrowRight, ShieldCheck, Briefcase, Hash } from 'lucide-react';
+import { registerPatient, registerDoctor, setAuthToken } from '../api/client';
 
-export default function RegisterPage({ onLogin, user }) {
+export default function RegisterPage({ onLoginSuccess, user }) {
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [role, setRole] = useState('PATIENT');
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState(null);
+
+  // Doctor-specific fields
+  const [specialization, setSpecialization] = useState('');
+  const [registrationNumber, setRegistrationNumber] = useState('');
+
   const navigate = useNavigate();
 
   const handleRegisterSubmit = async (e) => {
@@ -19,16 +25,50 @@ export default function RegisterPage({ onLogin, user }) {
     setLoading(true);
     setErrorMsg(null);
     try {
-      if (onLogin) {
-        await onLogin(email, password, role);
+      let res;
+      if (role === 'DOCTOR') {
+        if (!specialization.trim()) {
+          throw new Error('Specialization is required for doctor registration.');
+        }
+        if (!registrationNumber.trim()) {
+          throw new Error('Medical registration number is required.');
+        }
+        res = await registerDoctor({
+          email,
+          password,
+          full_name: fullName,
+          specialization: specialization.trim(),
+          registration_number: registrationNumber.trim(),
+        });
+      } else {
+        res = await registerPatient({
+          email,
+          password,
+          full_name: fullName,
+        });
       }
-      navigate('/dashboard');
+
+      // Registration succeeded — token is already set by registerPatient/registerDoctor
+      const registeredUser = res.user || res;
+
+      if (onLoginSuccess) {
+        onLoginSuccess(registeredUser);
+      } else {
+        // Fallback navigation
+        const dashPath = role === 'DOCTOR' ? '/doctor/dashboard' : '/dashboard';
+        navigate(dashPath);
+      }
     } catch (err) {
-      setErrorMsg(err.message || 'Registration failed. Please try again.');
+      // Map HTTP status codes to meaningful messages
+      const msg = err.message || 'Registration failed. Please try again.';
+      setErrorMsg(msg);
     } finally {
       setLoading(false);
     }
   };
+
+  const namePlaceholder = role === 'PATIENT' ? 'Rahul Sharma' : 'Dr. Sarah Jenkins';
+  const emailPlaceholder = role === 'PATIENT' ? 'rahul@telemed.ai' : 'sarah@hospital.org';
 
   return (
     <div className="min-h-screen bg-[var(--bg-primary)] text-[var(--text-main)] flex flex-col justify-between">
@@ -69,7 +109,7 @@ export default function RegisterPage({ onLogin, user }) {
 
               <Input
                 label="Full Name"
-                placeholder="Dr. Sarah Jenkins"
+                placeholder={namePlaceholder}
                 leftIcon={<User className="w-4 h-4" />}
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
@@ -79,7 +119,7 @@ export default function RegisterPage({ onLogin, user }) {
               <Input
                 label="Email Address"
                 type="email"
-                placeholder="sarah@hospital.org"
+                placeholder={emailPlaceholder}
                 leftIcon={<Mail className="w-4 h-4" />}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
@@ -95,6 +135,27 @@ export default function RegisterPage({ onLogin, user }) {
                 onChange={(e) => setPassword(e.target.value)}
                 required
               />
+
+              {role === 'DOCTOR' && (
+                <>
+                  <Input
+                    label="Specialization"
+                    placeholder="General Medicine"
+                    leftIcon={<Briefcase className="w-4 h-4" />}
+                    value={specialization}
+                    onChange={(e) => setSpecialization(e.target.value)}
+                    required
+                  />
+                  <Input
+                    label="Medical Registration Number"
+                    placeholder="REG-12345"
+                    leftIcon={<Hash className="w-4 h-4" />}
+                    value={registrationNumber}
+                    onChange={(e) => setRegistrationNumber(e.target.value)}
+                    required
+                  />
+                </>
+              )}
 
               <Button
                 variant="primary"
