@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useLocation, useSearchParams } from 'react-router-dom';
 import {
   Brain, RefreshCw, AlertTriangle, ShieldCheck, TrendingUp, TrendingDown,
   Search, Filter, Download, Printer, Copy, Check, ChevronDown, ChevronUp,
@@ -12,7 +13,11 @@ import { PageContainer, PageHeader, ContentSection } from '../components/layout'
 import { fetchXAIV3 } from '../api/client';
 
 export default function XAIPage({ session, predictionData, xaiData, setXaiData, initialDisease, onNavigateReport }) {
-  const [selectedDisease, setSelectedDisease] = useState(initialDisease || 'Type2_Diabetes');
+  const location = useLocation();
+  const [searchParams] = useSearchParams();
+  const targetFromRoute = location.state?.disease || searchParams.get('disease');
+
+  const [selectedDisease, setSelectedDisease] = useState(targetFromRoute || initialDisease || 'Type2_Diabetes');
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -31,10 +36,12 @@ export default function XAIPage({ session, predictionData, xaiData, setXaiData, 
   ];
 
   useEffect(() => {
-    if (initialDisease) {
+    if (targetFromRoute) {
+      setSelectedDisease(targetFromRoute);
+    } else if (initialDisease) {
       setSelectedDisease(initialDisease);
     }
-  }, [initialDisease]);
+  }, [targetFromRoute, initialDisease]);
 
   useEffect(() => {
     if (!xaiData || xaiData.target_disease !== selectedDisease) {
@@ -206,7 +213,7 @@ export default function XAIPage({ session, predictionData, xaiData, setXaiData, 
             </div>
 
             <Button variant="ghost" size="sm" onClick={() => setShowAllDrivers(!showAllDrivers)}>
-              {showAllDrivers ? 'Show Top 10 Only' : 'Expand All Features'} {showAllDrivers ? <ChevronUp className="w-4 h-4 ml-1" /> : <ChevronDown className="w-4 h-4 ml-1" />}
+              {showAllDrivers ? 'Collapse ▲' : 'Expand All Features ▼'}
             </Button>
           </div>
 

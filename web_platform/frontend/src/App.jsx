@@ -317,13 +317,18 @@ export default function App() {
     navigate('/');
   };
 
-  const handleNavigate = (primaryNav, subNav = '') => {
+  const handleNavigate = (primaryNav, subNav = '', diseaseKey = null) => {
     if (primaryNav === 'results' && !isPredictionComplete) {
       setGuardNotice('Complete patient data intake and run prediction first before viewing AI Results.');
       navigate('/intake');
       return;
     }
     setGuardNotice(null);
+    if (primaryNav === 'xai' && diseaseKey) {
+      setSelectedDiseaseForXAI(diseaseKey);
+      navigate(`/xai?disease=${diseaseKey}`, { state: { disease: diseaseKey } });
+      return;
+    }
     const targetPath = getPathFromNav(primaryNav, subNav, currentUser?.role);
     navigate(targetPath);
   };

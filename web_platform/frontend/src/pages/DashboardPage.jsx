@@ -264,15 +264,20 @@ export default function DashboardPage({
                   <ProgressBar value={probPct} max={100} variant={variant} />
                 </div>
 
-                <div className="mt-4 pt-3 border-t border-[var(--border-subtle)] flex items-center justify-between gap-2">
+                  <div className="mt-4 pt-3 border-t border-[var(--border-subtle)] flex items-center justify-between gap-2">
                   <button
                     onClick={() => toggleWhy(disease.key)}
                     className="text-[11px] font-semibold text-[var(--text-muted)] hover:text-[var(--text-main)] inline-flex items-center gap-1 transition-colors"
                   >
-                    Details {expandedWhy[disease.key] ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                    {expandedWhy[disease.key] ? 'Details ▲' : 'Details ▼'}
                   </button>
 
-                  <Button variant="ghost" size="sm" className="!px-2.5 !py-1 text-xs" onClick={() => onNavigate('xai')}>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="!px-2.5 !py-1 text-xs"
+                    onClick={() => onNavigate('xai', '', disease.key)}
+                  >
                     Explain <ArrowRight className="w-3.5 h-3.5 ml-1" />
                   </Button>
                 </div>
@@ -281,15 +286,38 @@ export default function DashboardPage({
                   <div className="mt-3 p-3 bg-[var(--bg-primary)] rounded-xl text-xs space-y-1.5 border border-[var(--border-subtle)] animate-fade-in">
                     <p className="font-semibold text-[var(--text-main)]">Contributing Risk Factors:</p>
                     <ul className="list-disc list-inside text-[var(--text-muted)] space-y-0.5 text-[11px]">
-                      {data.top_drivers && data.top_drivers.length > 0 ? (
-                        data.top_drivers.map((drv, idx) => <li key={idx}>{drv}</li>)
-                      ) : (
-                        <>
-                          <li>HbA1c & Fasting Glucose Glycemic Balance</li>
-                          <li>Visceral Fat & Body Mass Index</li>
-                          <li>Daily Activity Telemetry Dynamics</li>
-                        </>
-                      )}
+                      {(data.top_drivers && data.top_drivers.length > 0
+                        ? data.top_drivers
+                        : {
+                            Type2_Diabetes: [
+                              'HbA1c & Fasting Glucose Glycemic Balance',
+                              'HOMA-IR Insulin Resistance Index',
+                              'Family History of Type 2 Diabetes'
+                            ],
+                            Prediabetes: [
+                              'Impaired Fasting Glucose (100–125 mg/dL)',
+                              'Postprandial Glycemic Excursion Risk',
+                              'Sedentary Duration & Activity Deficit'
+                            ],
+                            High_Adiposity_Risk: [
+                              'Body Mass Index (BMI) Elevation',
+                              'Waist-to-Height Visceral Fat Ratio',
+                              'Caloric Balance & Daily Energy Expenditure'
+                            ],
+                            Metabolic_Syndrome: [
+                              'Triglyceride / HDL Lipid Ratio (>3.0)',
+                              'Systolic & Diastolic Blood Pressure Elevation',
+                              'Combined Central Adiposity & Hyperglycemia'
+                            ],
+                            NAFLD: [
+                              'ALT & AST Hepatic Enzyme Ratio Elevation',
+                              'Hepatic Steatosis Risk & Lipid Accumulation',
+                              'Gut Microbiome Taxa Alterations (Firmicutes/Bacteroidetes)'
+                            ]
+                          }[disease.key] || []
+                      ).map((drv, idx) => (
+                        <li key={idx}>{drv}</li>
+                      ))}
                     </ul>
                   </div>
                 )}
