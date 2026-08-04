@@ -431,11 +431,11 @@ export default function App() {
       <Suspense fallback={<PageSkeleton />}>
         <Routes>
           {/* PUBLIC LANDING ROUTES */}
-          <Route path="/" element={<HomePage user={currentUser} onOpenAuth={(mode) => { setAuthMode(mode); setIsAuthOpen(true); }} />} />
-          <Route path="/about" element={<AboutPage user={currentUser} onOpenAuth={(mode) => { setAuthMode(mode); setIsAuthOpen(true); }} />} />
-          <Route path="/features" element={<FeaturesPage user={currentUser} onOpenAuth={(mode) => { setAuthMode(mode); setIsAuthOpen(true); }} />} />
-          <Route path="/research" element={<ResearchPage user={currentUser} onOpenAuth={(mode) => { setAuthMode(mode); setIsAuthOpen(true); }} />} />
-          <Route path="/contact" element={<ContactPage user={currentUser} onOpenAuth={(mode) => { setAuthMode(mode); setIsAuthOpen(true); }} />} />
+          <Route path="/" element={<HomePage user={currentUser} onOpenAuth={(mode) => navigate(mode === 'register' ? '/register' : '/login')} />} />
+          <Route path="/about" element={<AboutPage user={currentUser} onOpenAuth={(mode) => navigate(mode === 'register' ? '/register' : '/login')} />} />
+          <Route path="/features" element={<FeaturesPage user={currentUser} onOpenAuth={(mode) => navigate(mode === 'register' ? '/register' : '/login')} />} />
+          <Route path="/research" element={<ResearchPage user={currentUser} onOpenAuth={(mode) => navigate(mode === 'register' ? '/register' : '/login')} />} />
+          <Route path="/contact" element={<ContactPage user={currentUser} onOpenAuth={(mode) => navigate(mode === 'register' ? '/register' : '/login')} />} />
           <Route path="/login" element={<LoginPage onLogin={handleLogin} user={currentUser} />} />
           <Route path="/register" element={<RegisterPage onLoginSuccess={handleLoginSuccess} user={currentUser} />} />
 

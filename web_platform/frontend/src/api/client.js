@@ -210,6 +210,8 @@ export async function logoutUser() {
 
 export async function getCurrentUser() {
   try {
+    const token = getAuthToken();
+    if (!token) return null;
     const res = await fetch(`${API_BASE}/auth/me`, {
       headers: getAuthHeaders(),
     });
