@@ -224,34 +224,52 @@ export default function ConsultationWorkspacePage({ user, consultationContext })
         <div className="lg:col-span-6 space-y-6">
           {/* Patient Overview Header Card */}
           <Card isGlass={true} className="p-6 bg-gradient-to-r from-[var(--bg-surface)] to-[var(--bg-primary)] space-y-4">
-            <div className="flex items-start justify-between flex-wrap gap-4">
-              <div className="flex items-center gap-3">
-                <Avatar name={user?.full_name || 'John Doe'} size="lg" />
-                <div>
-                  <h3 className="text-base font-extrabold text-[var(--text-main)]">{user?.full_name || 'John Doe'}</h3>
-                  <p className="text-xs text-[var(--text-muted)]">Patient ID: {activeConsultation?.consultation_id || 'P_USER_001'} • Male, 45 yrs</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <Badge variant="primary" size="sm">Pathway: C+W+G</Badge>
-                <Badge variant="success" size="sm">DQ: 85.2%</Badge>
-              </div>
-            </div>
+            {(() => {
+              const recPreds = recordData?.prediction_snapshot?.predictions || recordData?.predictions || {};
+              const sorted = Object.keys(recPreds).map(k => {
+                const item = recPreds[k] || {};
+                const p = item.calibrated_probability !== undefined ? item.calibrated_probability : (item.probability || 0);
+                return { key: k, title: k.replace(/_/g, ' '), probPct: Math.round(p * 100) };
+              }).sort((a, b) => b.probPct - a.probPct);
 
-            <div className="grid grid-cols-3 gap-3 pt-2 text-center text-xs">
-              <div className="p-2.5 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-subtle)]">
-                <span className="text-[10px] font-mono text-[var(--text-muted)] block">Primary Risk</span>
-                <strong className="text-[var(--danger)]">Type 2 Diabetes (68%)</strong>
-              </div>
-              <div className="p-2.5 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-subtle)]">
-                <span className="text-[10px] font-mono text-[var(--text-muted)] block">Secondary Risk</span>
-                <strong className="text-[var(--warning)]">Prediabetes (62%)</strong>
-              </div>
-              <div className="p-2.5 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-subtle)]">
-                <span className="text-[10px] font-mono text-[var(--text-muted)] block">Confidence</span>
-                <strong className="text-[var(--primary)]">92.4%</strong>
-              </div>
-            </div>
+              const primary = sorted[0] || { title: 'None', probPct: 0 };
+              const secondary = sorted[1] || { title: 'None', probPct: 0 };
+              const pw = recordData?.effective_pathway || recordData?.pathway_used || 'C+W+G';
+              const dq = Math.round(recordData?.data_quality_score ? (recordData.data_quality_score * 100) : (recordData?.overall_quality_score || 85));
+
+              return (
+                <>
+                  <div className="flex items-start justify-between flex-wrap gap-4">
+                    <div className="flex items-center gap-3">
+                      <Avatar name={user?.full_name || 'John Doe'} size="lg" />
+                      <div>
+                        <h3 className="text-base font-extrabold text-[var(--text-main)]">{user?.full_name || 'John Doe'}</h3>
+                        <p className="text-xs text-[var(--text-muted)]">Patient ID: {activeConsultation?.consultation_id || 'P_USER_001'} • Male, 45 yrs</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Badge variant="primary" size="sm">Pathway: {pw}</Badge>
+                      <Badge variant="success" size="sm">DQ: {dq}%</Badge>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-3 pt-2 text-center text-xs">
+                    <div className="p-2.5 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-subtle)]">
+                      <span className="text-[10px] font-mono text-[var(--text-muted)] block">Primary Risk</span>
+                      <strong className="text-[var(--danger)]">{primary.title} ({primary.probPct}%)</strong>
+                    </div>
+                    <div className="p-2.5 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-subtle)]">
+                      <span className="text-[10px] font-mono text-[var(--text-muted)] block">Secondary Risk</span>
+                      <strong className="text-[var(--warning)]">{secondary.title} ({secondary.probPct}%)</strong>
+                    </div>
+                    <div className="p-2.5 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-subtle)]">
+                      <span className="text-[10px] font-mono text-[var(--text-muted)] block">Model Calibration</span>
+                      <strong className="text-[var(--primary)]">Isotonic</strong>
+                    </div>
+                  </div>
+                </>
+              );
+            })()}
           </Card>
 
           {/* Clinical Findings & Notes Form */}

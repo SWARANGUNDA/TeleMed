@@ -377,41 +377,49 @@ export default function DoctorDashboardPage({ user, onNavigate }) {
               <div className="space-y-4">
                 <Card isGlass={true} className="p-4 bg-[var(--bg-primary)] space-y-2">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-[var(--text-main)]">Patient Demographic Meta</span>
+                    <span className="text-xs font-bold text-[var(--text-main)]">Patient Assessment Record</span>
                     <Badge variant="primary" size="sm">Pathway: {selectedRecord?.effective_pathway || 'C+W+G'}</Badge>
                   </div>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
-                    <div><span className="text-[10px] font-mono text-[var(--text-muted)] block">PATIENT ID</span><strong className="font-mono">{selectedRecord?.record_id}</strong></div>
-                    <div><span className="text-[10px] font-mono text-[var(--text-muted)] block">DATA QUALITY</span><strong className="text-[var(--success)]">{selectedRecord?.overall_quality_score || 85.2}%</strong></div>
-                    <div><span className="text-[10px] font-mono text-[var(--text-muted)] block">HIGH RISK TARGET</span><strong className="text-[var(--danger)]">Type 2 Diabetes (68%)</strong></div>
-                    <div><span className="text-[10px] font-mono text-[var(--text-muted)] block">CONFIDENCE</span><strong className="text-[var(--primary)]">92.4%</strong></div>
-                  </div>
-                </Card>
+                  {(() => {
+                    const recPreds = selectedRecord?.prediction_snapshot?.predictions || selectedRecord?.predictions || {};
+                    const sorted = Object.keys(recPreds).map(k => {
+                      const item = recPreds[k] || {};
+                      const p = item.calibrated_probability !== undefined ? item.calibrated_probability : (item.probability || 0);
+                      return { key: k, title: k.replace(/_/g, ' '), probPct: Math.round(p * 100), risk: item.risk_level || 'Low' };
+                    }).sort((a, b) => b.probPct - a.probPct);
 
-                {/* AI Disease Predictions List */}
-                <div className="space-y-2">
-                  <h4 className="text-xs font-mono uppercase font-bold text-[var(--text-muted)]">Disease Risk Predictions</h4>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                    <Card isGlass={true} className="p-3 border-t-2 border-t-[var(--danger)]">
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-bold">Type 2 Diabetes</span>
-                        <Badge variant="danger" size="sm">68%</Badge>
-                      </div>
-                    </Card>
-                    <Card isGlass={true} className="p-3 border-t-2 border-t-[var(--warning)]">
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-bold">Prediabetes Risk</span>
-                        <Badge variant="warning" size="sm">62%</Badge>
-                      </div>
-                    </Card>
-                    <Card isGlass={true} className="p-3 border-t-2 border-t-[var(--success)]">
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-bold">Adiposity Risk</span>
-                        <Badge variant="success" size="sm">28%</Badge>
-                      </div>
-                    </Card>
-                  </div>
-                </div>
+                    const topItem = sorted[0] || { title: 'None', probPct: 0 };
+                    const dqVal = Math.round(selectedRecord?.data_quality_score ? (selectedRecord.data_quality_score * 100) : (selectedRecord?.overall_quality_score || 85));
+
+                    return (
+                      <>
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+                          <div><span className="text-[10px] font-mono text-[var(--text-muted)] block">RECORD ID</span><strong className="font-mono">{selectedRecord?.record_id}</strong></div>
+                          <div><span className="text-[10px] font-mono text-[var(--text-muted)] block">DATA QUALITY</span><strong className="text-[var(--success)]">{dqVal}%</strong></div>
+                          <div><span className="text-[10px] font-mono text-[var(--text-muted)] block">HIGHEST RISK</span><strong className="text-[var(--danger)]">{topItem.title} ({topItem.probPct}%)</strong></div>
+                          <div><span className="text-[10px] font-mono text-[var(--text-muted)] block">CALIBRATION</span><strong className="text-[var(--primary)]">Isotonic</strong></div>
+                        </div>
+
+                        <div className="space-y-2 pt-2">
+                          <h4 className="text-xs font-mono uppercase font-bold text-[var(--text-muted)]">Disease Risk Predictions</h4>
+                          <div className="grid grid-cols-1 sm:grid-cols-5 gap-2">
+                            {sorted.map(s => {
+                              const variant = s.probPct >= 60 ? 'danger' : s.probPct >= 30 ? 'warning' : 'success';
+                              return (
+                                <Card key={s.key} isGlass={true} className={`p-2.5 space-y-1 ${s.probPct >= 60 ? 'border-t-2 border-t-[var(--danger)]' : s.probPct >= 30 ? 'border-t-2 border-t-[var(--warning)]' : 'border-t-2 border-t-[var(--success)]'}`}>
+                                  <div className="flex items-center justify-between gap-1">
+                                    <span className="text-[11px] font-bold truncate" title={s.title}>{s.title}</span>
+                                    <Badge variant={variant} size="sm">{s.probPct}%</Badge>
+                                  </div>
+                                </Card>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      </>
+                    );
+                  })()}
+                </Card>
               </div>
             )}
 

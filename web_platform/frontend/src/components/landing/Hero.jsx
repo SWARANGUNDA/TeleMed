@@ -76,11 +76,11 @@ export default function Hero({ onOpenAuth }) {
                   <Activity className="w-5 h-5 text-[var(--primary)]" />
                   <h4 className="text-sm font-bold text-[var(--text-main)]">Type 2 Diabetes Risk Prediction</h4>
                 </div>
-                <Badge variant="danger" size="sm">HIGH RISK (68%)</Badge>
+                <Badge variant="danger" size="sm">PREDIABETES RISK (99%)</Badge>
               </div>
-              <ProgressBar value={68} max={100} variant="danger" />
+              <ProgressBar value={99} max={100} variant="danger" />
               <div className="flex justify-between text-[11px] font-mono text-[var(--text-muted)]">
-                <span>Model Confidence: 94.2%</span>
+                <span>Model Confidence: 99.5%</span>
                 <span>Pathway: C + W + G</span>
               </div>
             </Card>
