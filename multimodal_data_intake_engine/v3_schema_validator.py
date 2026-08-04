@@ -55,6 +55,13 @@ class V3SchemaValidator:
         raw_wearable = payload.get("wearable_data", None) or payload.get("wearable", None)
         raw_gut      = payload.get("gut_data", None) or payload.get("gut", None)
 
+        if not (raw_clinical or raw_wearable or raw_gut) and "predict_response" in payload:
+            pred_resp = payload.get("predict_response") or {}
+            expert_outs = pred_resp.get("expert_outputs") or {}
+            raw_clinical = (expert_outs.get("clinical") or {}).get("raw_input") or (expert_outs.get("clinical") or {}) or pred_resp.get("confirmed_features", {}).get("clinical")
+            raw_wearable = (expert_outs.get("wearable") or {}).get("raw_input") or (expert_outs.get("wearable") or {}) or pred_resp.get("confirmed_features", {}).get("wearable")
+            raw_gut      = (expert_outs.get("gut") or {}).get("raw_input") or (expert_outs.get("gut") or {}) or pred_resp.get("confirmed_features", {}).get("gut")
+
         clinical_dict, c_present, c_supplied, c_missing = V3SchemaValidator._inspect_modality(raw_clinical, CLINICAL_V3_FEATURES)
         wearable_dict, w_present, w_supplied, w_missing = V3SchemaValidator._inspect_wearable(raw_wearable)
         gut_dict,      g_present, g_supplied, g_missing = V3SchemaValidator._inspect_modality(raw_gut, GUT_V3_TAXA_FEATURES)
@@ -120,6 +127,13 @@ class V3SchemaValidator:
 
         # Canonical feature alias map for V3 schema matching
         ALIASES = {
+            "height": ["height", "height_cm", "height cm"],
+            "weight": ["weight", "weight_kg", "weight kg"],
+            "hdl": ["hdl", "hdl_cholesterol", "hdl cholesterol"],
+            "ldl": ["ldl", "ldl_cholesterol", "ldl cholesterol"],
+            "family_history_diabetes": ["family_history_diabetes", "family_history_t2d", "family history diabetes"],
+            "family_history_hypertension": ["family_history_hypertension", "family history hypertension"],
+            "family_history_cvd": ["family_history_cvd", "family_history_obesity", "family_history_nafld", "family history cvd"],
             "sleep_duration_hours": ["sleep_duration", "sleep_duration_hours", "sleep_hours"],
             "activity_energy_expenditure": ["calories_burned", "activity_energy_expenditure", "calories"],
             "exercise_frequency_days": ["exercise_frequency", "exercise_frequency_days", "exercise_days"],

@@ -115,7 +115,8 @@ class V3InferenceEngine:
             "risk_levels": risk_levels,
             "supplied_features": supplied_features,
             "imputed_features": imputed_features,
-            "scaled_input": X_scaled
+            "scaled_input": X_scaled,
+            "raw_input": input_dict
         }
 
     def predict_wearable(self, input_dict: dict) -> dict:
@@ -191,7 +192,8 @@ class V3InferenceEngine:
             "risk_levels": risk_levels,
             "supplied_features": supplied_features,
             "imputed_features": imputed_features,
-            "scaled_input": X_scaled
+            "scaled_input": X_scaled,
+            "raw_input": input_dict
         }
 
     def predict_gut(self, input_dict: dict) -> dict:
@@ -220,8 +222,14 @@ class V3InferenceEngine:
                 feature_vals.append(med_val)
                 imputed_features.append(f)
             else:
-                feature_vals.append(float(val))
-                supplied_features.append(f)
+                try:
+                    num_val = float(val)
+                    feature_vals.append(num_val)
+                    supplied_features.append(f)
+                except (ValueError, TypeError):
+                    med_val = float(medians[f]) if isinstance(medians, (pd.Series, dict)) else float(medians)
+                    feature_vals.append(med_val)
+                    imputed_features.append(f)
 
         X_raw = np.array(feature_vals, dtype=float).reshape(1, -1)
         X_scaled = scaler.transform(X_raw)
@@ -254,7 +262,8 @@ class V3InferenceEngine:
             "risk_levels": risk_levels,
             "supplied_features": supplied_features,
             "imputed_features": imputed_features,
-            "scaled_input": X_scaled
+            "scaled_input": X_scaled,
+            "raw_input": input_dict
         }
 
     def _determine_risk_level(self, prob: float, threshold: float) -> str:

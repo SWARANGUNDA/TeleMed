@@ -42,6 +42,7 @@ class V3XAIRequest(BaseModel):
     wearable_data: Optional[Dict[str, Any]] = None
     gut_data: Optional[Dict[str, Any]] = None
     disease: str = Field(default="Type2_Diabetes")
+    predict_response: Optional[Dict[str, Any]] = None
 
 class V3ReportRequest(BaseModel):
     patient_id: str = Field(default="P_TEST_001")
@@ -116,6 +117,18 @@ def xai_v3(
     """
     try:
         raw_payload = request.model_dump()
+        if request.predict_response:
+            pred_resp = request.predict_response
+            exp_outs = pred_resp.get("expert_outputs") or {}
+            conf_feats = pred_resp.get("confirmed_features") or {}
+
+            if not raw_payload.get("clinical_data"):
+                raw_payload["clinical_data"] = (exp_outs.get("clinical") or {}).get("raw_input") or (exp_outs.get("clinical") or {}) or conf_feats.get("clinical")
+            if not raw_payload.get("wearable_data"):
+                raw_payload["wearable_data"] = (exp_outs.get("wearable") or {}).get("raw_input") or (exp_outs.get("wearable") or {}) or conf_feats.get("wearable")
+            if not raw_payload.get("gut_data"):
+                raw_payload["gut_data"] = (exp_outs.get("gut") or {}).get("raw_input") or (exp_outs.get("gut") or {}) or conf_feats.get("gut")
+
         validated_intake = V3SchemaValidator.validate_and_inspect_payload(raw_payload)
         
         if validated_intake["modality_mask"] == "NONE":

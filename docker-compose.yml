@@ -48,6 +48,10 @@ services:
       - "8000:8000"
     volumes:
       - ./web_platform/backend:/app/web_platform/backend
+      - ./multimodal_data_intake_engine:/app/multimodal_data_intake_engine
+      - ./expert_models:/app/expert_models
+      - ./fusion_engine:/app/fusion_engine
+      - ./medical_rag_engine:/app/medical_rag_engine
     env_file:
       - ./web_platform/backend/.env
     environment:
@@ -70,6 +74,10 @@ services:
     restart: always
     volumes:
       - ./web_platform/backend:/app/web_platform/backend
+      - ./multimodal_data_intake_engine:/app/multimodal_data_intake_engine
+      - ./expert_models:/app/expert_models
+      - ./fusion_engine:/app/fusion_engine
+      - ./medical_rag_engine:/app/medical_rag_engine
     environment:
       DATABASE_URL: postgresql://postgres:postgres@postgres:5432/telemed_db
       REDIS_URL: redis://redis:6379/0
