@@ -23,7 +23,7 @@ intake_service = IntakeService()
 
 class FeatureConfirmRequest(BaseModel):
     session_id: str
-    confirmed_features: Dict[str, Optional[Dict[str, Any]]]
+    confirmed_features: Dict[str, Any]
 
 
 def format_quality_scores(raw_scores: Dict[str, Any]) -> Dict[str, Any]:

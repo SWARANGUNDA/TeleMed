@@ -15,7 +15,11 @@ import WhyQualityModal from '../components/WhyQualityModal';
 import AnalysisJourneyView from '../components/AnalysisJourneyView';
 import { AnalysisPipeline } from '../components/AnalysisPipeline';
 import ProvenancePopover from '../components/ProvenancePopover';
-import { normalizeRawKey, normalizeExtractedDict, CLIENT_PHYSIOLOGICAL_BOUNDS, validateClientField } from '../utils/intakeValidation';
+import {
+  CLINICAL_V4_FEATURES, WEARABLE_V4_FEATURES, GUT_V4_TAXA_40, GUT_V4_INDICES_9,
+  computeGutDerivedIndices, normalizeRawKey, normalizeExtractedDict,
+  CLIENT_PHYSIOLOGICAL_BOUNDS, validateClientField
+} from '../utils/intakeValidation';
 import { GUT_PDF_B64, WEAR_PDF_B64, CLIN_PDF_B64, b64ToFile } from '../dev_pdfs';
 
 export default function IntakePage({
@@ -36,6 +40,14 @@ export default function IntakePage({
   const [isQualityModalOpen, setIsQualityModalOpen] = useState(false);
   const [featureSearchQuery, setFeatureSearchQuery] = useState('');
 
+  // Gut Pagination, Search & Composition State
+  const [taxaSearchQuery, setTaxaSearchQuery] = useState('');
+  const [pageSize, setPageSize] = useState(10);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [isShowingAllTaxa, setIsShowingAllTaxa] = useState(false);
+  const [otherTaxa, setOtherTaxa] = useState(4.5);
+  const [patientId, setPatientId] = useState('P000301');
+
   const fileInputRef = useRef(null);
 
   // Modality Toggles
@@ -44,30 +56,10 @@ export default function IntakePage({
   const [enableCGM, setEnableCGM] = useState(false);
   const [enableGut, setEnableGut] = useState(false);
 
-  // EMPTY initial canonical schema states
-  const emptyClinical = {
-    Patient_ID: '', Age: '', Gender: '', Height: '', Weight: '', BMI: '', Waist_Circumference: '',
-    Systolic_BP: '', Diastolic_BP: '', Fasting_Blood_Glucose: '', HbA1c: '',
-    Triglycerides: '', HDL: '', LDL: '', ALT: '', AST: '',
-    Family_History_Diabetes: '', Family_History_Hypertension: '', Family_History_CVD: ''
-  };
-
-  const emptyWearable = {
-    Average_Daily_Steps: '', Active_Minutes: '', Sedentary_Time_Minutes: '',
-    Resting_Heart_Rate: '', Heart_Rate_Variability_RMSSD: '', Sleep_Duration: '',
-    Sleep_Efficiency_Score: '', Autonomic_Stress_Score: '', Calories_Burned: '', Exercise_Frequency_Days: '',
-    Average_Glucose: '', Glucose_Variability: '', Time_In_Range: '', Time_Above_Range: '',
-    CGM_Average_Glucose: '', CGM_Glucose_CV: '', CGM_Time_In_Range: '', CGM_Time_Above_Range: ''
-  };
-
-  const emptyGut = {
-    Shannon_Diversity_Index: '', Firmicutes: '', Bacteroidetes: '', Proteobacteria: '',
-    Akkermansia: '', Faecalibacterium: '', Bifidobacterium: '', Roseburia: '',
-    Bacteroides: '', Prevotella: '', Blautia: '', Collinsella: '',
-    Escherichia_Shigella: '', Alistipes: '', Ruminococcus: '', Coprococcus: '',
-    Subdoligranulum: '', Enterococcus: '', Eubacterium: '', Parabacteroides: '',
-    Lactobacillus: '', Klebsiella: '', Streptococcus: '', Eggerthella: ''
-  };
+  // EMPTY initial canonical V4 schema states
+  const emptyClinical = CLINICAL_V4_FEATURES.reduce((acc, feat) => ({ ...acc, [feat]: '' }), {});
+  const emptyWearable = WEARABLE_V4_FEATURES.reduce((acc, feat) => ({ ...acc, [feat]: '' }), {});
+  const emptyGut = GUT_V4_TAXA_40.reduce((acc, feat) => ({ ...acc, [feat]: '' }), {});
 
   const [formClinical, setFormClinical] = useState(emptyClinical);
   const [formWearable, setFormWearable] = useState(emptyWearable);
@@ -405,10 +397,26 @@ export default function IntakePage({
       return Object.keys(res).length > 0 ? res : null;
     };
 
+    const cleanGutData = cleanDict(formGut);
+    let finalGutPayload = null;
+    if (cleanGutData) {
+      const derivedIndices = computeGutDerivedIndices(cleanGutData);
+      finalGutPayload = {
+        ...cleanGutData,
+        Other_Taxa: parseFloat(otherTaxa) || 0.0,
+        ...derivedIndices
+      };
+    }
+
+    const cleanClinicalData = cleanClinicalDict(formClinical);
+    if (cleanClinicalData) {
+      cleanClinicalData.Patient_ID = patientId || 'P000301';
+    }
+
     const confirmedPayload = {
-      clinical: cleanClinicalDict(formClinical),
+      clinical: cleanClinicalData,
       wearable: cleanDict(formWearable),
-      gut: cleanDict(formGut)
+      gut: finalGutPayload
     };
 
     if (!confirmedPayload.clinical && !confirmedPayload.wearable && !confirmedPayload.gut) {
@@ -750,9 +758,9 @@ export default function IntakePage({
               />
             </div>
             <div className="flex items-center gap-2">
-              <Badge variant="primary" size="sm">Clinical: {Object.keys(formClinical).length}</Badge>
-              <Badge variant="secondary" size="sm">Wearables: {Object.keys(formWearable).length}</Badge>
-              <Badge variant="accent" size="sm">Gut: {Object.keys(formGut).length}</Badge>
+              <Badge variant="primary" size="sm">Clinical: 18 Features</Badge>
+              <Badge variant="secondary" size="sm">Wearables: 15 Features</Badge>
+              <Badge variant="accent" size="sm">Gut: 49 Model Features</Badge>
             </div>
           </div>
 
@@ -761,10 +769,10 @@ export default function IntakePage({
             tabs={[
               {
                 id: 'clinical_feats',
-                label: 'Clinical Lab Biomarkers',
+                label: 'Clinical Lab Biomarkers (18)',
                 content: (
                   <Table headers={['Canonical Biomarker', 'Extracted Value', 'Physiological Bounds', 'Status & Provenance']}>
-                    {Object.keys(formClinical)
+                    {CLINICAL_V4_FEATURES
                       .filter(k => k.toLowerCase().includes(featureSearchQuery.toLowerCase()))
                       .map((featKey) => {
                         const val = formClinical[featKey];
@@ -785,8 +793,8 @@ export default function IntakePage({
                               {bounds.min} - {bounds.max} {bounds.unit}
                             </TableCell>
                             <TableCell>
-                              <Badge variant={isEdited ? 'warning' : (val !== '' && val !== null ? 'success' : 'info')} size="sm">
-                                {isEdited ? 'EDITED' : (val !== '' && val !== null ? 'EXTRACTED' : 'MISSING')}
+                              <Badge variant={isEdited ? 'warning' : (val !== '' && val !== null && val !== undefined ? 'success' : 'info')} size="sm">
+                                {isEdited ? 'EDITED' : (val !== '' && val !== null && val !== undefined ? 'EXTRACTED' : 'MISSING')}
                               </Badge>
                             </TableCell>
                           </TableRow>
@@ -797,14 +805,15 @@ export default function IntakePage({
               },
               {
                 id: 'wearable_feats',
-                label: 'Wearable Telemetry',
+                label: 'Wearable Telemetry (15)',
                 content: (
                   <Table headers={['Telemetry Metric', 'Measured Value', 'Standard Unit', 'Status']}>
-                    {Object.keys(formWearable)
+                    {WEARABLE_V4_FEATURES
                       .filter(k => k.toLowerCase().includes(featureSearchQuery.toLowerCase()))
                       .map((featKey) => {
                         const val = formWearable[featKey];
                         const isEdited = editedMap.has(`wearable.${featKey}`);
+                        const bounds = CLIENT_PHYSIOLOGICAL_BOUNDS[featKey] || { unit: 'units' };
 
                         return (
                           <TableRow key={featKey} className={isEdited ? 'bg-amber-500/5' : ''}>
@@ -816,10 +825,10 @@ export default function IntakePage({
                                 className="!py-1 !px-2 text-xs font-mono max-w-[140px]"
                               />
                             </TableCell>
-                            <TableCell className="font-mono text-xs text-[var(--text-muted)]">units</TableCell>
+                            <TableCell className="font-mono text-xs text-[var(--text-muted)]">{bounds.unit || 'units'}</TableCell>
                             <TableCell>
-                              <Badge variant={isEdited ? 'warning' : (val !== '' && val !== null ? 'success' : 'info')} size="sm">
-                                {isEdited ? 'EDITED' : (val !== '' && val !== null ? 'EXTRACTED' : 'MISSING')}
+                              <Badge variant={isEdited ? 'warning' : (val !== '' && val !== null && val !== undefined ? 'success' : 'info')} size="sm">
+                                {isEdited ? 'EDITED' : (val !== '' && val !== null && val !== undefined ? 'EXTRACTED' : 'MISSING')}
                               </Badge>
                             </TableCell>
                           </TableRow>
@@ -830,36 +839,210 @@ export default function IntakePage({
               },
               {
                 id: 'gut_feats',
-                label: 'Gut Microbiome Taxa',
-                content: (
-                  <Table headers={['Microbial Taxa Name', 'Relative Abundance (%)', 'Unit', 'Status']}>
-                    {Object.keys(formGut)
-                      .filter(k => k.toLowerCase().includes(featureSearchQuery.toLowerCase()))
-                      .map((featKey) => {
-                        const val = formGut[featKey];
-                        const isEdited = editedMap.has(`gut.${featKey}`);
+                label: 'Gut Microbiome (49)',
+                content: (() => {
+                  const filteredTaxa = GUT_V4_TAXA_40.filter(t => t.toLowerCase().includes(featureSearchQuery.toLowerCase()) || t.toLowerCase().includes(taxaSearchQuery.toLowerCase()));
+                  const totalPages = Math.ceil(filteredTaxa.length / pageSize) || 1;
+                  const startIdx = (currentPage - 1) * pageSize;
+                  const endIdx = Math.min(startIdx + pageSize, filteredTaxa.length);
+                  const displayedTaxa = isShowingAllTaxa ? filteredTaxa : filteredTaxa.slice(startIdx, endIdx);
 
-                        return (
-                          <TableRow key={featKey} className={isEdited ? 'bg-amber-500/5' : ''}>
-                            <TableCell className="font-semibold text-xs">{featKey}</TableCell>
-                            <TableCell>
+                  // Compositional Check Calculation
+                  const taxaSum = GUT_V4_TAXA_40.reduce((acc, t) => acc + (parseFloat(formGut[t]) || 0.0), 0.0);
+                  const otherVal = parseFloat(otherTaxa) || 0.0;
+                  const totalCompositionSum = taxaSum + otherVal;
+                  const isCompositionValid = totalCompositionSum >= 85.0 && totalCompositionSum <= 115.0;
+
+                  // 9 Derived Indices Calculation
+                  const derivedIndices = computeGutDerivedIndices(formGut);
+                  const hasExtractedTaxa = GUT_V4_TAXA_40.some(t => formGut[t] !== '' && formGut[t] !== null && formGut[t] !== undefined);
+
+                  return (
+                    <div className="space-y-6">
+                      {/* COMPOSITIONAL CHECK & SCHEMA PANEL */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <Card isGlass={true} className="p-4 space-y-2 border-l-4 border-l-[var(--primary)]">
+                          <div className="flex items-center justify-between">
+                            <h5 className="text-xs font-bold font-mono uppercase text-[var(--text-muted)]">Compositional Sum Validation</h5>
+                            <Badge variant={isCompositionValid ? 'success' : 'warning'} size="sm">
+                              {isCompositionValid ? 'VALIDATED (100% ± 15%)' : `SUM = ${totalCompositionSum.toFixed(1)}%`}
+                            </Badge>
+                          </div>
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="text-[var(--text-muted)]">40 Species Taxa Sum: <strong className="text-[var(--text-main)] font-mono">{taxaSum.toFixed(2)}%</strong></span>
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-[var(--text-muted)]">Other_Taxa:</span>
                               <Input
-                                value={val ?? ''}
-                                onChange={(e) => updateGutField(featKey, e.target.value)}
-                                className="!py-1 !px-2 text-xs font-mono max-w-[140px]"
+                                value={otherTaxa}
+                                onChange={(e) => setOtherTaxa(e.target.value)}
+                                className="!py-0.5 !px-1.5 text-xs font-mono w-16 text-right"
                               />
-                            </TableCell>
-                            <TableCell className="font-mono text-xs text-[var(--text-muted)]">%</TableCell>
-                            <TableCell>
-                              <Badge variant={isEdited ? 'warning' : (val !== '' && val !== null ? 'accent' : 'info')} size="sm">
-                                {isEdited ? 'EDITED' : (val !== '' && val !== null ? 'EXTRACTED' : 'MISSING')}
-                              </Badge>
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })}
-                  </Table>
-                )
+                              <span className="text-[var(--text-muted)]">%</span>
+                            </div>
+                          </div>
+                          <ProgressBar value={Math.min(totalCompositionSum, 100)} variant={isCompositionValid ? 'success' : 'warning'} className="h-1.5" />
+                        </Card>
+
+                        <Card isGlass={true} className="p-4 space-y-2 border-l-4 border-l-[var(--accent)]">
+                          <div className="flex items-center justify-between">
+                            <h5 className="text-xs font-bold font-mono uppercase text-[var(--text-muted)]">Model Schema Status</h5>
+                            <Badge variant="accent" size="sm">49 Model Features</Badge>
+                          </div>
+                          <p className="text-xs text-[var(--text-muted)]">
+                            Includes <strong className="text-[var(--text-main)]">40 Canonical Species Taxa</strong> + <strong className="text-[var(--text-main)]">Other_Taxa</strong> + <strong className="text-[var(--text-main)]">9 Auto-Computed Derived Indices</strong>.
+                          </p>
+                        </Card>
+                      </div>
+
+                      {/* CONTROLS BAR */}
+                      <Card isGlass={true} className="p-4 space-y-3">
+                        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 flex-wrap">
+                          <div className="flex items-center gap-2 w-full sm:w-auto">
+                            <div className="w-64">
+                              <Input
+                                placeholder="Search 40 V4 Taxa species..."
+                                leftIcon={<Search className="w-4 h-4" />}
+                                value={taxaSearchQuery}
+                                onChange={(e) => { setTaxaSearchQuery(e.target.value); setCurrentPage(1); }}
+                              />
+                            </div>
+                            <Button
+                              variant={isShowingAllTaxa ? 'primary' : 'outline'}
+                              size="sm"
+                              onClick={() => setIsShowingAllTaxa(!isShowingAllTaxa)}
+                            >
+                              {isShowingAllTaxa ? 'Paginate' : 'Show All (40)'}
+                            </Button>
+                          </div>
+
+                          <div className="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-end">
+                            <div className="flex items-center gap-1.5 text-xs text-[var(--text-muted)]">
+                              <span>Per page:</span>
+                              <select
+                                value={pageSize}
+                                onChange={(e) => { setPageSize(Number(e.target.value)); setCurrentPage(1); }}
+                                className="bg-[var(--bg-surface)] border border-[var(--border-medium)] rounded-lg px-2 py-1 text-xs font-mono text-[var(--text-main)]"
+                                disabled={isShowingAllTaxa}
+                              >
+                                <option value={5}>5</option>
+                                <option value={10}>10</option>
+                                <option value={20}>20</option>
+                                <option value={40}>40</option>
+                              </select>
+                            </div>
+
+                            <span className="text-xs font-mono font-semibold text-[var(--text-main)]">
+                              Showing {filteredTaxa.length === 0 ? 0 : isShowingAllTaxa ? 1 : startIdx + 1}–{isShowingAllTaxa ? filteredTaxa.length : endIdx} of {filteredTaxa.length} taxa
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* TAXA PAGINATED TABLE */}
+                        <Table headers={['Taxon Species Name', 'Relative Abundance (%)', 'Unit', 'Status', 'Details']}>
+                          {displayedTaxa.map((featKey) => {
+                            const val = formGut[featKey];
+                            const isEdited = editedMap.has(`gut.${featKey}`);
+
+                            return (
+                              <TableRow key={featKey} className={isEdited ? 'bg-purple-500/5' : ''}>
+                                <TableCell className="font-semibold text-xs font-mono text-[var(--text-main)]">
+                                  {featKey}
+                                </TableCell>
+                                <TableCell>
+                                  <Input
+                                    value={val ?? ''}
+                                    onChange={(e) => updateGutField(featKey, e.target.value)}
+                                    className="!py-1 !px-2 text-xs font-mono max-w-[140px]"
+                                  />
+                                </TableCell>
+                                <TableCell className="font-mono text-xs text-[var(--text-muted)]">%</TableCell>
+                                <TableCell>
+                                  <Badge variant={isEdited ? 'warning' : (val !== '' && val !== null && val !== undefined ? 'accent' : 'info')} size="sm">
+                                    {isEdited ? 'EDITED' : (val !== '' && val !== null && val !== undefined ? 'EXTRACTED' : 'MISSING')}
+                                  </Badge>
+                                </TableCell>
+                                <TableCell className="text-[10px] text-[var(--text-muted)] font-mono">
+                                  V4 Canonical Taxon
+                                </TableCell>
+                              </TableRow>
+                            );
+                          })}
+                        </Table>
+
+                        {/* PAGINATION FOOTER */}
+                        {!isShowingAllTaxa && totalPages > 1 && (
+                          <div className="flex items-center justify-between pt-2 border-t border-[var(--border-subtle)]">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              disabled={currentPage === 1}
+                              onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                            >
+                              Previous
+                            </Button>
+
+                            <div className="flex items-center gap-1">
+                              {Array.from({ length: totalPages }, (_, i) => i + 1).map((pg) => (
+                                <button
+                                  key={pg}
+                                  onClick={() => setCurrentPage(pg)}
+                                  className={`w-7 h-7 rounded-lg text-xs font-mono font-bold transition-all ${
+                                    currentPage === pg
+                                      ? 'bg-[var(--primary)] text-white'
+                                      : 'bg-[var(--bg-primary)] hover:bg-[var(--bg-surface-hover)] text-[var(--text-muted)]'
+                                  }`}
+                                >
+                                  {pg}
+                                </button>
+                              ))}
+                            </div>
+
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              disabled={currentPage === totalPages}
+                              onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                            >
+                              Next
+                            </Button>
+                          </div>
+                        )}
+                      </Card>
+
+                      {/* DERIVED INDICES PANEL */}
+                      <Card isGlass={true} className="p-5 space-y-4 border border-[var(--accent)]/30">
+                        <div className="flex items-center justify-between flex-wrap gap-2">
+                          <div>
+                            <h4 className="text-sm font-bold text-[var(--text-main)] flex items-center gap-2">
+                              <Dna className="w-4 h-4 text-purple-400" />
+                              Derived Ecological & Functional Indices (Computed)
+                            </h4>
+                            <p className="text-xs text-[var(--text-muted)] mt-0.5">
+                              These 9 indices are computed automatically from the uploaded V4 taxa abundance data.
+                            </p>
+                          </div>
+                          <Badge variant={hasExtractedTaxa ? 'success' : 'info'} size="sm">
+                            {hasExtractedTaxa ? 'Computed / Ready' : 'Computed / Pending'}
+                          </Badge>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                          {GUT_V4_INDICES_9.map((idxKey) => (
+                            <div key={idxKey} className="p-3 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-subtle)] space-y-1">
+                              <span className="text-[11px] font-semibold text-[var(--text-muted)] block truncate">{idxKey}</span>
+                              <div className="flex items-baseline justify-between">
+                                <span className="text-sm font-mono font-extrabold text-[var(--text-main)]">
+                                  {derivedIndices[idxKey] !== undefined ? derivedIndices[idxKey] : '0.00'}
+                                </span>
+                                <span className="text-[10px] font-mono text-[var(--success)] font-semibold">AUTO</span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </Card>
+                    </div>
+                  );
+                })()
               }
             ]}
           />
