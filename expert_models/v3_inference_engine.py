@@ -147,8 +147,17 @@ class V3InferenceEngine:
                 feature_vals.append(med_val)
                 imputed_features.append(f)
             else:
-                feature_vals.append(float(val))
-                supplied_features.append(f)
+                try:
+                    if f == "Gender" and isinstance(val, str):
+                        num_val = 1.0 if val.strip().lower() in ("male", "m", "1") else 0.0
+                    else:
+                        num_val = float(val)
+                    feature_vals.append(num_val)
+                    supplied_features.append(f)
+                except (ValueError, TypeError):
+                    med_val = float(medians[f]) if isinstance(medians, (pd.Series, dict)) else float(medians)
+                    feature_vals.append(med_val)
+                    imputed_features.append(f)
 
         X_raw = np.array(feature_vals, dtype=float).reshape(1, -1)
         

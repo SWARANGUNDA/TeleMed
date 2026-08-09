@@ -6,28 +6,18 @@ from typing import List, Optional, Dict, Any
 from sqlalchemy.orm import Session
 try:
     from ..models.models import (
+        User, PatientProfile, DoctorProfile, DoctorCredential, DoctorAuditLog,
+        AuthSession, HealthRecord, Assessment, Consultation, ConsultationSharedRecord,
+        ConsultationAuditLog, ConsultationMessage, ConsultationNote, DoctorAvailabilitySlot,
+        Appointment, Notification, SystemSetting, AuditEvent, AccountDeletionRequest
+    )
 except (ImportError, ValueError):
     from models.models import (
-    User,
-    PatientProfile,
-    DoctorProfile,
-    DoctorCredential,
-    DoctorAuditLog,
-    AuthSession,
-    HealthRecord,
-    Assessment,
-    Consultation,
-    ConsultationSharedRecord,
-    ConsultationAuditLog,
-    ConsultationMessage,
-    ConsultationNote,
-    DoctorAvailabilitySlot,
-    Appointment,
-    Notification,
-    SystemSetting,
-    AuditEvent,
-    AccountDeletionRequest,
-)
+        User, PatientProfile, DoctorProfile, DoctorCredential, DoctorAuditLog,
+        AuthSession, HealthRecord, Assessment, Consultation, ConsultationSharedRecord,
+        ConsultationAuditLog, ConsultationMessage, ConsultationNote, DoctorAvailabilitySlot,
+        Appointment, Notification, SystemSetting, AuditEvent, AccountDeletionRequest
+    )
 
 
 class UserRepository:
