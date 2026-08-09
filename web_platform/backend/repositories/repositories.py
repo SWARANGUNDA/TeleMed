@@ -4,8 +4,10 @@ repositories/repositories.py — Repository Pattern Layer for TeleMed AI Platfor
 
 from typing import List, Optional, Dict, Any
 from sqlalchemy.orm import Session
-from sqlalchemy import select, update, delete
-from models.models import (
+try:
+    from ..models.models import (
+except (ImportError, ValueError):
+    from models.models import (
     User,
     PatientProfile,
     DoctorProfile,

@@ -16,38 +16,56 @@ from typing import Dict, Any, Tuple, List, Optional
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s]: %(message)s")
 logger = logging.getLogger("v3_schema_validator")
 
-CLINICAL_V3_FEATURES = [
+CLINICAL_V4_FEATURES = [
     "Age", "Gender", "Height", "Weight", "BMI", "Waist_Circumference",
     "Systolic_BP", "Diastolic_BP", "Fasting_Blood_Glucose", "HbA1c",
     "Triglycerides", "HDL", "LDL", "ALT", "AST",
     "Family_History_Diabetes", "Family_History_Hypertension", "Family_History_CVD"
 ]
 
-WEARABLE_STD_V3_FEATURES = [
+WEARABLE_V4_FEATURES = [
     "Average_Daily_Steps", "Active_Minutes", "Sedentary_Time_Minutes",
     "Resting_Heart_Rate", "Heart_Rate_Variability_RMSSD", "Sleep_Duration_Hours",
     "Sleep_Efficiency_Score", "Autonomic_Stress_Score", "Activity_Energy_Expenditure",
-    "Exercise_Frequency_Days"
+    "Exercise_Frequency_Days", "CGM_Average_Glucose", "CGM_Glucose_CV",
+    "CGM_Time_In_Range", "CGM_Time_Above_Range", "CGM_Time_Below_Range"
 ]
 
-WEARABLE_CGM_V3_FEATURES = [
-    "CGM_Average_Glucose", "CGM_Glucose_CV", "CGM_Time_In_Range",
-    "CGM_Time_Above_Range", "CGM_Time_Below_Range"
+GUT_V4_TAXA_FEATURES = [
+    "Akkermansia_muciniphila", "Faecalibacterium_prausnitzii", "Roseburia_intestinalis",
+    "Bifidobacterium_longum", "Bifidobacterium_adolescentis", "Bacteroides_thetaiotaomicron",
+    "Bacteroides_vulgatus", "Bacteroides_fragilis", "Bacteroides_uniformis",
+    "Prevotella_copri", "Ruminococcus_bromii", "Ruminococcus_gnavus",
+    "Blautia_wexlerae", "Blautia_hansenii", "Collinsella_aerofaciens",
+    "Escherichia_coli", "Klebsiella_pneumoniae", "Coprococcus_eutactus",
+    "Alistipes_putredinis", "Alistipes_finegoldii", "Subdoligranulum_variable",
+    "Enterococcus_faecalis", "Eubacterium_rectale", "Eubacterium_hallii",
+    "Parabacteroides_distasonis", "Lactobacillus_acidophilus", "Lactobacillus_rhamnosus",
+    "Streptococcus_thermophilus", "Eggerthella_lenta", "Christensenella_minuta",
+    "Methanobrevibacter_smithii", "Dialister_invisus", "Holdemanella_biformis",
+    "Barnesiella_intestinihominis", "Anaerostipes_caccae", "Phascolarctobacterium_faecium",
+    "Veillonella_parvula", "Fusobacterium_nucleatum", "Bilophila_wadsworthia",
+    "Sutterella_wadsworthensis"
 ]
 
-GUT_V3_TAXA_FEATURES = [
-    "Akkermansia", "Faecalibacterium", "Roseburia", "Bifidobacterium", "Bacteroides",
-    "Prevotella", "Ruminococcus", "Blautia", "Collinsella", "Escherichia_Shigella",
-    "Coprococcus", "Alistipes", "Subdoligranulum", "Enterococcus", "Eubacterium",
-    "Parabacteroides", "Lactobacillus", "Klebsiella", "Streptococcus", "Eggerthella"
+GUT_V4_INDICES_FEATURES = [
+    "Shannon_Diversity", "Simpson_Diversity", "Observed_Richness",
+    "Pielou_Evenness", "SCFA_Producer_Index", "Butyrate_Producer_Index",
+    "Barrier_Associated_Index", "Inflammation_Associated_Index",
+    "Log_Firmicutes_Bacteroidetes_Ratio"
 ]
+
+TARGET_DISEASE_LABELS = {
+    "Type2_Diabetes", "Prediabetes", "High_Adiposity_Risk", "Metabolic_Syndrome", "NAFLD"
+}
+
 
 class V3SchemaValidator:
     @staticmethod
     def validate_and_inspect_payload(payload: Dict[str, Any]) -> Dict[str, Any]:
         """
-        Inspects raw JSON payload, normalizes key casings, detects modality availability,
-        and identifies feature completeness.
+        Inspects raw JSON payload, normalizes key casings, validates V4 schemas,
+        checks gut composition sum (≈100%), and rejects target disease leakage.
         """
         patient_id = payload.get("patient_id", "UNKNOWN_PATIENT")
         
@@ -62,32 +80,36 @@ class V3SchemaValidator:
             raw_wearable = (expert_outs.get("wearable") or {}).get("raw_input") or (expert_outs.get("wearable") or {}) or pred_resp.get("confirmed_features", {}).get("wearable")
             raw_gut      = (expert_outs.get("gut") or {}).get("raw_input") or (expert_outs.get("gut") or {}) or pred_resp.get("confirmed_features", {}).get("gut")
 
-        clinical_dict, c_present, c_supplied, c_missing = V3SchemaValidator._inspect_modality(raw_clinical, CLINICAL_V3_FEATURES)
+        # Strip target disease labels from inputs
+        raw_clinical = V3SchemaValidator._sanitize_feature_dict(raw_clinical)
+        raw_wearable = V3SchemaValidator._sanitize_feature_dict(raw_wearable)
+        raw_gut      = V3SchemaValidator._sanitize_feature_dict(raw_gut)
+
+        clinical_dict, c_present, c_supplied, c_missing = V3SchemaValidator._inspect_modality(raw_clinical, CLINICAL_V4_FEATURES)
         wearable_dict, w_present, w_supplied, w_missing = V3SchemaValidator._inspect_wearable(raw_wearable)
-        gut_dict,      g_present, g_supplied, g_missing = V3SchemaValidator._inspect_modality(raw_gut, GUT_V3_TAXA_FEATURES)
+        gut_dict,      g_present, g_supplied, g_missing, gut_validation_error = V3SchemaValidator._inspect_gut(raw_gut)
 
         modalities_supplied = []
         if c_present: modalities_supplied.append("clinical")
         if w_present: modalities_supplied.append("wearable")
-        if g_present: modalities_supplied.append("gut")
+        if g_present and not gut_validation_error: modalities_supplied.append("gut")
 
         missing_modalities = [m for m in ["clinical", "wearable", "gut"] if m not in modalities_supplied]
 
-        # Determine CGM status
-        cgm_supplied_count = sum(1 for f in WEARABLE_CGM_V3_FEATURES if f in w_supplied)
-        if c_present and not w_present and not g_present:
+        # Determine pathway mask
+        if c_present and not w_present and not (g_present and not gut_validation_error):
             modality_mask = "C"
-        elif w_present and not c_present and not g_present:
+        elif w_present and not c_present and not (g_present and not gut_validation_error):
             modality_mask = "W"
-        elif g_present and not c_present and not w_present:
+        elif (g_present and not gut_validation_error) and not c_present and not w_present:
             modality_mask = "G"
-        elif c_present and w_present and not g_present:
+        elif c_present and w_present and not (g_present and not gut_validation_error):
             modality_mask = "C+W"
-        elif c_present and g_present and not w_present:
+        elif c_present and (g_present and not gut_validation_error) and not w_present:
             modality_mask = "C+G"
-        elif w_present and g_present and not c_present:
+        elif w_present and (g_present and not gut_validation_error) and not c_present:
             modality_mask = "W+G"
-        elif c_present and w_present and g_present:
+        elif c_present and w_present and (g_present and not gut_validation_error):
             modality_mask = "C+W+G"
         else:
             modality_mask = "NONE"
@@ -105,19 +127,26 @@ class V3SchemaValidator:
             "wearable_present": w_present,
             "wearable_supplied_features": w_supplied,
             "wearable_missing_features": w_missing,
-            "cgm_supplied_count": cgm_supplied_count,
+            "cgm_supplied_count": sum(1 for f in WEARABLE_V4_FEATURES[-5:] if f in w_supplied),
             "gut_data": gut_dict,
             "gut_present": g_present,
             "gut_supplied_features": g_supplied,
-            "gut_missing_features": g_missing
+            "gut_missing_features": g_missing,
+            "gut_validation_error": gut_validation_error
         }
+
+    @staticmethod
+    def _sanitize_feature_dict(data: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+        if not data or not isinstance(data, dict):
+            return data
+        return {k: v for k, v in data.items() if k not in TARGET_DISEASE_LABELS}
 
     @staticmethod
     def _inspect_modality(data: Optional[Dict[str, Any]], expected_features: List[str]) -> Tuple[Dict[str, float], bool, List[str], List[str]]:
         if not data or not isinstance(data, dict):
             return {}, False, [], expected_features
 
-        normalized = {k.strip(): v for k, v in data.items() if v is not None}
+        normalized = {k.strip(): v for k, v in data.items() if v is not None and k != "Patient_ID"}
         if not normalized:
             return {}, False, [], expected_features
 
@@ -125,30 +154,11 @@ class V3SchemaValidator:
         missing = []
         cleaned_dict = {}
 
-        # Canonical feature alias map for V3 schema matching
-        ALIASES = {
-            "height": ["height", "height_cm", "height cm"],
-            "weight": ["weight", "weight_kg", "weight kg"],
-            "hdl": ["hdl", "hdl_cholesterol", "hdl cholesterol"],
-            "ldl": ["ldl", "ldl_cholesterol", "ldl cholesterol"],
-            "family_history_diabetes": ["family_history_diabetes", "family_history_t2d", "family history diabetes"],
-            "family_history_hypertension": ["family_history_hypertension", "family history hypertension"],
-            "family_history_cvd": ["family_history_cvd", "family_history_obesity", "family_history_nafld", "family history cvd"],
-            "sleep_duration_hours": ["sleep_duration", "sleep_duration_hours", "sleep_hours"],
-            "activity_energy_expenditure": ["calories_burned", "activity_energy_expenditure", "calories"],
-            "exercise_frequency_days": ["exercise_frequency", "exercise_frequency_days", "exercise_days"],
-            "cgm_average_glucose": ["average_glucose", "cgm_average_glucose", "cgm average glucose", "mean glucose"],
-            "cgm_glucose_cv": ["glucose_variability", "cgm_glucose_cv", "cgm glucose cv", "glucose cv"],
-            "cgm_time_in_range": ["time_in_range", "cgm_time_in_range", "cgm time in range", "tir"],
-            "cgm_time_above_range": ["time_above_range", "cgm_time_above_range", "cgm time above range", "tar"],
-            "cgm_time_below_range": ["time_below_range", "cgm_time_below_range", "cgm time below range", "tbr"]
-        }
-
         for f in expected_features:
             f_lower = f.lower()
-            alias_list = ALIASES.get(f_lower, [f_lower])
-            matched_key = next((k for k in normalized.keys() if k.lower() in alias_list), None)
-            if matched_key is not None and normalized[matched_key] is not None:
+            matched_key = next((k for k in normalized.keys() if k.lower() == f_lower or k.lower().replace("_", "") == f_lower.replace("_", "")), None)
+
+            if matched_key is not None:
                 try:
                     val = float(normalized[matched_key])
                     cleaned_dict[f] = val
@@ -163,5 +173,35 @@ class V3SchemaValidator:
 
     @staticmethod
     def _inspect_wearable(data: Optional[Dict[str, Any]]) -> Tuple[Dict[str, float], bool, List[str], List[str]]:
-        all_expected = WEARABLE_STD_V3_FEATURES + WEARABLE_CGM_V3_FEATURES
-        return V3SchemaValidator._inspect_modality(data, all_expected)
+        return V3SchemaValidator._inspect_modality(data, WEARABLE_V4_FEATURES)
+
+    @staticmethod
+    def _inspect_gut(data: Optional[Dict[str, Any]]) -> Tuple[Dict[str, float], bool, List[str], List[str], Optional[str]]:
+        if not data or not isinstance(data, dict):
+            return {}, False, [], GUT_V4_TAXA_FEATURES + GUT_V4_INDICES_FEATURES, None
+
+        normalized = {k.strip(): v for k, v in data.items() if v is not None and k not in ("Patient_ID", "Age", "Gender")}
+
+        # Check for legacy V3 20-taxa gut sample (reject if contains legacy 20 taxa without V4 species)
+        has_v4_species = any("muciniphila" in k.lower() or "prausnitzii" in k.lower() or "intestinalis" in k.lower() for k in normalized.keys())
+        has_legacy_only = any(k in ["Akkermansia", "Faecalibacterium", "Roseburia"] for k in normalized.keys()) and not has_v4_species
+        
+        if has_legacy_only and len(normalized) <= 24:
+            return {}, True, list(normalized.keys()), GUT_V4_TAXA_FEATURES, "Legacy V3 20-taxa gut format rejected. V4 requires 40 species-level taxa + Other_Taxa."
+
+        cleaned_dict, present, supplied, missing = V3SchemaValidator._inspect_modality(normalized, GUT_V4_TAXA_FEATURES + GUT_V4_INDICES_FEATURES)
+
+        # Check compositional sum (40 taxa + Other_Taxa ≈ 100%)
+        taxa_sum = sum(float(v) for k, v in normalized.items() if k in GUT_V4_TAXA_FEATURES or k == "Other_Taxa" or any(t.lower() in k.lower() for t in ["akkermansia", "faecalibacterium", "roseburia", "bifidobacterium", "bacteroides", "other"]))
+        
+        if taxa_sum > 0:
+            if taxa_sum <= 1.1:
+                # Scale relative abundance fractions (0.0 - 1.0) to percentages (0 - 100%)
+                taxa_sum_pct = taxa_sum * 100.0
+            else:
+                taxa_sum_pct = taxa_sum
+
+            if taxa_sum_pct < 85.0 or taxa_sum_pct > 115.0:
+                return cleaned_dict, present, supplied, missing, f"Gut composition sum validation failed: 40 taxa + Other_Taxa sum to {taxa_sum_pct:.1f}% (expected ~100.0%)."
+
+        return cleaned_dict, present, supplied, missing, None

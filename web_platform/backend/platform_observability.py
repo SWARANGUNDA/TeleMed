@@ -14,7 +14,7 @@ import logging
 import time
 import uuid
 from typing import Any, Dict, Optional
-from fastapi import Request, Response
+from fastapi import Request, Response, HTTPException
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 
@@ -75,6 +75,8 @@ class RequestObservabilityMiddleware(BaseHTTPMiddleware):
             response.headers["x-request-id"] = request_id
             response.headers["x-process-time-ms"] = str(elapsed_ms)
             return response
+        except HTTPException:
+            raise
         except Exception as exc:
             elapsed_ms = round((time.perf_counter() - start_time) * 1000.0, 2)
             logger.error(

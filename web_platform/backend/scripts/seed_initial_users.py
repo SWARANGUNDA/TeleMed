@@ -62,6 +62,17 @@ def seed_initial_users():
             "password": "Password123!",
             "role": "ADMIN",
             "full_name": "TeleMed System Administrator"
+        },
+        {
+            "email": "ramu@telemed.ai",
+            "password": "Password123!",
+            "role": "PATIENT",
+            "full_name": "Ramu Patient Account",
+            "age": 45,
+            "gender": "Male",
+            "height_cm": 172.0,
+            "weight_kg": 78.0,
+            "contact_number": "+1-555-0199"
         }
     ]
 

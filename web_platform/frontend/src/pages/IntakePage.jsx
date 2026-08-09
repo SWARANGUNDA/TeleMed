@@ -434,18 +434,42 @@ export default function IntakePage({
     }
   };
 
-  // Helper Sample PDF loaders
+  // Helper V4 CSV Sample loaders
   const loadDevClinSample = () => {
-    const f = b64ToFile(CLIN_PDF_B64, 'apollo_clinical_lab_sample.pdf');
-    handleAddFiles([f]);
+    fetch('/samples/clinical_v4_sample.csv')
+      .then(res => res.blob())
+      .then(blob => {
+        const file = new File([blob], 'clinical_v4_sample.csv', { type: 'text/csv' });
+        handleAddFiles([file]);
+      })
+      .catch(() => {
+        const f = b64ToFile(CLIN_PDF_B64, 'clinical_v4_sample.pdf');
+        handleAddFiles([f]);
+      });
   };
   const loadDevWearSample = () => {
-    const f = b64ToFile(WEAR_PDF_B64, 'fitbit_wearable_telemetry_sample.pdf');
-    handleAddFiles([f]);
+    fetch('/samples/wearable_v4_sample.csv')
+      .then(res => res.blob())
+      .then(blob => {
+        const file = new File([blob], 'wearable_v4_sample.csv', { type: 'text/csv' });
+        handleAddFiles([file]);
+      })
+      .catch(() => {
+        const f = b64ToFile(WEAR_PDF_B64, 'wearable_v4_sample.csv');
+        handleAddFiles([f]);
+      });
   };
   const loadDevGutSample = () => {
-    const f = b64ToFile(GUT_PDF_B64, 'ayumetrix_gut_microbiome_sample.pdf');
-    handleAddFiles([f]);
+    fetch('/samples/gut_v4_sample.csv')
+      .then(res => res.blob())
+      .then(blob => {
+        const file = new File([blob], 'gut_v4_sample.csv', { type: 'text/csv' });
+        handleAddFiles([file]);
+      })
+      .catch(() => {
+        const f = b64ToFile(GUT_PDF_B64, 'gut_v4_sample.csv');
+        handleAddFiles([f]);
+      });
   };
 
   const dqOverall = qualityScores?.overall_quality_score || 85.2;
@@ -571,13 +595,13 @@ export default function IntakePage({
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <Button variant="outline" size="sm" className="!justify-start text-xs" leftIcon={<FileText className="w-4 h-4 text-blue-500" />} onClick={loadDevClinSample}>
-                  Apollo Clinical PDF
+                  V4 Clinical Sample (18D CSV)
                 </Button>
                 <Button variant="outline" size="sm" className="!justify-start text-xs" leftIcon={<FileSpreadsheet className="w-4 h-4 text-teal-500" />} onClick={loadDevWearSample}>
-                  Fitbit Wearables CSV
+                  V4 Wearable Sample (15D CSV)
                 </Button>
                 <Button variant="outline" size="sm" className="!justify-start text-xs" leftIcon={<Dna className="w-4 h-4 text-purple-500" />} onClick={loadDevGutSample}>
-                  Ayumetrix Gut PDF
+                  V4 Gut Microbiome (40 Taxa CSV)
                 </Button>
               </div>
             </Card>

@@ -8,7 +8,10 @@ from sqlalchemy import (
     Column, String, Integer, Float, Text, Boolean, DateTime, ForeignKey, Index, UniqueConstraint, Table
 )
 from sqlalchemy.orm import relationship, Mapped, mapped_column
-from database.db import Base
+try:
+    from ..database.db import Base
+except (ImportError, ValueError):
+    from database.db import Base
 
 
 class User(Base):

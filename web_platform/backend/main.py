@@ -52,12 +52,21 @@ app = FastAPI(
 )
 
 from .database import check_db_connection
+from .database.db import create_tables
 
 @app.on_event("startup")
 def startup_event():
-    """Run production boot diagnostics and database connectivity checks on server launch."""
+    """Run production boot diagnostics, create tables, seed demo users, and verify DB."""
     startup_diagnostics.run_startup_diagnostics()
     check_db_connection()
+    # Ensure all ORM tables exist (critical for SQLite fallback)
+    create_tables()
+    # Seed demo users if they don't exist
+    try:
+        from .database import _seed_demo_users
+        _seed_demo_users()
+    except Exception as e:
+        logger.warning("Demo user seeding skipped: %s", e)
 
 from .platform_observability import RequestObservabilityMiddleware
 

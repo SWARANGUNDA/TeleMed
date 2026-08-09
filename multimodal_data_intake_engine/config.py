@@ -37,33 +37,55 @@ GUT_KEYWORDS: Set[str] = {
 
 
 # -----------------------------------------------------------------------------
-# Canonical Feature Schemas per Modality
+# Canonical Feature Schemas per Modality (V4 Publication-Grade Specifications)
 # -----------------------------------------------------------------------------
 CLINICAL_FEATURES: List[str] = [
-    "Patient_ID", "Age", "Gender", "Height", "Weight", "BMI",
+    "Age", "Gender", "Height", "Weight", "BMI",
     "Waist_Circumference", "Systolic_BP", "Diastolic_BP",
-    "Fasting_Blood_Glucose", "HbA1c", "LDL", "HDL",
-    "Triglycerides", "ALT", "AST", "Family_History_Diabetes",
+    "Fasting_Blood_Glucose", "HbA1c", "Triglycerides", "HDL", "LDL",
+    "ALT", "AST", "Family_History_Diabetes",
     "Family_History_Hypertension", "Family_History_CVD"
 ]
 
 WEARABLE_FEATURES: List[str] = [
     "Average_Daily_Steps", "Active_Minutes", "Sedentary_Time_Minutes",
-    "Resting_Heart_Rate", "Sleep_Duration", "Calories_Burned",
-    "Average_Glucose", "Glucose_Variability", "Time_In_Range",
-    "Time_Above_Range", "Heart_Rate_Variability_RMSSD", "Sleep_Duration_Hours",
-    "CGM_Average_Glucose", "CGM_Glucose_CV", "CGM_Time_In_Range", "CGM_Time_Above_Range",
+    "Resting_Heart_Rate", "Heart_Rate_Variability_RMSSD", "Sleep_Duration_Hours",
     "Sleep_Efficiency_Score", "Autonomic_Stress_Score", "Activity_Energy_Expenditure",
-    "Exercise_Frequency_Days"
+    "Exercise_Frequency_Days", "CGM_Average_Glucose", "CGM_Glucose_CV",
+    "CGM_Time_In_Range", "CGM_Time_Above_Range", "CGM_Time_Below_Range"
 ]
 
-GUT_FEATURES: List[str] = [
-    "Akkermansia", "Faecalibacterium", "Bifidobacterium", "Roseburia", "Alistipes",
-    "Escherichia_Shigella", "Collinsella", "Prevotella", "Blautia", "Shannon_Diversity_Index",
-    "Bacteroides", "Firmicutes", "Bacteroidetes", "Proteobacteria", "Ruminococcus",
-    "Coprococcus", "Subdoligranulum", "Enterococcus", "Eubacterium", "Parabacteroides",
-    "Lactobacillus", "Klebsiella", "Streptococcus", "Eggerthella"
+GUT_TAXA_40: List[str] = [
+    "Akkermansia_muciniphila", "Faecalibacterium_prausnitzii", "Roseburia_intestinalis",
+    "Bifidobacterium_longum", "Bifidobacterium_adolescentis", "Bacteroides_thetaiotaomicron",
+    "Bacteroides_vulgatus", "Bacteroides_fragilis", "Bacteroides_uniformis",
+    "Prevotella_copri", "Ruminococcus_bromii", "Ruminococcus_gnavus",
+    "Blautia_wexlerae", "Blautia_hansenii", "Collinsella_aerofaciens",
+    "Escherichia_coli", "Klebsiella_pneumoniae", "Coprococcus_eutactus",
+    "Alistipes_putredinis", "Alistipes_finegoldii", "Subdoligranulum_variable",
+    "Enterococcus_faecalis", "Eubacterium_rectale", "Eubacterium_hallii",
+    "Parabacteroides_distasonis", "Lactobacillus_acidophilus", "Lactobacillus_rhamnosus",
+    "Streptococcus_thermophilus", "Eggerthella_lenta", "Christensenella_minuta",
+    "Methanobrevibacter_smithii", "Dialister_invisus", "Holdemanella_biformis",
+    "Barnesiella_intestinihominis", "Anaerostipes_caccae", "Phascolarctobacterium_faecium",
+    "Veillonella_parvula", "Fusobacterium_nucleatum", "Bilophila_wadsworthia",
+    "Sutterella_wadsworthensis"
 ]
+
+GUT_INDICES_9: List[str] = [
+    "Shannon_Diversity", "Simpson_Diversity", "Observed_Richness",
+    "Pielou_Evenness", "SCFA_Producer_Index", "Butyrate_Producer_Index",
+    "Barrier_Associated_Index", "Inflammation_Associated_Index",
+    "Log_Firmicutes_Bacteroidetes_Ratio"
+]
+
+# Gut features expected by V4 Gut Expert model payload (40 Taxa + 9 Indices = 49 features)
+GUT_FEATURES: List[str] = GUT_TAXA_40 + GUT_INDICES_9
+
+# Disease targets that MUST be excluded from feature dictionary inputs
+TARGET_DISEASE_LABELS: Set[str] = {
+    "Type2_Diabetes", "Prediabetes", "High_Adiposity_Risk", "Metabolic_Syndrome", "NAFLD"
+}
 
 
 # -----------------------------------------------------------------------------
@@ -72,11 +94,12 @@ GUT_FEATURES: List[str] = [
 CLINICAL_MANDATORY: Set[str] = {"Age", "Gender", "Height", "Weight", "BMI", "Systolic_BP", "Diastolic_BP", "Fasting_Blood_Glucose", "HbA1c"}
 CLINICAL_OPTIONAL: Set[str] = {"Waist_Circumference", "LDL", "HDL", "Triglycerides", "ALT", "AST", "Family_History_Diabetes", "Family_History_Hypertension", "Family_History_CVD"}
 
-WEARABLE_MANDATORY: Set[str] = {"Average_Daily_Steps", "Resting_Heart_Rate", "Average_Glucose"}
-WEARABLE_OPTIONAL: Set[str] = {"Active_Minutes", "Sedentary_Time_Minutes", "Heart_Rate_Variability_RMSSD", "Sleep_Duration", "Sleep_Efficiency_Score", "Autonomic_Stress_Score", "Calories_Burned", "Exercise_Frequency_Days", "Glucose_Variability", "Time_In_Range", "Time_Above_Range"}
+WEARABLE_MANDATORY: Set[str] = {"Average_Daily_Steps", "Resting_Heart_Rate", "CGM_Average_Glucose"}
+WEARABLE_OPTIONAL: Set[str] = {"Active_Minutes", "Sedentary_Time_Minutes", "Heart_Rate_Variability_RMSSD", "Sleep_Duration_Hours", "Sleep_Efficiency_Score", "Autonomic_Stress_Score", "Activity_Energy_Expenditure", "Exercise_Frequency_Days", "CGM_Glucose_CV", "CGM_Time_In_Range", "CGM_Time_Above_Range", "CGM_Time_Below_Range"}
 
-GUT_MANDATORY: Set[str] = {"Akkermansia", "Faecalibacterium", "Bifidobacterium", "Shannon_Diversity_Index"}
-GUT_OPTIONAL: Set[str] = {"Roseburia", "Alistipes", "Escherichia_Shigella", "Collinsella", "Prevotella", "Blautia", "Bacteroides", "Firmicutes", "Bacteroidetes", "Proteobacteria", "Coprococcus", "Subdoligranulum"}
+GUT_MANDATORY: Set[str] = {"Akkermansia_muciniphila", "Faecalibacterium_prausnitzii", "Bifidobacterium_longum", "Shannon_Diversity"}
+GUT_OPTIONAL: Set[str] = set(GUT_TAXA_40[3:]) | set(GUT_INDICES_9[1:]) | {"Other_Taxa"}
+
 
 
 # -----------------------------------------------------------------------------
@@ -111,50 +134,78 @@ FEATURE_ALIASES: Dict[str, str] = {
     "family history hypertension": "Family_History_Hypertension", "family_history_hypertension": "Family_History_Hypertension", "family history of hypertension": "Family_History_Hypertension", "family history: hypertension": "Family_History_Hypertension", "hypertension": "Family_History_Hypertension", "hypertenslon": "Family_History_Hypertension",
     "family history cvd": "Family_History_CVD", "family_history_cvd": "Family_History_CVD", "family history of cvd": "Family_History_CVD", "family history cardiovascular disease": "Family_History_CVD", "family history: cvd": "Family_History_CVD",
 
-    # Wearables
-    "steps": "Average_Daily_Steps", "daily steps": "Average_Daily_Steps", "average_daily_steps": "Average_Daily_Steps", "average daily steps": "Average_Daily_Steps", "average dally steps": "Average_Daily_Steps", "updated average daily steps": "Average_Daily_Steps",
-    "active minutes": "Active_Minutes", "active_minutes": "Active_Minutes", "mvpa": "Active_Minutes", "active": "Active_Minutes", "actlve mlnutes": "Active_Minutes",
-    "sedentary minutes": "Sedentary_Time_Minutes", "sedentary time": "Sedentary_Time_Minutes", "sedentary_time_minutes": "Sedentary_Time_Minutes", "sedentary time minutes": "Sedentary_Time_Minutes", "sedentary": "Sedentary_Time_Minutes", "sedentary tlme": "Sedentary_Time_Minutes",
-    "resting heart rate": "Resting_Heart_Rate", "rhr": "Resting_Heart_Rate", "resting_heart_rate": "Resting_Heart_Rate", "heart rate": "Resting_Heart_Rate", "restlng heart rate": "Resting_Heart_Rate", "resting heart rate latest": "Resting_Heart_Rate", "average heart rate": "Resting_Heart_Rate",
-    "heart rate variability": "Heart_Rate_Variability_RMSSD", "hrv": "Heart_Rate_Variability_RMSSD",
-    "sleep duration": "Sleep_Duration", "sleep hours": "Sleep_Duration", "sleep_duration": "Sleep_Duration", "sleep_duration_hours": "Sleep_Duration", "sleep": "Sleep_Duration", "sleep duratlon": "Sleep_Duration",
+    # Wearables (V4 Specifications)
+    "steps": "Average_Daily_Steps", "daily steps": "Average_Daily_Steps", "average_daily_steps": "Average_Daily_Steps", "average daily steps": "Average_Daily_Steps",
+    "active minutes": "Active_Minutes", "active_minutes": "Active_Minutes", "mvpa": "Active_Minutes",
+    "sedentary minutes": "Sedentary_Time_Minutes", "sedentary time": "Sedentary_Time_Minutes", "sedentary_time_minutes": "Sedentary_Time_Minutes", "sedentary time minutes": "Sedentary_Time_Minutes",
+    "resting heart rate": "Resting_Heart_Rate", "rhr": "Resting_Heart_Rate", "resting_heart_rate": "Resting_Heart_Rate",
+    "heart rate variability": "Heart_Rate_Variability_RMSSD", "hrv": "Heart_Rate_Variability_RMSSD", "heart_rate_variability_rmssd": "Heart_Rate_Variability_RMSSD",
+    "sleep duration": "Sleep_Duration_Hours", "sleep hours": "Sleep_Duration_Hours", "sleep_duration": "Sleep_Duration_Hours", "sleep_duration_hours": "Sleep_Duration_Hours",
     "sleep score": "Sleep_Efficiency_Score", "sleep efficiency": "Sleep_Efficiency_Score", "sleep_efficiency_score": "Sleep_Efficiency_Score",
-    "stress level": "Autonomic_Stress_Score", "autonomic stress score": "Autonomic_Stress_Score", "autonomic_stress_score": "Autonomic_Stress_Score", "stress score": "Autonomic_Stress_Score",
-    "calories burned": "Calories_Burned", "calories": "Calories_Burned", "activity_energy_expenditure": "Calories_Burned", "calories_burned": "Calories_Burned", "calorles burned": "Calories_Burned",
+    "stress level": "Autonomic_Stress_Score", "autonomic stress score": "Autonomic_Stress_Score", "autonomic_stress_score": "Autonomic_Stress_Score",
+    "calories burned": "Activity_Energy_Expenditure", "calories": "Activity_Energy_Expenditure", "activity_energy_expenditure": "Activity_Energy_Expenditure", "calories_burned": "Activity_Energy_Expenditure",
     "exercise frequency": "Exercise_Frequency_Days", "exercise_frequency_days": "Exercise_Frequency_Days", "exercise days": "Exercise_Frequency_Days",
 
-    # CGM
-    "average glucose": "Average_Glucose", "mean glucose": "Average_Glucose", "average cgm glucose": "Average_Glucose", "cgm average glucose": "Average_Glucose", "cgm_average_glucose": "Average_Glucose", "average_glucose": "Average_Glucose", "avg glucose": "Average_Glucose", "average glucose latest": "Average_Glucose", "average glucosc": "Average_Glucose", "estimated average glucose": "Average_Glucose",
-    "glucose variability": "Glucose_Variability", "glucose sd": "Glucose_Variability", "glucose cv": "Glucose_Variability", "cgm_glucose_cv": "Glucose_Variability", "cgm glucose cv": "Glucose_Variability", "glucose_variability": "Glucose_Variability", "gv": "Glucose_Variability", "glucose varlablllty": "Glucose_Variability",
-    "tir": "Time_In_Range", "time in range": "Time_In_Range", "time_in_range": "Time_In_Range", "cgm time in range": "Time_In_Range", "cgm_time_in_range": "Time_In_Range", "tlme in range": "Time_In_Range",
-    "tar": "Time_Above_Range", "time above range": "Time_Above_Range", "time_above_range": "Time_Above_Range", "cgm time above range": "Time_Above_Range", "cgm_time_above_range": "Time_Above_Range", "tlme above range": "Time_Above_Range",
+    # CGM (V4 Specifications)
+    "average glucose": "CGM_Average_Glucose", "mean glucose": "CGM_Average_Glucose", "average cgm glucose": "CGM_Average_Glucose", "cgm average glucose": "CGM_Average_Glucose", "cgm_average_glucose": "CGM_Average_Glucose", "average_glucose": "CGM_Average_Glucose",
+    "glucose variability": "CGM_Glucose_CV", "glucose sd": "CGM_Glucose_CV", "glucose cv": "CGM_Glucose_CV", "cgm_glucose_cv": "CGM_Glucose_CV", "cgm glucose cv": "CGM_Glucose_CV", "glucose_variability": "CGM_Glucose_CV",
+    "tir": "CGM_Time_In_Range", "time in range": "CGM_Time_In_Range", "time_in_range": "CGM_Time_In_Range", "cgm time in range": "CGM_Time_In_Range", "cgm_time_in_range": "CGM_Time_In_Range",
+    "tar": "CGM_Time_Above_Range", "time above range": "CGM_Time_Above_Range", "time_above_range": "CGM_Time_Above_Range", "cgm time above range": "CGM_Time_Above_Range", "cgm_time_above_range": "CGM_Time_Above_Range",
     "tbr": "CGM_Time_Below_Range", "time below range": "CGM_Time_Below_Range", "time_below_range": "CGM_Time_Below_Range", "cgm time below range": "CGM_Time_Below_Range", "cgm_time_below_range": "CGM_Time_Below_Range",
 
-    # Microbiome
-    "shannon diversity index": "Shannon_Diversity_Index", "shannon diversity": "Shannon_Diversity_Index", "shannon index": "Shannon_Diversity_Index", "shannon_diversity_index": "Shannon_Diversity_Index", "shannon dlverslty index": "Shannon_Diversity_Index",
-    "firmicutes": "Firmicutes",
-    "bacteroidetes": "Bacteroidetes",
-    "proteobacteria": "Proteobacteria",
-    "akkermansia": "Akkermansia", "akkermansia muciniphila": "Akkermansia", "akkermansla": "Akkermansia", "updated akkermansia": "Akkermansia",
-    "faecalibacterium": "Faecalibacterium", "faecalibacterium prausnitzii": "Faecalibacterium", "faecallbacterlum": "Faecalibacterium",
-    "bifidobacterium": "Bifidobacterium", "bifidobacterium longum": "Bifidobacterium", "blfldobacterlum": "Bifidobacterium",
-    "roseburia": "Roseburia", "roseburia hominis": "Roseburia", "roseburla": "Roseburia",
-    "bacteroides": "Bacteroides",
-    "prevotella": "Prevotella", "prevotella copri": "Prevotella",
-    "ruminococcus": "Ruminococcus",
-    "blautia": "Blautia", "blautia hydrogenotrophica": "Blautia", "blautla": "Blautia",
-    "collinsella": "Collinsella", "collinsella aerofaciens": "Collinsella", "colllnsella": "Collinsella",
-    "escherichia_shigella": "Escherichia_Shigella", "escherichia": "Escherichia_Shigella", "shigella": "Escherichia_Shigella", "escherichia/shigella": "Escherichia_Shigella", "escherlchla shlgella": "Escherichia_Shigella",
-    "coprococcus": "Coprococcus",
-    "alistipes": "Alistipes", "alistipes putredinis": "Alistipes", "allstlpes": "Alistipes",
-    "subdoligranulum": "Subdoligranulum",
-    "enterococcus": "Enterococcus",
-    "eubacterium": "Eubacterium",
-    "parabacteroides": "Parabacteroides",
-    "lactobacillus": "Lactobacillus",
-    "klebsiella": "Klebsiella",
-    "streptococcus": "Streptococcus",
-    "eggerthella": "Eggerthella"
+    # V4 Gut Microbiome (40 Taxa + 9 Derived Indices)
+    "shannon diversity index": "Shannon_Diversity", "shannon diversity": "Shannon_Diversity", "shannon index": "Shannon_Diversity", "shannon_diversity": "Shannon_Diversity", "shannon_diversity_index": "Shannon_Diversity",
+    "simpson diversity": "Simpson_Diversity", "simpson_diversity": "Simpson_Diversity",
+    "observed richness": "Observed_Richness", "observed_richness": "Observed_Richness",
+    "pielou evenness": "Pielou_Evenness", "pielou_evenness": "Pielou_Evenness",
+    "scfa producer index": "SCFA_Producer_Index", "scfa_producer_index": "SCFA_Producer_Index",
+    "butyrate producer index": "Butyrate_Producer_Index", "butyrate_producer_index": "Butyrate_Producer_Index",
+    "barrier associated index": "Barrier_Associated_Index", "barrier_associated_index": "Barrier_Associated_Index",
+    "inflammation associated index": "Inflammation_Associated_Index", "inflammation_associated_index": "Inflammation_Associated_Index",
+    "log firmicutes bacteroidetes ratio": "Log_Firmicutes_Bacteroidetes_Ratio", "log_firmicutes_bacteroidetes_ratio": "Log_Firmicutes_Bacteroidetes_Ratio",
+    "other_taxa": "Other_Taxa", "other taxa": "Other_Taxa",
+
+    # 40 Taxa Species and Genus Aliases
+    "akkermansia": "Akkermansia_muciniphila", "akkermansia muciniphila": "Akkermansia_muciniphila", "akkermansia_muciniphila": "Akkermansia_muciniphila",
+    "faecalibacterium": "Faecalibacterium_prausnitzii", "faecalibacterium prausnitzii": "Faecalibacterium_prausnitzii", "faecalibacterium_prausnitzii": "Faecalibacterium_prausnitzii",
+    "roseburia": "Roseburia_intestinalis", "roseburia intestinalis": "Roseburia_intestinalis", "roseburia_intestinalis": "Roseburia_intestinalis",
+    "bifidobacterium": "Bifidobacterium_longum", "bifidobacterium longum": "Bifidobacterium_longum", "bifidobacterium_longum": "Bifidobacterium_longum",
+    "bifidobacterium adolescentis": "Bifidobacterium_adolescentis", "bifidobacterium_adolescentis": "Bifidobacterium_adolescentis",
+    "bacteroides thetaiotaomicron": "Bacteroides_thetaiotaomicron", "bacteroides_thetaiotaomicron": "Bacteroides_thetaiotaomicron",
+    "bacteroides vulgatus": "Bacteroides_vulgatus", "bacteroides_vulgatus": "Bacteroides_vulgatus",
+    "bacteroides": "Bacteroides_vulgatus", "bacteroides fragilis": "Bacteroides_fragilis", "bacteroides_fragilis": "Bacteroides_fragilis",
+    "bacteroides uniformis": "Bacteroides_uniformis", "bacteroides_uniformis": "Bacteroides_uniformis",
+    "prevotella": "Prevotella_copri", "prevotella copri": "Prevotella_copri", "prevotella_copri": "Prevotella_copri",
+    "ruminococcus bromii": "Ruminococcus_bromii", "ruminococcus_bromii": "Ruminococcus_bromii",
+    "ruminococcus": "Ruminococcus_gnavus", "ruminococcus gnavus": "Ruminococcus_gnavus", "ruminococcus_gnavus": "Ruminococcus_gnavus",
+    "blautia": "Blautia_wexlerae", "blautia wexlerae": "Blautia_wexlerae", "blautia_wexlerae": "Blautia_wexlerae",
+    "blautia hansenii": "Blautia_hansenii", "blautia_hansenii": "Blautia_hansenii",
+    "collinsella": "Collinsella_aerofaciens", "collinsella aerofaciens": "Collinsella_aerofaciens", "collinsella_aerofaciens": "Collinsella_aerofaciens",
+    "escherichia": "Escherichia_coli", "escherichia coli": "Escherichia_coli", "escherichia_coli": "Escherichia_coli", "escherichia_shigella": "Escherichia_coli",
+    "klebsiella": "Klebsiella_pneumoniae", "klebsiella pneumoniae": "Klebsiella_pneumoniae", "klebsiella_pneumoniae": "Klebsiella_pneumoniae",
+    "coprococcus": "Coprococcus_eutactus", "coprococcus eutactus": "Coprococcus_eutactus", "coprococcus_eutactus": "Coprococcus_eutactus",
+    "alistipes": "Alistipes_putredinis", "alistipes putredinis": "Alistipes_putredinis", "alistipes_putredinis": "Alistipes_putredinis",
+    "alistipes finegoldii": "Alistipes_finegoldii", "alistipes_finegoldii": "Alistipes_finegoldii",
+    "subdoligranulum": "Subdoligranulum_variable", "subdoligranulum variable": "Subdoligranulum_variable", "subdoligranulum_variable": "Subdoligranulum_variable",
+    "enterococcus": "Enterococcus_faecalis", "enterococcus faecalis": "Enterococcus_faecalis", "enterococcus_faecalis": "Enterococcus_faecalis",
+    "eubacterium rectale": "Eubacterium_rectale", "eubacterium_rectale": "Eubacterium_rectale",
+    "eubacterium": "Eubacterium_hallii", "eubacterium hallii": "Eubacterium_hallii", "eubacterium_hallii": "Eubacterium_hallii",
+    "parabacteroides": "Parabacteroides_distasonis", "parabacteroides distasonis": "Parabacteroides_distasonis", "parabacteroides_distasonis": "Parabacteroides_distasonis",
+    "lactobacillus": "Lactobacillus_acidophilus", "lactobacillus acidophilus": "Lactobacillus_acidophilus", "lactobacillus_acidophilus": "Lactobacillus_acidophilus",
+    "lactobacillus rhamnosus": "Lactobacillus_rhamnosus", "lactobacillus_rhamnosus": "Lactobacillus_rhamnosus",
+    "streptococcus": "Streptococcus_thermophilus", "streptococcus thermophilus": "Streptococcus_thermophilus", "streptococcus_thermophilus": "Streptococcus_thermophilus",
+    "eggerthella": "Eggerthella_lenta", "eggerthella lenta": "Eggerthella_lenta", "eggerthella_lenta": "Eggerthella_lenta",
+    "christensenella": "Christensenella_minuta", "christensenella minuta": "Christensenella_minuta", "christensenella_minuta": "Christensenella_minuta",
+    "methanobrevibacter": "Methanobrevibacter_smithii", "methanobrevibacter smithii": "Methanobrevibacter_smithii", "methanobrevibacter_smithii": "Methanobrevibacter_smithii",
+    "dialister": "Dialister_invisus", "dialister invisus": "Dialister_invisus", "dialister_invisus": "Dialister_invisus",
+    "holdemanella": "Holdemanella_biformis", "holdemanella biformis": "Holdemanella_biformis", "holdemanella_biformis": "Holdemanella_biformis",
+    "barnesiella": "Barnesiella_intestinihominis", "barnesiella intestinihominis": "Barnesiella_intestinihominis", "barnesiella_intestinihominis": "Barnesiella_intestinihominis",
+    "anaerostipes": "Anaerostipes_caccae", "anaerostipes caccae": "Anaerostipes_caccae", "anaerostipes_caccae": "Anaerostipes_caccae",
+    "phascolarctobacterium": "Phascolarctobacterium_faecium", "phascolarctobacterium faecium": "Phascolarctobacterium_faecium", "phascolarctobacterium_faecium": "Phascolarctobacterium_faecium",
+    "veillonella": "Veillonella_parvula", "veillonella parvula": "Veillonella_parvula", "veillonella_parvula": "Veillonella_parvula",
+    "fusobacterium": "Fusobacterium_nucleatum", "fusobacterium nucleatum": "Fusobacterium_nucleatum", "fusobacterium_nucleatum": "Fusobacterium_nucleatum",
+    "bilophila": "Bilophila_wadsworthia", "bilophila wadsworthia": "Bilophila_wadsworthia", "bilophila_wadsworthia": "Bilophila_wadsworthia",
+    "sutterella": "Sutterella_wadsworthensis", "sutterella wadsworthensis": "Sutterella_wadsworthensis", "sutterella_wadsworthensis": "Sutterella_wadsworthensis"
 }
 
 

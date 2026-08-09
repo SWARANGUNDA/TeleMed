@@ -3,6 +3,7 @@ database/db.py — SQLAlchemy 2.x Engine, SessionLocal factory, Declarative Base
 """
 
 import logging
+from pathlib import Path
 from typing import Generator
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import declarative_base, sessionmaker
@@ -13,10 +14,26 @@ except (ImportError, ValueError):
 
 logger = logging.getLogger("telemed.database")
 
-# Create SQLAlchemy 2.x Engine
-# Handles PostgreSQL or SQLite fallback for development/testing
+# Declarative base for SQLAlchemy models
+Base = declarative_base()
+
 db_url = settings.DATABASE_URL
 connect_args = {}
+
+# Test PostgreSQL connectivity if configured; fallback to local SQLite if unreachable
+if db_url.startswith("postgresql"):
+    try:
+        test_engine = create_engine(db_url, connect_args={"connect_timeout": 2}, pool_pre_ping=True)
+        with test_engine.connect() as conn:
+            conn.execute(text("SELECT 1"))
+        test_engine.dispose()
+        logger.info("Connected to PostgreSQL database server successfully.")
+    except Exception as e:
+        sqlite_db_path = Path(__file__).resolve().parent.parent / "telemed_local.db"
+        logger.warning(f"PostgreSQL server unreachable ({e}). Automatically switching to local SQLite database ({sqlite_db_path}).")
+        db_url = f"sqlite:///{sqlite_db_path}"
+        connect_args = {"check_same_thread": False}
+
 if db_url.startswith("sqlite"):
     connect_args = {"check_same_thread": False}
 
@@ -29,9 +46,6 @@ engine = create_engine(
 
 # Session factory
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-
-# Declarative base for SQLAlchemy models
-Base = declarative_base()
 
 
 def get_db() -> Generator:
@@ -53,3 +67,18 @@ def check_db_connection() -> bool:
     except Exception as e:
         logger.warning(f"Database connection test note: {str(e)}")
         return False
+
+
+def create_tables() -> None:
+    """Create all ORM database tables on the configured engine if they do not exist."""
+    try:
+        try:
+            from ..models import models as pg_models
+        except (ImportError, ValueError):
+            from models import models as pg_models
+    except Exception as e:
+        logger.warning(f"Note loading models for create_tables: {e}")
+    Base.metadata.create_all(bind=engine)
+    logger.info("Database ORM tables created/verified successfully.")
+
+

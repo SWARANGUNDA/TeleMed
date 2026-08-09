@@ -21,11 +21,15 @@ except (ImportError, ValueError):
         import config
 
 try:
-    from database.db import SessionLocal, check_db_connection
-    from models import models as pg_models
+    from .database.db import SessionLocal, check_db_connection
+    from .models import models as pg_models
 except (ImportError, ValueError):
-    from web_platform.backend.database.db import SessionLocal, check_db_connection
-    from web_platform.backend.models import models as pg_models
+    try:
+        from database.db import SessionLocal, check_db_connection
+        from models import models as pg_models
+    except (ImportError, ValueError):
+        from web_platform.backend.database.db import SessionLocal, check_db_connection
+        from web_platform.backend.models import models as pg_models
 
 
 
@@ -2718,6 +2722,69 @@ def export_user_account_data(user_id: str) -> Dict[str, Any]:
         return export
     finally:
         conn.close()
+
+
+def _seed_demo_users() -> None:
+    """Seed default demo accounts (patient, doctor, admin) into the database if missing."""
+    demo_users = [
+        {
+            "email": "patient@telemed.ai",
+            "password": "Password123!",
+            "role": "PATIENT",
+            "full_name": "Demo Patient Account",
+            "age": 34,
+            "gender": "Female",
+            "height_cm": 165.0,
+            "weight_kg": 62.0,
+            "contact_number": "+1-555-0192"
+        },
+        {
+            "email": "doctor@telemed.ai",
+            "password": "Password123!",
+            "role": "DOCTOR",
+            "full_name": "Dr. Sarah Jenkins, MD",
+            "specialization": "Cardiology & Internal Medicine",
+            "qualification": "MBBS, MD Cardiology",
+            "registration_number": "MED-REG-882194",
+            "registration_council": "American Board of Internal Medicine",
+            "experience_years": 12,
+            "contact_number": "+1-555-0188",
+            "hospital_affiliation": "TeleMed Central Hospital",
+            "verification_status": "VERIFIED"
+        },
+        {
+            "email": "admin@telemed.ai",
+            "password": "Password123!",
+            "role": "ADMIN",
+            "full_name": "TeleMed System Administrator"
+        },
+        {
+            "email": "ramu@telemed.ai",
+            "password": "Password123!",
+            "role": "PATIENT",
+            "full_name": "Ramu Patient Account",
+            "age": 45,
+            "gender": "Male",
+            "height_cm": 172.0,
+            "weight_kg": 78.0,
+            "contact_number": "+1-555-0199"
+        }
+    ]
+
+    for user_data in demo_users:
+        try:
+            existing = get_user_by_email(user_data["email"])
+            if not existing:
+                create_user(
+                    email=user_data["email"],
+                    password=user_data["password"],
+                    role=user_data["role"],
+                    profile_data=user_data
+                )
+                logger.info(f"Seeded demo account: {user_data['email']} ({user_data['role']})")
+        except Exception as e:
+            logger.warning(f"Demo user seed note for {user_data['email']}: {e}")
+
 
 
 

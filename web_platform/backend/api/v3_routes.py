@@ -61,6 +61,12 @@ def predict_v3(
         raw_payload = request.model_dump()
         validated_intake = V3SchemaValidator.validate_and_inspect_payload(raw_payload)
         
+        if validated_intake.get("gut_validation_error"):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Gut Validation Failed: {validated_intake['gut_validation_error']}"
+            )
+
         if validated_intake["modality_mask"] == "NONE":
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,

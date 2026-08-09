@@ -7,7 +7,10 @@ import secrets
 import datetime
 from typing import Any, Dict, Optional, Tuple
 import jwt
-from core.config import settings
+try:
+    from .config import settings
+except (ImportError, ValueError):
+    from core.config import settings
 
 
 def hash_password(password: str, salt: Optional[str] = None) -> Tuple[str, str]:

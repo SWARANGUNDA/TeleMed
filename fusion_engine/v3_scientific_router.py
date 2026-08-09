@@ -26,33 +26,36 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s]: %(m
 logger = logging.getLogger("v3_scientific_router")
 
 DISEASES = ["Type2_Diabetes", "Prediabetes", "High_Adiposity_Risk", "Metabolic_Syndrome", "NAFLD"]
-STACKER_PATH = Path(__file__).resolve().parent.parent / "expert_models" / "saved_models" / "fusion_v3" / "wg_logistic_regression_stacker.joblib"
+V4_STACKER_PATH = Path(__file__).resolve().parent / "v4_artifacts" / "v4_multimodal_fusion_payload.joblib"
+LEGACY_STACKER_PATH = Path(__file__).resolve().parent.parent / "expert_models" / "saved_models" / "fusion_v3" / "wg_logistic_regression_stacker.joblib"
+
 
 class V3ScientificRouter:
     def __init__(self, inference_engine: V3InferenceEngine):
         self.engine = inference_engine
+        self.v4_fusion_payload = None
         self.wg_stacker_payload = None
-        self._load_wg_stacker()
+        self._load_fusion_artifacts()
 
-    def _load_wg_stacker(self):
-        if STACKER_PATH.exists():
-            self.wg_stacker_payload = joblib.load(STACKER_PATH)
-            logger.info("Loaded exact frozen W+G Logistic Regression stacker artifact successfully.")
-        else:
-            logger.warning(f"W+G stacker artifact not found at {STACKER_PATH}. Will fallback to expert max.")
+    def _load_fusion_artifacts(self):
+        if V4_STACKER_PATH.exists():
+            self.v4_fusion_payload = joblib.load(V4_STACKER_PATH)
+            logger.info("Loaded V4 Multimodal Fusion Stacking payload successfully.")
+        elif LEGACY_STACKER_PATH.exists():
+            self.wg_stacker_payload = joblib.load(LEGACY_STACKER_PATH)
+            logger.info("Loaded legacy W+G stacker artifact.")
 
     def route_and_predict(self, validated_intake: Dict[str, Any]) -> Dict[str, Any]:
         """
-        Executes dynamic modality routing based on validated intake structure.
+        Executes dynamic modality routing based on validated intake structure across all 7 pathways.
         """
         patient_id = validated_intake["patient_id"]
-        modality_mask = validated_intake["modality_mask"]
         supplied_mods = validated_intake["modalities_supplied"]
         missing_mods  = validated_intake["missing_modalities"]
 
         c_present = validated_intake["clinical_present"]
         w_present = validated_intake["wearable_present"]
-        g_present = validated_intake["gut_present"]
+        g_present = validated_intake["gut_present"] and not validated_intake.get("gut_validation_error")
 
         c_res = None
         w_res = None
@@ -65,25 +68,26 @@ class V3ScientificRouter:
         if g_present:
             g_res = self.engine.predict_gut(validated_intake["gut_data"])
 
-        # Determine effective scientific pathway & primary decision engine
-        if c_present:
-            effective_pathway = f"C{'+W' if w_present else ''}{'+G' if g_present else ''}"
-            primary_anchor = "Clinical_v3"
-            decision_results = self._build_clinical_anchor_results(c_res, w_res, g_res)
-        elif w_present and g_present:
+        # Determine effective pathway
+        if c_present and w_present and g_present:
+            effective_pathway = "C+W+G"
+        elif c_present and w_present and not g_present:
+            effective_pathway = "C+W"
+        elif c_present and g_present and not w_present:
+            effective_pathway = "C+G"
+        elif w_present and g_present and not c_present:
             effective_pathway = "W+G"
-            primary_anchor = "Wearable+Gut_LogisticRegression_Stacker"
-            decision_results = self._build_wg_stacked_results(w_res, g_res)
-        elif w_present and not g_present:
+        elif c_present and not w_present and not g_present:
+            effective_pathway = "C"
+        elif w_present and not c_present and not g_present:
             effective_pathway = "W"
-            primary_anchor = "Wearable_v3_Standalone"
-            decision_results = self._build_single_expert_results(w_res)
-        elif g_present and not w_present:
+        elif g_present and not c_present and not w_present:
             effective_pathway = "G"
-            primary_anchor = "Gut_v3_Standalone"
-            decision_results = self._build_single_expert_results(g_res)
         else:
             raise ValueError("At least one modality (clinical, wearable, or gut) must contain valid features for prediction.")
+
+        primary_anchor = f"V4_Multimodal_Fusion ({effective_pathway})"
+        decision_results = self._build_v4_fusion_results(effective_pathway, c_res, w_res, g_res)
 
         # Determine overall CGM status
         cgm_status = w_res["cgm_status"] if w_res else "NO_WEARABLE_DATA"
@@ -98,7 +102,7 @@ class V3ScientificRouter:
                 "modalities_supplied": supplied_mods,
                 "modalities_used": self._get_used_modalities(c_present, w_present, g_present),
                 "missing_modalities": missing_mods,
-                "modality_mask": modality_mask,
+                "modality_mask": effective_pathway,
                 "effective_pathway": effective_pathway,
                 "primary_decision_anchor": primary_anchor,
                 "cgm_status": cgm_status,
@@ -155,6 +159,50 @@ class V3ScientificRouter:
         if w: mods.append("wearable")
         if g: mods.append("gut")
         return mods
+
+    def _build_v4_fusion_results(self, pathway: str, c_res: dict = None, w_res: dict = None, g_res: dict = None) -> dict:
+        """Build decision results across all 7 modality combinations using V4 meta-models."""
+        results = {}
+        meta_models = self.v4_fusion_payload["meta_models"] if self.v4_fusion_payload else None
+        thresholds = self.v4_fusion_payload["thresholds"] if self.v4_fusion_payload else {}
+
+        for d in DISEASES:
+            p_c = c_res["calibrated_probabilities"][d] if c_res else None
+            p_w = w_res["calibrated_probabilities"][d] if w_res else None
+            p_g = g_res["calibrated_probabilities"][d] if g_res else None
+
+            t_opt = thresholds.get(d, 0.5)
+
+            if pathway == "C":
+                fused_p = p_c
+            elif pathway == "W":
+                fused_p = p_w
+            elif pathway == "G":
+                fused_p = p_g
+            elif meta_models and d in meta_models:
+                meta_clf = meta_models[d]
+                # Stacking input: [p_c, p_w, p_g] (substituting 0.5 for absent modalities)
+                in_vec = np.array([[p_c if p_c is not None else 0.5,
+                                    p_w if p_w is not None else 0.5,
+                                    p_g if p_g is not None else 0.5]], dtype=float)
+                fused_p = round(float(meta_clf.predict_proba(in_vec)[0, 1]), 4)
+            else:
+                avail_probs = [p for p in [p_c, p_w, p_g] if p is not None]
+                fused_p = round(float(np.mean(avail_probs)), 4) if avail_probs else 0.5
+
+            pred_cls = int(fused_p >= t_opt)
+
+            results[d] = {
+                "calibrated_probability": fused_p,
+                "predicted_class": pred_cls,
+                "threshold_used": t_opt,
+                "risk_level": self._determine_risk_level(fused_p, t_opt),
+                "primary_source_expert": f"V4_Fusion_{pathway}",
+                "secondary_prob_clinical": p_c,
+                "secondary_prob_wearable": p_w,
+                "secondary_prob_gut": p_g
+            }
+        return results
 
     def _build_clinical_anchor_results(self, c_res: dict, w_res: dict = None, g_res: dict = None) -> dict:
         """
