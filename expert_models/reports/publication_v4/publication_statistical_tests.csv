@@ -1,0 +1,21 @@
+comparison,disease,roc_auc_diff,z_statistic,p_value_raw,cohens_d,se,p_value_fdr_adjusted,is_statistically_significant
+Multimodal (C+W+G) vs Clinical (C) [Type2_Diabetes],Type2_Diabetes,0.0042,3.0373,0.002387371548924433,0.0679,0.001369,0.006821061568355523,True
+V4 Clinical Expert vs LightGBM Baseline [Type2_Diabetes],Type2_Diabetes,0.0021,1.1049,0.2691944657012393,0.0247,0.001917,0.43134972141659944,False
+V4 Wearable Expert vs LightGBM Baseline [Type2_Diabetes],Type2_Diabetes,-0.001,-0.2866,0.7743917148237625,-0.0064,0.003331,0.9110490762632499,False
+V4 Gut Expert vs LightGBM Baseline [Type2_Diabetes],Type2_Diabetes,-0.0447,-3.3441,0.0008256260205972143,-0.0748,0.013368,0.0027520867353240477,True
+Multimodal (C+W+G) vs Clinical (C) [Prediabetes],Prediabetes,-0.0001,-0.1964,0.8443280214702868,-0.0044,0.000463,0.9381422460780965,False
+V4 Clinical Expert vs LightGBM Baseline [Prediabetes],Prediabetes,0.0034,1.5487,0.12144584961665905,0.0346,0.002181,0.2698796658147979,False
+V4 Wearable Expert vs LightGBM Baseline [Prediabetes],Prediabetes,-0.1554,-12.2015,0.0,-0.2728,0.012736,0.0,True
+V4 Gut Expert vs LightGBM Baseline [Prediabetes],Prediabetes,0.0057,1.1026,0.2701820933270471,0.0247,0.005171,0.43134972141659944,False
+Multimodal (C+W+G) vs Clinical (C) [High_Adiposity_Risk],High_Adiposity_Risk,0.158,9.7741,0.0,0.2186,0.016164,0.0,True
+V4 Clinical Expert vs LightGBM Baseline [High_Adiposity_Risk],High_Adiposity_Risk,-0.254,-14.0446,0.0,-0.314,0.018087,0.0,True
+V4 Wearable Expert vs LightGBM Baseline [High_Adiposity_Risk],High_Adiposity_Risk,0.0031,0.9653,0.33441369966563594,0.0216,0.00319,0.4777338566651942,False
+V4 Gut Expert vs LightGBM Baseline [High_Adiposity_Risk],High_Adiposity_Risk,0.0007,0.0681,0.9457236052569211,0.0015,0.01057,0.9457236052569211,False
+Multimodal (C+W+G) vs Clinical (C) [Metabolic_Syndrome],Metabolic_Syndrome,0.0004,1.0795,0.28037731892078965,0.0241,0.000358,0.43134972141659944,False
+V4 Clinical Expert vs LightGBM Baseline [Metabolic_Syndrome],Metabolic_Syndrome,0.0025,1.3003,0.19350980233038628,0.0291,0.001958,0.38701960466077256,False
+V4 Wearable Expert vs LightGBM Baseline [Metabolic_Syndrome],Metabolic_Syndrome,-0.0005,-0.1341,0.8932949236604961,-0.003,0.003707,0.9403104459584171,False
+V4 Gut Expert vs LightGBM Baseline [Metabolic_Syndrome],Metabolic_Syndrome,0.0017,0.3631,0.7165041560683794,0.0081,0.004734,0.8956301950854741,False
+Multimodal (C+W+G) vs Clinical (C) [NAFLD],NAFLD,-0.001,-0.3831,0.7016565472871497,-0.0086,0.002624,0.8956301950854741,False
+V4 Clinical Expert vs LightGBM Baseline [NAFLD],NAFLD,-0.2755,-18.8723,0.0,-0.422,0.014596,0.0,True
+V4 Wearable Expert vs LightGBM Baseline [NAFLD],NAFLD,-0.1019,-6.9405,3.907318912865776e-12,-0.1552,0.014687,1.5629275651463104e-11,True
+V4 Gut Expert vs LightGBM Baseline [NAFLD],NAFLD,-0.0083,-1.554,0.12018110522919079,-0.0347,0.00537,0.2698796658147979,False
