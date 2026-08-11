@@ -575,6 +575,15 @@ def run_sprint_25_3_comparison():
     # STEP 6: Generate v3_vs_v4_report.md
     # --------------------------------------------------------------------------
     v3_v4_md = out_dir / "v3_vs_v4_report.md"
+    def df_to_markdown(df):
+        headers = list(df.columns)
+        lines = ["| " + " | ".join(headers) + " |"]
+        lines.append("| " + " | ".join(["---"] * len(headers)) + " |")
+        for _, row in df.iterrows():
+            row_str = [str(x) for x in row.values]
+            lines.append("| " + " | ".join(row_str) + " |")
+        return "\n".join(lines)
+
     v3_v4_md_content = f"""# V3 vs V4 Comparative Scientific Evaluation Report
 
 ## Executive Overview
@@ -584,7 +593,7 @@ This report evaluates the scientific performance differences between the legacy 
 
 ## Modality Performance Comparison Table
 
-{df_v3_v4.to_markdown(index=False)}
+{df_to_markdown(df_v3_v4)}
 
 ---
 
@@ -596,7 +605,7 @@ This report evaluates the scientific performance differences between the legacy 
 3. **Gut Microbiome Expansion (20 → 40 Taxa + 9 Derived Indices):**
    - V4 Gut expert models incorporate 40 species taxa and 9 derived ecological indices, providing the strongest independent biological signal for `NAFLD` (**0.6379** ROC-AUC vs Clinical 0.4981).
 """
-    with open(v3_v4_md, "w") as f:
+    with open(v3_v4_md, "w", encoding="utf-8") as f:
         f.write(v3_v4_md_content)
 
     # --------------------------------------------------------------------------
@@ -615,25 +624,25 @@ This report evaluates the scientific performance differences between the legacy 
 
 ## 1. V3 vs V4 Comparative Results
 
-{df_v3_v4.to_markdown(index=False)}
+{df_to_markdown(df_v3_v4)}
 
 ---
 
 ## 2. Standard Baseline Comparison (Logistic Regression, Random Forest, LightGBM vs V4)
 
-{df_baselines.to_markdown(index=False)}
+{df_to_markdown(df_baselines)}
 
 ---
 
 ## 3. Multimodal Pathway Ablation Study
 
-{df_ablation.to_markdown(index=False)}
+{df_to_markdown(df_ablation)}
 
 ---
 
 ## 4. Statistical Significance Tests & FDR Adjustments
 
-{df_stat.to_markdown(index=False)}
+{df_to_markdown(df_stat)}
 
 ---
 
@@ -666,7 +675,7 @@ This report evaluates the scientific performance differences between the legacy 
 6. **Publication Suitability of the Experimental Results:** **READY**
 """
 
-    with open(main_report_path, "w") as f:
+    with open(main_report_path, "w", encoding="utf-8") as f:
         f.write(main_report_content)
 
     print(f"\n[OK] Saved 'SPRINT_25_3_V3_V4_STATISTICAL_COMPARISON_REPORT.md'.")
