@@ -1,0 +1,63 @@
+@startuml 06_deployment_diagram
+!theme plain
+
+title TeleMed AI Platform — Infrastructure Deployment Diagram (Docker / Production Stack)
+
+node "Client Workstation" {
+  artifact "Web Browser\n(Chrome / Firefox / Edge / Safari)" as Browser
+}
+
+node "TeleMed Host Server / Docker Host" {
+
+  node "Docker Container: telemed-frontend" {
+    component "Nginx Web Server / Vite Static Host" as Nginx_FE
+    port "Port 5173 / 80" as Port_FE
+  }
+
+  node "Docker Container: telemed-backend" {
+    component "Uvicorn ASGI Server" as Uvicorn
+    component "FastAPI Application Core" as FastAPI_App
+    component "V4 Inference & XAI Subsystem" as ML_Subsystem
+    port "Port 8000" as Port_BE
+  }
+
+  node "Docker Container: telemed-db" {
+    database "PostgreSQL 17 Database Server" as Postgres_Container {
+      storage "telemed_db (Users, Records, Snapshots)" as Postgres_DB
+    }
+    port "Port 5432" as Port_DB
+  }
+
+  node "Docker Container: telemed-redis" {
+    database "Redis In-Memory Data Store" as Redis_Container {
+      storage "Cache & Session Tokens" as Redis_DB
+    }
+    port "Port 6379" as Port_Redis
+  }
+
+  node "Docker Container: telemed-celery" {
+    component "Celery Worker Node" as Celery_Container
+  }
+
+  node "Docker Container: telemed-prometheus" {
+    component "Prometheus Metrics Collector" as Prometheus_Container
+    port "Port 9090" as Port_Prometheus
+  }
+}
+
+' Connectivity
+Browser --> Port_FE : HTTP / HTTPS (JSON/REST)
+Nginx_FE --> Port_BE : Proxy Pass / API Requests
+
+Uvicorn --> FastAPI_App
+FastAPI_App --> ML_Subsystem : In-Process Model Call
+
+FastAPI_App --> Port_DB : SQLAlchemy / asyncpg
+FastAPI_App --> Port_Redis : redis-py / Session Check
+
+Celery_Container --> Port_Redis : Fetch Queue Tasks
+Celery_Container --> Port_DB : Persist Background Results
+
+Prometheus_Container --> Port_BE : Scrape /metrics Endpoint
+
+@enduml

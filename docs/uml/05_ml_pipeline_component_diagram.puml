@@ -1,0 +1,127 @@
+@startuml 05_ml_pipeline_component_diagram
+!theme plain
+
+title TeleMed AI Platform — ML Pipeline & Multi-Expert Inference Architecture (V4 Frozen)
+
+package "Modality Preprocessing Pipeline" {
+  [Clinical Intake (18)] --> [Clinical Scaler / Imputer]
+  [Wearable Intake (15)] --> [Wearable Scaler / Imputer]
+  [Gut Intake (49)] --> [Gut Normalizer / Index Engine]
+}
+
+package "V4 Single-Modality Expert Models" {
+  component "Clinical Expert Engine" as Clin_Expert {
+    [LogisticRegression / XGBoost]
+    note bottom: Features: 18 (incl. Age & Gender)
+  }
+  
+  component "Wearable Expert Engine" as Wear_Expert {
+    [LogisticRegression / XGBoost / CatBoost]
+    note bottom: Features: 15 (Wearables + CGM)
+  }
+  
+  component "Gut Microbiome Expert Engine" as Gut_Expert {
+    [RandomForest / LogisticRegression / ExtraTrees]
+    note bottom: Features: 49 (40 Taxa + Other + 9 Indices)
+  }
+}
+
+package "7 Supported Modality Execution Pathways" {
+  rectangle "Single Pathways" {
+    (C) as Pathway_C
+    (W) as Pathway_W
+    (G) as Pathway_G
+  }
+  rectangle "Dual Pathways" {
+    (C+W) as Pathway_CW
+    (C+G) as Pathway_CG
+    (W+G) as Pathway_WG
+  }
+  rectangle "Tri-Modal Pathway" {
+    (C+W+G) as Pathway_CWG
+  }
+}
+
+package "V4 Stacking Fusion Engine & Post-Processing" {
+  component "Multimodal Stacking Meta-Learner" as Stacker {
+    [LogisticRegression Meta-Model]
+    [Dynamic Probability Calibrator]
+    [Isotonic / Sigmoid Thresholds]
+  }
+}
+
+package "5 Target Disease Risk Outputs" {
+  [Type 2 Diabetes Risk] as Target_T2D
+  [Prediabetes Risk] as Target_Prediabetes
+  [High Adiposity Risk] as Target_Adiposity
+  [Metabolic Syndrome Risk] as Target_MetSyndrome
+  [NAFLD Risk] as Target_NAFLD
+}
+
+package "Downstream Explainability & Clinical Intelligence" {
+  component "XAI TreeSHAP Engine" as XAI_Module {
+    [SHAP Value Attribution]
+    [Global / Directional Risk Analysis]
+  }
+
+  component "Medical RAG Engine" as RAG_Module {
+    [ChromaDB Context Search]
+    [Clinical Evidence Synthesizer]
+  }
+
+  component "Report Generation Service" as Report_Module {
+    [Structured Report Generator]
+    [ReportLab PDF Exporter]
+  }
+}
+
+' Preprocessing to Experts
+[Clinical Scaler / Imputer] --> Clin_Expert
+[Wearable Scaler / Imputer] --> Wear_Expert
+[Gut Normalizer / Index Engine] --> Gut_Expert
+
+' Experts to Pathways
+Clin_Expert --> Pathway_C
+Wear_Expert --> Pathway_W
+Gut_Expert --> Pathway_G
+
+Clin_Expert --> Pathway_CW
+Wear_Expert --> Pathway_CW
+
+Clin_Expert --> Pathway_CG
+Gut_Expert --> Pathway_CG
+
+Wear_Expert --> Pathway_WG
+Gut_Expert --> Pathway_WG
+
+Clin_Expert --> Pathway_CWG
+Wear_Expert --> Pathway_CWG
+Gut_Expert --> Pathway_CWG
+
+' Pathways to Fusion
+Pathway_C --> Stacker
+Pathway_W --> Stacker
+Pathway_G --> Stacker
+Pathway_CW --> Stacker
+Pathway_CG --> Stacker
+Pathway_WG --> Stacker
+Pathway_CWG --> Stacker
+
+' Fusion to Targets
+Stacker --> Target_T2D
+Stacker --> Target_Prediabetes
+Stacker --> Target_Adiposity
+Stacker --> Target_MetSyndrome
+Stacker --> Target_NAFLD
+
+' Targets to Downstream
+Target_T2D --> XAI_Module
+Target_Prediabetes --> XAI_Module
+Target_Adiposity --> XAI_Module
+Target_MetSyndrome --> XAI_Module
+Target_NAFLD --> XAI_Module
+
+XAI_Module --> RAG_Module
+RAG_Module --> Report_Module
+
+@enduml

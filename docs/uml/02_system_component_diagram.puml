@@ -1,0 +1,115 @@
+@startuml 02_system_component_diagram
+!theme plain
+
+title TeleMed AI Platform — High-Level System Component Diagram (V4 Architecture)
+
+package "Presentation Layer (React / Vite)" {
+  [Patient Portal SPA] as Frontend_Patient
+  [Doctor Portal SPA] as Frontend_Doctor
+  [Admin Portal SPA] as Frontend_Admin
+  [API Client / Axios] as API_Client
+}
+
+package "Application API Layer (FastAPI)" {
+  [Auth & RBAC Router] as Router_Auth
+  [Intake API Router] as Router_Intake
+  [Predict API Router] as Router_Predict
+  [XAI API Router] as Router_XAI
+  [RAG & Report Router] as Router_RAG
+  [Consultation Router] as Router_Consultation
+  [Admin Governance Router] as Router_Admin
+  [Prometheus Metrics Router] as Router_Metrics
+}
+
+package "Core Intelligence & ML Subsystems (V4 Frozen)" {
+  package "Multimodal Intake Engine" {
+    [Schema Validator & Normalizer] as Intake_Validator
+    [Modality Detector] as Intake_Detector
+  }
+  
+  package "V4 Multi-Expert Models" {
+    [Clinical Expert Model\n(18 numerical features)] as Expert_Clinical
+    [Wearable Expert Model\n(15 numerical features)] as Expert_Wearable
+    [Gut Microbiome Expert Model\n(49 model features)] as Expert_Gut
+  }
+  
+  package "V4 Stacking Fusion Engine" {
+    [Multimodal Fusion Stacker\n(7 Pathway Combinations)] as Fusion_Stacker
+    [Calibrator & Threshold Tuner] as Model_Calibrator
+  }
+  
+  package "Explainable AI (XAI)" {
+    [TreeSHAP Attribution Engine] as XAI_Engine
+  }
+  
+  package "Medical RAG Subsystem" {
+    [Vector Store / ChromaDB] as RAG_VectorStore
+    [Evidence Retrieval & Report Generator] as RAG_Generator
+  }
+}
+
+package "Persistence & Infrastructure Layer" {
+  database "PostgreSQL 17 / SQLite" {
+    [Users & Profiles DB] as DB_Users
+    [Health Records DB] as DB_Records
+    [Prediction Snapshots DB] as DB_Snapshots
+    [Audit Event Store DB] as DB_Audit
+  }
+
+  database "In-Memory Cache & Message Broker" {
+    [Redis Cache / Session Store] as Redis_Store
+  }
+
+  node "Asynchronous Task Processing" {
+    [Celery Worker Cluster] as Celery_Workers
+  }
+
+  node "Monitoring & Observability" {
+    [Prometheus Monitoring] as Prometheus_Server
+  }
+}
+
+' Interactions
+Frontend_Patient --> API_Client
+Frontend_Doctor --> API_Client
+Frontend_Admin --> API_Client
+
+API_Client --> Router_Auth : HTTP / REST
+API_Client --> Router_Intake
+API_Client --> Router_Predict
+API_Client --> Router_XAI
+API_Client --> Router_RAG
+API_Client --> Router_Consultation
+API_Client --> Router_Admin
+API_Client --> Router_Metrics
+
+Router_Auth --> DB_Users
+Router_Intake --> Intake_Validator
+Intake_Validator --> Intake_Detector
+
+Intake_Detector --> Expert_Clinical : Clinical (18)
+Intake_Detector --> Expert_Wearable : Wearable (15)
+Intake_Detector --> Expert_Gut : Gut (49)
+
+Expert_Clinical --> Fusion_Stacker
+Expert_Wearable --> Fusion_Stacker
+Expert_Gut --> Fusion_Stacker
+
+Fusion_Stacker --> Model_Calibrator
+Model_Calibrator --> Router_Predict : 5 Disease Probabilities
+
+Router_Predict --> DB_Snapshots : Persist Prediction Snapshot
+Router_Predict --> XAI_Engine : Trigger TreeSHAP
+XAI_Engine --> Router_XAI : Feature Attributions
+
+Router_RAG --> RAG_Generator
+RAG_Generator --> RAG_VectorStore : Query Context
+RAG_Generator --> DB_Records : Save Report Snapshot
+
+Router_Admin --> DB_Audit
+Router_Metrics --> Prometheus_Server
+
+Celery_Workers ..> Redis_Store : Async Tasks
+Router_Auth ..> Redis_Store : Token / Session Validation
+
+@enduml

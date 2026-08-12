@@ -1,0 +1,94 @@
+@startuml 01_use_case_diagram
+!theme plain
+skinparam actorStyle outline
+skinparam packageStyle rectangle
+
+title TeleMed AI Platform — System Use-Case Diagram (V4 Architecture)
+
+left to right direction
+
+actor "Patient" as patient
+actor "Doctor" as doctor
+actor "Administrator" as admin
+
+rectangle "TeleMed AI Platform" {
+  
+  package "Authentication & Profile Management" {
+    usecase "UC-1.1: Register Account" as UC_Reg
+    usecase "UC-1.2: Authenticate / Login (JWT)" as UC_Login
+    usecase "UC-1.3: Manage Patient Profile" as UC_PatientProf
+    usecase "UC-1.4: Manage Doctor Profile & Credentials" as UC_DocProf
+  }
+
+  package "Data Intake & Assessment Engine" {
+    usecase "UC-2.1: Upload Multimodal Health Data\n(CSV / PDF / OCR)" as UC_Upload
+    usecase "UC-2.2: Submit Clinical Biomarkers (18 features)" as UC_SubClin
+    usecase "UC-2.3: Submit Wearable Metrics (15 features)" as UC_SubWear
+    usecase "UC-2.4: Submit Gut Microbiome (49 features)" as UC_SubGut
+    usecase "UC-2.5: Execute Multimodal Health Assessment" as UC_RunAssessment
+  }
+
+  package "AI Prediction & Explainability (XAI)" {
+    usecase "UC-3.1: View 5 Disease Probability Predictions" as UC_ViewPred
+    usecase "UC-3.2: View TreeSHAP Feature Attributions (XAI)" as UC_ViewXAI
+    usecase "UC-3.3: Compare Historical Assessments" as UC_CompareHist
+  }
+
+  package "Medical RAG & Report System" {
+    usecase "UC-4.1: View Comprehensive Health Report" as UC_ViewReport
+    usecase "UC-4.2: Download PDF Report" as UC_DownloadPDF
+  }
+
+  package "Clinical Consultation Workspace" {
+    usecase "UC-5.1: Request Doctor Consultation" as UC_ReqCons
+    usecase "UC-5.2: Review Patient Records & Risk Profiles" as UC_RevRecords
+    usecase "UC-5.3: Add Clinical Notes & Follow-up Guidance" as UC_AddNotes
+    usecase "UC-5.4: Real-Time Consultation Messaging" as UC_Msg
+    usecase "UC-5.5: Schedule & Manage Appointments" as UC_Appt
+  }
+
+  package "System Operations & Governance" {
+    usecase "UC-6.1: Verify Doctor Registration & Credentials" as UC_VerDoc
+    usecase "UC-6.2: Monitor System Observability & Metrics" as UC_SysMon
+    usecase "UC-6.3: Inspect Immutable Audit Logs" as UC_AuditLog
+    usecase "UC-6.4: Manage System Settings & Users" as UC_ManageUsers
+  }
+}
+
+' Patient Relationships
+patient --> UC_Reg
+patient --> UC_Login
+patient --> UC_PatientProf
+patient --> UC_Upload
+patient --> UC_SubClin
+patient --> UC_SubWear
+patient --> UC_SubGut
+patient --> UC_RunAssessment
+patient --> UC_ViewPred
+patient --> UC_ViewXAI
+patient --> UC_CompareHist
+patient --> UC_ViewReport
+patient --> UC_DownloadPDF
+patient --> UC_ReqCons
+patient --> UC_Msg
+patient --> UC_Appt
+
+' Doctor Relationships
+doctor --> UC_Login
+doctor --> UC_DocProf
+doctor --> UC_RevRecords
+doctor --> UC_ViewPred
+doctor --> UC_ViewXAI
+doctor --> UC_ViewReport
+doctor --> UC_AddNotes
+doctor --> UC_Msg
+doctor --> UC_Appt
+
+' Administrator Relationships
+admin --> UC_Login
+admin --> UC_VerDoc
+admin --> UC_SysMon
+admin --> UC_AuditLog
+admin --> UC_ManageUsers
+
+@enduml

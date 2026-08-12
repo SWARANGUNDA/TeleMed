@@ -1,0 +1,52 @@
+@startuml 13_auth_rbac_sequence
+!theme plain
+autonumber
+
+title TeleMed AI Platform — JWT Authentication & Role-Based Access Control (RBAC)
+
+actor User
+participant "React Frontend\n(LoginPage.jsx)" as FE
+participant "Auth Router\n(auth_routes.py)" as AuthRouter
+participant "Security Engine\n(security.py)" as Security
+participant "PostgreSQL Database\n(users / auth_sessions)" as DB
+participant "Protected Route Handler\n(api/admin_routes.py)" as ProtectedRoute
+
+User -> FE : Enter Email & Password
+FE -> AuthRouter : POST /api/auth/login (json={email, password})
+
+AuthRouter -> DB : query_user_by_email(email)
+DB --> AuthRouter : User Entity (user_id, password_hash, salt, role)
+
+AuthRouter -> Security : verify_password(plain_password, password_hash, salt)
+Security --> AuthRouter : Password Verified (True)
+
+AuthRouter -> Security : create_jwt_access_token(user_id, email, role, expires_delta)
+Security --> AuthRouter : Signed JWT Bearer Token string
+
+AuthRouter -> DB : INSERT INTO auth_sessions (token, user_id, expires_at)
+DB --> AuthRouter : Session Persisted
+
+AuthRouter --> FE : HTTP 200 OK (access_token, user_id, role, full_name)
+FE -> FE : Store Token in LocalStorage & Update AuthContext State
+
+== Role-Based Access Control (RBAC) Verification ==
+
+User -> FE : Navigate to Protected Admin Dashboard (/admin)
+FE -> ProtectedRoute : GET /api/admin/system-health (Header: Authorization: Bearer JWT)
+
+ProtectedRoute -> Security : verify_jwt_token(token)
+Security -> Security : Decode JWT & Verify Signature / Expiration
+Security --> ProtectedRoute : Token Payload (user_id, role="ADMIN")
+
+alt Role matches required endpoint permission (e.g. role == "ADMIN")
+  ProtectedRoute -> DB : Fetch System Health / Observability Data
+  DB --> ProtectedRoute : Metrics & Audit Summary
+  ProtectedRoute --> FE : HTTP 200 OK (System Data)
+  FE --> User : Render Admin Dashboard
+else Role unauthorized (e.g. role == "PATIENT" trying to access Admin Route)
+  Security --> ProtectedRoute : Permission Denied
+  ProtectedRoute --> FE : HTTP 403 Forbidden ("Insufficient Role Privileges")
+  FE --> User : Display "Access Denied" Notification
+end
+
+@enduml

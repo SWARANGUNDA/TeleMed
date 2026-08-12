@@ -1,0 +1,44 @@
+@startuml 09_xai_sequence
+!theme plain
+autonumber
+
+title TeleMed AI Platform — Explainable AI (TreeSHAP) Sequence Diagram
+
+actor User
+participant "React Frontend\n(XAIPage.jsx)" as FE
+participant "XAI Router\n(xai_routes.py)" as XAIRouter
+participant "PostgreSQL Database\n(health_records)" as DB
+participant "XAI Service\n(xai_service.py)" as XAIService
+participant "TreeSHAP Explainer\n(shap.TreeExplainer)" as TreeSHAP
+
+User -> FE : Navigate to XAI / Feature Attribution View
+FE -> XAIRouter : GET /api/xai/explain/{record_id} (Bearer JWT)
+XAIRouter -> DB : fetch_health_record(record_id)
+
+alt XAI Snapshot Already Cached
+  DB --> XAIRouter : HealthRecord (xai_snapshot JSON present)
+  XAIRouter --> FE : Return Cached XAI Snapshot
+else XAI Snapshot Missing
+  DB --> XAIRouter : HealthRecord (xai_snapshot is NULL, confirmed_features present)
+  XAIRouter -> XAIService : generate_xai_attributions(record)
+  
+  XAIService -> XAIService : Inspect active modalities & model payloads
+  
+  loop For Each Disease Target (5 Targets)
+    XAIService -> TreeSHAP : shap_values = explainer.shap_values(X_scaled)
+    TreeSHAP --> XAIService : SHAP Feature Contribution Matrix
+  end
+  
+  XAIService -> XAIService : Calculate Global Feature Importance, Rank & Directional Associations
+  XAIService --> XAIRouter : XAI Attributions Payload
+  
+  XAIRouter -> DB : UPDATE health_records SET xai_snapshot = JSON
+  DB --> XAIRouter : Persistence Confirmed
+  
+  XAIRouter --> FE : HTTP 200 OK (XAI Attributions JSON)
+end
+
+FE -> FE : Render Top-10 SHAP Bar Charts, Directional Effects & Feature Beeswarm Plots
+FE --> User : Display Interactive Model Explanations
+
+@enduml
