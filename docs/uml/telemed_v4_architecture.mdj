@@ -1,0 +1,4001 @@
+{
+  "_type": "Project",
+  "_id": "AAAA69599567999B45D191E5",
+  "name": "TeleMed AI Platform \u2014 Complete Frozen V4 Architecture Master Project",
+  "ownedElements": [
+    {
+      "_type": "UMLModel",
+      "_id": "AAAADBAB5CD9CE25499E9E77",
+      "_parent": {
+        "$ref": "AAAADF3496B0714349349DEB"
+      },
+      "name": "System Use-Case Diagram (V4 Architecture) Model",
+      "ownedElements": [
+        {
+          "_type": "UMLClassDiagram",
+          "_id": "AAAA3A960C901EEC43C9BCFD",
+          "_parent": {
+            "$ref": "AAAADBAB5CD9CE25499E9E77"
+          },
+          "name": "System Use-Case Diagram (V4 Architecture)",
+          "ownedViews": [
+            {
+              "_type": "UMLActorView",
+              "_id": "AAAA99DD1E6B2EE5411B98D3",
+              "_parent": {
+                "$ref": "AAAA3A960C901EEC43C9BCFD"
+              },
+              "model": {
+                "$ref": "AAAA96795858279948D79CAB"
+              },
+              "font": "Arial;13;0",
+              "left": 40,
+              "top": 40,
+              "width": 220,
+              "height": 140
+            },
+            {
+              "_type": "UMLActorView",
+              "_id": "AAAAF70E65B97BED4EEB93CA",
+              "_parent": {
+                "$ref": "AAAA3A960C901EEC43C9BCFD"
+              },
+              "model": {
+                "$ref": "AAAA01630ABFDFBD45A180BC"
+              },
+              "font": "Arial;13;0",
+              "left": 280,
+              "top": 40,
+              "width": 220,
+              "height": 140
+            },
+            {
+              "_type": "UMLActorView",
+              "_id": "AAAA708CE85D345645B1AC5E",
+              "_parent": {
+                "$ref": "AAAA3A960C901EEC43C9BCFD"
+              },
+              "model": {
+                "$ref": "AAAA78CCEB784CEA4AB79174"
+              },
+              "font": "Arial;13;0",
+              "left": 520,
+              "top": 40,
+              "width": 220,
+              "height": 140
+            },
+            {
+              "_type": "UMLUseCaseView",
+              "_id": "AAAA9BFE35CDCBB2449DA1AA",
+              "_parent": {
+                "$ref": "AAAA3A960C901EEC43C9BCFD"
+              },
+              "model": {
+                "$ref": "AAAAA460505925B54DFAAF7A"
+              },
+              "font": "Arial;13;0",
+              "left": 760,
+              "top": 40,
+              "width": 220,
+              "height": 140
+            },
+            {
+              "_type": "UMLUseCaseView",
+              "_id": "AAAA97992FDAFFAE4312B48C",
+              "_parent": {
+                "$ref": "AAAA3A960C901EEC43C9BCFD"
+              },
+              "model": {
+                "$ref": "AAAA5E7FA2279B144CECA565"
+              },
+              "font": "Arial;13;0",
+              "left": 40,
+              "top": 220,
+              "width": 220,
+              "height": 140
+            },
+            {
+              "_type": "UMLUseCaseView",
+              "_id": "AAAAAF7EF8A6C1124831AFB2",
+              "_parent": {
+                "$ref": "AAAA3A960C901EEC43C9BCFD"
+              },
+              "model": {
+                "$ref": "AAAA3F86A549F4BC49048794"
+              },
+              "font": "Arial;13;0",
+              "left": 280,
+              "top": 220,
+              "width": 220,
+              "height": 140
+            },
+            {
+              "_type": "UMLUseCaseView",
+              "_id": "AAAA5BEB5C0DFBE144BEADC5",
+              "_parent": {
+                "$ref": "AAAA3A960C901EEC43C9BCFD"
+              },
+              "model": {
+                "$ref": "AAAAA5510590894745CF9AFB"
+              },
+              "font": "Arial;13;0",
+              "left": 520,
+              "top": 220,
+              "width": 220,
+              "height": 140
+            },
+            {
+              "_type": "UMLUseCaseView",
+              "_id": "AAAA2A876EE03D854E56804F",
+              "_parent": {
+                "$ref": "AAAA3A960C901EEC43C9BCFD"
+              },
+              "model": {
+                "$ref": "AAAA46F81EAF451F4ECAABE7"
+              },
+              "font": "Arial;13;0",
+              "left": 760,
+              "top": 220,
+              "width": 220,
+              "height": 140
+            },
+            {
+              "_type": "UMLUseCaseView",
+              "_id": "AAAA44B36FE56B24414B828B",
+              "_parent": {
+                "$ref": "AAAA3A960C901EEC43C9BCFD"
+              },
+              "model": {
+                "$ref": "AAAA3FED4B9F21B546268E9E"
+              },
+              "font": "Arial;13;0",
+              "left": 40,
+              "top": 400,
+              "width": 220,
+              "height": 140
+            },
+            {
+              "_type": "UMLUseCaseView",
+              "_id": "AAAA0EC320F532E349BDA41B",
+              "_parent": {
+                "$ref": "AAAA3A960C901EEC43C9BCFD"
+              },
+              "model": {
+                "$ref": "AAAA3ADAC10360FC49E7A1A3"
+              },
+              "font": "Arial;13;0",
+              "left": 280,
+              "top": 400,
+              "width": 220,
+              "height": 140
+            },
+            {
+              "_type": "UMLUseCaseView",
+              "_id": "AAAAC97DA631477A42A8B2FC",
+              "_parent": {
+                "$ref": "AAAA3A960C901EEC43C9BCFD"
+              },
+              "model": {
+                "$ref": "AAAAA0BE84CEA6B34459BC6D"
+              },
+              "font": "Arial;13;0",
+              "left": 520,
+              "top": 400,
+              "width": 220,
+              "height": 140
+            }
+          ]
+        },
+        {
+          "_type": "UMLActor",
+          "_id": "AAAA96795858279948D79CAB",
+          "_parent": {
+            "$ref": "AAAADBAB5CD9CE25499E9E77"
+          },
+          "name": "Patient"
+        },
+        {
+          "_type": "UMLActor",
+          "_id": "AAAA01630ABFDFBD45A180BC",
+          "_parent": {
+            "$ref": "AAAADBAB5CD9CE25499E9E77"
+          },
+          "name": "Doctor"
+        },
+        {
+          "_type": "UMLActor",
+          "_id": "AAAA78CCEB784CEA4AB79174",
+          "_parent": {
+            "$ref": "AAAADBAB5CD9CE25499E9E77"
+          },
+          "name": "Administrator"
+        },
+        {
+          "_type": "UMLUseCase",
+          "_id": "AAAAA460505925B54DFAAF7A",
+          "_parent": {
+            "$ref": "AAAADBAB5CD9CE25499E9E77"
+          },
+          "name": "UC-1.1: Register & Authenticate (JWT)"
+        },
+        {
+          "_type": "UMLUseCase",
+          "_id": "AAAA5E7FA2279B144CECA565",
+          "_parent": {
+            "$ref": "AAAADBAB5CD9CE25499E9E77"
+          },
+          "name": "UC-2.1: Upload Multimodal Data (CSV/PDF)"
+        },
+        {
+          "_type": "UMLUseCase",
+          "_id": "AAAA3F86A549F4BC49048794",
+          "_parent": {
+            "$ref": "AAAADBAB5CD9CE25499E9E77"
+          },
+          "name": "UC-2.5: Execute Health Assessment"
+        },
+        {
+          "_type": "UMLUseCase",
+          "_id": "AAAAA5510590894745CF9AFB",
+          "_parent": {
+            "$ref": "AAAADBAB5CD9CE25499E9E77"
+          },
+          "name": "UC-3.1: View 5 Disease Risk Predictions"
+        },
+        {
+          "_type": "UMLUseCase",
+          "_id": "AAAA46F81EAF451F4ECAABE7",
+          "_parent": {
+            "$ref": "AAAADBAB5CD9CE25499E9E77"
+          },
+          "name": "UC-3.2: View TreeSHAP Feature Attributions"
+        },
+        {
+          "_type": "UMLUseCase",
+          "_id": "AAAA3FED4B9F21B546268E9E",
+          "_parent": {
+            "$ref": "AAAADBAB5CD9CE25499E9E77"
+          },
+          "name": "UC-4.1: View RAG Report & Download PDF"
+        },
+        {
+          "_type": "UMLUseCase",
+          "_id": "AAAA3ADAC10360FC49E7A1A3",
+          "_parent": {
+            "$ref": "AAAADBAB5CD9CE25499E9E77"
+          },
+          "name": "UC-5.1: Doctor Workspace & Consultation Notes"
+        },
+        {
+          "_type": "UMLUseCase",
+          "_id": "AAAAA0BE84CEA6B34459BC6D",
+          "_parent": {
+            "$ref": "AAAADBAB5CD9CE25499E9E77"
+          },
+          "name": "UC-6.1: Admin Verification & Audit Logging"
+        }
+      ]
+    },
+    {
+      "_type": "UMLModel",
+      "_id": "AAAA7F5CA042D87E4BA5973D",
+      "_parent": {
+        "$ref": "AAAA5B25E191925147B4B2EE"
+      },
+      "name": "High-Level System Component Diagram Model",
+      "ownedElements": [
+        {
+          "_type": "UMLComponentDiagram",
+          "_id": "AAAAB6B56E35397D4A37ADD6",
+          "_parent": {
+            "$ref": "AAAA7F5CA042D87E4BA5973D"
+          },
+          "name": "High-Level System Component Diagram",
+          "ownedViews": [
+            {
+              "_type": "UMLComponentView",
+              "_id": "AAAAA1DE26F7521E46AEA0C7",
+              "_parent": {
+                "$ref": "AAAAB6B56E35397D4A37ADD6"
+              },
+              "model": {
+                "$ref": "AAAAC9022D1DC0344FBA85BB"
+              },
+              "font": "Arial;13;0",
+              "left": 40,
+              "top": 40,
+              "width": 220,
+              "height": 140
+            },
+            {
+              "_type": "UMLComponentView",
+              "_id": "AAAA63BA0BB88BE74CE8AFC1",
+              "_parent": {
+                "$ref": "AAAAB6B56E35397D4A37ADD6"
+              },
+              "model": {
+                "$ref": "AAAAA1733D9CB147413BBECD"
+              },
+              "font": "Arial;13;0",
+              "left": 280,
+              "top": 40,
+              "width": 220,
+              "height": 140
+            },
+            {
+              "_type": "UMLComponentView",
+              "_id": "AAAA2364C6EC0B094677891E",
+              "_parent": {
+                "$ref": "AAAAB6B56E35397D4A37ADD6"
+              },
+              "model": {
+                "$ref": "AAAACECE819651F046518015"
+              },
+              "font": "Arial;13;0",
+              "left": 520,
+              "top": 40,
+              "width": 220,
+              "height": 140
+            },
+            {
+              "_type": "UMLComponentView",
+              "_id": "AAAAE63D088ABDD44B28974E",
+              "_parent": {
+                "$ref": "AAAAB6B56E35397D4A37ADD6"
+              },
+              "model": {
+                "$ref": "AAAAB6C7B6D0A77B4B18A7AD"
+              },
+              "font": "Arial;13;0",
+              "left": 760,
+              "top": 40,
+              "width": 220,
+              "height": 140
+            },
+            {
+              "_type": "UMLComponentView",
+              "_id": "AAAAC2B6E55B03D247D1B655",
+              "_parent": {
+                "$ref": "AAAAB6B56E35397D4A37ADD6"
+              },
+              "model": {
+                "$ref": "AAAA56690A9EC78F47BCBE10"
+              },
+              "font": "Arial;13;0",
+              "left": 40,
+              "top": 220,
+              "width": 220,
+              "height": 140
+            },
+            {
+              "_type": "UMLComponentView",
+              "_id": "AAAAB7E8A7B1FF3C489E8F6E",
+              "_parent": {
+                "$ref": "AAAAB6B56E35397D4A37ADD6"
+              },
+              "model": {
+                "$ref": "AAAA0A20342607994A068039"
+              },
+              "font": "Arial;13;0",
+              "left": 280,
+              "top": 220,
+              "width": 220,
+              "height": 140
+            },
+            {
+              "_type": "UMLComponentView",
+              "_id": "AAAACD564C5027BC4B8AAD97",
+              "_parent": {
+                "$ref": "AAAAB6B56E35397D4A37ADD6"
+              },
+              "model": {
+                "$ref": "AAAA48226082D90F489097EE"
+              },
+              "font": "Arial;13;0",
+              "left": 520,
+              "top": 220,
+              "width": 220,
+              "height": 140
+            },
+            {
+              "_type": "UMLComponentView",
+              "_id": "AAAAF403922C66164E148FFA",
+              "_parent": {
+                "$ref": "AAAAB6B56E35397D4A37ADD6"
+              },
+              "model": {
+                "$ref": "AAAAB3D81D8407434470AFB9"
+              },
+              "font": "Arial;13;0",
+              "left": 760,
+              "top": 220,
+              "width": 220,
+              "height": 140
+            },
+            {
+              "_type": "UMLComponentView",
+              "_id": "AAAA588675881EF14F1ABBC8",
+              "_parent": {
+                "$ref": "AAAAB6B56E35397D4A37ADD6"
+              },
+              "model": {
+                "$ref": "AAAAB272CBD645AF4F69BD7C"
+              },
+              "font": "Arial;13;0",
+              "left": 40,
+              "top": 400,
+              "width": 220,
+              "height": 140
+            },
+            {
+              "_type": "UMLComponentView",
+              "_id": "AAAA43F17C868FA5453CB395",
+              "_parent": {
+                "$ref": "AAAAB6B56E35397D4A37ADD6"
+              },
+              "model": {
+                "$ref": "AAAA8A02C27B321A464A8A82"
+              },
+              "font": "Arial;13;0",
+              "left": 280,
+              "top": 400,
+              "width": 220,
+              "height": 140
+            },
+            {
+              "_type": "UMLComponentView",
+              "_id": "AAAA28C36A2F3E9C4FE08784",
+              "_parent": {
+                "$ref": "AAAAB6B56E35397D4A37ADD6"
+              },
+              "model": {
+                "$ref": "AAAABEB42A3736D6452EBBCA"
+              },
+              "font": "Arial;13;0",
+              "left": 520,
+              "top": 400,
+              "width": 220,
+              "height": 140
+            },
+            {
+              "_type": "UMLComponentView",
+              "_id": "AAAAB371C6040DFD4DD09B6A",
+              "_parent": {
+                "$ref": "AAAAB6B56E35397D4A37ADD6"
+              },
+              "model": {
+                "$ref": "AAAA86D873EFC19C4C4988FA"
+              },
+              "font": "Arial;13;0",
+              "left": 760,
+              "top": 400,
+              "width": 220,
+              "height": 140
+            },
+            {
+              "_type": "UMLComponentView",
+              "_id": "AAAAC2E72D6330274E4C8F99",
+              "_parent": {
+                "$ref": "AAAAB6B56E35397D4A37ADD6"
+              },
+              "model": {
+                "$ref": "AAAA86756F670F5549DBA305"
+              },
+              "font": "Arial;13;0",
+              "left": 40,
+              "top": 580,
+              "width": 220,
+              "height": 140
+            },
+            {
+              "_type": "UMLComponentView",
+              "_id": "AAAA5B97A8AC88844C28BD09",
+              "_parent": {
+                "$ref": "AAAAB6B56E35397D4A37ADD6"
+              },
+              "model": {
+                "$ref": "AAAA8B5DF4E48DDC48CD86A5"
+              },
+              "font": "Arial;13;0",
+              "left": 280,
+              "top": 580,
+              "width": 220,
+              "height": 140
+            }
+          ]
+        },
+        {
+          "_type": "UMLComponent",
+          "_id": "AAAAC9022D1DC0344FBA85BB",
+          "_parent": {
+            "$ref": "AAAA7F5CA042D87E4BA5973D"
+          },
+          "name": "React Vite Frontend SPA"
+        },
+        {
+          "_type": "UMLComponent",
+          "_id": "AAAAA1733D9CB147413BBECD",
+          "_parent": {
+            "$ref": "AAAA7F5CA042D87E4BA5973D"
+          },
+          "name": "FastAPI Application Core"
+        },
+        {
+          "_type": "UMLComponent",
+          "_id": "AAAACECE819651F046518015",
+          "_parent": {
+            "$ref": "AAAA7F5CA042D87E4BA5973D"
+          },
+          "name": "Auth & RBAC Service"
+        },
+        {
+          "_type": "UMLComponent",
+          "_id": "AAAAB6C7B6D0A77B4B18A7AD",
+          "_parent": {
+            "$ref": "AAAA7F5CA042D87E4BA5973D"
+          },
+          "name": "Multimodal Intake Engine"
+        },
+        {
+          "_type": "UMLComponent",
+          "_id": "AAAA56690A9EC78F47BCBE10",
+          "_parent": {
+            "$ref": "AAAA7F5CA042D87E4BA5973D"
+          },
+          "name": "Clinical Expert (18 Features)"
+        },
+        {
+          "_type": "UMLComponent",
+          "_id": "AAAA0A20342607994A068039",
+          "_parent": {
+            "$ref": "AAAA7F5CA042D87E4BA5973D"
+          },
+          "name": "Wearable Expert (15 Features)"
+        },
+        {
+          "_type": "UMLComponent",
+          "_id": "AAAA48226082D90F489097EE",
+          "_parent": {
+            "$ref": "AAAA7F5CA042D87E4BA5973D"
+          },
+          "name": "Gut Expert (49 Model Features)"
+        },
+        {
+          "_type": "UMLComponent",
+          "_id": "AAAAB3D81D8407434470AFB9",
+          "_parent": {
+            "$ref": "AAAA7F5CA042D87E4BA5973D"
+          },
+          "name": "V4 Stacking Fusion Engine"
+        },
+        {
+          "_type": "UMLComponent",
+          "_id": "AAAAB272CBD645AF4F69BD7C",
+          "_parent": {
+            "$ref": "AAAA7F5CA042D87E4BA5973D"
+          },
+          "name": "TreeSHAP Explainability Engine"
+        },
+        {
+          "_type": "UMLComponent",
+          "_id": "AAAA8A02C27B321A464A8A82",
+          "_parent": {
+            "$ref": "AAAA7F5CA042D87E4BA5973D"
+          },
+          "name": "Medical RAG Evidence Synthesizer"
+        },
+        {
+          "_type": "UMLComponent",
+          "_id": "AAAABEB42A3736D6452EBBCA",
+          "_parent": {
+            "$ref": "AAAA7F5CA042D87E4BA5973D"
+          },
+          "name": "PostgreSQL 17 Database"
+        },
+        {
+          "_type": "UMLComponent",
+          "_id": "AAAA86D873EFC19C4C4988FA",
+          "_parent": {
+            "$ref": "AAAA7F5CA042D87E4BA5973D"
+          },
+          "name": "Redis Session Store"
+        },
+        {
+          "_type": "UMLComponent",
+          "_id": "AAAA86756F670F5549DBA305",
+          "_parent": {
+            "$ref": "AAAA7F5CA042D87E4BA5973D"
+          },
+          "name": "Celery Asynchronous Workers"
+        },
+        {
+          "_type": "UMLComponent",
+          "_id": "AAAA8B5DF4E48DDC48CD86A5",
+          "_parent": {
+            "$ref": "AAAA7F5CA042D87E4BA5973D"
+          },
+          "name": "Prometheus Observability Engine"
+        }
+      ]
+    },
+    {
+      "_type": "UMLModel",
+      "_id": "AAAA941965B6B7DA41EA86BC",
+      "_parent": {
+        "$ref": "AAAAA70233342855498DBCCD"
+      },
+      "name": "Backend Class Diagram (FastAPI & SQLAlchemy ORM) Model",
+      "ownedElements": [
+        {
+          "_type": "UMLClassDiagram",
+          "_id": "AAAA37191732CC56483A9E58",
+          "_parent": {
+            "$ref": "AAAA941965B6B7DA41EA86BC"
+          },
+          "name": "Backend Class Diagram (FastAPI & SQLAlchemy ORM)",
+          "ownedViews": [
+            {
+              "_type": "UMLClassView",
+              "_id": "AAAA4823D192A49643F3BD2D",
+              "_parent": {
+                "$ref": "AAAA37191732CC56483A9E58"
+              },
+              "model": {
+                "$ref": "AAAAA07BE5437357479E8C91"
+              },
+              "font": "Arial;13;0",
+              "left": 40,
+              "top": 40,
+              "width": 220,
+              "height": 140
+            },
+            {
+              "_type": "UMLClassView",
+              "_id": "AAAA1C77D66A64D4438BB333",
+              "_parent": {
+                "$ref": "AAAA37191732CC56483A9E58"
+              },
+              "model": {
+                "$ref": "AAAAC12874C2B3C8432997C2"
+              },
+              "font": "Arial;13;0",
+              "left": 280,
+              "top": 40,
+              "width": 220,
+              "height": 140
+            },
+            {
+              "_type": "UMLClassView",
+              "_id": "AAAAE0C16E6E500C41BEA790",
+              "_parent": {
+                "$ref": "AAAA37191732CC56483A9E58"
+              },
+              "model": {
+                "$ref": "AAAA685994B0DD494873947B"
+              },
+              "font": "Arial;13;0",
+              "left": 520,
+              "top": 40,
+              "width": 220,
+              "height": 140
+            },
+            {
+              "_type": "UMLClassView",
+              "_id": "AAAAF451B873683A4AE8A545",
+              "_parent": {
+                "$ref": "AAAA37191732CC56483A9E58"
+              },
+              "model": {
+                "$ref": "AAAA89C7981A11F045CB8110"
+              },
+              "font": "Arial;13;0",
+              "left": 760,
+              "top": 40,
+              "width": 220,
+              "height": 140
+            },
+            {
+              "_type": "UMLClassView",
+              "_id": "AAAA2CF10B5B453F4D76990A",
+              "_parent": {
+                "$ref": "AAAA37191732CC56483A9E58"
+              },
+              "model": {
+                "$ref": "AAAABB36C32E28574A76BDF1"
+              },
+              "font": "Arial;13;0",
+              "left": 40,
+              "top": 220,
+              "width": 220,
+              "height": 140
+            },
+            {
+              "_type": "UMLClassView",
+              "_id": "AAAA651391636EBC4535B527",
+              "_parent": {
+                "$ref": "AAAA37191732CC56483A9E58"
+              },
+              "model": {
+                "$ref": "AAAAFF1D5D25E0D94AE5A093"
+              },
+              "font": "Arial;13;0",
+              "left": 280,
+              "top": 220,
+              "width": 220,
+              "height": 140
+            },
+            {
+              "_type": "UMLClassView",
+              "_id": "AAAAC4BC0FA324AF4F4E8B4C",
+              "_parent": {
+                "$ref": "AAAA37191732CC56483A9E58"
+              },
+              "model": {
+                "$ref": "AAAA46949752A35F450ABEAA"
+              },
+              "font": "Arial;13;0",
+              "left": 520,
+              "top": 220,
+              "width": 220,
+              "height": 140
+            },
+            {
+              "_type": "UMLClassView",
+              "_id": "AAAA60F84F22B5AB4F618FD5",
+              "_parent": {
+                "$ref": "AAAA37191732CC56483A9E58"
+              },
+              "model": {
+                "$ref": "AAAAAB9A5A526DC549328ACF"
+              },
+              "font": "Arial;13;0",
+              "left": 760,
+              "top": 220,
+              "width": 220,
+              "height": 140
+            },
+            {
+              "_type": "UMLClassView",
+              "_id": "AAAA93ECFA74B6BF419894A6",
+              "_parent": {
+                "$ref": "AAAA37191732CC56483A9E58"
+              },
+              "model": {
+                "$ref": "AAAAF3FB91774923480892AC"
+              },
+              "font": "Arial;13;0",
+              "left": 40,
+              "top": 400,
+              "width": 220,
+              "height": 140
+            }
+          ]
+        },
+        {
+          "_type": "UMLClass",
+          "_id": "AAAAA07BE5437357479E8C91",
+          "_parent": {
+            "$ref": "AAAA941965B6B7DA41EA86BC"
+          },
+          "name": "User",
+          "attributes": [
+            {
+              "_type": "UMLAttribute",
+              "_id": "AAAAC61A03B88A784DFB9E46",
+              "_parent": {
+                "$ref": "AAAAA07BE5437357479E8C91"
+              },
+              "name": "user_id",
+              "type": "String PK"
+            },
+            {
+              "_type": "UMLAttribute",
+              "_id": "AAAAEBD7257E9A964F29AA0D",
+              "_parent": {
+                "$ref": "AAAAA07BE5437357479E8C91"
+              },
+              "name": "email",
+              "type": "String"
+            },
+            {
+              "_type": "UMLAttribute",
+              "_id": "AAAA1A3EB2C943EA42EF89BF",
+              "_parent": {
+                "$ref": "AAAAA07BE5437357479E8C91"
+              },
+              "name": "password_hash",
+              "type": "String"
+            },
+            {
+              "_type": "UMLAttribute",
+              "_id": "AAAA85915FD2855C465BB2C0",
+              "_parent": {
+                "$ref": "AAAAA07BE5437357479E8C91"
+              },
+              "name": "role",
+              "type": "String"
+            }
+          ]
+        },
+        {
+          "_type": "UMLClass",
+          "_id": "AAAAC12874C2B3C8432997C2",
+          "_parent": {
+            "$ref": "AAAA941965B6B7DA41EA86BC"
+          },
+          "name": "PatientProfile",
+          "attributes": [
+            {
+              "_type": "UMLAttribute",
+              "_id": "AAAA30576C7B61AD4262A9EC",
+              "_parent": {
+                "$ref": "AAAAC12874C2B3C8432997C2"
+              },
+              "name": "patient_id",
+              "type": "String PK"
+            },
+            {
+              "_type": "UMLAttribute",
+              "_id": "AAAA25C57D86A3364CE5AE94",
+              "_parent": {
+                "$ref": "AAAAC12874C2B3C8432997C2"
+              },
+              "name": "user_id",
+              "type": "String FK"
+            },
+            {
+              "_type": "UMLAttribute",
+              "_id": "AAAA43BBA3BEECFE4288BD5F",
+              "_parent": {
+                "$ref": "AAAAC12874C2B3C8432997C2"
+              },
+              "name": "full_name",
+              "type": "String"
+            },
+            {
+              "_type": "UMLAttribute",
+              "_id": "AAAA68C4EC65367A45EF8CCD",
+              "_parent": {
+                "$ref": "AAAAC12874C2B3C8432997C2"
+              },
+              "name": "age",
+              "type": "Integer"
+            },
+            {
+              "_type": "UMLAttribute",
+              "_id": "AAAA813EC87ABF3B40B8A3A9",
+              "_parent": {
+                "$ref": "AAAAC12874C2B3C8432997C2"
+              },
+              "name": "gender",
+              "type": "String"
+            }
+          ]
+        },
+        {
+          "_type": "UMLClass",
+          "_id": "AAAA685994B0DD494873947B",
+          "_parent": {
+            "$ref": "AAAA941965B6B7DA41EA86BC"
+          },
+          "name": "DoctorProfile",
+          "attributes": [
+            {
+              "_type": "UMLAttribute",
+              "_id": "AAAA8EC6D2E27E934DF9A768",
+              "_parent": {
+                "$ref": "AAAA685994B0DD494873947B"
+              },
+              "name": "doctor_id",
+              "type": "String PK"
+            },
+            {
+              "_type": "UMLAttribute",
+              "_id": "AAAA035DE53D85FE434DA427",
+              "_parent": {
+                "$ref": "AAAA685994B0DD494873947B"
+              },
+              "name": "user_id",
+              "type": "String FK"
+            },
+            {
+              "_type": "UMLAttribute",
+              "_id": "AAAAF026FBEB387C43E38E5F",
+              "_parent": {
+                "$ref": "AAAA685994B0DD494873947B"
+              },
+              "name": "specialization",
+              "type": "String"
+            },
+            {
+              "_type": "UMLAttribute",
+              "_id": "AAAA9EE96A70A1AA4F35B1CD",
+              "_parent": {
+                "$ref": "AAAA685994B0DD494873947B"
+              },
+              "name": "verification_status",
+              "type": "String"
+            }
+          ]
+        },
+        {
+          "_type": "UMLClass",
+          "_id": "AAAA89C7981A11F045CB8110",
+          "_parent": {
+            "$ref": "AAAA941965B6B7DA41EA86BC"
+          },
+          "name": "HealthRecord",
+          "attributes": [
+            {
+              "_type": "UMLAttribute",
+              "_id": "AAAAFAF2ACCAE56744EA813B",
+              "_parent": {
+                "$ref": "AAAA89C7981A11F045CB8110"
+              },
+              "name": "record_id",
+              "type": "String PK"
+            },
+            {
+              "_type": "UMLAttribute",
+              "_id": "AAAAF9403DB8E0B445D3BF3F",
+              "_parent": {
+                "$ref": "AAAA89C7981A11F045CB8110"
+              },
+              "name": "user_id",
+              "type": "String FK"
+            },
+            {
+              "_type": "UMLAttribute",
+              "_id": "AAAAA586209A17B546F5A109",
+              "_parent": {
+                "$ref": "AAAA89C7981A11F045CB8110"
+              },
+              "name": "effective_pathway",
+              "type": "String"
+            },
+            {
+              "_type": "UMLAttribute",
+              "_id": "AAAAD12F5901D62C450B9515",
+              "_parent": {
+                "$ref": "AAAA89C7981A11F045CB8110"
+              },
+              "name": "prediction_snapshot",
+              "type": "Text"
+            },
+            {
+              "_type": "UMLAttribute",
+              "_id": "AAAA352FF742B5BA4C2BA4C5",
+              "_parent": {
+                "$ref": "AAAA89C7981A11F045CB8110"
+              },
+              "name": "xai_snapshot",
+              "type": "Text"
+            }
+          ]
+        },
+        {
+          "_type": "UMLClass",
+          "_id": "AAAABB36C32E28574A76BDF1",
+          "_parent": {
+            "$ref": "AAAA941965B6B7DA41EA86BC"
+          },
+          "name": "Consultation",
+          "attributes": [
+            {
+              "_type": "UMLAttribute",
+              "_id": "AAAA06B670DDB0EF45D3899E",
+              "_parent": {
+                "$ref": "AAAABB36C32E28574A76BDF1"
+              },
+              "name": "consultation_id",
+              "type": "String PK"
+            },
+            {
+              "_type": "UMLAttribute",
+              "_id": "AAAA7BC8AA31E333432FB522",
+              "_parent": {
+                "$ref": "AAAABB36C32E28574A76BDF1"
+              },
+              "name": "patient_id",
+              "type": "String"
+            },
+            {
+              "_type": "UMLAttribute",
+              "_id": "AAAA10C0A17369A74941A66B",
+              "_parent": {
+                "$ref": "AAAABB36C32E28574A76BDF1"
+              },
+              "name": "assigned_doctor_id",
+              "type": "String FK"
+            },
+            {
+              "_type": "UMLAttribute",
+              "_id": "AAAAAB71AE5248A8482B898F",
+              "_parent": {
+                "$ref": "AAAABB36C32E28574A76BDF1"
+              },
+              "name": "reason",
+              "type": "Text"
+            },
+            {
+              "_type": "UMLAttribute",
+              "_id": "AAAAEACACC5EC934478F8BE0",
+              "_parent": {
+                "$ref": "AAAABB36C32E28574A76BDF1"
+              },
+              "name": "status",
+              "type": "String"
+            }
+          ]
+        },
+        {
+          "_type": "UMLClass",
+          "_id": "AAAAFF1D5D25E0D94AE5A093",
+          "_parent": {
+            "$ref": "AAAA941965B6B7DA41EA86BC"
+          },
+          "name": "V3InferenceEngine",
+          "operations": [
+            {
+              "_type": "UMLOperation",
+              "_id": "AAAA2B6AB2AF1C834F71B2B0",
+              "_parent": {
+                "$ref": "AAAAFF1D5D25E0D94AE5A093"
+              },
+              "name": "predict_clinical(X)"
+            },
+            {
+              "_type": "UMLOperation",
+              "_id": "AAAA289DDD7F0BD74F1190AD",
+              "_parent": {
+                "$ref": "AAAAFF1D5D25E0D94AE5A093"
+              },
+              "name": "predict_wearable(X)"
+            },
+            {
+              "_type": "UMLOperation",
+              "_id": "AAAA2601EFED759C4083924B",
+              "_parent": {
+                "$ref": "AAAAFF1D5D25E0D94AE5A093"
+              },
+              "name": "predict_gut(X)"
+            },
+            {
+              "_type": "UMLOperation",
+              "_id": "AAAA3AC177B55A3847CAA8DD",
+              "_parent": {
+                "$ref": "AAAAFF1D5D25E0D94AE5A093"
+              },
+              "name": "predict_multimodal(data)"
+            }
+          ]
+        },
+        {
+          "_type": "UMLClass",
+          "_id": "AAAA46949752A35F450ABEAA",
+          "_parent": {
+            "$ref": "AAAA941965B6B7DA41EA86BC"
+          },
+          "name": "V3ScientificRouter",
+          "operations": [
+            {
+              "_type": "UMLOperation",
+              "_id": "AAAA98A9524DA3954868A1BC",
+              "_parent": {
+                "$ref": "AAAA46949752A35F450ABEAA"
+              },
+              "name": "route_prediction(payload)"
+            },
+            {
+              "_type": "UMLOperation",
+              "_id": "AAAAC13E5474258748FFBC7D",
+              "_parent": {
+                "$ref": "AAAA46949752A35F450ABEAA"
+              },
+              "name": "evaluate_stasis_pathway(pathway)"
+            }
+          ]
+        },
+        {
+          "_type": "UMLClass",
+          "_id": "AAAAAB9A5A526DC549328ACF",
+          "_parent": {
+            "$ref": "AAAA941965B6B7DA41EA86BC"
+          },
+          "name": "XAIService",
+          "operations": [
+            {
+              "_type": "UMLOperation",
+              "_id": "AAAAA65A94B852EB4E28A6F9",
+              "_parent": {
+                "$ref": "AAAAAB9A5A526DC549328ACF"
+              },
+              "name": "get_shap_explanations(record)"
+            },
+            {
+              "_type": "UMLOperation",
+              "_id": "AAAAA4827231B7274A14BC80",
+              "_parent": {
+                "$ref": "AAAAAB9A5A526DC549328ACF"
+              },
+              "name": "compute_treeshap_attributions(model, X)"
+            }
+          ]
+        },
+        {
+          "_type": "UMLClass",
+          "_id": "AAAAF3FB91774923480892AC",
+          "_parent": {
+            "$ref": "AAAA941965B6B7DA41EA86BC"
+          },
+          "name": "MedicalRAGEngine",
+          "operations": [
+            {
+              "_type": "UMLOperation",
+              "_id": "AAAAFA89946222464763BC23",
+              "_parent": {
+                "$ref": "AAAAF3FB91774923480892AC"
+              },
+              "name": "retrieve_medical_evidence(query)"
+            },
+            {
+              "_type": "UMLOperation",
+              "_id": "AAAA316409184A7F46E8AE13",
+              "_parent": {
+                "$ref": "AAAAF3FB91774923480892AC"
+              },
+              "name": "generate_comprehensive_report(snapshot)"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "_type": "UMLModel",
+      "_id": "AAAA5763AE4C2E844EB6AFBE",
+      "_parent": {
+        "$ref": "AAAA742338B9D02E4255BB86"
+      },
+      "name": "Data Intake & Preprocessing Class Diagram Model",
+      "ownedElements": [
+        {
+          "_type": "UMLClassDiagram",
+          "_id": "AAAA828FA8C326EA4B05B569",
+          "_parent": {
+            "$ref": "AAAA5763AE4C2E844EB6AFBE"
+          },
+          "name": "Data Intake & Preprocessing Class Diagram",
+          "ownedViews": [
+            {
+              "_type": "UMLClassView",
+              "_id": "AAAAA8065FA6ECE84702B45C",
+              "_parent": {
+                "$ref": "AAAA828FA8C326EA4B05B569"
+              },
+              "model": {
+                "$ref": "AAAABA2A498C8B984EA7B929"
+              },
+              "font": "Arial;13;0",
+              "left": 40,
+              "top": 40,
+              "width": 220,
+              "height": 140
+            },
+            {
+              "_type": "UMLClassView",
+              "_id": "AAAAC6C4739D6BA440FE88E6",
+              "_parent": {
+                "$ref": "AAAA828FA8C326EA4B05B569"
+              },
+              "model": {
+                "$ref": "AAAA7CCF0FD2820444E58779"
+              },
+              "font": "Arial;13;0",
+              "left": 280,
+              "top": 40,
+              "width": 220,
+              "height": 140
+            },
+            {
+              "_type": "UMLClassView",
+              "_id": "AAAA0222F99BC0204B62A9D1",
+              "_parent": {
+                "$ref": "AAAA828FA8C326EA4B05B569"
+              },
+              "model": {
+                "$ref": "AAAADFFF83A203C54586B89D"
+              },
+              "font": "Arial;13;0",
+              "left": 520,
+              "top": 40,
+              "width": 220,
+              "height": 140
+            },
+            {
+              "_type": "UMLClassView",
+              "_id": "AAAA699FD44CDC9C47688A81",
+              "_parent": {
+                "$ref": "AAAA828FA8C326EA4B05B569"
+              },
+              "model": {
+                "$ref": "AAAABEC51C35AB484F27B4CF"
+              },
+              "font": "Arial;13;0",
+              "left": 760,
+              "top": 40,
+              "width": 220,
+              "height": 140
+            },
+            {
+              "_type": "UMLClassView",
+              "_id": "AAAAB2F14C28747347C0A4D1",
+              "_parent": {
+                "$ref": "AAAA828FA8C326EA4B05B569"
+              },
+              "model": {
+                "$ref": "AAAA3A383D4327014681ABCE"
+              },
+              "font": "Arial;13;0",
+              "left": 40,
+              "top": 220,
+              "width": 220,
+              "height": 140
+            },
+            {
+              "_type": "UMLClassView",
+              "_id": "AAAAF8E91393273946F7963C",
+              "_parent": {
+                "$ref": "AAAA828FA8C326EA4B05B569"
+              },
+              "model": {
+                "$ref": "AAAA1978EA1D351A4D08B513"
+              },
+              "font": "Arial;13;0",
+              "left": 280,
+              "top": 220,
+              "width": 220,
+              "height": 140
+            },
+            {
+              "_type": "UMLClassView",
+              "_id": "AAAA724DE8C37FAD4C9A8FAD",
+              "_parent": {
+                "$ref": "AAAA828FA8C326EA4B05B569"
+              },
+              "model": {
+                "$ref": "AAAAFE522677B16C4CBCB29A"
+              },
+              "font": "Arial;13;0",
+              "left": 520,
+              "top": 220,
+              "width": 220,
+              "height": 140
+            }
+          ]
+        },
+        {
+          "_type": "UMLClass",
+          "_id": "AAAABA2A498C8B984EA7B929",
+          "_parent": {
+            "$ref": "AAAA5763AE4C2E844EB6AFBE"
+          },
+          "name": "MultimodalIntakeEngine",
+          "operations": [
+            {
+              "_type": "UMLOperation",
+              "_id": "AAAA9DB0C2FD497F4E7091F4",
+              "_parent": {
+                "$ref": "AAAABA2A498C8B984EA7B929"
+              },
+              "name": "process_intake(raw_payload)"
+            },
+            {
+              "_type": "UMLOperation",
+              "_id": "AAAA3356772EFBCB4B79816F",
+              "_parent": {
+                "$ref": "AAAABA2A498C8B984EA7B929"
+              },
+              "name": "extract_from_csv(path)"
+            },
+            {
+              "_type": "UMLOperation",
+              "_id": "AAAA6795A984E1494FAA9BF6",
+              "_parent": {
+                "$ref": "AAAABA2A498C8B984EA7B929"
+              },
+              "name": "extract_from_pdf_ocr(path)"
+            }
+          ]
+        },
+        {
+          "_type": "UMLClass",
+          "_id": "AAAA7CCF0FD2820444E58779",
+          "_parent": {
+            "$ref": "AAAA5763AE4C2E844EB6AFBE"
+          },
+          "name": "SchemaValidator",
+          "operations": [
+            {
+              "_type": "UMLOperation",
+              "_id": "AAAA10417C481F3C43508470",
+              "_parent": {
+                "$ref": "AAAA7CCF0FD2820444E58779"
+              },
+              "name": "validate_clinical_features(data)"
+            },
+            {
+              "_type": "UMLOperation",
+              "_id": "AAAA8F9E6B930351466CB5E4",
+              "_parent": {
+                "$ref": "AAAA7CCF0FD2820444E58779"
+              },
+              "name": "validate_wearable_features(data)"
+            },
+            {
+              "_type": "UMLOperation",
+              "_id": "AAAA4ADC64B323CE4E78B196",
+              "_parent": {
+                "$ref": "AAAA7CCF0FD2820444E58779"
+              },
+              "name": "validate_gut_features(data)"
+            }
+          ]
+        },
+        {
+          "_type": "UMLClass",
+          "_id": "AAAADFFF83A203C54586B89D",
+          "_parent": {
+            "$ref": "AAAA5763AE4C2E844EB6AFBE"
+          },
+          "name": "ModalityDetector",
+          "operations": [
+            {
+              "_type": "UMLOperation",
+              "_id": "AAAA91A39EB399EF4D27B832",
+              "_parent": {
+                "$ref": "AAAADFFF83A203C54586B89D"
+              },
+              "name": "detect_active_modalities(payload)"
+            },
+            {
+              "_type": "UMLOperation",
+              "_id": "AAAAA619A865992842E788AB",
+              "_parent": {
+                "$ref": "AAAADFFF83A203C54586B89D"
+              },
+              "name": "determine_effective_pathway(modalities)"
+            }
+          ]
+        },
+        {
+          "_type": "UMLClass",
+          "_id": "AAAABEC51C35AB484F27B4CF",
+          "_parent": {
+            "$ref": "AAAA5763AE4C2E844EB6AFBE"
+          },
+          "name": "FeatureNormalizer",
+          "operations": [
+            {
+              "_type": "UMLOperation",
+              "_id": "AAAAE02BB5921BAC40B0862A",
+              "_parent": {
+                "$ref": "AAAABEC51C35AB484F27B4CF"
+              },
+              "name": "normalize_clinical(data)"
+            },
+            {
+              "_type": "UMLOperation",
+              "_id": "AAAAAEF127223AEE4BA0B5C7",
+              "_parent": {
+                "$ref": "AAAABEC51C35AB484F27B4CF"
+              },
+              "name": "normalize_wearable(data)"
+            },
+            {
+              "_type": "UMLOperation",
+              "_id": "AAAAB251F98656B349F483BD",
+              "_parent": {
+                "$ref": "AAAABEC51C35AB484F27B4CF"
+              },
+              "name": "normalize_gut(data)"
+            },
+            {
+              "_type": "UMLOperation",
+              "_id": "AAAA6C504F74EE184ACEAD1E",
+              "_parent": {
+                "$ref": "AAAABEC51C35AB484F27B4CF"
+              },
+              "name": "compute_v4_gut_indices(taxa)"
+            }
+          ]
+        },
+        {
+          "_type": "UMLClass",
+          "_id": "AAAA3A383D4327014681ABCE",
+          "_parent": {
+            "$ref": "AAAA5763AE4C2E844EB6AFBE"
+          },
+          "name": "ClinicalSchema18",
+          "attributes": [
+            {
+              "_type": "UMLAttribute",
+              "_id": "AAAA3CBBA0CB1BE24E3B8B7E",
+              "_parent": {
+                "$ref": "AAAA3A383D4327014681ABCE"
+              },
+              "name": "18 Biomarker Features",
+              "type": "Float"
+            },
+            {
+              "_type": "UMLAttribute",
+              "_id": "AAAA73A65C720ED044F0ADA8",
+              "_parent": {
+                "$ref": "AAAA3A383D4327014681ABCE"
+              },
+              "name": "Includes Age & Gender",
+              "type": "Metadata/Feature"
+            },
+            {
+              "_type": "UMLAttribute",
+              "_id": "AAAAC84ED8C2E31D410F9D27",
+              "_parent": {
+                "$ref": "AAAA3A383D4327014681ABCE"
+              },
+              "name": "Patient_ID",
+              "type": "Excluded (Metadata Only)"
+            }
+          ]
+        },
+        {
+          "_type": "UMLClass",
+          "_id": "AAAA1978EA1D351A4D08B513",
+          "_parent": {
+            "$ref": "AAAA5763AE4C2E844EB6AFBE"
+          },
+          "name": "WearableSchema15",
+          "attributes": [
+            {
+              "_type": "UMLAttribute",
+              "_id": "AAAA57A13C92E43549DCA7DB",
+              "_parent": {
+                "$ref": "AAAA1978EA1D351A4D08B513"
+              },
+              "name": "15 CGM & Wearable Features",
+              "type": "Float"
+            },
+            {
+              "_type": "UMLAttribute",
+              "_id": "AAAA13A86A5EDE4040C886A8",
+              "_parent": {
+                "$ref": "AAAA1978EA1D351A4D08B513"
+              },
+              "name": "Excludes Age & Gender",
+              "type": "Excluded"
+            },
+            {
+              "_type": "UMLAttribute",
+              "_id": "AAAAB86175597AD8426AB3B5",
+              "_parent": {
+                "$ref": "AAAA1978EA1D351A4D08B513"
+              },
+              "name": "Patient_ID",
+              "type": "Excluded (Metadata Only)"
+            }
+          ]
+        },
+        {
+          "_type": "UMLClass",
+          "_id": "AAAAFE522677B16C4CBCB29A",
+          "_parent": {
+            "$ref": "AAAA5763AE4C2E844EB6AFBE"
+          },
+          "name": "GutSchema49",
+          "attributes": [
+            {
+              "_type": "UMLAttribute",
+              "_id": "AAAAC776190F881242A497A8",
+              "_parent": {
+                "$ref": "AAAAFE522677B16C4CBCB29A"
+              },
+              "name": "40 Canonical Species Taxa",
+              "type": "Float"
+            },
+            {
+              "_type": "UMLAttribute",
+              "_id": "AAAA193FB5F17E2A431489A3",
+              "_parent": {
+                "$ref": "AAAAFE522677B16C4CBCB29A"
+              },
+              "name": "1 Other_Taxa",
+              "type": "Float"
+            },
+            {
+              "_type": "UMLAttribute",
+              "_id": "AAAA31F22F1FA2E24E03B7F0",
+              "_parent": {
+                "$ref": "AAAAFE522677B16C4CBCB29A"
+              },
+              "name": "9 Derived Ecological Indices",
+              "type": "Float"
+            },
+            {
+              "_type": "UMLAttribute",
+              "_id": "AAAA5120B6D82AC44D7A968A",
+              "_parent": {
+                "$ref": "AAAAFE522677B16C4CBCB29A"
+              },
+              "name": "Patient_ID",
+              "type": "Excluded (Metadata Only)"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "_type": "UMLModel",
+      "_id": "AAAA398C350AD54F43BCA1DF",
+      "_parent": {
+        "$ref": "AAAA44F3C91D284644A38078"
+      },
+      "name": "ML Pipeline & Multi-Expert Inference Engine Diagram Model",
+      "ownedElements": [
+        {
+          "_type": "UMLComponentDiagram",
+          "_id": "AAAA100EC98AB43C48AA9854",
+          "_parent": {
+            "$ref": "AAAA398C350AD54F43BCA1DF"
+          },
+          "name": "ML Pipeline & Multi-Expert Inference Engine Diagram",
+          "ownedViews": [
+            {
+              "_type": "UMLComponentView",
+              "_id": "AAAAD64BFBF2D6C9474A80CC",
+              "_parent": {
+                "$ref": "AAAA100EC98AB43C48AA9854"
+              },
+              "model": {
+                "$ref": "AAAAD6E6BB41C98F46C295C4"
+              },
+              "font": "Arial;13;0",
+              "left": 40,
+              "top": 40,
+              "width": 220,
+              "height": 140
+            },
+            {
+              "_type": "UMLComponentView",
+              "_id": "AAAACBBB2A9C5E5147A3B41E",
+              "_parent": {
+                "$ref": "AAAA100EC98AB43C48AA9854"
+              },
+              "model": {
+                "$ref": "AAAA27B305D5D9C440D6A6F4"
+              },
+              "font": "Arial;13;0",
+              "left": 280,
+              "top": 40,
+              "width": 220,
+              "height": 140
+            },
+            {
+              "_type": "UMLComponentView",
+              "_id": "AAAAE6743A8E1FE542308023",
+              "_parent": {
+                "$ref": "AAAA100EC98AB43C48AA9854"
+              },
+              "model": {
+                "$ref": "AAAACF2BBBE783774BE0B8EE"
+              },
+              "font": "Arial;13;0",
+              "left": 520,
+              "top": 40,
+              "width": 220,
+              "height": 140
+            },
+            {
+              "_type": "UMLComponentView",
+              "_id": "AAAACFA1E2AF73D7476EB249",
+              "_parent": {
+                "$ref": "AAAA100EC98AB43C48AA9854"
+              },
+              "model": {
+                "$ref": "AAAAB69690076E27424C81ED"
+              },
+              "font": "Arial;13;0",
+              "left": 760,
+              "top": 40,
+              "width": 220,
+              "height": 140
+            },
+            {
+              "_type": "UMLComponentView",
+              "_id": "AAAAA040DB5A9AF54EA086E6",
+              "_parent": {
+                "$ref": "AAAA100EC98AB43C48AA9854"
+              },
+              "model": {
+                "$ref": "AAAAB0E3217C3E0D41BBB8AF"
+              },
+              "font": "Arial;13;0",
+              "left": 40,
+              "top": 220,
+              "width": 220,
+              "height": 140
+            },
+            {
+              "_type": "UMLComponentView",
+              "_id": "AAAABFFAC06D65794D4CA2D4",
+              "_parent": {
+                "$ref": "AAAA100EC98AB43C48AA9854"
+              },
+              "model": {
+                "$ref": "AAAA52822146AE814E8FA50B"
+              },
+              "font": "Arial;13;0",
+              "left": 280,
+              "top": 220,
+              "width": 220,
+              "height": 140
+            },
+            {
+              "_type": "UMLComponentView",
+              "_id": "AAAA8FFA54BCC6144DB2B17F",
+              "_parent": {
+                "$ref": "AAAA100EC98AB43C48AA9854"
+              },
+              "model": {
+                "$ref": "AAAA77B7029E32554A6CBDB9"
+              },
+              "font": "Arial;13;0",
+              "left": 520,
+              "top": 220,
+              "width": 220,
+              "height": 140
+            },
+            {
+              "_type": "UMLComponentView",
+              "_id": "AAAA766357D5963042BE9C6D",
+              "_parent": {
+                "$ref": "AAAA100EC98AB43C48AA9854"
+              },
+              "model": {
+                "$ref": "AAAAA27AFE3FF2D24AE8B028"
+              },
+              "font": "Arial;13;0",
+              "left": 760,
+              "top": 220,
+              "width": 220,
+              "height": 140
+            },
+            {
+              "_type": "UMLComponentView",
+              "_id": "AAAA16C3D6C989BD4ACC8FEA",
+              "_parent": {
+                "$ref": "AAAA100EC98AB43C48AA9854"
+              },
+              "model": {
+                "$ref": "AAAA87F71EBC25EB4C429C5A"
+              },
+              "font": "Arial;13;0",
+              "left": 40,
+              "top": 400,
+              "width": 220,
+              "height": 140
+            },
+            {
+              "_type": "UMLComponentView",
+              "_id": "AAAABE21B510BEE04336B851",
+              "_parent": {
+                "$ref": "AAAA100EC98AB43C48AA9854"
+              },
+              "model": {
+                "$ref": "AAAA074497F87BD841469DD8"
+              },
+              "font": "Arial;13;0",
+              "left": 280,
+              "top": 400,
+              "width": 220,
+              "height": 140
+            },
+            {
+              "_type": "UMLComponentView",
+              "_id": "AAAA29B96703A9FE4A6FA9AD",
+              "_parent": {
+                "$ref": "AAAA100EC98AB43C48AA9854"
+              },
+              "model": {
+                "$ref": "AAAA759B594013F740939C16"
+              },
+              "font": "Arial;13;0",
+              "left": 520,
+              "top": 400,
+              "width": 220,
+              "height": 140
+            },
+            {
+              "_type": "UMLComponentView",
+              "_id": "AAAAB1CB70D6DB014753A04C",
+              "_parent": {
+                "$ref": "AAAA100EC98AB43C48AA9854"
+              },
+              "model": {
+                "$ref": "AAAA57A5CFEB742F491CB85D"
+              },
+              "font": "Arial;13;0",
+              "left": 760,
+              "top": 400,
+              "width": 220,
+              "height": 140
+            }
+          ]
+        },
+        {
+          "_type": "UMLComponent",
+          "_id": "AAAAD6E6BB41C98F46C295C4",
+          "_parent": {
+            "$ref": "AAAA398C350AD54F43BCA1DF"
+          },
+          "name": "Clinical Preprocessing & Scaler"
+        },
+        {
+          "_type": "UMLComponent",
+          "_id": "AAAA27B305D5D9C440D6A6F4",
+          "_parent": {
+            "$ref": "AAAA398C350AD54F43BCA1DF"
+          },
+          "name": "Wearable Preprocessing & Scaler"
+        },
+        {
+          "_type": "UMLComponent",
+          "_id": "AAAACF2BBBE783774BE0B8EE",
+          "_parent": {
+            "$ref": "AAAA398C350AD54F43BCA1DF"
+          },
+          "name": "Gut Normalizer & Ecological Index Engine"
+        },
+        {
+          "_type": "UMLComponent",
+          "_id": "AAAAB69690076E27424C81ED",
+          "_parent": {
+            "$ref": "AAAA398C350AD54F43BCA1DF"
+          },
+          "name": "Clinical Expert Engine (18 Features)"
+        },
+        {
+          "_type": "UMLComponent",
+          "_id": "AAAAB0E3217C3E0D41BBB8AF",
+          "_parent": {
+            "$ref": "AAAA398C350AD54F43BCA1DF"
+          },
+          "name": "Wearable Expert Engine (15 Features)"
+        },
+        {
+          "_type": "UMLComponent",
+          "_id": "AAAA52822146AE814E8FA50B",
+          "_parent": {
+            "$ref": "AAAA398C350AD54F43BCA1DF"
+          },
+          "name": "Gut Microbiome Expert Engine (49 Features)"
+        },
+        {
+          "_type": "UMLComponent",
+          "_id": "AAAA77B7029E32554A6CBDB9",
+          "_parent": {
+            "$ref": "AAAA398C350AD54F43BCA1DF"
+          },
+          "name": "7 Modality Pathways (C, W, G, C+W, C+G, W+G, C+W+G)"
+        },
+        {
+          "_type": "UMLComponent",
+          "_id": "AAAAA27AFE3FF2D24AE8B028",
+          "_parent": {
+            "$ref": "AAAA398C350AD54F43BCA1DF"
+          },
+          "name": "V4 Stacking Fusion Meta-Learner"
+        },
+        {
+          "_type": "UMLComponent",
+          "_id": "AAAA87F71EBC25EB4C429C5A",
+          "_parent": {
+            "$ref": "AAAA398C350AD54F43BCA1DF"
+          },
+          "name": "Isotonic/Sigmoid Dynamic Calibrator"
+        },
+        {
+          "_type": "UMLComponent",
+          "_id": "AAAA074497F87BD841469DD8",
+          "_parent": {
+            "$ref": "AAAA398C350AD54F43BCA1DF"
+          },
+          "name": "5 Multi-Organ Target Predictions"
+        },
+        {
+          "_type": "UMLComponent",
+          "_id": "AAAA759B594013F740939C16",
+          "_parent": {
+            "$ref": "AAAA398C350AD54F43BCA1DF"
+          },
+          "name": "TreeSHAP Explainable AI Module"
+        },
+        {
+          "_type": "UMLComponent",
+          "_id": "AAAA57A5CFEB742F491CB85D",
+          "_parent": {
+            "$ref": "AAAA398C350AD54F43BCA1DF"
+          },
+          "name": "Medical RAG Report Generator"
+        }
+      ]
+    },
+    {
+      "_type": "UMLModel",
+      "_id": "AAAAADCDA852B7084F21865F",
+      "_parent": {
+        "$ref": "AAAA43770A6CCC7B4C6481EA"
+      },
+      "name": "Infrastructure Deployment Diagram (Docker / Production) Model",
+      "ownedElements": [
+        {
+          "_type": "UMLDeploymentDiagram",
+          "_id": "AAAAFD8076B750A243EBBA8C",
+          "_parent": {
+            "$ref": "AAAAADCDA852B7084F21865F"
+          },
+          "name": "Infrastructure Deployment Diagram (Docker / Production)",
+          "ownedViews": [
+            {
+              "_type": "UMLNodeView",
+              "_id": "AAAAC1915A9F93414C6EB18A",
+              "_parent": {
+                "$ref": "AAAAFD8076B750A243EBBA8C"
+              },
+              "model": {
+                "$ref": "AAAA8C87498C26FA40BEA4B8"
+              },
+              "font": "Arial;13;0",
+              "left": 40,
+              "top": 40,
+              "width": 220,
+              "height": 140
+            },
+            {
+              "_type": "UMLNodeView",
+              "_id": "AAAAD2B89BBDB89C4176B198",
+              "_parent": {
+                "$ref": "AAAAFD8076B750A243EBBA8C"
+              },
+              "model": {
+                "$ref": "AAAAE5A6C65E3F084997A3AF"
+              },
+              "font": "Arial;13;0",
+              "left": 280,
+              "top": 40,
+              "width": 220,
+              "height": 140
+            },
+            {
+              "_type": "UMLNodeView",
+              "_id": "AAAA191438AF18A24BFC9C80",
+              "_parent": {
+                "$ref": "AAAAFD8076B750A243EBBA8C"
+              },
+              "model": {
+                "$ref": "AAAAAD1349F353204CC59780"
+              },
+              "font": "Arial;13;0",
+              "left": 520,
+              "top": 40,
+              "width": 220,
+              "height": 140
+            },
+            {
+              "_type": "UMLNodeView",
+              "_id": "AAAA3CE1E54FB69F48B8AAC7",
+              "_parent": {
+                "$ref": "AAAAFD8076B750A243EBBA8C"
+              },
+              "model": {
+                "$ref": "AAAA264245F023624EE48ED7"
+              },
+              "font": "Arial;13;0",
+              "left": 760,
+              "top": 40,
+              "width": 220,
+              "height": 140
+            },
+            {
+              "_type": "UMLNodeView",
+              "_id": "AAAA80C14EE43F964FED90F9",
+              "_parent": {
+                "$ref": "AAAAFD8076B750A243EBBA8C"
+              },
+              "model": {
+                "$ref": "AAAA5EA296205B304DD08752"
+              },
+              "font": "Arial;13;0",
+              "left": 40,
+              "top": 220,
+              "width": 220,
+              "height": 140
+            },
+            {
+              "_type": "UMLNodeView",
+              "_id": "AAAA914FB1F40C24404FB1F8",
+              "_parent": {
+                "$ref": "AAAAFD8076B750A243EBBA8C"
+              },
+              "model": {
+                "$ref": "AAAA14D1BCED0F424EA08BD9"
+              },
+              "font": "Arial;13;0",
+              "left": 280,
+              "top": 220,
+              "width": 220,
+              "height": 140
+            },
+            {
+              "_type": "UMLNodeView",
+              "_id": "AAAAE0A94A26FA414FEAB814",
+              "_parent": {
+                "$ref": "AAAAFD8076B750A243EBBA8C"
+              },
+              "model": {
+                "$ref": "AAAADD627BA3D13D4917B282"
+              },
+              "font": "Arial;13;0",
+              "left": 520,
+              "top": 220,
+              "width": 220,
+              "height": 140
+            }
+          ]
+        },
+        {
+          "_type": "UMLNode",
+          "_id": "AAAA8C87498C26FA40BEA4B8",
+          "_parent": {
+            "$ref": "AAAAADCDA852B7084F21865F"
+          },
+          "name": "Client Workstation (Web Browser)"
+        },
+        {
+          "_type": "UMLNode",
+          "_id": "AAAAE5A6C65E3F084997A3AF",
+          "_parent": {
+            "$ref": "AAAAADCDA852B7084F21865F"
+          },
+          "name": "Docker Container: telemed-frontend (Nginx/Vite :5173)"
+        },
+        {
+          "_type": "UMLNode",
+          "_id": "AAAAAD1349F353204CC59780",
+          "_parent": {
+            "$ref": "AAAAADCDA852B7084F21865F"
+          },
+          "name": "Docker Container: telemed-backend (Uvicorn/FastAPI :8000)"
+        },
+        {
+          "_type": "UMLNode",
+          "_id": "AAAA264245F023624EE48ED7",
+          "_parent": {
+            "$ref": "AAAAADCDA852B7084F21865F"
+          },
+          "name": "Docker Container: telemed-db (PostgreSQL 17 :5432)"
+        },
+        {
+          "_type": "UMLNode",
+          "_id": "AAAA5EA296205B304DD08752",
+          "_parent": {
+            "$ref": "AAAAADCDA852B7084F21865F"
+          },
+          "name": "Docker Container: telemed-redis (Redis Store :6379)"
+        },
+        {
+          "_type": "UMLNode",
+          "_id": "AAAA14D1BCED0F424EA08BD9",
+          "_parent": {
+            "$ref": "AAAAADCDA852B7084F21865F"
+          },
+          "name": "Docker Container: telemed-celery (Asynchronous Task Workers)"
+        },
+        {
+          "_type": "UMLNode",
+          "_id": "AAAADD627BA3D13D4917B282",
+          "_parent": {
+            "$ref": "AAAAADCDA852B7084F21865F"
+          },
+          "name": "Docker Container: telemed-prometheus (Metrics Collector :9090)"
+        }
+      ]
+    },
+    {
+      "_type": "UMLModel",
+      "_id": "AAAA07C250236637417A9B7E",
+      "_parent": {
+        "$ref": "AAAACF40DDD558954C178E57"
+      },
+      "name": "Complete Patient Assessment Sequence Diagram Model",
+      "ownedElements": [
+        {
+          "_type": "UMLSequenceDiagram",
+          "_id": "AAAADC373A03A6154ED6B10E",
+          "_parent": {
+            "$ref": "AAAA07C250236637417A9B7E"
+          },
+          "name": "Complete Patient Assessment Sequence Diagram",
+          "ownedViews": [
+            {
+              "_type": "UMLClassView",
+              "_id": "AAAAA963B02D110C423EA521",
+              "_parent": {
+                "$ref": "AAAADC373A03A6154ED6B10E"
+              },
+              "model": {
+                "$ref": "AAAA00E625A3A43C44B3802E"
+              },
+              "font": "Arial;13;0",
+              "left": 40,
+              "top": 40,
+              "width": 220,
+              "height": 140
+            },
+            {
+              "_type": "UMLClassView",
+              "_id": "AAAA1F8D1CE40E65479488CE",
+              "_parent": {
+                "$ref": "AAAADC373A03A6154ED6B10E"
+              },
+              "model": {
+                "$ref": "AAAA45A83C0D9AFE45BCAF35"
+              },
+              "font": "Arial;13;0",
+              "left": 280,
+              "top": 40,
+              "width": 220,
+              "height": 140
+            },
+            {
+              "_type": "UMLClassView",
+              "_id": "AAAAE012D72753C44A3D9A7D",
+              "_parent": {
+                "$ref": "AAAADC373A03A6154ED6B10E"
+              },
+              "model": {
+                "$ref": "AAAAE5A6975914674D6BA13A"
+              },
+              "font": "Arial;13;0",
+              "left": 520,
+              "top": 40,
+              "width": 220,
+              "height": 140
+            },
+            {
+              "_type": "UMLClassView",
+              "_id": "AAAAFA2C105F60A84B86B4AE",
+              "_parent": {
+                "$ref": "AAAADC373A03A6154ED6B10E"
+              },
+              "model": {
+                "$ref": "AAAA032A93CD64874110AF70"
+              },
+              "font": "Arial;13;0",
+              "left": 760,
+              "top": 40,
+              "width": 220,
+              "height": 140
+            },
+            {
+              "_type": "UMLClassView",
+              "_id": "AAAA2994C155325B44E8BF8A",
+              "_parent": {
+                "$ref": "AAAADC373A03A6154ED6B10E"
+              },
+              "model": {
+                "$ref": "AAAA0B8DC1A2EB83452B805A"
+              },
+              "font": "Arial;13;0",
+              "left": 40,
+              "top": 220,
+              "width": 220,
+              "height": 140
+            },
+            {
+              "_type": "UMLClassView",
+              "_id": "AAAA418388F95D7A4CA8B381",
+              "_parent": {
+                "$ref": "AAAADC373A03A6154ED6B10E"
+              },
+              "model": {
+                "$ref": "AAAACB78D9D7DC53478DB80E"
+              },
+              "font": "Arial;13;0",
+              "left": 280,
+              "top": 220,
+              "width": 220,
+              "height": 140
+            },
+            {
+              "_type": "UMLClassView",
+              "_id": "AAAA32E0AA39293C4FEC94EA",
+              "_parent": {
+                "$ref": "AAAADC373A03A6154ED6B10E"
+              },
+              "model": {
+                "$ref": "AAAAC865C3AE462D4F9D9B05"
+              },
+              "font": "Arial;13;0",
+              "left": 520,
+              "top": 220,
+              "width": 220,
+              "height": 140
+            },
+            {
+              "_type": "UMLClassView",
+              "_id": "AAAA56FE21D92764438C9FCA",
+              "_parent": {
+                "$ref": "AAAADC373A03A6154ED6B10E"
+              },
+              "model": {
+                "$ref": "AAAA18D6A2196A484A07BD3C"
+              },
+              "font": "Arial;13;0",
+              "left": 760,
+              "top": 220,
+              "width": 220,
+              "height": 140
+            },
+            {
+              "_type": "UMLClassView",
+              "_id": "AAAA38094ACC9D8641D89AA2",
+              "_parent": {
+                "$ref": "AAAADC373A03A6154ED6B10E"
+              },
+              "model": {
+                "$ref": "AAAA9ED9E2DA66A247A68A81"
+              },
+              "font": "Arial;13;0",
+              "left": 40,
+              "top": 400,
+              "width": 220,
+              "height": 140
+            },
+            {
+              "_type": "UMLClassView",
+              "_id": "AAAA12A5E2284DDB4D85BCA7",
+              "_parent": {
+                "$ref": "AAAADC373A03A6154ED6B10E"
+              },
+              "model": {
+                "$ref": "AAAADE717D48F1F742628200"
+              },
+              "font": "Arial;13;0",
+              "left": 280,
+              "top": 400,
+              "width": 220,
+              "height": 140
+            }
+          ]
+        },
+        {
+          "_type": "UMLClass",
+          "_id": "AAAA00E625A3A43C44B3802E",
+          "_parent": {
+            "$ref": "AAAA07C250236637417A9B7E"
+          },
+          "name": "1. Patient Interface (IntakePage.jsx)"
+        },
+        {
+          "_type": "UMLClass",
+          "_id": "AAAA45A83C0D9AFE45BCAF35",
+          "_parent": {
+            "$ref": "AAAA07C250236637417A9B7E"
+          },
+          "name": "2. FastAPI Intake Router (intake_routes.py)"
+        },
+        {
+          "_type": "UMLClass",
+          "_id": "AAAAE5A6975914674D6BA13A",
+          "_parent": {
+            "$ref": "AAAA07C250236637417A9B7E"
+          },
+          "name": "3. Security & Auth Middleware (security.py)"
+        },
+        {
+          "_type": "UMLClass",
+          "_id": "AAAA032A93CD64874110AF70",
+          "_parent": {
+            "$ref": "AAAA07C250236637417A9B7E"
+          },
+          "name": "4. Multimodal Intake Engine (intake_service.py)"
+        },
+        {
+          "_type": "UMLClass",
+          "_id": "AAAA0B8DC1A2EB83452B805A",
+          "_parent": {
+            "$ref": "AAAA07C250236637417A9B7E"
+          },
+          "name": "5. Feature Normalizer & Preprocessing"
+        },
+        {
+          "_type": "UMLClass",
+          "_id": "AAAACB78D9D7DC53478DB80E",
+          "_parent": {
+            "$ref": "AAAA07C250236637417A9B7E"
+          },
+          "name": "6. V4 Multi-Expert Models (v3_inference_engine.py)"
+        },
+        {
+          "_type": "UMLClass",
+          "_id": "AAAAC865C3AE462D4F9D9B05",
+          "_parent": {
+            "$ref": "AAAA07C250236637417A9B7E"
+          },
+          "name": "7. Stacking Fusion Router (v3_scientific_router.py)"
+        },
+        {
+          "_type": "UMLClass",
+          "_id": "AAAA18D6A2196A484A07BD3C",
+          "_parent": {
+            "$ref": "AAAA07C250236637417A9B7E"
+          },
+          "name": "8. TreeSHAP XAI Engine (xai_service.py)"
+        },
+        {
+          "_type": "UMLClass",
+          "_id": "AAAA9ED9E2DA66A247A68A81",
+          "_parent": {
+            "$ref": "AAAA07C250236637417A9B7E"
+          },
+          "name": "9. Medical RAG Engine (rag_service_wrapper.py)"
+        },
+        {
+          "_type": "UMLClass",
+          "_id": "AAAADE717D48F1F742628200",
+          "_parent": {
+            "$ref": "AAAA07C250236637417A9B7E"
+          },
+          "name": "10. PostgreSQL Persistence Store (health_records)"
+        }
+      ]
+    },
+    {
+      "_type": "UMLModel",
+      "_id": "AAAA1E76148EDC4E4B0BAD88",
+      "_parent": {
+        "$ref": "AAAA76DBBA6661B74B61AFC5"
+      },
+      "name": "Multimodal Prediction & Modality Execution Sequence Model",
+      "ownedElements": [
+        {
+          "_type": "UMLSequenceDiagram",
+          "_id": "AAAA0ECC38D5F62F42F0BC0F",
+          "_parent": {
+            "$ref": "AAAA1E76148EDC4E4B0BAD88"
+          },
+          "name": "Multimodal Prediction & Modality Execution Sequence",
+          "ownedViews": [
+            {
+              "_type": "UMLClassView",
+              "_id": "AAAAB827E500A63A42DF91D5",
+              "_parent": {
+                "$ref": "AAAA0ECC38D5F62F42F0BC0F"
+              },
+              "model": {
+                "$ref": "AAAA460294FF9EAE4BE8B4FA"
+              },
+              "font": "Arial;13;0",
+              "left": 40,
+              "top": 40,
+              "width": 220,
+              "height": 140
+            },
+            {
+              "_type": "UMLClassView",
+              "_id": "AAAA859BAD3B9EA447B7A2F7",
+              "_parent": {
+                "$ref": "AAAA0ECC38D5F62F42F0BC0F"
+              },
+              "model": {
+                "$ref": "AAAAB661049CEAA64DA2ABB1"
+              },
+              "font": "Arial;13;0",
+              "left": 280,
+              "top": 40,
+              "width": 220,
+              "height": 140
+            },
+            {
+              "_type": "UMLClassView",
+              "_id": "AAAA19FA8EB580FE4D88A6A2",
+              "_parent": {
+                "$ref": "AAAA0ECC38D5F62F42F0BC0F"
+              },
+              "model": {
+                "$ref": "AAAA38B96AE83D634A4D9A86"
+              },
+              "font": "Arial;13;0",
+              "left": 520,
+              "top": 40,
+              "width": 220,
+              "height": 140
+            },
+            {
+              "_type": "UMLClassView",
+              "_id": "AAAA3EC4BC9788F6463FB341",
+              "_parent": {
+                "$ref": "AAAA0ECC38D5F62F42F0BC0F"
+              },
+              "model": {
+                "$ref": "AAAA8381C705D6414EFF9FE5"
+              },
+              "font": "Arial;13;0",
+              "left": 760,
+              "top": 40,
+              "width": 220,
+              "height": 140
+            },
+            {
+              "_type": "UMLClassView",
+              "_id": "AAAA4ED2AA45D0C64A7E8D72",
+              "_parent": {
+                "$ref": "AAAA0ECC38D5F62F42F0BC0F"
+              },
+              "model": {
+                "$ref": "AAAAD64378CCAE3B4D448E71"
+              },
+              "font": "Arial;13;0",
+              "left": 40,
+              "top": 220,
+              "width": 220,
+              "height": 140
+            },
+            {
+              "_type": "UMLClassView",
+              "_id": "AAAA96EE3FE582D24F04A8C9",
+              "_parent": {
+                "$ref": "AAAA0ECC38D5F62F42F0BC0F"
+              },
+              "model": {
+                "$ref": "AAAAFD0A9B468F4E4028ADAF"
+              },
+              "font": "Arial;13;0",
+              "left": 280,
+              "top": 220,
+              "width": 220,
+              "height": 140
+            },
+            {
+              "_type": "UMLClassView",
+              "_id": "AAAACC96E5CC2F5F42EA9750",
+              "_parent": {
+                "$ref": "AAAA0ECC38D5F62F42F0BC0F"
+              },
+              "model": {
+                "$ref": "AAAAE72D745A27E442C79A6A"
+              },
+              "font": "Arial;13;0",
+              "left": 520,
+              "top": 220,
+              "width": 220,
+              "height": 140
+            },
+            {
+              "_type": "UMLClassView",
+              "_id": "AAAA5B8855269A6747A48212",
+              "_parent": {
+                "$ref": "AAAA0ECC38D5F62F42F0BC0F"
+              },
+              "model": {
+                "$ref": "AAAAB828CD21CD5B4D58A583"
+              },
+              "font": "Arial;13;0",
+              "left": 760,
+              "top": 220,
+              "width": 220,
+              "height": 140
+            },
+            {
+              "_type": "UMLClassView",
+              "_id": "AAAA3FD8A2F78ED941B1B42A",
+              "_parent": {
+                "$ref": "AAAA0ECC38D5F62F42F0BC0F"
+              },
+              "model": {
+                "$ref": "AAAA9F28C0BC495F461B88C9"
+              },
+              "font": "Arial;13;0",
+              "left": 40,
+              "top": 400,
+              "width": 220,
+              "height": 140
+            }
+          ]
+        },
+        {
+          "_type": "UMLClass",
+          "_id": "AAAA460294FF9EAE4BE8B4FA",
+          "_parent": {
+            "$ref": "AAAA1E76148EDC4E4B0BAD88"
+          },
+          "name": "Client Request (POST /api/v3/predict)"
+        },
+        {
+          "_type": "UMLClass",
+          "_id": "AAAAB661049CEAA64DA2ABB1",
+          "_parent": {
+            "$ref": "AAAA1E76148EDC4E4B0BAD88"
+          },
+          "name": "Predict Router (predict_routes.py)"
+        },
+        {
+          "_type": "UMLClass",
+          "_id": "AAAA38B96AE83D634A4D9A86",
+          "_parent": {
+            "$ref": "AAAA1E76148EDC4E4B0BAD88"
+          },
+          "name": "Modality Detector Engine"
+        },
+        {
+          "_type": "UMLClass",
+          "_id": "AAAA8381C705D6414EFF9FE5",
+          "_parent": {
+            "$ref": "AAAA1E76148EDC4E4B0BAD88"
+          },
+          "name": "Clinical Expert (C - 18 features)"
+        },
+        {
+          "_type": "UMLClass",
+          "_id": "AAAAD64378CCAE3B4D448E71",
+          "_parent": {
+            "$ref": "AAAA1E76148EDC4E4B0BAD88"
+          },
+          "name": "Wearable Expert (W - 15 features)"
+        },
+        {
+          "_type": "UMLClass",
+          "_id": "AAAAFD0A9B468F4E4028ADAF",
+          "_parent": {
+            "$ref": "AAAA1E76148EDC4E4B0BAD88"
+          },
+          "name": "Gut Expert (G - 49 features)"
+        },
+        {
+          "_type": "UMLClass",
+          "_id": "AAAAE72D745A27E442C79A6A",
+          "_parent": {
+            "$ref": "AAAA1E76148EDC4E4B0BAD88"
+          },
+          "name": "Stacking Fusion Meta-Model"
+        },
+        {
+          "_type": "UMLClass",
+          "_id": "AAAAB828CD21CD5B4D58A583",
+          "_parent": {
+            "$ref": "AAAA1E76148EDC4E4B0BAD88"
+          },
+          "name": "5 Disease Risk Output Generator"
+        },
+        {
+          "_type": "UMLClass",
+          "_id": "AAAA9F28C0BC495F461B88C9",
+          "_parent": {
+            "$ref": "AAAA1E76148EDC4E4B0BAD88"
+          },
+          "name": "PostgreSQL Record Snapshot Inserter"
+        }
+      ]
+    },
+    {
+      "_type": "UMLModel",
+      "_id": "AAAAC9A65935B1A64F4191A5",
+      "_parent": {
+        "$ref": "AAAAA533304FB15B4A6D8A99"
+      },
+      "name": "Explainable AI (TreeSHAP) Sequence Diagram Model",
+      "ownedElements": [
+        {
+          "_type": "UMLSequenceDiagram",
+          "_id": "AAAACDA61D2C46774A26BB2F",
+          "_parent": {
+            "$ref": "AAAAC9A65935B1A64F4191A5"
+          },
+          "name": "Explainable AI (TreeSHAP) Sequence Diagram",
+          "ownedViews": [
+            {
+              "_type": "UMLClassView",
+              "_id": "AAAA1CF55CEC05E644EDA7F3",
+              "_parent": {
+                "$ref": "AAAACDA61D2C46774A26BB2F"
+              },
+              "model": {
+                "$ref": "AAAABB2F0D644F9046E5AE73"
+              },
+              "font": "Arial;13;0",
+              "left": 40,
+              "top": 40,
+              "width": 220,
+              "height": 140
+            },
+            {
+              "_type": "UMLClassView",
+              "_id": "AAAA4FF63CF7060B4D83B82F",
+              "_parent": {
+                "$ref": "AAAACDA61D2C46774A26BB2F"
+              },
+              "model": {
+                "$ref": "AAAAA9E9361657704372B48E"
+              },
+              "font": "Arial;13;0",
+              "left": 280,
+              "top": 40,
+              "width": 220,
+              "height": 140
+            },
+            {
+              "_type": "UMLClassView",
+              "_id": "AAAAEF7C93AB30974CFE8CCE",
+              "_parent": {
+                "$ref": "AAAACDA61D2C46774A26BB2F"
+              },
+              "model": {
+                "$ref": "AAAA10B79557439F42A99D1B"
+              },
+              "font": "Arial;13;0",
+              "left": 520,
+              "top": 40,
+              "width": 220,
+              "height": 140
+            },
+            {
+              "_type": "UMLClassView",
+              "_id": "AAAA5D84CAD75BA14D2895F5",
+              "_parent": {
+                "$ref": "AAAACDA61D2C46774A26BB2F"
+              },
+              "model": {
+                "$ref": "AAAA2355B8CC602B4F55BC16"
+              },
+              "font": "Arial;13;0",
+              "left": 760,
+              "top": 40,
+              "width": 220,
+              "height": 140
+            },
+            {
+              "_type": "UMLClassView",
+              "_id": "AAAAB9B02389065142B68BC5",
+              "_parent": {
+                "$ref": "AAAACDA61D2C46774A26BB2F"
+              },
+              "model": {
+                "$ref": "AAAAAEF591BA79ED4319B331"
+              },
+              "font": "Arial;13;0",
+              "left": 40,
+              "top": 220,
+              "width": 220,
+              "height": 140
+            },
+            {
+              "_type": "UMLClassView",
+              "_id": "AAAA7E46605A4A67433B86C2",
+              "_parent": {
+                "$ref": "AAAACDA61D2C46774A26BB2F"
+              },
+              "model": {
+                "$ref": "AAAAC2DC194624EC44319F21"
+              },
+              "font": "Arial;13;0",
+              "left": 280,
+              "top": 220,
+              "width": 220,
+              "height": 140
+            },
+            {
+              "_type": "UMLClassView",
+              "_id": "AAAAD7DA647748284F31AB1E",
+              "_parent": {
+                "$ref": "AAAACDA61D2C46774A26BB2F"
+              },
+              "model": {
+                "$ref": "AAAA8E6D2AFE707C4703A1A9"
+              },
+              "font": "Arial;13;0",
+              "left": 520,
+              "top": 220,
+              "width": 220,
+              "height": 140
+            }
+          ]
+        },
+        {
+          "_type": "UMLClass",
+          "_id": "AAAABB2F0D644F9046E5AE73",
+          "_parent": {
+            "$ref": "AAAAC9A65935B1A64F4191A5"
+          },
+          "name": "User XAI View (XAIPage.jsx)"
+        },
+        {
+          "_type": "UMLClass",
+          "_id": "AAAAA9E9361657704372B48E",
+          "_parent": {
+            "$ref": "AAAAC9A65935B1A64F4191A5"
+          },
+          "name": "XAI Router (xai_routes.py)"
+        },
+        {
+          "_type": "UMLClass",
+          "_id": "AAAA10B79557439F42A99D1B",
+          "_parent": {
+            "$ref": "AAAAC9A65935B1A64F4191A5"
+          },
+          "name": "PostgreSQL Health Record Store"
+        },
+        {
+          "_type": "UMLClass",
+          "_id": "AAAA2355B8CC602B4F55BC16",
+          "_parent": {
+            "$ref": "AAAAC9A65935B1A64F4191A5"
+          },
+          "name": "XAI Service (xai_service.py)"
+        },
+        {
+          "_type": "UMLClass",
+          "_id": "AAAAAEF591BA79ED4319B331",
+          "_parent": {
+            "$ref": "AAAAC9A65935B1A64F4191A5"
+          },
+          "name": "TreeSHAP Explainer Engine"
+        },
+        {
+          "_type": "UMLClass",
+          "_id": "AAAAC2DC194624EC44319F21",
+          "_parent": {
+            "$ref": "AAAAC9A65935B1A64F4191A5"
+          },
+          "name": "Global & Directional Importance Calculator"
+        },
+        {
+          "_type": "UMLClass",
+          "_id": "AAAA8E6D2AFE707C4703A1A9",
+          "_parent": {
+            "$ref": "AAAAC9A65935B1A64F4191A5"
+          },
+          "name": "XAI Snapshot Cache Writer"
+        }
+      ]
+    },
+    {
+      "_type": "UMLModel",
+      "_id": "AAAA496EF31456264346AE3B",
+      "_parent": {
+        "$ref": "AAAA07F7E771278743DFB802"
+      },
+      "name": "Medical RAG & PDF Report Generation Sequence Model",
+      "ownedElements": [
+        {
+          "_type": "UMLSequenceDiagram",
+          "_id": "AAAA8D359E542D154E7CA23C",
+          "_parent": {
+            "$ref": "AAAA496EF31456264346AE3B"
+          },
+          "name": "Medical RAG & PDF Report Generation Sequence",
+          "ownedViews": [
+            {
+              "_type": "UMLClassView",
+              "_id": "AAAAA5804D15E0714BAC80BA",
+              "_parent": {
+                "$ref": "AAAA8D359E542D154E7CA23C"
+              },
+              "model": {
+                "$ref": "AAAAAF99BE9F3CCB4C69A693"
+              },
+              "font": "Arial;13;0",
+              "left": 40,
+              "top": 40,
+              "width": 220,
+              "height": 140
+            },
+            {
+              "_type": "UMLClassView",
+              "_id": "AAAA6F0713F95E4143FCA2EC",
+              "_parent": {
+                "$ref": "AAAA8D359E542D154E7CA23C"
+              },
+              "model": {
+                "$ref": "AAAA7B53FBC6A8374509A1FF"
+              },
+              "font": "Arial;13;0",
+              "left": 280,
+              "top": 40,
+              "width": 220,
+              "height": 140
+            },
+            {
+              "_type": "UMLClassView",
+              "_id": "AAAAF4D75ACE5C9140A5A001",
+              "_parent": {
+                "$ref": "AAAA8D359E542D154E7CA23C"
+              },
+              "model": {
+                "$ref": "AAAACB5064F89166453F9DC3"
+              },
+              "font": "Arial;13;0",
+              "left": 520,
+              "top": 40,
+              "width": 220,
+              "height": 140
+            },
+            {
+              "_type": "UMLClassView",
+              "_id": "AAAACF77241460944C648764",
+              "_parent": {
+                "$ref": "AAAA8D359E542D154E7CA23C"
+              },
+              "model": {
+                "$ref": "AAAA8B51F2B7370B42789E06"
+              },
+              "font": "Arial;13;0",
+              "left": 760,
+              "top": 40,
+              "width": 220,
+              "height": 140
+            },
+            {
+              "_type": "UMLClassView",
+              "_id": "AAAA3DF78B481C1742B79157",
+              "_parent": {
+                "$ref": "AAAA8D359E542D154E7CA23C"
+              },
+              "model": {
+                "$ref": "AAAA5C43CFF697A54DD6A71F"
+              },
+              "font": "Arial;13;0",
+              "left": 40,
+              "top": 220,
+              "width": 220,
+              "height": 140
+            },
+            {
+              "_type": "UMLClassView",
+              "_id": "AAAACA38FF0223FC45C8A8F3",
+              "_parent": {
+                "$ref": "AAAA8D359E542D154E7CA23C"
+              },
+              "model": {
+                "$ref": "AAAA5CF8EFC5A3404A28AAAB"
+              },
+              "font": "Arial;13;0",
+              "left": 280,
+              "top": 220,
+              "width": 220,
+              "height": 140
+            },
+            {
+              "_type": "UMLClassView",
+              "_id": "AAAAE1754C64FB0F4B1A9895",
+              "_parent": {
+                "$ref": "AAAA8D359E542D154E7CA23C"
+              },
+              "model": {
+                "$ref": "AAAA30E7368B4012424599A6"
+              },
+              "font": "Arial;13;0",
+              "left": 520,
+              "top": 220,
+              "width": 220,
+              "height": 140
+            }
+          ]
+        },
+        {
+          "_type": "UMLClass",
+          "_id": "AAAAAF99BE9F3CCB4C69A693",
+          "_parent": {
+            "$ref": "AAAA496EF31456264346AE3B"
+          },
+          "name": "User Report View (ReportPage.jsx)"
+        },
+        {
+          "_type": "UMLClass",
+          "_id": "AAAA7B53FBC6A8374509A1FF",
+          "_parent": {
+            "$ref": "AAAA496EF31456264346AE3B"
+          },
+          "name": "RAG Router (rag_routes.py)"
+        },
+        {
+          "_type": "UMLClass",
+          "_id": "AAAACB5064F89166453F9DC3",
+          "_parent": {
+            "$ref": "AAAA496EF31456264346AE3B"
+          },
+          "name": "PostgreSQL Record Store"
+        },
+        {
+          "_type": "UMLClass",
+          "_id": "AAAA8B51F2B7370B42789E06",
+          "_parent": {
+            "$ref": "AAAA496EF31456264346AE3B"
+          },
+          "name": "Medical RAG Engine (rag_service_wrapper.py)"
+        },
+        {
+          "_type": "UMLClass",
+          "_id": "AAAA5C43CFF697A54DD6A71F",
+          "_parent": {
+            "$ref": "AAAA496EF31456264346AE3B"
+          },
+          "name": "ChromaDB Medical Vector Store"
+        },
+        {
+          "_type": "UMLClass",
+          "_id": "AAAA5CF8EFC5A3404A28AAAB",
+          "_parent": {
+            "$ref": "AAAA496EF31456264346AE3B"
+          },
+          "name": "Clinical Evidence Synthesizer"
+        },
+        {
+          "_type": "UMLClass",
+          "_id": "AAAA30E7368B4012424599A6",
+          "_parent": {
+            "$ref": "AAAA496EF31456264346AE3B"
+          },
+          "name": "ReportLab PDF Export Engine"
+        }
+      ]
+    },
+    {
+      "_type": "ERDDataModel",
+      "_id": "AAAA041903102F5043F190D4",
+      "_parent": {
+        "$ref": "AAAA3D943D23717A4CDEB827"
+      },
+      "name": "Entity Relationship (ER) Database Diagram Model",
+      "ownedElements": [
+        {
+          "_type": "ERDDiagram",
+          "_id": "AAAACA133A66CB28484E8CA7",
+          "_parent": {
+            "$ref": "AAAA041903102F5043F190D4"
+          },
+          "name": "Entity Relationship (ER) Database Diagram",
+          "ownedViews": [
+            {
+              "_type": "ERDEntityView",
+              "_id": "AAAA3365E696CC914A8BB40A",
+              "_parent": {
+                "$ref": "AAAACA133A66CB28484E8CA7"
+              },
+              "model": {
+                "$ref": "AAAAE618B930A0454651A1E4"
+              },
+              "font": "Arial;13;0",
+              "left": 40,
+              "top": 40,
+              "width": 220,
+              "height": 140
+            },
+            {
+              "_type": "ERDEntityView",
+              "_id": "AAAA96B2068A57594AE2AE6E",
+              "_parent": {
+                "$ref": "AAAACA133A66CB28484E8CA7"
+              },
+              "model": {
+                "$ref": "AAAAE98DC25126244954A408"
+              },
+              "font": "Arial;13;0",
+              "left": 280,
+              "top": 40,
+              "width": 220,
+              "height": 140
+            },
+            {
+              "_type": "ERDEntityView",
+              "_id": "AAAA534DD9220456485FAF3F",
+              "_parent": {
+                "$ref": "AAAACA133A66CB28484E8CA7"
+              },
+              "model": {
+                "$ref": "AAAA67F32E801EA748358370"
+              },
+              "font": "Arial;13;0",
+              "left": 520,
+              "top": 40,
+              "width": 220,
+              "height": 140
+            },
+            {
+              "_type": "ERDEntityView",
+              "_id": "AAAA85E0FAED1D8443438712",
+              "_parent": {
+                "$ref": "AAAACA133A66CB28484E8CA7"
+              },
+              "model": {
+                "$ref": "AAAA192EEFC4C326444EA8EF"
+              },
+              "font": "Arial;13;0",
+              "left": 760,
+              "top": 40,
+              "width": 220,
+              "height": 140
+            },
+            {
+              "_type": "ERDEntityView",
+              "_id": "AAAAC46D4F72E4304260B6DA",
+              "_parent": {
+                "$ref": "AAAACA133A66CB28484E8CA7"
+              },
+              "model": {
+                "$ref": "AAAAD3CC42A4F9624EF9AAAF"
+              },
+              "font": "Arial;13;0",
+              "left": 40,
+              "top": 220,
+              "width": 220,
+              "height": 140
+            },
+            {
+              "_type": "ERDEntityView",
+              "_id": "AAAA8ED25E36498F4A25B627",
+              "_parent": {
+                "$ref": "AAAACA133A66CB28484E8CA7"
+              },
+              "model": {
+                "$ref": "AAAACC3EC018DDDB429499D9"
+              },
+              "font": "Arial;13;0",
+              "left": 280,
+              "top": 220,
+              "width": 220,
+              "height": 140
+            }
+          ]
+        },
+        {
+          "_type": "ERDEntity",
+          "_id": "AAAAE618B930A0454651A1E4",
+          "_parent": {
+            "$ref": "AAAA041903102F5043F190D4"
+          },
+          "name": "users",
+          "columns": [
+            {
+              "_type": "ERDColumn",
+              "_id": "AAAA02F2A59E00FA4BAFA8BD",
+              "_parent": {
+                "$ref": "AAAAE618B930A0454651A1E4"
+              },
+              "name": "user_id",
+              "type": "VARCHAR",
+              "primaryKey": true,
+              "foreignKey": false
+            },
+            {
+              "_type": "ERDColumn",
+              "_id": "AAAA0DC4195ADF464FCC8A4E",
+              "_parent": {
+                "$ref": "AAAAE618B930A0454651A1E4"
+              },
+              "name": "email",
+              "type": "VARCHAR",
+              "primaryKey": false,
+              "foreignKey": false
+            },
+            {
+              "_type": "ERDColumn",
+              "_id": "AAAAEDED5CEE32D647428CC2",
+              "_parent": {
+                "$ref": "AAAAE618B930A0454651A1E4"
+              },
+              "name": "password_hash",
+              "type": "VARCHAR",
+              "primaryKey": false,
+              "foreignKey": false
+            },
+            {
+              "_type": "ERDColumn",
+              "_id": "AAAA99396A8682554F689E4D",
+              "_parent": {
+                "$ref": "AAAAE618B930A0454651A1E4"
+              },
+              "name": "role",
+              "type": "VARCHAR",
+              "primaryKey": false,
+              "foreignKey": false
+            }
+          ]
+        },
+        {
+          "_type": "ERDEntity",
+          "_id": "AAAAE98DC25126244954A408",
+          "_parent": {
+            "$ref": "AAAA041903102F5043F190D4"
+          },
+          "name": "patient_profiles",
+          "columns": [
+            {
+              "_type": "ERDColumn",
+              "_id": "AAAA071C3599AAD64842AD30",
+              "_parent": {
+                "$ref": "AAAAE98DC25126244954A408"
+              },
+              "name": "patient_id",
+              "type": "VARCHAR",
+              "primaryKey": true,
+              "foreignKey": false
+            },
+            {
+              "_type": "ERDColumn",
+              "_id": "AAAA191CF84B7422424EB1FD",
+              "_parent": {
+                "$ref": "AAAAE98DC25126244954A408"
+              },
+              "name": "user_id",
+              "type": "VARCHAR",
+              "primaryKey": false,
+              "foreignKey": true
+            },
+            {
+              "_type": "ERDColumn",
+              "_id": "AAAA4D34215EE5D04D6CB9CD",
+              "_parent": {
+                "$ref": "AAAAE98DC25126244954A408"
+              },
+              "name": "full_name",
+              "type": "VARCHAR",
+              "primaryKey": false,
+              "foreignKey": false
+            },
+            {
+              "_type": "ERDColumn",
+              "_id": "AAAA6F10FC72A0D947318BE3",
+              "_parent": {
+                "$ref": "AAAAE98DC25126244954A408"
+              },
+              "name": "age",
+              "type": "INTEGER",
+              "primaryKey": false,
+              "foreignKey": false
+            }
+          ]
+        },
+        {
+          "_type": "ERDEntity",
+          "_id": "AAAA67F32E801EA748358370",
+          "_parent": {
+            "$ref": "AAAA041903102F5043F190D4"
+          },
+          "name": "doctor_profiles",
+          "columns": [
+            {
+              "_type": "ERDColumn",
+              "_id": "AAAA3C4565D5688B4FD398E7",
+              "_parent": {
+                "$ref": "AAAA67F32E801EA748358370"
+              },
+              "name": "doctor_id",
+              "type": "VARCHAR",
+              "primaryKey": true,
+              "foreignKey": false
+            },
+            {
+              "_type": "ERDColumn",
+              "_id": "AAAA0467D002D2024041B59C",
+              "_parent": {
+                "$ref": "AAAA67F32E801EA748358370"
+              },
+              "name": "user_id",
+              "type": "VARCHAR",
+              "primaryKey": false,
+              "foreignKey": true
+            },
+            {
+              "_type": "ERDColumn",
+              "_id": "AAAAB160649EB10B4304931B",
+              "_parent": {
+                "$ref": "AAAA67F32E801EA748358370"
+              },
+              "name": "specialization",
+              "type": "VARCHAR",
+              "primaryKey": false,
+              "foreignKey": false
+            },
+            {
+              "_type": "ERDColumn",
+              "_id": "AAAA00B48EC7D399483DBEB9",
+              "_parent": {
+                "$ref": "AAAA67F32E801EA748358370"
+              },
+              "name": "verification_status",
+              "type": "VARCHAR",
+              "primaryKey": false,
+              "foreignKey": false
+            }
+          ]
+        },
+        {
+          "_type": "ERDEntity",
+          "_id": "AAAA192EEFC4C326444EA8EF",
+          "_parent": {
+            "$ref": "AAAA041903102F5043F190D4"
+          },
+          "name": "health_records",
+          "columns": [
+            {
+              "_type": "ERDColumn",
+              "_id": "AAAAD28ADA0AA30A47D18B72",
+              "_parent": {
+                "$ref": "AAAA192EEFC4C326444EA8EF"
+              },
+              "name": "record_id",
+              "type": "VARCHAR",
+              "primaryKey": true,
+              "foreignKey": false
+            },
+            {
+              "_type": "ERDColumn",
+              "_id": "AAAAB103D83E89554418BD0C",
+              "_parent": {
+                "$ref": "AAAA192EEFC4C326444EA8EF"
+              },
+              "name": "user_id",
+              "type": "VARCHAR",
+              "primaryKey": false,
+              "foreignKey": true
+            },
+            {
+              "_type": "ERDColumn",
+              "_id": "AAAA78C06B014BA944FDB2C1",
+              "_parent": {
+                "$ref": "AAAA192EEFC4C326444EA8EF"
+              },
+              "name": "effective_pathway",
+              "type": "VARCHAR",
+              "primaryKey": false,
+              "foreignKey": false
+            },
+            {
+              "_type": "ERDColumn",
+              "_id": "AAAA84CE2F76C536439BAA81",
+              "_parent": {
+                "$ref": "AAAA192EEFC4C326444EA8EF"
+              },
+              "name": "prediction_snapshot",
+              "type": "TEXT",
+              "primaryKey": false,
+              "foreignKey": false
+            },
+            {
+              "_type": "ERDColumn",
+              "_id": "AAAA3E9B9ECC55584728905A",
+              "_parent": {
+                "$ref": "AAAA192EEFC4C326444EA8EF"
+              },
+              "name": "xai_snapshot",
+              "type": "TEXT",
+              "primaryKey": false,
+              "foreignKey": false
+            }
+          ]
+        },
+        {
+          "_type": "ERDEntity",
+          "_id": "AAAAD3CC42A4F9624EF9AAAF",
+          "_parent": {
+            "$ref": "AAAA041903102F5043F190D4"
+          },
+          "name": "consultations",
+          "columns": [
+            {
+              "_type": "ERDColumn",
+              "_id": "AAAA794499BA762543DD93CC",
+              "_parent": {
+                "$ref": "AAAAD3CC42A4F9624EF9AAAF"
+              },
+              "name": "consultation_id",
+              "type": "VARCHAR",
+              "primaryKey": true,
+              "foreignKey": false
+            },
+            {
+              "_type": "ERDColumn",
+              "_id": "AAAAF19B0AD419D3419DBB56",
+              "_parent": {
+                "$ref": "AAAAD3CC42A4F9624EF9AAAF"
+              },
+              "name": "patient_id",
+              "type": "VARCHAR",
+              "primaryKey": false,
+              "foreignKey": false
+            },
+            {
+              "_type": "ERDColumn",
+              "_id": "AAAAB9C21DFD882E477E81B0",
+              "_parent": {
+                "$ref": "AAAAD3CC42A4F9624EF9AAAF"
+              },
+              "name": "assigned_doctor_id",
+              "type": "VARCHAR",
+              "primaryKey": false,
+              "foreignKey": true
+            },
+            {
+              "_type": "ERDColumn",
+              "_id": "AAAA0CC375C98CD44A699C17",
+              "_parent": {
+                "$ref": "AAAAD3CC42A4F9624EF9AAAF"
+              },
+              "name": "status",
+              "type": "VARCHAR",
+              "primaryKey": false,
+              "foreignKey": false
+            }
+          ]
+        },
+        {
+          "_type": "ERDEntity",
+          "_id": "AAAACC3EC018DDDB429499D9",
+          "_parent": {
+            "$ref": "AAAA041903102F5043F190D4"
+          },
+          "name": "audit_events",
+          "columns": [
+            {
+              "_type": "ERDColumn",
+              "_id": "AAAA89B4332EF7F0466C840B",
+              "_parent": {
+                "$ref": "AAAACC3EC018DDDB429499D9"
+              },
+              "name": "event_id",
+              "type": "VARCHAR",
+              "primaryKey": true,
+              "foreignKey": false
+            },
+            {
+              "_type": "ERDColumn",
+              "_id": "AAAABC63276224804DDD8DF3",
+              "_parent": {
+                "$ref": "AAAACC3EC018DDDB429499D9"
+              },
+              "name": "actor_user_id",
+              "type": "VARCHAR",
+              "primaryKey": false,
+              "foreignKey": false
+            },
+            {
+              "_type": "ERDColumn",
+              "_id": "AAAA54157A299AC541888DCD",
+              "_parent": {
+                "$ref": "AAAACC3EC018DDDB429499D9"
+              },
+              "name": "action",
+              "type": "VARCHAR",
+              "primaryKey": false,
+              "foreignKey": false
+            },
+            {
+              "_type": "ERDColumn",
+              "_id": "AAAA1BA6F5D63CE748B0A78D",
+              "_parent": {
+                "$ref": "AAAACC3EC018DDDB429499D9"
+              },
+              "name": "event_hash",
+              "type": "VARCHAR",
+              "primaryKey": false,
+              "foreignKey": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "_type": "UMLModel",
+      "_id": "AAAA5FDDFEEC370F4FEEA743",
+      "_parent": {
+        "$ref": "AAAA2BCBA18F1DFE48F7B469"
+      },
+      "name": "React Frontend Component & Routing Architecture Model",
+      "ownedElements": [
+        {
+          "_type": "UMLComponentDiagram",
+          "_id": "AAAACA83743722EC4642B8FC",
+          "_parent": {
+            "$ref": "AAAA5FDDFEEC370F4FEEA743"
+          },
+          "name": "React Frontend Component & Routing Architecture",
+          "ownedViews": [
+            {
+              "_type": "UMLComponentView",
+              "_id": "AAAA6751E54274F64115871C",
+              "_parent": {
+                "$ref": "AAAACA83743722EC4642B8FC"
+              },
+              "model": {
+                "$ref": "AAAA34A48183E64E45709EDB"
+              },
+              "font": "Arial;13;0",
+              "left": 40,
+              "top": 40,
+              "width": 220,
+              "height": 140
+            },
+            {
+              "_type": "UMLComponentView",
+              "_id": "AAAAF38B989C745F477AAB72",
+              "_parent": {
+                "$ref": "AAAACA83743722EC4642B8FC"
+              },
+              "model": {
+                "$ref": "AAAA4584F759F81B4E3FBAF0"
+              },
+              "font": "Arial;13;0",
+              "left": 280,
+              "top": 40,
+              "width": 220,
+              "height": 140
+            },
+            {
+              "_type": "UMLComponentView",
+              "_id": "AAAA6BBD41F2CDE242C3B116",
+              "_parent": {
+                "$ref": "AAAACA83743722EC4642B8FC"
+              },
+              "model": {
+                "$ref": "AAAA2ADD4D285EE048BFA4AF"
+              },
+              "font": "Arial;13;0",
+              "left": 520,
+              "top": 40,
+              "width": 220,
+              "height": 140
+            },
+            {
+              "_type": "UMLComponentView",
+              "_id": "AAAAEAC4647CF2554CE6A921",
+              "_parent": {
+                "$ref": "AAAACA83743722EC4642B8FC"
+              },
+              "model": {
+                "$ref": "AAAAA2CE99529CA94D31BF27"
+              },
+              "font": "Arial;13;0",
+              "left": 760,
+              "top": 40,
+              "width": 220,
+              "height": 140
+            },
+            {
+              "_type": "UMLComponentView",
+              "_id": "AAAA57BA36F725D948E8BF53",
+              "_parent": {
+                "$ref": "AAAACA83743722EC4642B8FC"
+              },
+              "model": {
+                "$ref": "AAAAA1E23C9F6D4F4FF89790"
+              },
+              "font": "Arial;13;0",
+              "left": 40,
+              "top": 220,
+              "width": 220,
+              "height": 140
+            },
+            {
+              "_type": "UMLComponentView",
+              "_id": "AAAAF0D9FDBAC22E432BADA2",
+              "_parent": {
+                "$ref": "AAAACA83743722EC4642B8FC"
+              },
+              "model": {
+                "$ref": "AAAA7305B5DE53794BA3B039"
+              },
+              "font": "Arial;13;0",
+              "left": 280,
+              "top": 220,
+              "width": 220,
+              "height": 140
+            },
+            {
+              "_type": "UMLComponentView",
+              "_id": "AAAAFA5404CC36DD4E0580C5",
+              "_parent": {
+                "$ref": "AAAACA83743722EC4642B8FC"
+              },
+              "model": {
+                "$ref": "AAAA1C66B34B77C5410189DF"
+              },
+              "font": "Arial;13;0",
+              "left": 520,
+              "top": 220,
+              "width": 220,
+              "height": 140
+            },
+            {
+              "_type": "UMLComponentView",
+              "_id": "AAAA794FCC91CCE343D7B89C",
+              "_parent": {
+                "$ref": "AAAACA83743722EC4642B8FC"
+              },
+              "model": {
+                "$ref": "AAAA6794260989BB4B0AAB07"
+              },
+              "font": "Arial;13;0",
+              "left": 760,
+              "top": 220,
+              "width": 220,
+              "height": 140
+            },
+            {
+              "_type": "UMLComponentView",
+              "_id": "AAAA8B997FB9E768422E9528",
+              "_parent": {
+                "$ref": "AAAACA83743722EC4642B8FC"
+              },
+              "model": {
+                "$ref": "AAAA9CB168D83E204D5D8037"
+              },
+              "font": "Arial;13;0",
+              "left": 40,
+              "top": 400,
+              "width": 220,
+              "height": 140
+            }
+          ]
+        },
+        {
+          "_type": "UMLComponent",
+          "_id": "AAAA34A48183E64E45709EDB",
+          "_parent": {
+            "$ref": "AAAA5FDDFEEC370F4FEEA743"
+          },
+          "name": "App.jsx (Router & Provider Container)"
+        },
+        {
+          "_type": "UMLComponent",
+          "_id": "AAAA4584F759F81B4E3FBAF0",
+          "_parent": {
+            "$ref": "AAAA5FDDFEEC370F4FEEA743"
+          },
+          "name": "AuthContext (JWT & User State)"
+        },
+        {
+          "_type": "UMLComponent",
+          "_id": "AAAA2ADD4D285EE048BFA4AF",
+          "_parent": {
+            "$ref": "AAAA5FDDFEEC370F4FEEA743"
+          },
+          "name": "IntakePage.jsx (Multimodal Entry)"
+        },
+        {
+          "_type": "UMLComponent",
+          "_id": "AAAAA2CE99529CA94D31BF27",
+          "_parent": {
+            "$ref": "AAAA5FDDFEEC370F4FEEA743"
+          },
+          "name": "DashboardPage.jsx (Risk Gauge & Summary)"
+        },
+        {
+          "_type": "UMLComponent",
+          "_id": "AAAAA1E23C9F6D4F4FF89790",
+          "_parent": {
+            "$ref": "AAAA5FDDFEEC370F4FEEA743"
+          },
+          "name": "ReportPage.jsx (RAG Report & PDF View)"
+        },
+        {
+          "_type": "UMLComponent",
+          "_id": "AAAA7305B5DE53794BA3B039",
+          "_parent": {
+            "$ref": "AAAA5FDDFEEC370F4FEEA743"
+          },
+          "name": "XAIPage.jsx (TreeSHAP Bar & Beeswarm Plots)"
+        },
+        {
+          "_type": "UMLComponent",
+          "_id": "AAAA1C66B34B77C5410189DF",
+          "_parent": {
+            "$ref": "AAAA5FDDFEEC370F4FEEA743"
+          },
+          "name": "ConsultationWorkspacePage.jsx (Doctor Workspace)"
+        },
+        {
+          "_type": "UMLComponent",
+          "_id": "AAAA6794260989BB4B0AAB07",
+          "_parent": {
+            "$ref": "AAAA5FDDFEEC370F4FEEA743"
+          },
+          "name": "AdminDashboardPage.jsx (Audit & System Health)"
+        },
+        {
+          "_type": "UMLComponent",
+          "_id": "AAAA9CB168D83E204D5D8037",
+          "_parent": {
+            "$ref": "AAAA5FDDFEEC370F4FEEA743"
+          },
+          "name": "apiClient.js (Axios Auth Interceptor Client)"
+        }
+      ]
+    },
+    {
+      "_type": "UMLModel",
+      "_id": "AAAA1D5A3D1612004F26AF6D",
+      "_parent": {
+        "$ref": "AAAA72213DCFADB24FA39CB8"
+      },
+      "name": "JWT Authentication & Role-Based Access Control (RBAC) Model",
+      "ownedElements": [
+        {
+          "_type": "UMLClassDiagram",
+          "_id": "AAAACDDB4E66B85640D4B93C",
+          "_parent": {
+            "$ref": "AAAA1D5A3D1612004F26AF6D"
+          },
+          "name": "JWT Authentication & Role-Based Access Control (RBAC)",
+          "ownedViews": [
+            {
+              "_type": "UMLClassView",
+              "_id": "AAAAB1E43DA757A446F8B7C3",
+              "_parent": {
+                "$ref": "AAAACDDB4E66B85640D4B93C"
+              },
+              "model": {
+                "$ref": "AAAAF6979F6278E14E64B4AA"
+              },
+              "font": "Arial;13;0",
+              "left": 40,
+              "top": 40,
+              "width": 220,
+              "height": 140
+            },
+            {
+              "_type": "UMLClassView",
+              "_id": "AAAAE4085E39655341F4823F",
+              "_parent": {
+                "$ref": "AAAACDDB4E66B85640D4B93C"
+              },
+              "model": {
+                "$ref": "AAAA663DC0DB4B8647F1B88D"
+              },
+              "font": "Arial;13;0",
+              "left": 280,
+              "top": 40,
+              "width": 220,
+              "height": 140
+            },
+            {
+              "_type": "UMLClassView",
+              "_id": "AAAA9F3A07D5E6824EB2A806",
+              "_parent": {
+                "$ref": "AAAACDDB4E66B85640D4B93C"
+              },
+              "model": {
+                "$ref": "AAAAB993B07C23604FCC9F0E"
+              },
+              "font": "Arial;13;0",
+              "left": 520,
+              "top": 40,
+              "width": 220,
+              "height": 140
+            },
+            {
+              "_type": "UMLClassView",
+              "_id": "AAAAA6A1E61459444A9CA834",
+              "_parent": {
+                "$ref": "AAAACDDB4E66B85640D4B93C"
+              },
+              "model": {
+                "$ref": "AAAAC3D1EDDFCD71408BBE87"
+              },
+              "font": "Arial;13;0",
+              "left": 760,
+              "top": 40,
+              "width": 220,
+              "height": 140
+            },
+            {
+              "_type": "UMLClassView",
+              "_id": "AAAA4D4B800865134EA09436",
+              "_parent": {
+                "$ref": "AAAACDDB4E66B85640D4B93C"
+              },
+              "model": {
+                "$ref": "AAAA69E28DC525F94ACB8DED"
+              },
+              "font": "Arial;13;0",
+              "left": 40,
+              "top": 220,
+              "width": 220,
+              "height": 140
+            },
+            {
+              "_type": "UMLClassView",
+              "_id": "AAAAEC554505C6D44C248DBC",
+              "_parent": {
+                "$ref": "AAAACDDB4E66B85640D4B93C"
+              },
+              "model": {
+                "$ref": "AAAA926D1DD98E2A4BAC915B"
+              },
+              "font": "Arial;13;0",
+              "left": 280,
+              "top": 220,
+              "width": 220,
+              "height": 140
+            }
+          ]
+        },
+        {
+          "_type": "UMLClass",
+          "_id": "AAAAF6979F6278E14E64B4AA",
+          "_parent": {
+            "$ref": "AAAA1D5A3D1612004F26AF6D"
+          },
+          "name": "User Client (LoginPage.jsx)"
+        },
+        {
+          "_type": "UMLClass",
+          "_id": "AAAA663DC0DB4B8647F1B88D",
+          "_parent": {
+            "$ref": "AAAA1D5A3D1612004F26AF6D"
+          },
+          "name": "Auth Router (auth_routes.py)"
+        },
+        {
+          "_type": "UMLClass",
+          "_id": "AAAAB993B07C23604FCC9F0E",
+          "_parent": {
+            "$ref": "AAAA1D5A3D1612004F26AF6D"
+          },
+          "name": "Security Engine (security.py)"
+        },
+        {
+          "_type": "UMLClass",
+          "_id": "AAAAC3D1EDDFCD71408BBE87",
+          "_parent": {
+            "$ref": "AAAA1D5A3D1612004F26AF6D"
+          },
+          "name": "PostgreSQL User & Session Store"
+        },
+        {
+          "_type": "UMLClass",
+          "_id": "AAAA69E28DC525F94ACB8DED",
+          "_parent": {
+            "$ref": "AAAA1D5A3D1612004F26AF6D"
+          },
+          "name": "JWT Token Generator & Decoder"
+        },
+        {
+          "_type": "UMLClass",
+          "_id": "AAAA926D1DD98E2A4BAC915B",
+          "_parent": {
+            "$ref": "AAAA1D5A3D1612004F26AF6D"
+          },
+          "name": "Protected Route RBAC Middleware"
+        }
+      ]
+    },
+    {
+      "_type": "UMLModel",
+      "_id": "AAAAA5CF4DCDB88342DFA2D3",
+      "_parent": {
+        "$ref": "AAAA575F5E8E08E649599DCA"
+      },
+      "name": "Frozen V4 Multi-Expert Model Ecosystem Architecture Model",
+      "ownedElements": [
+        {
+          "_type": "UMLClassDiagram",
+          "_id": "AAAACD134412CEC34E9ABF87",
+          "_parent": {
+            "$ref": "AAAAA5CF4DCDB88342DFA2D3"
+          },
+          "name": "Frozen V4 Multi-Expert Model Ecosystem Architecture",
+          "ownedViews": [
+            {
+              "_type": "UMLClassView",
+              "_id": "AAAA23B797A6497F46C9A4F9",
+              "_parent": {
+                "$ref": "AAAACD134412CEC34E9ABF87"
+              },
+              "model": {
+                "$ref": "AAAAA22F8DC5A60845059979"
+              },
+              "font": "Arial;13;0",
+              "left": 40,
+              "top": 40,
+              "width": 220,
+              "height": 140
+            },
+            {
+              "_type": "UMLClassView",
+              "_id": "AAAAC665EEE6DD1143439A9C",
+              "_parent": {
+                "$ref": "AAAACD134412CEC34E9ABF87"
+              },
+              "model": {
+                "$ref": "AAAAD2A36A0025C74CEC86FB"
+              },
+              "font": "Arial;13;0",
+              "left": 280,
+              "top": 40,
+              "width": 220,
+              "height": 140
+            },
+            {
+              "_type": "UMLClassView",
+              "_id": "AAAA2EEF8F87D2DB44C4B88D",
+              "_parent": {
+                "$ref": "AAAACD134412CEC34E9ABF87"
+              },
+              "model": {
+                "$ref": "AAAAFAC83F1B327044158D42"
+              },
+              "font": "Arial;13;0",
+              "left": 520,
+              "top": 40,
+              "width": 220,
+              "height": 140
+            },
+            {
+              "_type": "UMLClassView",
+              "_id": "AAAA68627CA7ECC74A64BD1A",
+              "_parent": {
+                "$ref": "AAAACD134412CEC34E9ABF87"
+              },
+              "model": {
+                "$ref": "AAAA2CAA13EA045643C28AF5"
+              },
+              "font": "Arial;13;0",
+              "left": 760,
+              "top": 40,
+              "width": 220,
+              "height": 140
+            },
+            {
+              "_type": "UMLClassView",
+              "_id": "AAAAD24CF95DBE394A86889C",
+              "_parent": {
+                "$ref": "AAAACD134412CEC34E9ABF87"
+              },
+              "model": {
+                "$ref": "AAAA8710AE94B42348958024"
+              },
+              "font": "Arial;13;0",
+              "left": 40,
+              "top": 220,
+              "width": 220,
+              "height": 140
+            }
+          ]
+        },
+        {
+          "_type": "UMLClass",
+          "_id": "AAAAA22F8DC5A60845059979",
+          "_parent": {
+            "$ref": "AAAAA5CF4DCDB88342DFA2D3"
+          },
+          "name": "ClinicalExpertVector",
+          "attributes": [
+            {
+              "_type": "UMLAttribute",
+              "_id": "AAAA5A51375F2DBD4CB9B548",
+              "_parent": {
+                "$ref": "AAAAA22F8DC5A60845059979"
+              },
+              "name": "18 Numerical Biomarker Features",
+              "type": "Included"
+            },
+            {
+              "_type": "UMLAttribute",
+              "_id": "AAAAAAE34EB9C99E450ABE26",
+              "_parent": {
+                "$ref": "AAAAA22F8DC5A60845059979"
+              },
+              "name": "Age & Gender",
+              "type": "Included"
+            },
+            {
+              "_type": "UMLAttribute",
+              "_id": "AAAA8DC7144C5EDC4876BF29",
+              "_parent": {
+                "$ref": "AAAAA22F8DC5A60845059979"
+              },
+              "name": "Patient_ID",
+              "type": "Excluded (Metadata Only)"
+            }
+          ]
+        },
+        {
+          "_type": "UMLClass",
+          "_id": "AAAAD2A36A0025C74CEC86FB",
+          "_parent": {
+            "$ref": "AAAAA5CF4DCDB88342DFA2D3"
+          },
+          "name": "WearableExpertVector",
+          "attributes": [
+            {
+              "_type": "UMLAttribute",
+              "_id": "AAAA35DB9EC982834FFD9E57",
+              "_parent": {
+                "$ref": "AAAAD2A36A0025C74CEC86FB"
+              },
+              "name": "15 CGM & Wearable Features",
+              "type": "Included"
+            },
+            {
+              "_type": "UMLAttribute",
+              "_id": "AAAA76A57F59444A41F3B7EE",
+              "_parent": {
+                "$ref": "AAAAD2A36A0025C74CEC86FB"
+              },
+              "name": "Age & Gender",
+              "type": "Excluded"
+            },
+            {
+              "_type": "UMLAttribute",
+              "_id": "AAAAB2CBBF530DF649B7A621",
+              "_parent": {
+                "$ref": "AAAAD2A36A0025C74CEC86FB"
+              },
+              "name": "Patient_ID",
+              "type": "Excluded (Metadata Only)"
+            }
+          ]
+        },
+        {
+          "_type": "UMLClass",
+          "_id": "AAAAFAC83F1B327044158D42",
+          "_parent": {
+            "$ref": "AAAAA5CF4DCDB88342DFA2D3"
+          },
+          "name": "GutExpertVector",
+          "attributes": [
+            {
+              "_type": "UMLAttribute",
+              "_id": "AAAA9D83A13721974225973E",
+              "_parent": {
+                "$ref": "AAAAFAC83F1B327044158D42"
+              },
+              "name": "40 Canonical Species Taxa",
+              "type": "Included"
+            },
+            {
+              "_type": "UMLAttribute",
+              "_id": "AAAA97ADA984A4A241C68C9A",
+              "_parent": {
+                "$ref": "AAAAFAC83F1B327044158D42"
+              },
+              "name": "1 Other_Taxa",
+              "type": "Included"
+            },
+            {
+              "_type": "UMLAttribute",
+              "_id": "AAAA27687B1322D040A5ACCF",
+              "_parent": {
+                "$ref": "AAAAFAC83F1B327044158D42"
+              },
+              "name": "9 Derived Ecological Indices",
+              "type": "Included"
+            },
+            {
+              "_type": "UMLAttribute",
+              "_id": "AAAA3C64D111B008408B80E5",
+              "_parent": {
+                "$ref": "AAAAFAC83F1B327044158D42"
+              },
+              "name": "Patient_ID",
+              "type": "Excluded (Metadata Only)"
+            }
+          ]
+        },
+        {
+          "_type": "UMLClass",
+          "_id": "AAAA2CAA13EA045643C28AF5",
+          "_parent": {
+            "$ref": "AAAAA5CF4DCDB88342DFA2D3"
+          },
+          "name": "V4StackingMetaLearner",
+          "operations": [
+            {
+              "_type": "UMLOperation",
+              "_id": "AAAA62C8C9E9C4B345D3893A",
+              "_parent": {
+                "$ref": "AAAA2CAA13EA045643C28AF5"
+              },
+              "name": "predict_type2_diabetes()"
+            },
+            {
+              "_type": "UMLOperation",
+              "_id": "AAAA85A13F545B974294A142",
+              "_parent": {
+                "$ref": "AAAA2CAA13EA045643C28AF5"
+              },
+              "name": "predict_prediabetes()"
+            },
+            {
+              "_type": "UMLOperation",
+              "_id": "AAAA03277525AB2F4A5F8E46",
+              "_parent": {
+                "$ref": "AAAA2CAA13EA045643C28AF5"
+              },
+              "name": "predict_high_adiposity_risk()"
+            },
+            {
+              "_type": "UMLOperation",
+              "_id": "AAAAC468F35CCD954D6D9C34",
+              "_parent": {
+                "$ref": "AAAA2CAA13EA045643C28AF5"
+              },
+              "name": "predict_metabolic_syndrome()"
+            },
+            {
+              "_type": "UMLOperation",
+              "_id": "AAAAC66701CDB36B4C7CA5EC",
+              "_parent": {
+                "$ref": "AAAA2CAA13EA045643C28AF5"
+              },
+              "name": "predict_nafld()"
+            }
+          ]
+        },
+        {
+          "_type": "UMLClass",
+          "_id": "AAAA8710AE94B42348958024",
+          "_parent": {
+            "$ref": "AAAAA5CF4DCDB88342DFA2D3"
+          },
+          "name": "DiseaseTargetOutputs",
+          "attributes": [
+            {
+              "_type": "UMLAttribute",
+              "_id": "AAAA09FDFB018BAF41298A41",
+              "_parent": {
+                "$ref": "AAAA8710AE94B42348958024"
+              },
+              "name": "Type2_Diabetes",
+              "type": "Risk Probability"
+            },
+            {
+              "_type": "UMLAttribute",
+              "_id": "AAAAE4249A2BF9494F0CA2D0",
+              "_parent": {
+                "$ref": "AAAA8710AE94B42348958024"
+              },
+              "name": "Prediabetes",
+              "type": "Risk Probability"
+            },
+            {
+              "_type": "UMLAttribute",
+              "_id": "AAAAB605B572B18B481FA59F",
+              "_parent": {
+                "$ref": "AAAA8710AE94B42348958024"
+              },
+              "name": "High_Adiposity_Risk",
+              "type": "Risk Probability"
+            },
+            {
+              "_type": "UMLAttribute",
+              "_id": "AAAA17B318F0DFE841C49DDE",
+              "_parent": {
+                "$ref": "AAAA8710AE94B42348958024"
+              },
+              "name": "Metabolic_Syndrome",
+              "type": "Risk Probability"
+            },
+            {
+              "_type": "UMLAttribute",
+              "_id": "AAAAF54E4D5889F647EC9D50",
+              "_parent": {
+                "$ref": "AAAA8710AE94B42348958024"
+              },
+              "name": "NAFLD",
+              "type": "Risk Probability"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

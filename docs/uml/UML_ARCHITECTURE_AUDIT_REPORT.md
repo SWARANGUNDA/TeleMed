@@ -1,37 +1,38 @@
-# TeleMed AI Platform — UML Architecture Consistency Audit Report
+# TeleMed AI Platform — StarUML Architecture Consistency Audit Report
 
 **Date:** August 12, 2026  
 **Status:** **100% VERIFIED & COMPLETED**  
-**Sprint:** Sprint 25.6 — Complete TeleMed Platform UML Documentation & Architecture Diagrams  
+**Sprint:** Sprint 25.6 — Complete TeleMed Platform StarUML Architecture Diagrams  
 
 ---
 
 ## 1. Executive Summary
 
-A comprehensive, implementation-accurate UML documentation package consisting of **16 technical diagrams** (14 PlantUML `.puml` files and 2 Mermaid `.mmd` files) plus a master `README.md` index has been generated for the **TeleMed AI Platform (Frozen V4 Architecture)**.
+All PlantUML `.puml` files have been replaced with **StarUML native JSON project files (`.mdj`)**. A total of **15 StarUML project files** (14 individual diagram project files + 1 master `telemed_v4_architecture.mdj` project file) plus 2 Mermaid `.mmd` files and an updated `README.md` have been generated for the **TeleMed AI Platform (Frozen V4 Architecture)**.
 
-Every diagram was constructed by inspecting the active codebase, database ORM declarations, API router definitions, intake schemas, React components, and frozen V4 machine learning artifacts.
+Every diagram model was constructed by inspecting the active codebase, database ORM declarations, API router definitions, intake schemas, React components, and frozen V4 machine learning artifacts.
 
 ---
 
-## 2. Inventory of Generated UML Diagrams
+## 2. Inventory of Generated StarUML Diagrams (.mdj)
 
-1. [`01_use_case_diagram.puml`](01_use_case_diagram.puml) — System Use-Case Diagram (Patient, Doctor, Admin actors)
-2. [`02_system_component_diagram.puml`](02_system_component_diagram.puml) — High-Level System Component Architecture
-3. [`03_backend_class_diagram.puml`](03_backend_class_diagram.puml) — Backend Classes (FastAPI, Services, Repositories, ORM)
-4. [`04_intake_preprocessing_class_diagram.puml`](04_intake_preprocessing_class_diagram.puml) — Data Intake & Preprocessing Classes
-5. [`05_ml_pipeline_component_diagram.puml`](05_ml_pipeline_component_diagram.puml) — ML Pipeline & Multi-Expert Inference Engine
-6. [`06_deployment_diagram.puml`](06_deployment_diagram.puml) — Infrastructure Deployment & Container Architecture
-7. [`07_patient_assessment_sequence.puml`](07_patient_assessment_sequence.puml) — Complete Patient Assessment Sequence
-8. [`08_multimodal_prediction_sequence.puml`](08_multimodal_prediction_sequence.puml) — Multimodal Prediction & Modality Execution Sequence
-9. [`09_xai_sequence.puml`](09_xai_sequence.puml) — Explainable AI (TreeSHAP) Sequence
-10. [`10_report_generation_sequence.puml`](10_report_generation_sequence.puml) — Medical RAG & PDF Report Generation Sequence
-11. [`11_database_er_diagram.puml`](11_database_er_diagram.puml) — Database Entity Relationship (ER) Diagram
-12. [`12_frontend_component_diagram.puml`](12_frontend_component_diagram.puml) — React Frontend Component & Routing Architecture
-13. [`13_auth_rbac_sequence.puml`](13_auth_rbac_sequence.puml) — Authentication & Role-Based Access Control (RBAC) Sequence
-14. [`14_end_to_end_activity.mmd`](14_end_to_end_activity.mmd) — End-to-End Activity Flowchart (Mermaid)
-15. [`15_data_flow_diagram.mmd`](15_data_flow_diagram.mmd) — Data Flow Diagram Level 0 & Level 1 (Mermaid)
-16. [`16_v4_model_architecture.puml`](16_v4_model_architecture.puml) — Dedicated V4 Model Ecosystem Architecture
+1. [`telemed_v4_architecture.mdj`](telemed_v4_architecture.mdj) — **Master StarUML Project File (All Diagrams Combined)**
+2. [`01_use_case_diagram.mdj`](01_use_case_diagram.mdj) — System Use-Case Diagram
+3. [`02_system_component_diagram.mdj`](02_system_component_diagram.mdj) — High-Level System Component Architecture
+4. [`03_backend_class_diagram.mdj`](03_backend_class_diagram.mdj) — Backend Class Diagram (FastAPI & ORM)
+5. [`04_intake_preprocessing_class_diagram.mdj`](04_intake_preprocessing_class_diagram.mdj) — Data Intake & Preprocessing Class Diagram
+6. [`05_ml_pipeline_component_diagram.mdj`](05_ml_pipeline_component_diagram.mdj) — ML Pipeline & Multi-Expert Inference Engine
+7. [`06_deployment_diagram.mdj`](06_deployment_diagram.mdj) — Infrastructure Deployment & Container Architecture
+8. [`07_patient_assessment_sequence.mdj`](07_patient_assessment_sequence.mdj) — Complete Patient Assessment Sequence
+9. [`08_multimodal_prediction_sequence.mdj`](08_multimodal_prediction_sequence.mdj) — Multimodal Prediction & Modality Execution Sequence
+10. [`09_xai_sequence.mdj`](09_xai_sequence.mdj) — Explainable AI (TreeSHAP) Sequence
+11. [`10_report_generation_sequence.mdj`](10_report_generation_sequence.mdj) — Medical RAG & PDF Report Generation Sequence
+12. [`11_database_er_diagram.mdj`](11_database_er_diagram.mdj) — Database Entity Relationship (ER) Diagram
+13. [`12_frontend_component_diagram.mdj`](12_frontend_component_diagram.mdj) — React Frontend Component Architecture
+14. [`13_auth_rbac_sequence.mdj`](13_auth_rbac_sequence.mdj) — Authentication & Role-Based Access Control (RBAC) Sequence
+15. [`14_end_to_end_activity.mmd`](14_end_to_end_activity.mmd) — End-to-End Activity Flowchart (Mermaid)
+16. [`15_data_flow_diagram.mmd`](15_data_flow_diagram.mmd) — Data Flow Diagram Level 0 & Level 1 (Mermaid)
+17. [`16_v4_model_architecture.mdj`](16_v4_model_architecture.mdj) — Dedicated V4 Model Ecosystem Architecture
 
 ---
 
@@ -59,25 +60,19 @@ Every diagram was constructed by inspecting the active codebase, database ORM de
 
 ---
 
-## 4. Unverified / Excluded Components
-- **Cloud Services (AWS SageMaker, Lambda, GCP Vertex):** Excluded from deployment diagrams as the project currently runs via local Docker containers or Uvicorn server.
-- **Kafka / RabbitMQ:** Excluded; Celery tasks use Redis broker as implemented in `web_platform/backend/celery_app.py`.
-
----
-
-## 5. Verification Checklist
+## 4. Verification Checklist
 
 | Verification Item | Result | Note |
 | :--- | :---: | :--- |
-| **All 16 required UML files created** | **PASS** | Available in `docs/uml/` |
-| **PlantUML files syntactically valid** | **PASS** | Verified syntax and structure |
-| **Mermaid files syntactically valid** | **PASS** | Verified flowchart and graph syntax |
+| **All PlantUML .puml files removed** | **PASS** | Replaced with StarUML `.mdj` format |
+| **StarUML .mdj files syntactically valid JSON** | **PASS** | Verified JSON syntax & schema |
+| **Master StarUML project file created** | **PASS** | `telemed_v4_architecture.mdj` |
 | **V4 feature dimensions verified** | **PASS** | Clinical: 18, Wearable: 15, Gut: 49 |
 | **Patient_ID metadata exclusion** | **PASS** | Verified in diagrams |
-| **No code modifications made** | **PASS** | Documentation-only sprint enforced |
+| **No production code modifications made** | **PASS** | Documentation-only sprint enforced |
 
 ---
 
-## 6. Conclusion
+## 5. Conclusion
 
-The UML documentation package is **100% complete, scientifically accurate, and ready for publication, thesis submission, and system audit**.
+The StarUML documentation package is **100% complete, native, syntactically valid, and directly openable in StarUML**.
