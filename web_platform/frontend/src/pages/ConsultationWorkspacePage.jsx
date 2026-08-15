@@ -168,35 +168,20 @@ export default function ConsultationWorkspacePage({ user, consultationContext })
             </h4>
 
             <div className="space-y-3">
-              {/* Timeline Item 1 */}
-              <div className="p-3 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-subtle)] space-y-1.5 cursor-pointer hover:border-[var(--primary)] transition-all">
-                <div className="flex items-center justify-between">
-                  <Badge variant="primary" size="sm">Active Intake</Badge>
-                  <span className="text-[10px] font-mono text-[var(--text-muted)]">Today</span>
-                </div>
-                <h5 className="text-xs font-bold text-[var(--text-main)]">Multimodal AI Assessment</h5>
-                <p className="text-[11px] text-[var(--text-muted)] line-clamp-1">3 Files (Apollo Lab, Fitbit CSV, Ayumetrix PDF)</p>
-              </div>
-
-              {/* Timeline Item 2 */}
-              <div className="p-3 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-subtle)] space-y-1.5 cursor-pointer hover:border-[var(--primary)] transition-all">
-                <div className="flex items-center justify-between">
-                  <Badge variant="success" size="sm">Completed</Badge>
-                  <span className="text-[10px] font-mono text-[var(--text-muted)]">July 15, 2026</span>
-                </div>
-                <h5 className="text-xs font-bold text-[var(--text-main)]">Follow-up Teleconsultation</h5>
-                <p className="text-[11px] text-[var(--text-muted)] line-clamp-1">Dr. Medical Specialist • Cardiology</p>
-              </div>
-
-              {/* Timeline Item 3 */}
-              <div className="p-3 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-subtle)] space-y-1.5 cursor-pointer hover:border-[var(--primary)] transition-all">
-                <div className="flex items-center justify-between">
-                  <Badge variant="info" size="sm">Upload</Badge>
-                  <span className="text-[10px] font-mono text-[var(--text-muted)]">June 02, 2026</span>
-                </div>
-                <h5 className="text-xs font-bold text-[var(--text-main)]">Apollo Clinical PDF</h5>
-                <p className="text-[11px] text-[var(--text-muted)] line-clamp-1">HbA1c 6.1%, FBG 118 mg/dL</p>
-              </div>
+              {healthRecords.length > 0 ? (
+                healthRecords.map((r, idx) => (
+                  <div key={idx} className="p-3 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-subtle)] space-y-1.5 cursor-pointer hover:border-[var(--primary)] transition-all">
+                    <div className="flex items-center justify-between">
+                      <Badge variant="primary" size="sm">{r.effective_pathway || 'Record'}</Badge>
+                      <span className="text-[10px] font-mono text-[var(--text-muted)]">{r.created_at ? new Date(r.created_at).toLocaleDateString() : 'Today'}</span>
+                    </div>
+                    <h5 className="text-xs font-bold text-[var(--text-main)]">Multimodal AI Assessment</h5>
+                    <p className="text-[11px] text-[var(--text-muted)] line-clamp-1">Data Quality: {Math.round((r.data_quality_score || 0.85) * 100)}%</p>
+                  </div>
+                ))
+              ) : (
+                <p className="text-xs text-[var(--text-muted)] text-center py-4 font-mono">No historical records uploaded</p>
+              )}
             </div>
 
             <Button variant="outline" size="sm" className="w-full text-xs" onClick={() => setIsDocViewerOpen(true)}>

@@ -2,17 +2,49 @@ import React, { useState } from 'react';
 import { Card, Badge, Input } from '../ui';
 import { Search, Activity, Filter, TrendingDown, TrendingUp, CheckCircle2 } from 'lucide-react';
 
-export default function BiomarkerExplorer() {
+export default function BiomarkerExplorer({ predictionData }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedModality, setSelectedModality] = useState('ALL');
 
-  const biomarkers = [
-    { id: 'BIO-1', name: 'HbA1c Glycated Hemoglobin', current: '5.8%', previous: '6.1%', trend: 'IMPROVED', refRange: '4.0 - 5.6%', status: 'BORDERLINE', modality: 'Clinical', interp: 'Glycemic control improved over 90 days.' },
-    { id: 'BIO-2', name: 'Fasting Blood Glucose', current: '105 mg/dL', previous: '112 mg/dL', trend: 'IMPROVED', refRange: '70 - 99 mg/dL', status: 'BORDERLINE', modality: 'Clinical', interp: 'Borderline elevated, monitoring recommended.' },
-    { id: 'BIO-3', name: 'HRV RMSSD', current: '42 ms', previous: '34 ms', trend: 'IMPROVED', refRange: '>35 ms', status: 'OPTIMAL', modality: 'Wearable', interp: 'Strong autonomic nervous system tone.' },
-    { id: 'BIO-4', name: 'Resting Heart Rate', current: '64 bpm', previous: '68 bpm', trend: 'IMPROVED', refRange: '60 - 100 bpm', status: 'OPTIMAL', modality: 'Wearable', interp: 'Normal resting cardiovascular rate.' },
-    { id: 'BIO-5', name: 'Bifidobacterium Taxa', current: '4.2%', previous: '3.1%', trend: 'IMPROVED', refRange: '3.0 - 8.0%', status: 'OPTIMAL', modality: 'Gut', interp: 'Healthy SCFA gut flora abundance.' },
-  ];
+  const clinFeats = predictionData?.confirmed_features?.clinical || predictionData?.clinical_features || {};
+  const wearFeats = predictionData?.confirmed_features?.wearable || predictionData?.wearable_features || {};
+  const gutFeats = predictionData?.confirmed_features?.gut || predictionData?.gut_features || {};
+
+  const biomarkers = predictionData ? [
+    ...Object.keys(clinFeats).map((k, idx) => ({
+      id: `CLIN-${idx + 1}`,
+      name: k.replace(/_/g, ' '),
+      current: `${clinFeats[k]}`,
+      previous: 'Baseline',
+      trend: 'ESTABLISHED',
+      refRange: 'Canonical',
+      status: 'CONFIRMED',
+      modality: 'Clinical',
+      interp: `Clinical feature extracted from lab intake. Value: ${clinFeats[k]}`
+    })),
+    ...Object.keys(wearFeats).map((k, idx) => ({
+      id: `WEAR-${idx + 1}`,
+      name: k.replace(/_/g, ' '),
+      current: `${wearFeats[k]}`,
+      previous: 'Baseline',
+      trend: 'ESTABLISHED',
+      refRange: 'Telemetry',
+      status: 'CONFIRMED',
+      modality: 'Wearable',
+      interp: `Wearable telemetry feature extracted. Value: ${wearFeats[k]}`
+    })),
+    ...Object.keys(gutFeats).map((k, idx) => ({
+      id: `GUT-${idx + 1}`,
+      name: k.replace(/_/g, ' '),
+      current: `${gutFeats[k]}`,
+      previous: 'Baseline',
+      trend: 'ESTABLISHED',
+      refRange: 'Abundance',
+      status: 'CONFIRMED',
+      modality: 'Gut',
+      interp: `Gut microbiome taxon relative abundance: ${gutFeats[k]}`
+    }))
+  ] : [];
 
   const filteredBiomarkers = biomarkers.filter(b => {
     const matchesSearch = b.name.toLowerCase().includes(searchQuery.toLowerCase()) || b.id.toLowerCase().includes(searchQuery.toLowerCase());

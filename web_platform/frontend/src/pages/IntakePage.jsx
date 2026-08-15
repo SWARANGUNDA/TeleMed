@@ -480,7 +480,7 @@ export default function IntakePage({
       });
   };
 
-  const dqOverall = qualityScores?.overall_quality_score || 85.2;
+  const dqOverall = qualityScores?.overall_quality_score ? Math.round(qualityScores.overall_quality_score * 100) : (qualityScores?.data_quality_score ? Math.round(qualityScores.data_quality_score * 100) : null);
 
   // Render Horizontal Stepper Header
   const renderHorizontalStepper = () => (
@@ -675,8 +675,8 @@ export default function IntakePage({
                       <FileText className="w-4 h-4 text-blue-500" />
                       <span className="text-xs font-semibold text-[var(--text-main)]">Clinical Lab PDF</span>
                     </div>
-                    <Badge variant={selectedFiles.some(f => !f.name.endsWith('.csv') && !f.name.toLowerCase().includes('gut')) ? 'success' : 'info'} size="sm">
-                      {selectedFiles.some(f => !f.name.endsWith('.csv') && !f.name.toLowerCase().includes('gut')) ? 'Uploaded' : 'Missing'}
+                    <Badge variant={selectedFiles.some(f => !f.name.endsWith('.csv') && !f.name.toLowerCase().includes('gut')) ? 'success' : 'outline'} size="sm">
+                      {selectedFiles.some(f => !f.name.endsWith('.csv') && !f.name.toLowerCase().includes('gut')) ? 'Uploaded' : 'NOT PROVIDED'}
                     </Badge>
                   </div>
 
@@ -685,8 +685,8 @@ export default function IntakePage({
                       <Watch className="w-4 h-4 text-teal-500" />
                       <span className="text-xs font-semibold text-[var(--text-main)]">Wearables CSV</span>
                     </div>
-                    <Badge variant={selectedFiles.some(f => f.name.endsWith('.csv')) ? 'success' : 'info'} size="sm">
-                      {selectedFiles.some(f => f.name.endsWith('.csv')) ? 'Uploaded' : 'Optional'}
+                    <Badge variant={selectedFiles.some(f => f.name.endsWith('.csv')) ? 'success' : 'outline'} size="sm">
+                      {selectedFiles.some(f => f.name.endsWith('.csv')) ? 'Uploaded' : 'NOT PROVIDED'}
                     </Badge>
                   </div>
 
@@ -695,17 +695,26 @@ export default function IntakePage({
                       <Dna className="w-4 h-4 text-purple-500" />
                       <span className="text-xs font-semibold text-[var(--text-main)]">Gut Microbiome PDF</span>
                     </div>
-                    <Badge variant={selectedFiles.some(f => f.name.toLowerCase().includes('gut')) ? 'success' : 'info'} size="sm">
-                      {selectedFiles.some(f => f.name.toLowerCase().includes('gut')) ? 'Uploaded' : 'Optional'}
+                    <Badge variant={selectedFiles.some(f => f.name.toLowerCase().includes('gut')) ? 'success' : 'outline'} size="sm">
+                      {selectedFiles.some(f => f.name.toLowerCase().includes('gut')) ? 'Uploaded' : 'NOT PROVIDED'}
                     </Badge>
                   </div>
                 </div>
 
                 {/* Data Quality Score Preview */}
                 <div className="p-4 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-subtle)] text-center space-y-2">
-                  <CircularProgress value={dqOverall} size={64} strokeWidth={6} variant="success" />
-                  <p className="text-xs font-mono font-bold text-[var(--text-main)]">Estimated Quality: {dqOverall}%</p>
-                  <p className="text-[10px] text-[var(--text-muted)]">Synthesizing file structure & physiological bounds.</p>
+                  {dqOverall !== null ? (
+                    <>
+                      <CircularProgress value={dqOverall} size={64} strokeWidth={6} variant="success" />
+                      <p className="text-xs font-mono font-bold text-[var(--text-main)]">Data Quality Score: {dqOverall}%</p>
+                      <p className="text-[10px] text-[var(--text-muted)] font-mono">Calculated from uploaded files.</p>
+                    </>
+                  ) : (
+                    <>
+                      <Badge variant="outline" size="sm">NOT AVAILABLE</Badge>
+                      <p className="text-xs font-mono text-[var(--text-muted)] mt-1">Upload files to calculate quality score</p>
+                    </>
+                  )}
                 </div>
               </CardBody>
             </Card>

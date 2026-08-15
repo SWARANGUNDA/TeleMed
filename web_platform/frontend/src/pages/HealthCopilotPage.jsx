@@ -78,11 +78,13 @@ export default function HealthCopilotPage({ user, session, predictionData, onNav
 
     // Generate intelligent copilot response
     setTimeout(() => {
-      let botResponse = "I've reviewed your request against your TreeSHAP biomarker drivers. Your fasting glucose (105 mg/dL) and HbA1c (5.8%) indicate strong metabolic recovery. Continuing your current low-glycemic dietary protocol and 8,500 daily steps is recommended.";
+      let botResponse = `I've reviewed your request against your active health assessment. ${predictionData ? 'Your TreeSHAP drivers indicate stable metabolic parameters.' : 'Perform your first intake assessment to calculate personalized TreeSHAP drivers and risk vectors.'}`;
       if (userText.toLowerCase().includes('report') || userText.toLowerCase().includes('explain')) {
-        botResponse = "Your diagnostic report combines 3 modalities: Clinical Laboratory PDF, Wearable HRV telemetry, and Gut Microbiome sequencing. The Hierarchical Stacking Ensemble evaluated your 90-day trajectory with 94.2% AI confidence.";
+        botResponse = "Your diagnostic report evaluates across Clinical Laboratory, Wearable telemetry, and Gut Microbiome modalities with high AI confidence.";
       } else if (userText.toLowerCase().includes('risk') || userText.toLowerCase().includes('change')) {
-        botResponse = "Your risk decreased by 4.2 percentage points over the past 90 days. TreeSHAP indicates that HbA1c reduction contributed 42% to this risk improvement.";
+        botResponse = predictionData
+          ? `Your active risk assessment for Type 2 Diabetes is evaluated at ${predictionData.disease_outcomes?.Type2_Diabetes?.risk_level || 'EVALUATED'} RISK.`
+          : "No active risk assessment found. Upload medical files to evaluate disease risk.";
       }
 
       setChatMessages(prev => [
@@ -135,14 +137,14 @@ export default function HealthCopilotPage({ user, session, predictionData, onNav
         <div className="space-y-6 animate-fade-in">
           
           {/* Top Summary Header */}
-          <HealthSummaryPanel />
+          <HealthSummaryPanel predictionData={predictionData} />
 
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
             
             {/* Left Column (3 cols) — History & Suggested Questions */}
             <div className="lg:col-span-3 space-y-6">
               <SuggestedQuestions onSelectQuestion={handleSelectPrompt} />
-              <ConversationInsights />
+              <ConversationInsights predictionData={predictionData} />
             </div>
 
             {/* Center Column (5 cols) — Chat Workspace */}
@@ -169,7 +171,7 @@ export default function HealthCopilotPage({ user, session, predictionData, onNav
                     <div key={msg.id} className={`flex flex-col ${isUser ? 'items-end' : 'items-start'}`}>
                       <div className="flex items-center gap-1.5 mb-1">
                         <span className="text-[10px] font-bold text-[var(--text-muted)]">
-                          {isUser ? (user?.name || 'Alexander') : 'TeleMed AI Copilot'}
+                          {isUser ? (user?.full_name || 'Patient') : 'TeleMed AI Copilot'}
                         </span>
                         <span className="text-[10px] font-mono text-[var(--text-muted)]">{msg.timestamp}</span>
                       </div>
@@ -215,9 +217,9 @@ export default function HealthCopilotPage({ user, session, predictionData, onNav
 
             {/* Right Column (4 cols) — Report Intelligence & SHAP Preview */}
             <div className="lg:col-span-4 space-y-6">
-              <ReportIntelligence />
-              <AssessmentAssistant />
-              <SmartInsights />
+              <ReportIntelligence predictionData={predictionData} />
+              <AssessmentAssistant predictionData={predictionData} />
+              <SmartInsights predictionData={predictionData} />
             </div>
 
           </div>
@@ -227,14 +229,14 @@ export default function HealthCopilotPage({ user, session, predictionData, onNav
       {/* TAB 2: TREESHAP EXPLAINABILITY STUDIO */}
       {activeTab === 'xai' && (
         <div className="space-y-6 animate-fade-in">
-          <ExplainabilityStudio />
+          <ExplainabilityStudio predictionData={predictionData} />
         </div>
       )}
 
       {/* TAB 3: BIOMARKER INTELLIGENCE EXPLORER */}
       {activeTab === 'biomarkers' && (
         <div className="space-y-6 animate-fade-in">
-          <BiomarkerExplorer />
+          <BiomarkerExplorer predictionData={predictionData} />
         </div>
       )}
 

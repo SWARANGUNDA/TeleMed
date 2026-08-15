@@ -2,16 +2,22 @@ import React, { useState } from 'react';
 import { Card, Badge, ProgressBar } from '../ui';
 import { ShieldCheck, Activity, Filter, Zap, Dna, FileText, Watch } from 'lucide-react';
 
-export default function ExplainabilityStudio() {
+export default function ExplainabilityStudio({ predictionData, xaiData }) {
   const [modalityFilter, setModalityFilter] = useState('ALL');
 
-  const shapDrivers = [
-    { name: 'HbA1c Glycated Hemoglobin', value: '5.8%', shapValue: '+0.142', impact: 'RISK DRIVER', modality: 'Clinical', pct: 68, variant: 'danger' },
-    { name: 'Fasting Blood Glucose', value: '105 mg/dL', shapValue: '+0.098', impact: 'RISK DRIVER', modality: 'Clinical', pct: 45, variant: 'danger' },
-    { name: 'Resting Heart Rate (RHR)', value: '64 bpm', shapValue: '-0.065', impact: 'PROTECTIVE', modality: 'Wearable', pct: 30, variant: 'success' },
-    { name: 'Heart Rate Variability (HRV)', value: '42 ms', shapValue: '-0.084', impact: 'PROTECTIVE', modality: 'Wearable', pct: 40, variant: 'success' },
-    { name: 'Bifidobacterium Abundance', value: '4.2%', shapValue: '-0.052', impact: 'PROTECTIVE', modality: 'Gut', pct: 25, variant: 'success' },
-  ];
+  const topFeatures = xaiData?.top_features || predictionData?.top_shap_features || [];
+
+  const shapDrivers = topFeatures.length > 0
+    ? topFeatures.map((f, idx) => ({
+        name: f.feature_name || f.name || `Feature ${idx + 1}`,
+        value: f.feature_value !== undefined ? `${f.feature_value}` : 'Extracted',
+        shapValue: f.shap_value ? (f.shap_value > 0 ? `+${f.shap_value.toFixed(4)}` : f.shap_value.toFixed(4)) : '0.0000',
+        impact: (f.shap_value || 0) > 0 ? 'RISK DRIVER' : 'PROTECTIVE',
+        modality: f.modality || 'Clinical',
+        pct: Math.min(Math.abs(Math.round((f.shap_value || 0.05) * 1000)), 100),
+        variant: (f.shap_value || 0) > 0 ? 'danger' : 'success'
+      }))
+    : [];
 
   const filteredDrivers = shapDrivers.filter(d => modalityFilter === 'ALL' || d.modality === modalityFilter);
 
@@ -44,26 +50,34 @@ export default function ExplainabilityStudio() {
 
       {/* SHAP Drivers List */}
       <div className="space-y-3">
-        {filteredDrivers.map((d, idx) => (
-          <div key={idx} className="p-3 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-subtle)] space-y-1.5 text-xs">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Badge variant="primary" size="sm">{d.modality}</Badge>
-                <strong className="text-xs text-[var(--text-main)]">{d.name}</strong>
+        {filteredDrivers.length > 0 ? (
+          filteredDrivers.map((d, idx) => (
+            <div key={idx} className="p-3 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-subtle)] space-y-1.5 text-xs">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Badge variant="primary" size="sm">{d.modality}</Badge>
+                  <strong className="text-xs text-[var(--text-main)]">{d.name}</strong>
+                </div>
+                <span className={`font-mono font-bold ${d.impact === 'RISK DRIVER' ? 'text-[var(--danger)]' : 'text-[var(--success)]'}`}>
+                  {d.shapValue} ({d.impact})
+                </span>
               </div>
-              <span className={`font-mono font-bold ${d.impact === 'RISK DRIVER' ? 'text-[var(--danger)]' : 'text-[var(--success)]'}`}>
-                {d.shapValue} ({d.impact})
-              </span>
-            </div>
 
-            <div className="flex justify-between text-[11px] text-[var(--text-muted)] font-mono">
-              <span>Observed Value: {d.value}</span>
-              <span>Feature Weight: {d.pct}%</span>
-            </div>
+              <div className="flex justify-between text-[11px] text-[var(--text-muted)] font-mono">
+                <span>Observed Value: {d.value}</span>
+                <span>Feature Weight: {d.pct}%</span>
+              </div>
 
-            <ProgressBar value={d.pct} max={100} variant={d.variant} />
+              <ProgressBar value={d.pct} max={100} variant={d.variant} />
+            </div>
+          ))
+        ) : (
+          <div className="p-8 text-center space-y-2 border border-dashed border-[var(--border-subtle)] rounded-xl">
+            <ShieldCheck className="w-8 h-8 text-[var(--text-muted)] mx-auto" />
+            <h4 className="text-sm font-bold text-[var(--text-main)]">No TreeSHAP Drivers Available</h4>
+            <p className="text-xs text-[var(--text-muted)]">Upload medical reports to calculate TreeSHAP feature attributions.</p>
           </div>
-        ))}
+        )}
       </div>
     </Card>
   );

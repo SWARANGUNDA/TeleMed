@@ -133,7 +133,7 @@ export default function DashboardPage({
   const outcomes = predictionData.disease_outcomes || predictionData.predictions || {};
   const pathwayUsed = predictionData.pathway_used || predictionData.effective_pathway || 'C+W+G';
   const activeMods = predictionData.active_modalities || ['clinical', 'wearable', 'gut'];
-  const dqScore = predictionData.data_quality_score || predictionData.overall_quality_score || 85.2;
+  const dqScore = predictionData.data_quality_score ? Math.round(predictionData.data_quality_score * 100) : (predictionData.overall_quality_score ? Math.round(predictionData.overall_quality_score * 100) : 100);
 
   const clinFeats = predictionData.confirmed_features?.clinical || predictionData.clinical_features || {};
   const wearFeats = predictionData.confirmed_features?.wearable || predictionData.wearable_features || {};

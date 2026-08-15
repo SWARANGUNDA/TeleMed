@@ -396,7 +396,7 @@ export default function AppointmentsPage({ user, onNavigate }) {
 
               <div className="p-3 rounded-lg bg-[var(--bg-primary)] text-xs space-y-1">
                 <p className="font-semibold text-[var(--text-main)]">Doctor Consultation Notes:</p>
-                <p className="text-[var(--text-muted)]">"Glycemic levels improving under HbA1c 5.8%. Continue prescribed lifestyle protocol."</p>
+                <p className="text-[var(--text-muted)]">"{apt.notes || 'Teleconsultation completed cleanly. Review active health assessment and continue prescribed lifestyle protocol.'}"</p>
               </div>
 
               <div className="flex justify-end gap-2 pt-2">

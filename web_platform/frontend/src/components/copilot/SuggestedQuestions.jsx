@@ -7,22 +7,22 @@ export default function SuggestedQuestions({ onSelectQuestion }) {
     {
       category: 'Understanding Report',
       questions: [
-        'What does my 18.4% risk score mean for my health?',
-        'How is my overall Health Score of 88/100 calculated?',
+        'What does my disease risk assessment mean for my overall health?',
+        'How is multimodal AI clinical risk evaluated across modalities?',
       ],
     },
     {
       category: 'Biomarkers & SHAP',
       questions: [
-        'Why is my fasting glucose (105 mg/dL) marked borderline?',
-        'How does TreeSHAP rank HbA1c as my top risk driver?',
+        'How does TreeSHAP rank key physiological risk drivers?',
+        'What are the primary biomarker contributors to metabolic risk?',
       ],
     },
     {
       category: 'Longitudinal Trends',
       questions: [
-        'How much did my risk change compared to May 2026?',
-        'What lifestyle habits drove my HbA1c down from 6.1% to 5.8%?',
+        'How is longitudinal risk progression tracked across assessments?',
+        'What lifestyle modifications can improve my metabolic risk profile?',
       ],
     },
   ];

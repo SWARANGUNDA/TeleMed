@@ -380,10 +380,10 @@ def get_user_by_id(user_id: str) -> Optional[Dict[str, Any]]:
                     "contact_number": p.contact_number,
                     "created_at": p.created_at
                 }
-                user_dict["full_name"] = p.full_name
+                user_dict["full_name"] = (p.full_name.strip() if p.full_name and p.full_name.strip() else email_clean.split("@")[0].replace(".", " ").replace("_", " ").title())
             else:
                 user_dict["patient_profile"] = None
-                user_dict["full_name"] = "Patient"
+                user_dict["full_name"] = email_clean.split("@")[0].replace(".", " ").replace("_", " ").title()
 
         elif role == "DOCTOR":
             d = session.query(pg_models.DoctorProfile).filter_by(user_id=user_id).first()
@@ -403,12 +403,12 @@ def get_user_by_id(user_id: str) -> Optional[Dict[str, Any]]:
                     "credential_notes": d.credential_notes,
                     "created_at": d.created_at
                 }
-                user_dict["full_name"] = d.full_name
+                user_dict["full_name"] = (d.full_name.strip() if d.full_name and d.full_name.strip() else email_clean.split("@")[0].replace(".", " ").replace("_", " ").title())
             else:
                 user_dict["doctor_profile"] = None
-                user_dict["full_name"] = "Doctor"
+                user_dict["full_name"] = email_clean.split("@")[0].replace(".", " ").replace("_", " ").title()
         else:
-            user_dict["full_name"] = "Administrator"
+            user_dict["full_name"] = email_clean.split("@")[0].replace(".", " ").replace("_", " ").title()
 
         return user_dict
     finally:

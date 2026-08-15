@@ -38,10 +38,7 @@ export function Topbar({ user, onLogout, onToggleTheme, theme = 'dark', onOpenMo
   const breadcrumbs = getBreadcrumbs();
 
   const [isNotificationDrawerOpen, setIsNotificationDrawerOpen] = useState(false);
-  const [drawerNotifications, setDrawerNotifications] = useState([
-    { id: '1', category: 'Appointments', title: 'Teleconsultation Tomorrow', description: 'Video call with Dr. Vance tomorrow at 10:00 AM', timestamp: '10m ago', priority: 'HIGH', isRead: false },
-    { id: '2', category: 'AI Analysis', title: 'AI Analysis Complete', description: 'Multimodal predictions calculated (34.2% Risk)', timestamp: '1h ago', priority: 'HIGH', isRead: false },
-  ]);
+  const [drawerNotifications, setDrawerNotifications] = useState([]);
 
   const unreadBadgeCount = drawerNotifications.filter(n => !n.isRead).length;
 

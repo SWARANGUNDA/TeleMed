@@ -11,7 +11,7 @@ export function AnalysisPipeline({
   errorMsg = null,
   warningMsg = null,
   pathway = 'C+W+G',
-  dqScore = 85.2,
+  dqScore = null,
   featureCounts = { clinical: 18, wearable: 15, gut: 49 },
   currentDocument = 'clinical_v4_sample.csv',
   onNavigateDashboard,

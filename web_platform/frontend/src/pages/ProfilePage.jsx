@@ -65,7 +65,7 @@ export default function ProfilePage({ user, session, predictionData, onNavigate 
       diseases: 'Type 2 Diabetes, Prediabetes, NAFLD',
       risk: `${predictionData.disease_outcomes?.Type2_Diabetes?.risk_level || 'EVALUATED'} RISK`,
       riskVariant: 'primary',
-      confidence: '94.2%',
+      confidence: 'High (V4 Stacked)',
       pathway: predictionData.effective_pathway || 'C+W+G',
     }
   ] : [];
@@ -188,7 +188,9 @@ export default function ProfilePage({ user, session, predictionData, onNavigate 
             <div className="grid grid-cols-2 gap-3 text-xs">
               <div className="p-2.5 rounded-lg bg-[var(--bg-primary)] border border-[var(--border-subtle)]">
                 <span className="text-[var(--text-muted)] block text-[10px] uppercase font-mono">DOB / Age</span>
-                <strong className="text-[var(--text-main)]">{patientInfo.dob} (42 yrs)</strong>
+                <strong className="text-[var(--text-main)]">
+                  {prof.age ? `${prof.age} yrs` : (patientInfo.dob !== 'Not Specified' ? patientInfo.dob : 'Not Specified')}
+                </strong>
               </div>
               <div className="p-2.5 rounded-lg bg-[var(--bg-primary)] border border-[var(--border-subtle)]">
                 <span className="text-[var(--text-muted)] block text-[10px] uppercase font-mono">Gender</span>
@@ -269,22 +271,34 @@ export default function ProfilePage({ user, session, predictionData, onNavigate 
             <div className="space-y-6 animate-fade-in">
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 
-                <Card isGlass={true} className="p-5 space-y-2 border-l-4 border-l-[var(--success)]">
+                <Card isGlass={true} className="p-5 space-y-2 border-l-4 border-l-[var(--primary)]">
                   <span className="text-xs font-mono text-[var(--text-muted)] uppercase">Overall Health Score</span>
-                  <div className="text-3xl font-extrabold font-mono text-[var(--success)]">88 / 100</div>
-                  <p className="text-[11px] text-[var(--text-muted)]">Optimal metabolic trajectory</p>
+                  <div className="text-2xl font-extrabold font-mono text-[var(--text-main)]">
+                    {predictionData ? `${Math.round((predictionData.data_quality_score || 0.85) * 100)} / 100` : 'NOT AVAILABLE'}
+                  </div>
+                  <p className="text-[11px] text-[var(--text-muted)]">
+                    {predictionData ? 'Based on active assessment' : 'No assessment data'}
+                  </p>
                 </Card>
 
                 <Card isGlass={true} className="p-5 space-y-2 border-l-4 border-l-[var(--warning)]">
                   <span className="text-xs font-mono text-[var(--text-muted)] uppercase">Active Disease Risk</span>
-                  <div className="text-xl font-bold text-[var(--warning)]">MODERATE RISK</div>
-                  <p className="text-[11px] text-[var(--text-muted)]">Type 2 Diabetes (34.2%)</p>
+                  <div className="text-base font-bold text-[var(--warning)]">
+                    {predictionData ? `${predictionData.disease_outcomes?.Type2_Diabetes?.risk_level || 'EVALUATED'} RISK` : 'NO ACTIVE ASSESSMENT'}
+                  </div>
+                  <p className="text-[11px] text-[var(--text-muted)]">
+                    {predictionData ? `Type 2 Diabetes (${Math.round((predictionData.disease_outcomes?.Type2_Diabetes?.calibrated_probability || predictionData.disease_outcomes?.Type2_Diabetes?.probability || 0) * 100)}%)` : 'Run intake to evaluate risk'}
+                  </p>
                 </Card>
 
-                <Card isGlass={true} className="p-5 space-y-2 border-l-4 border-l-[var(--primary)]">
-                  <span className="text-xs font-mono text-[var(--text-muted)] uppercase">Latest AI Confidence</span>
-                  <div className="text-3xl font-extrabold font-mono text-[var(--primary)]">94.2%</div>
-                  <p className="text-[11px] text-[var(--text-muted)]">Pathway: C + W + G</p>
+                <Card isGlass={true} className="p-5 space-y-2 border-l-4 border-l-[var(--accent)]">
+                  <span className="text-xs font-mono text-[var(--text-muted)] uppercase">AI Pathway</span>
+                  <div className="text-xl font-extrabold font-mono text-[var(--accent)]">
+                    {predictionData ? (predictionData.effective_pathway || 'C+W+G') : 'NOT AVAILABLE'}
+                  </div>
+                  <p className="text-[11px] text-[var(--text-muted)]">
+                    {predictionData ? `Data Quality: ${Math.round((predictionData.data_quality_score || 0.85) * 100)}%` : 'No active modality pathway'}
+                  </p>
                 </Card>
 
               </div>
@@ -296,10 +310,14 @@ export default function ProfilePage({ user, session, predictionData, onNavigate 
                     <Sparkles className="w-5 h-5 text-[var(--primary)]" />
                     <h3 className="text-base font-bold text-[var(--text-main)]">Clinical Assessment Overview</h3>
                   </div>
-                  <Badge variant="primary" size="sm">Last Sync: Aug 1, 2026</Badge>
+                  <Badge variant={predictionData ? 'primary' : 'outline'} size="sm">
+                    {predictionData ? `Pathway: ${predictionData.effective_pathway || 'C+W+G'}` : 'No Assessment Synced'}
+                  </Badge>
                 </div>
                 <p className="text-sm text-[var(--text-muted)] leading-relaxed">
-                  Your recent multimodal analysis indicates stable cardiac telemetry and normal renal parameters. Primary risk contributions stem from slightly elevated glycated hemoglobin (HbA1c: 5.8%) and reduced heart rate variability (HRV RMSSD: 28ms). Physician review recommended lifestyle modifications and short-chain fatty acid gut optimization.
+                  {predictionData
+                    ? `Multimodal intake evaluated across ${predictionData.effective_pathway || 'C+W+G'} modalities. High confidence risk vectors calculated with TreeSHAP explainability drivers ready for physician review.`
+                    : 'Complete your first assessment in the Intake Workspace to generate personalized clinical insights, disease risk predictions, and TreeSHAP explainability drivers.'}
                 </p>
               </Card>
             </div>
