@@ -380,7 +380,7 @@ def get_user_by_id(user_id: str) -> Optional[Dict[str, Any]]:
                     "contact_number": p.contact_number,
                     "created_at": p.created_at
                 }
-                user_dict["full_name"] = (p.full_name.strip() if p.full_name and p.full_name.strip() else email_clean.split("@")[0].replace(".", " ").replace("_", " ").title())
+                user_dict["full_name"] = (p.full_name.strip() if p.full_name and p.full_name.strip() and p.full_name.strip().lower() not in ["anonymous patient", "patient"] else email_clean.split("@")[0].replace(".", " ").replace("_", " ").title())
             else:
                 user_dict["patient_profile"] = None
                 user_dict["full_name"] = email_clean.split("@")[0].replace(".", " ").replace("_", " ").title()

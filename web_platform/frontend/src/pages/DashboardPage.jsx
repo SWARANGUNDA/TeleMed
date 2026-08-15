@@ -69,7 +69,7 @@ export default function DashboardPage({
     return (
       <PageContainer className="space-y-12">
         <PageHeader
-          title={`Welcome back, ${user?.full_name || 'Patient'}! 👋`}
+          title={`Welcome back, ${user?.name || user?.full_name || user?.patient_profile?.full_name || (user?.email ? user.email.split('@')[0].replace('.', ' ').replace('_', ' ') : 'Patient')}! 👋`}
           description="Personal Health Command Center & AI Multimodal Intake Workspace"
           badge={completionPct === 100 ? 'Profile 100%' : `Profile ${completionPct}%`}
           actions={
@@ -201,7 +201,7 @@ export default function DashboardPage({
     <PageContainer className="space-y-12">
       {/* 1. HERO HEADER (Height reduced ~30%, Welcome & Badge Left, CTAs Right) */}
       <PageHeader
-        title={`Welcome back, ${user?.full_name || 'Patient'}! 👋`}
+        title={`Welcome back, ${user?.name || user?.full_name || user?.patient_profile?.full_name || (user?.email ? user.email.split('@')[0].replace('.', ' ').replace('_', ' ') : 'Patient')}! 👋`}
         description="Personal Health Command Center | Multi-Disease Assessment & Risk Analytics"
         badge={`Pathway: ${pathwayUsed}`}
         actions={

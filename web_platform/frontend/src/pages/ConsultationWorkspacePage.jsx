@@ -224,7 +224,7 @@ export default function ConsultationWorkspacePage({ user, consultationContext })
               const pw = recordData?.effective_pathway || recordData?.pathway_used || 'C+W+G';
               const dq = Math.round(recordData?.data_quality_score ? (recordData.data_quality_score * 100) : (recordData?.overall_quality_score || 85));
 
-              const patientName = user?.full_name || 'Patient';
+              const patientName = user?.name || user?.full_name || user?.patient_profile?.full_name || (user?.email ? user.email.split('@')[0].replace('.', ' ').replace('_', ' ') : 'Patient');
               const patientId = user?.user_id || activeConsultation?.patient_id || 'P_PATIENT';
 
               return (

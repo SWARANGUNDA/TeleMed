@@ -90,7 +90,7 @@ export default function MessagesPage({ user }) {
     const newMsg = {
       id: `MSG-${Date.now()}`,
       sender: 'PATIENT',
-      senderName: user?.full_name || 'Patient',
+      senderName: user?.name || user?.full_name || user?.patient_profile?.full_name || (user?.email ? user.email.split('@')[0].replace('.', ' ').replace('_', ' ') : 'Patient'),
       text: messageInput.trim(),
       timestamp: 'Just now',
       status: 'SENT',

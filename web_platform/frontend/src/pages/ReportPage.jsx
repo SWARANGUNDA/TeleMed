@@ -123,7 +123,7 @@ export default function ReportPage({ user, session, predictionData, onDiscussWit
     );
   }
 
-  const patientName = user?.full_name || 'Patient';
+  const patientName = user?.name || user?.full_name || user?.patient_profile?.full_name || (user?.email ? user.email.split('@')[0].replace('.', ' ').replace('_', ' ') : 'Patient');
   const patientId = user?.user_id || session?.session_id || predictionData?.patient_id || 'P_PATIENT';
   const pathwayUsed = predictionData?.effective_pathway || predictionData?.pathway_used || 'C+W+G';
   const dqScore = Math.round(predictionData?.data_quality_score ? (predictionData.data_quality_score * 100) : (predictionData?.overall_quality_score || 85));

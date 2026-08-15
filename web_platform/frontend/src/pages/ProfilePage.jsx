@@ -18,7 +18,7 @@ export default function ProfilePage({ user, session, predictionData, onNavigate 
   const prof = user?.patient_profile || {};
 
   const patientInfo = {
-    fullName: user?.full_name || prof.full_name || 'Patient',
+    fullName: user?.name || user?.full_name || prof.full_name || (user?.email ? user.email.split('@')[0].replace('.', ' ').replace('_', ' ') : 'Patient'),
     patientId: user?.user_id || prof.patient_id || 'P_PATIENT',
     email: user?.email || 'Not Provided',
     phone: prof.contact_number || 'Not Specified',

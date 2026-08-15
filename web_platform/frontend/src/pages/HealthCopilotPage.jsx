@@ -27,7 +27,7 @@ export default function HealthCopilotPage({ user, session, predictionData, onNav
   const [chatInput, setChatInput] = useState('');
   const [copiedId, setCopiedId] = useState(null);
 
-  const userName = user?.full_name || 'Patient';
+  const userName = user?.name || user?.full_name || user?.patient_profile?.full_name || (user?.email ? user.email.split('@')[0].replace('.', ' ').replace('_', ' ') : 'Patient');
   const pathwayUsed = predictionData?.effective_pathway || predictionData?.pathway_used || 'C+W+G';
 
   const [chatMessages, setChatMessages] = useState([
