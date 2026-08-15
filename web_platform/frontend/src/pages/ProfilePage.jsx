@@ -15,103 +15,60 @@ export default function ProfilePage({ user, session, predictionData, onNavigate 
   const [historySearchQuery, setHistorySearchQuery] = useState('');
 
   // Editable Patient Info State
-  const [patientInfo, setPatientInfo] = useState({
-    fullName: user?.name || 'Alexander Wright',
-    patientId: user?.id ? `PAT-${user.id}` : 'PAT-2026-8819',
-    email: user?.email || 'alexander.wright@healthmail.com',
-    phone: '+1 (555) 234-5678',
-    dob: '1984-06-15',
-    gender: 'Male',
-    height: '178 cm',
-    weight: '76 kg',
-    bmi: '24.0 (Normal)',
-    bloodGroup: 'O Positive (O+)',
-    emergencyContact: 'Sarah Wright (Spouse) - +1 (555) 987-6543',
-    completionRate: 85,
-  });
+  const prof = user?.patient_profile || {};
 
-  // Health Snapshot Vitals Data
-  const healthSnapshot = [
-    { label: 'Blood Pressure', value: '122/80 mmHg', status: 'Optimal', variant: 'success', icon: Heart },
-    { label: 'Fasting Glucose', value: '105 mg/dL', status: 'Slightly Elevated', variant: 'warning', icon: Activity },
-    { label: 'HbA1c', value: '5.8 %', status: 'Pre-diabetic Zone', variant: 'warning', icon: Activity },
-    { label: 'Total Cholesterol', value: '192 mg/dL', status: 'Desirable', variant: 'success', icon: Heart },
-    { label: 'BMI', value: '24.0 kg/m²', status: 'Healthy Weight', variant: 'success', icon: User },
-    { label: 'Resting Heart Rate', value: '68 bpm', status: 'Optimal', variant: 'success', icon: Watch },
-    { label: 'Sleep Efficiency', value: '86.4 %', status: 'Good', variant: 'success', icon: Watch },
-    { label: 'Daily Step Count', value: '8,420 steps', status: 'Active Target', variant: 'primary', icon: Watch },
-  ];
+  const patientInfo = {
+    fullName: user?.full_name || prof.full_name || 'Patient',
+    patientId: user?.user_id || prof.patient_id || 'P_PATIENT',
+    email: user?.email || 'Not Provided',
+    phone: prof.contact_number || 'Not Specified',
+    dob: prof.dob || 'Not Specified',
+    gender: prof.gender || 'Not Specified',
+    height: prof.height_cm ? `${prof.height_cm} cm` : 'Not Specified',
+    weight: prof.weight_kg ? `${prof.weight_kg} kg` : 'Not Specified',
+    bmi: (prof.height_cm && prof.weight_kg)
+      ? `${(prof.weight_kg / Math.pow(prof.height_cm / 100, 2)).toFixed(1)}`
+      : 'Not Specified',
+    bloodGroup: prof.blood_group || 'Not Specified',
+    emergencyContact: prof.emergency_contact || 'Not Specified',
+  };
 
-  // Health Timeline Events
-  const timelineEvents = [
+  // Health Snapshot Vitals Data derived from predictionData
+  const clinFeats = predictionData?.confirmed_features?.clinical || predictionData?.clinical_features || {};
+  const wearFeats = predictionData?.confirmed_features?.wearable || predictionData?.wearable_features || {};
+  
+  const healthSnapshot = predictionData ? [
+    { label: 'Fasting Glucose', value: clinFeats.Fasting_Blood_Glucose ? `${clinFeats.Fasting_Blood_Glucose} mg/dL` : 'Not Measured', status: 'Active', variant: 'primary', icon: Activity },
+    { label: 'HbA1c', value: clinFeats.HbA1c ? `${clinFeats.HbA1c} %` : 'Not Measured', status: 'Active', variant: 'primary', icon: Activity },
+    { label: 'Blood Pressure', value: (clinFeats.Systolic_BP && clinFeats.Diastolic_BP) ? `${clinFeats.Systolic_BP}/${clinFeats.Diastolic_BP} mmHg` : 'Not Measured', status: 'Active', variant: 'primary', icon: Heart },
+    { label: 'BMI', value: clinFeats.BMI ? `${clinFeats.BMI} kg/m²` : 'Not Measured', status: 'Active', variant: 'primary', icon: User },
+    { label: 'Resting Heart Rate', value: wearFeats.Resting_Heart_Rate ? `${wearFeats.Resting_Heart_Rate} bpm` : 'Not Measured', status: 'Active', variant: 'primary', icon: Watch },
+    { label: 'Sleep Duration', value: wearFeats.Total_Sleep_Duration_Hours ? `${wearFeats.Total_Sleep_Duration_Hours} hrs` : 'Not Measured', status: 'Active', variant: 'primary', icon: Watch },
+  ] : [];
+
+  const timelineEvents = predictionData ? [
     {
       id: 'evt-1',
-      date: '2026-08-01 14:30',
-      title: 'Multimodal AI Disease Analysis Executed',
+      date: new Date().toLocaleString(),
+      title: 'Multimodal AI Disease Assessment Executed',
       category: 'AI Analysis',
-      desc: 'Hierarchical ensemble evaluated Clinical, Wearable, and Gut Microbiome signals. Overall risk probability score: 34.2%.',
+      desc: `Evaluated across ${predictionData.effective_pathway || 'C+W+G'} modalities. Data quality score: ${Math.round(predictionData.data_quality_score ? predictionData.data_quality_score * 100 : 85)}%.`,
       icon: Sparkles,
       color: 'text-[var(--primary)]',
-    },
-    {
-      id: 'evt-2',
-      date: '2026-07-28 11:15',
-      title: 'Physician Consultation Finalized',
-      category: 'Doctor Review',
-      desc: 'Dr. Marcus Vance reviewed TreeSHAP biomarker drivers and signed off on glycemic lifestyle recommendations.',
-      icon: ShieldCheck,
-      color: 'text-[var(--secondary)]',
-    },
-    {
-      id: 'evt-3',
-      date: '2026-07-25 09:00',
-      title: 'Laboratory Diagnostic PDF Uploaded',
-      category: 'Document Upload',
-      desc: 'Quest Diagnostics Comprehensive Metabolic Panel (CMP) parsed via hybrid Tesseract OCR engine (22 variables extracted).',
-      icon: FileText,
-      color: 'text-[var(--accent)]',
-    },
-    {
-      id: 'evt-4',
-      date: '2026-07-20 18:45',
-      title: 'Wearable Telemetry Sync Completed',
-      category: 'Wearable Sync',
-      desc: '15-dimensional continuous sensor telemetry metrics synced (RHR, HRV RMSSD, Circadian Sleep Fragmentation).',
-      icon: Watch,
-      color: 'text-amber-500',
-    },
-  ];
+    }
+  ] : [];
 
-  // Assessment History Records
-  const assessmentHistory = [
+  const assessmentHistory = predictionData ? [
     {
-      id: 'ASM-2026-8819',
-      date: '2026-08-01',
-      diseases: 'Type 2 Diabetes, Metabolic Dysbiosis',
-      risk: 'MODERATE RISK (34.2%)',
-      riskVariant: 'warning',
+      id: session?.session_id || predictionData?.patient_id || 'ACTIVE_ASSESSMENT',
+      date: new Date().toISOString().split('T')[0],
+      diseases: 'Type 2 Diabetes, Prediabetes, NAFLD',
+      risk: `${predictionData.disease_outcomes?.Type2_Diabetes?.risk_level || 'EVALUATED'} RISK`,
+      riskVariant: 'primary',
       confidence: '94.2%',
-      pathway: 'C + W + G',
-    },
-    {
-      id: 'ASM-2026-7412',
-      date: '2026-06-14',
-      diseases: 'Type 2 Diabetes',
-      risk: 'LOW RISK (18.5%)',
-      riskVariant: 'success',
-      confidence: '92.8%',
-      pathway: 'Clinical + Wearable',
-    },
-    {
-      id: 'ASM-2026-5201',
-      date: '2026-04-02',
-      diseases: 'Type 2 Diabetes, Cardiopulmonary',
-      risk: 'HIGH RISK (68.0%)',
-      riskVariant: 'danger',
-      confidence: '96.1%',
-      pathway: 'Clinical Only',
-    },
-  ];
+      pathway: predictionData.effective_pathway || 'C+W+G',
+    }
+  ] : [];
 
   const filteredHistory = assessmentHistory.filter((item) =>
     item.id.toLowerCase().includes(historySearchQuery.toLowerCase()) ||

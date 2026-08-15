@@ -93,7 +93,8 @@ export default function AppointmentsPage({ user, onNavigate }) {
     return matchesSearch && matchesSpec;
   });
 
-  const todayAppointments = appointments.filter(a => a.isToday || a.date === '2026-08-03');
+  const todayStr = new Date().toISOString().split('T')[0];
+  const todayAppointments = appointments.filter(a => a.isToday || a.date === todayStr);
   const upcomingAppointments = appointments.filter(a => a.status === 'UPCOMING' || a.status === 'CONFIRMED');
   const pastAppointments = appointments.filter(a => a.status === 'COMPLETED');
   const cancelledAppointments = appointments.filter(a => a.status === 'CANCELLED');
@@ -412,7 +413,7 @@ export default function AppointmentsPage({ user, onNavigate }) {
       <AppointmentBookingModal
         isOpen={showBookModal}
         onClose={() => setShowBookModal(false)}
-        doctors={doctorDirectory}
+        doctors={doctorsList}
         consultations={consultations}
         onBook={handleBookAppointment}
         isLoading={bookingLoading}

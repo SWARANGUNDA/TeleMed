@@ -225,6 +225,8 @@ export default function ConsultationWorkspacePage({ user, consultationContext })
           {/* Patient Overview Header Card */}
           <Card isGlass={true} className="p-6 bg-gradient-to-r from-[var(--bg-surface)] to-[var(--bg-primary)] space-y-4">
             {(() => {
+              const activeConsultation = selectedConsultation || consultations[0];
+              const recordData = activeConsultation?.shared_record || (healthRecords.length > 0 ? healthRecords[0] : null);
               const recPreds = recordData?.prediction_snapshot?.predictions || recordData?.predictions || {};
               const sorted = Object.keys(recPreds).map(k => {
                 const item = recPreds[k] || {};
@@ -237,14 +239,17 @@ export default function ConsultationWorkspacePage({ user, consultationContext })
               const pw = recordData?.effective_pathway || recordData?.pathway_used || 'C+W+G';
               const dq = Math.round(recordData?.data_quality_score ? (recordData.data_quality_score * 100) : (recordData?.overall_quality_score || 85));
 
+              const patientName = user?.full_name || 'Patient';
+              const patientId = user?.user_id || activeConsultation?.patient_id || 'P_PATIENT';
+
               return (
                 <>
                   <div className="flex items-start justify-between flex-wrap gap-4">
                     <div className="flex items-center gap-3">
-                      <Avatar name={user?.full_name || 'John Doe'} size="lg" />
+                      <Avatar name={patientName} size="lg" />
                       <div>
-                        <h3 className="text-base font-extrabold text-[var(--text-main)]">{user?.full_name || 'John Doe'}</h3>
-                        <p className="text-xs text-[var(--text-muted)]">Patient ID: {activeConsultation?.consultation_id || 'P_USER_001'} • Male, 45 yrs</p>
+                        <h3 className="text-base font-extrabold text-[var(--text-main)]">{patientName}</h3>
+                        <p className="text-xs text-[var(--text-muted)]">Patient ID: {patientId}</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-2">

@@ -291,6 +291,13 @@ export default function App() {
   }, [xaiData]);
 
   const handleLoginSuccess = (user) => {
+    // Clear stale session/prediction data from previous user
+    sessionStorage.removeItem('telemed_session');
+    sessionStorage.removeItem('telemed_pred');
+    sessionStorage.removeItem('telemed_xai');
+    setSession(null);
+    setPredictionData(null);
+    setXaiData(null);
     setCurrentUser(user);
     const targetPath = getPathFromNav('dashboard', '', user.role);
     navigate(targetPath);
@@ -528,7 +535,8 @@ export default function App() {
             <Route path="/consultations" element={
               <ProtectedRoute currentUser={currentUser} authChecking={authChecking} allowedRoles={['PATIENT', 'DOCTOR']}>
                 <ConsultationWorkspacePage
-                  currentUser={currentUser}
+                  user={currentUser}
+                  predictionData={predictionData}
                   initialContext={consultationContext}
                   onNavigate={handleNavigate}
                 />
@@ -537,7 +545,7 @@ export default function App() {
 
             <Route path="/appointments" element={
               <ProtectedRoute currentUser={currentUser} authChecking={authChecking} allowedRoles={['PATIENT', 'DOCTOR']}>
-                <AppointmentsPage currentUser={currentUser} onNavigate={handleNavigate} />
+                <AppointmentsPage user={currentUser} onNavigate={handleNavigate} />
               </ProtectedRoute>
             } />
 
@@ -548,6 +556,7 @@ export default function App() {
                   session={session}
                   predictionData={predictionData}
                   onNavigate={handleNavigate}
+                  refreshCurrentUser={refreshCurrentUser}
                 />
               </ProtectedRoute>
             } />
@@ -565,7 +574,7 @@ export default function App() {
 
             <Route path="/notifications" element={
               <ProtectedRoute currentUser={currentUser} authChecking={authChecking} allowedRoles={['PATIENT', 'DOCTOR', 'ADMIN']}>
-                <NotificationsPage user={currentUser} />
+                <NotificationsPage user={currentUser} predictionData={predictionData} />
               </ProtectedRoute>
             } />
 
@@ -577,13 +586,14 @@ export default function App() {
 
             <Route path="/copilot" element={
               <ProtectedRoute currentUser={currentUser} authChecking={authChecking} allowedRoles={['PATIENT']}>
-                <HealthCopilotPage user={currentUser} />
+                <HealthCopilotPage user={currentUser} session={session} predictionData={predictionData} onNavigate={handleNavigate} />
               </ProtectedRoute>
             } />
 
             <Route path="/care" element={
               <ProtectedRoute currentUser={currentUser} authChecking={authChecking} allowedRoles={['PATIENT']}>
                 <CarePage
+                  user={currentUser}
                   predictionData={predictionData}
                   onNavigate={handleNavigate}
                 />

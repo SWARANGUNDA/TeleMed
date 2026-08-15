@@ -1,95 +1,84 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { PageHeader, PageContainer } from '../components/layout';
 import { Card, Badge, Button, Input, TextArea, EmptyState } from '../components/ui';
 import {
   MessageSquare, Send, Paperclip, Search, CheckCheck, UserCheck, ShieldCheck,
-  FileText, Pin, Clock, Phone, Video, MoreVertical, Circle
+  FileText, Pin, Clock, Phone, Video, MoreVertical, Circle, RefreshCw
 } from 'lucide-react';
+import { fetchPatientConsultations } from '../api/client';
 
 export default function MessagesPage({ user }) {
-  const [selectedConversationId, setSelectedConversationId] = useState('CONV-101');
+  const [selectedConversationId, setSelectedConversationId] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [messageInput, setMessageInput] = useState('');
+  const [conversations, setConversations] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  // Active Patient ↔ Doctor Conversations
-  const [conversations, setConversations] = useState([
-    {
-      id: 'CONV-101',
-      doctorName: 'Dr. Marcus Vance, MD',
-      specialty: 'Endocrinology',
-      hospital: 'Apex Medical Center',
-      avatar: 'MV',
-      isOnline: true,
-      lastMessage: 'Please ensure you continue monitoring morning fasting glucose levels before our call.',
-      lastMessageTime: '10:45 AM',
-      unreadCount: 1,
-      pinned: true,
-    },
-    {
-      id: 'CONV-102',
-      doctorName: 'Dr. Sarah Jenkins, MD',
-      specialty: 'Cardiology',
-      hospital: 'Silicon Valley Heart Institute',
-      avatar: 'SJ',
-      isOnline: false,
-      lastMessage: 'Your HRV telemetry trend looks very promising after the sleep adjustments.',
-      lastMessageTime: 'Yesterday',
-      unreadCount: 0,
-      pinned: false,
-    },
-    {
-      id: 'CONV-103',
-      doctorName: 'Dr. Aris Thorne, PhD',
-      specialty: 'Gastroenterology',
-      hospital: 'Metabolic & Microbiome Center',
-      avatar: 'AT',
-      isOnline: true,
-      lastMessage: 'Microbiome SCFA sequencing results have been attached to your health vault.',
-      lastMessageTime: 'Jul 28',
-      unreadCount: 0,
-      pinned: false,
-    },
-  ]);
+  useEffect(() => {
+    async function loadConsults() {
+      setLoading(true);
+      try {
+        const res = await fetchPatientConsultations();
+        const consults = res?.consultations || [];
+        const formatted = consults.map(c => ({
+          id: c.consultation_id,
+          doctorName: c.doctor?.full_name || 'Assigned Specialist',
+          specialty: c.doctor?.specialization || 'Metabolic Specialist',
+          hospital: c.doctor?.hospital_affiliation || 'TeleMed Hospital Network',
+          avatar: 'DOC',
+          isOnline: true,
+          lastMessage: c.reason_for_consultation || 'Consultation thread initialized.',
+          lastMessageTime: c.created_at ? new Date(c.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Today',
+          unreadCount: 0,
+          pinned: false,
+        }));
+        setConversations(formatted);
+        if (formatted.length > 0) {
+          setSelectedConversationId(formatted[0].id);
+        }
+      } catch (e) {
+        setConversations([]);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadConsults();
+  }, [user]);
 
-  // Chat Messages History for Selected Conversation
-  const [messagesHistory, setMessagesHistory] = useState({
-    'CONV-101': [
-      {
-        id: 'MSG-1',
-        sender: 'DOCTOR',
-        senderName: 'Dr. Marcus Vance, MD',
-        text: 'Hello Alexander, I reviewed your latest multimodal intake report (ASM-2026-8819). Your TreeSHAP glycemic drivers show great response to dietary adjustments.',
-        timestamp: '10:30 AM',
-        status: 'READ',
-      },
-      {
-        id: 'MSG-2',
-        sender: 'PATIENT',
-        senderName: 'Alexander Wright',
-        text: 'Thank you Dr. Vance! My morning fasting glucose was down to 105 mg/dL today. Should I maintain the current protocol?',
-        timestamp: '10:38 AM',
-        status: 'READ',
-      },
-      {
-        id: 'MSG-3',
-        sender: 'DOCTOR',
-        senderName: 'Dr. Marcus Vance, MD',
-        text: 'Yes, please ensure you continue monitoring morning fasting glucose levels before our call tomorrow.',
-        timestamp: '10:45 AM',
-        status: 'READ',
-      },
-    ],
-    'CONV-102': [
-      {
-        id: 'MSG-10',
-        sender: 'DOCTOR',
-        senderName: 'Dr. Sarah Jenkins, MD',
-        text: 'Your HRV telemetry trend looks very promising after the sleep adjustments.',
-        timestamp: 'Yesterday',
-        status: 'READ',
-      },
-    ],
-  });
+  if (loading) {
+    return (
+      <PageContainer className="space-y-8 py-6">
+        <PageHeader
+          title="Secure Telemedicine Messaging"
+          description="End-to-end encrypted messaging with your assigned metabolic and clinical specialists"
+          badge="Encrypted Channel"
+        />
+        <Card isGlass={true} className="p-8 text-center space-y-4">
+          <RefreshCw className="w-8 h-8 text-[var(--primary)] animate-spin mx-auto" />
+          <p className="text-xs text-[var(--text-muted)]">Loading secure consultation messages...</p>
+        </Card>
+      </PageContainer>
+    );
+  }
+
+  if (conversations.length === 0) {
+    return (
+      <PageContainer className="space-y-8 py-6">
+        <PageHeader
+          title="Secure Telemedicine Messaging"
+          description="End-to-end encrypted messaging with your assigned metabolic and clinical specialists"
+          badge="Encrypted Channel"
+        />
+        <Card isGlass={true} className="p-8 text-center space-y-4">
+          <MessageSquare className="w-12 h-12 text-[var(--primary)] mx-auto" />
+          <h3 className="text-lg font-bold text-[var(--text-main)]">No Active Consultation Messages</h3>
+          <p className="text-xs text-[var(--text-muted)] max-w-md mx-auto">
+            You do not have any open consultation threads. Request a specialist consultation to start secure end-to-end encrypted messaging.
+          </p>
+        </Card>
+      </PageContainer>
+    );
+  }
 
   const activeConv = conversations.find(c => c.id === selectedConversationId) || conversations[0];
   const activeMessages = messagesHistory[selectedConversationId] || [];
@@ -101,7 +90,7 @@ export default function MessagesPage({ user }) {
     const newMsg = {
       id: `MSG-${Date.now()}`,
       sender: 'PATIENT',
-      senderName: user?.name || 'Alexander Wright',
+      senderName: user?.full_name || 'Patient',
       text: messageInput.trim(),
       timestamp: 'Just now',
       status: 'SENT',

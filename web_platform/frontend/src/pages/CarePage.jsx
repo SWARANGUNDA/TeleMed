@@ -1,8 +1,32 @@
 import React from 'react';
 import { Calendar, Bot, ShieldAlert, UserCheck, MessageSquare, Sparkles } from 'lucide-react';
+import { PageContainer, PageHeader } from '../components/layout';
+import { Card, Badge, Button, EmptyState } from '../components/ui';
 
-export default function CarePage({ activeSubNav }) {
+export default function CarePage({ user, predictionData, onNavigate, activeSubNav }) {
   const isAppointments = activeSubNav === 'appointments';
+
+  if (!predictionData) {
+    return (
+      <PageContainer className="space-y-8">
+        <PageHeader
+          title="Personalized Care & Clinical Guidelines"
+          description="Evidence-grounded management recommendations derived from active health assessment"
+          badge="Care Workspace"
+        />
+        <Card isGlass={true} className="p-8 text-center space-y-4">
+          <Bot className="w-12 h-12 text-[var(--primary)] mx-auto" />
+          <h3 className="text-lg font-bold text-[var(--text-main)]">No Active Health Assessment Found</h3>
+          <p className="text-xs text-[var(--text-muted)] max-w-md mx-auto">
+            Run a health assessment in the Intake Workspace to view personalized care guidelines and clinical recommendations.
+          </p>
+          <Button variant="primary" size="md" onClick={() => onNavigate ? onNavigate('analysis') : null}>
+            Start New Assessment →
+          </Button>
+        </Card>
+      </PageContainer>
+    );
+  }
 
   return (
     <div className="page-container">

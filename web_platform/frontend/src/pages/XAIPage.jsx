@@ -116,7 +116,7 @@ export default function XAIPage({ session, predictionData, xaiData, setXaiData, 
 
   // Derive prediction meta for active disease
   const diseaseOutcome = predictionData?.disease_outcomes?.[selectedDisease] || predictionData?.predictions?.[selectedDisease] || {};
-  const probVal = diseaseOutcome.probability !== undefined ? diseaseOutcome.probability : 0.68;
+  const probVal = diseaseOutcome.probability !== undefined ? diseaseOutcome.probability : (diseaseOutcome.calibrated_probability !== undefined ? diseaseOutcome.calibrated_probability : 0);
   const probPct = Math.round(probVal * 100);
   const riskLvl = diseaseOutcome.risk_level || (probPct >= 60 ? 'High' : probPct >= 30 ? 'Moderate' : 'Low');
 
@@ -127,6 +127,28 @@ export default function XAIPage({ session, predictionData, xaiData, setXaiData, 
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
+
+  if (!predictionData) {
+    return (
+      <PageContainer className="space-y-8">
+        <PageHeader
+          title="TreeSHAP Explainability Workspace"
+          description="Directional Feature Attributions, Model Attribution Matrices & Clinical Explainability"
+          badge="Explainability Engine"
+        />
+        <Card isGlass={true} className="p-8 text-center space-y-4">
+          <Brain className="w-12 h-12 text-[var(--primary)] mx-auto" />
+          <h3 className="text-lg font-bold text-[var(--text-main)]">No Active Health Assessment Found</h3>
+          <p className="text-xs text-[var(--text-muted)] max-w-md mx-auto">
+            Please run a multimodal health assessment in the Intake Workspace to generate TreeSHAP explainability drivers.
+          </p>
+          <Button variant="primary" size="md" onClick={() => onNavigateReport ? onNavigateReport() : null}>
+            Start New Assessment →
+          </Button>
+        </Card>
+      </PageContainer>
+    );
+  }
 
   return (
     <PageContainer className="space-y-12">

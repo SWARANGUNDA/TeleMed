@@ -1,57 +1,85 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { PageHeader, PageContainer, ContentSection } from '../components/layout';
-import { Card, Badge, Button, ProgressBar, Tabs, Table } from '../components/ui';
+import { Card, Badge, Button, ProgressBar, Tabs, Table, EmptyState } from '../components/ui';
 import {
   TrendingUp, TrendingDown, ArrowRight, Printer, Download, FileText,
   Calendar, CheckCircle2, AlertCircle, Activity, Heart, Watch, Dna,
-  Sparkles, Sliders, RefreshCw, BarChart3, ChevronRight, ShieldCheck
+  Sparkles, Sliders, RefreshCw, BarChart3, ChevronRight, ShieldCheck, GitCompare
 } from 'lucide-react';
+import { fetchPatientRecords } from '../api/client';
 
 export default function CompareAssessmentsPage({ user, session, predictionData, onNavigate }) {
   const [activeTab, setActiveTab] = useState('comparison');
   const [timeRange, setTimeRange] = useState('6M');
-  const [selectedAssessmentA, setSelectedAssessmentA] = useState('ASM-2026-8819');
-  const [selectedAssessmentB, setSelectedAssessmentB] = useState('ASM-2026-5201');
+  const [records, setRecords] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  // Available Assessments for Selection
-  const assessmentOptions = [
-    {
-      id: 'ASM-2026-8819',
-      date: '2026-08-01',
-      label: 'Aug 01, 2026 (Latest - C+W+G)',
-      score: 88,
-      risk: 'MODERATE (34.2%)',
-      riskLevel: 'MODERATE',
-      pathway: 'Clinical + Wearable + Gut',
-      quality: '96.0%',
-      confidence: '94.2%',
-    },
-    {
-      id: 'ASM-2026-7412',
-      date: '2026-06-14',
-      label: 'Jun 14, 2026 (Mid-year - C+W)',
-      score: 79,
-      risk: 'LOW (18.5%)',
-      riskLevel: 'LOW',
-      pathway: 'Clinical + Wearable',
-      quality: '92.5%',
-      confidence: '92.8%',
-    },
-    {
-      id: 'ASM-2026-5201',
-      date: '2026-04-02',
-      label: 'Apr 02, 2026 (Baseline - Clinical Only)',
-      score: 62,
-      risk: 'HIGH (68.0%)',
-      riskLevel: 'HIGH',
-      pathway: 'Clinical Only',
-      quality: '88.0%',
-      confidence: '96.1%',
-    },
-  ];
+  useEffect(() => {
+    async function loadHistory() {
+      try {
+        const res = await fetchPatientRecords();
+        setRecords(res?.records || []);
+      } catch (e) {
+        setRecords([]);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadHistory();
+  }, [user]);
 
-  const assA = assessmentOptions.find(a => a.id === selectedAssessmentA) || assessmentOptions[0];
-  const assB = assessmentOptions.find(a => a.id === selectedAssessmentB) || assessmentOptions[2];
+  if (loading) {
+    return (
+      <PageContainer className="space-y-8 py-6">
+        <PageHeader
+          title="Longitudinal Assessment Comparison"
+          description="Side-by-side comparative analysis of historical health assessments"
+          badge="Longitudinal Analytics"
+        />
+        <Card isGlass={true} className="p-8 text-center space-y-4">
+          <RefreshCw className="w-8 h-8 text-[var(--primary)] animate-spin mx-auto" />
+          <p className="text-xs text-[var(--text-muted)]">Loading historical assessment records...</p>
+        </Card>
+      </PageContainer>
+    );
+  }
+
+  if (records.length < 2) {
+    return (
+      <PageContainer className="space-y-8 py-6">
+        <PageHeader
+          title="Longitudinal Assessment Comparison"
+          description="Side-by-side comparative analysis of historical health assessments"
+          badge="Longitudinal Analytics"
+        />
+        <Card isGlass={true} className="p-8 text-center space-y-4">
+          <GitCompare className="w-12 h-12 text-[var(--primary)] mx-auto" />
+          <h3 className="text-lg font-bold text-[var(--text-main)]">Insufficient Assessment History for Comparison</h3>
+          <p className="text-xs text-[var(--text-muted)] max-w-md mx-auto">
+            Longitudinal comparison requires at least 2 saved health assessments. Perform another analysis in the Intake Workspace to track your health progress over time.
+          </p>
+          <Button variant="primary" size="md" onClick={() => onNavigate ? onNavigate('analysis') : null}>
+            Start New Assessment →
+          </Button>
+        </Card>
+      </PageContainer>
+    );
+  }
+
+  const assessmentOptions = records.map((r, idx) => ({
+    id: r.record_id || `ASM-${idx}`,
+    date: r.created_at ? new Date(r.created_at).toISOString().split('T')[0] : 'N/A',
+    label: `${r.created_at ? new Date(r.created_at).toLocaleDateString() : 'Assessment'} (${r.effective_pathway || 'C+W+G'})`,
+    score: Math.round(r.data_quality_score ? r.data_quality_score * 100 : 85),
+    risk: r.prediction_snapshot?.disease_outcomes?.Type2_Diabetes?.risk_level || 'LOW',
+    riskLevel: r.prediction_snapshot?.disease_outcomes?.Type2_Diabetes?.risk_level || 'LOW',
+    pathway: r.effective_pathway || 'C+W+G',
+    quality: `${Math.round(r.data_quality_score ? r.data_quality_score * 100 : 85)}%`,
+    confidence: '94.2%',
+  }));
+
+  const assA = assessmentOptions[0] || {};
+  const assB = assessmentOptions[1] || assessmentOptions[0] || {};
 
   // Biomarkers Comparison Data (Current vs Previous)
   const biomarkerComparison = [

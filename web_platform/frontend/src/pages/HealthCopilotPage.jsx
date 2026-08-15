@@ -22,19 +22,44 @@ import SuggestedQuestions from '../components/copilot/SuggestedQuestions';
 import KnowledgePanel from '../components/copilot/KnowledgePanel';
 import ConversationInsights from '../components/copilot/ConversationInsights';
 
-export default function HealthCopilotPage({ user }) {
+export default function HealthCopilotPage({ user, session, predictionData, onNavigate }) {
   const [activeTab, setActiveTab] = useState('copilot'); // 'copilot', 'xai', 'biomarkers', 'comparison', 'knowledge'
   const [chatInput, setChatInput] = useState('');
   const [copiedId, setCopiedId] = useState(null);
+
+  const userName = user?.full_name || 'Patient';
+  const pathwayUsed = predictionData?.effective_pathway || predictionData?.pathway_used || 'C+W+G';
 
   const [chatMessages, setChatMessages] = useState([
     {
       id: 'MSG-1',
       sender: 'COPILOT',
-      text: 'Hello Alexander! I am your TeleMed AI Health Copilot. I have analyzed your latest multimodal assessment (ASM-2026-8819). Your overall Health Score is 88/100, and your HbA1c has improved to 5.8%. How can I help you today?',
+      text: `Hello ${userName}! I am your TeleMed AI Health Copilot. I have analyzed your active multimodal health assessment (Pathway: ${pathwayUsed}). How can I assist you today with your report or diagnostic findings?`,
       timestamp: '10:00 AM',
     },
   ]);
+
+  if (!predictionData) {
+    return (
+      <PageContainer className="space-y-8 py-6">
+        <PageHeader
+          title="Conversational AI Report Assistant & XAI Studio"
+          description="Conversational clinical assistant integrated with TreeSHAP explainability, biomarker exploration, and longitudinal comparison"
+          badge="Copilot AI Clinical Assistant"
+        />
+        <Card isGlass={true} className="p-8 text-center space-y-4">
+          <Bot className="w-12 h-12 text-[var(--primary)] mx-auto" />
+          <h3 className="text-lg font-bold text-[var(--text-main)]">No Active Health Assessment Found</h3>
+          <p className="text-xs text-[var(--text-muted)] max-w-md mx-auto">
+            Please run a multimodal health assessment in the Intake Workspace to activate your AI Health Copilot.
+          </p>
+          <Button variant="primary" size="md" onClick={() => onNavigate ? onNavigate('analysis') : null}>
+            Start New Assessment →
+          </Button>
+        </Card>
+      </PageContainer>
+    );
+  }
 
   const handleSendMessage = (e) => {
     e.preventDefault();

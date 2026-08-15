@@ -6,58 +6,36 @@ import {
   ShieldAlert, Settings, Clock, Filter, Check, ShieldCheck, Mail, Send
 } from 'lucide-react';
 
-export default function NotificationsPage({ user }) {
+export default function NotificationsPage({ user, predictionData }) {
   const [activeTab, setActiveTab] = useState('all');
   const [categoryFilter, setCategoryFilter] = useState('ALL');
 
-  // Initial Notifications Data
-  const [notificationsList, setNotificationsList] = useState([
-    {
-      id: 'NOT-101',
-      category: 'Appointments',
-      title: 'Teleconsultation Tomorrow',
-      description: 'Your scheduled video consultation with Dr. Marcus Vance, MD is tomorrow at 10:00 AM.',
-      timestamp: '10 minutes ago',
-      priority: 'HIGH',
-      isRead: false,
-    },
-    {
-      id: 'NOT-102',
-      category: 'AI Analysis',
-      title: 'Multimodal AI Analysis Complete',
-      description: 'Hierarchical Stacking Ensemble evaluated your laboratory PDF and wearable metrics. Risk probability: 34.2%.',
-      timestamp: '1 hour ago',
-      priority: 'HIGH',
-      isRead: false,
-    },
-    {
-      id: 'NOT-103',
-      category: 'Reports',
-      title: 'Printable Clinical Report Ready',
-      description: 'Your hospital-grade diagnostic report (ASM-2026-8819) with QR code verification is available.',
-      timestamp: '3 hours ago',
-      priority: 'MEDIUM',
-      isRead: true,
-    },
-    {
-      id: 'NOT-104',
-      category: 'Messages',
-      title: 'New Message from Dr. Marcus Vance',
-      description: '"Please ensure you continue monitoring morning fasting glucose levels before our call."',
-      timestamp: 'Yesterday',
-      priority: 'MEDIUM',
-      isRead: true,
-    },
-    {
-      id: 'NOT-105',
-      category: 'System',
-      title: 'Platform Maintenance Notice',
-      description: 'Scheduled database indexing completed cleanly in 4ms with 99.98% system uptime.',
-      timestamp: '2 days ago',
-      priority: 'LOW',
-      isRead: true,
-    },
-  ]);
+  // Dynamically generated real notifications from active user assessment
+  const [notificationsList, setNotificationsList] = useState(() => {
+    if (predictionData) {
+      return [
+        {
+          id: 'NOT-101',
+          category: 'AI Analysis',
+          title: 'Multimodal AI Analysis Complete',
+          description: `Hierarchical Stacking Ensemble evaluated your signals (${predictionData.effective_pathway || 'C+W+G'}). Data quality score: ${Math.round(predictionData.data_quality_score ? predictionData.data_quality_score * 100 : 85)}%.`,
+          timestamp: 'Recently',
+          priority: 'HIGH',
+          isRead: false,
+        },
+        {
+          id: 'NOT-102',
+          category: 'Reports',
+          title: 'Personalized Clinical Report Available',
+          description: 'Your diagnostic synthesis and TreeSHAP explainability report is ready for doctor review.',
+          timestamp: 'Recently',
+          priority: 'MEDIUM',
+          isRead: false,
+        }
+      ];
+    }
+    return [];
+  });
 
   // Preferences Toggles
   const [preferences, setPreferences] = useState({

@@ -74,12 +74,44 @@ export default function DashboardPage({
           badge={completionPct === 100 ? 'Profile 100%' : `Profile ${completionPct}%`}
           actions={
             <div className="flex items-center gap-3">
-              <Button variant="primary" size="md" leftIcon={<PlusCircle className="w-4 h-4" />} onClick={onStartAnalysis || (() => onNavigate('intake'))}>
+              <Button variant="primary" size="md" leftIcon={<PlusCircle className="w-4 h-4" />} onClick={onStartAnalysis || (() => onNavigate('analysis'))}>
                 Start New Analysis
               </Button>
             </div>
           }
         />
+
+        {/* Live Modality Status Cards */}
+        <ContentSection title="Live Modality Status Summary" subtitle="Active data streams registered for prediction synthesis">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <Card isGlass={true} className="p-6 text-center space-y-3">
+              <div className="p-3 w-12 h-12 rounded-xl bg-blue-500/10 text-blue-500 mx-auto flex items-center justify-center">
+                <FileSpreadsheet className="w-6 h-6" />
+              </div>
+              <h4 className="font-bold text-sm text-[var(--text-main)]">Clinical Laboratory PDF</h4>
+              <Badge variant="outline" size="sm">NOT PROVIDED</Badge>
+              <p className="text-xs text-[var(--text-muted)]">Upload CMP/Lipid panel to extract 18 lab biomarkers.</p>
+            </Card>
+
+            <Card isGlass={true} className="p-6 text-center space-y-3">
+              <div className="p-3 w-12 h-12 rounded-xl bg-teal-500/10 text-teal-500 mx-auto flex items-center justify-center">
+                <Watch className="w-6 h-6" />
+              </div>
+              <h4 className="font-bold text-sm text-[var(--text-main)]">Wearable Sensor Telemetry</h4>
+              <Badge variant="outline" size="sm">NOT PROVIDED</Badge>
+              <p className="text-xs text-[var(--text-muted)]">Upload CGM/HRV/Step metrics for 15-dimensional telemetry.</p>
+            </Card>
+
+            <Card isGlass={true} className="p-6 text-center space-y-3">
+              <div className="p-3 w-12 h-12 rounded-xl bg-purple-500/10 text-purple-500 mx-auto flex items-center justify-center">
+                <Dna className="w-6 h-6" />
+              </div>
+              <h4 className="font-bold text-sm text-[var(--text-main)]">Gut Microbiome Sequencing</h4>
+              <Badge variant="outline" size="sm">NOT PROVIDED</Badge>
+              <p className="text-xs text-[var(--text-muted)]">Upload 16S/Metagenomic profile for 49 taxa features.</p>
+            </Card>
+          </div>
+        </ContentSection>
 
         <Card isGlass={true} className="p-8 text-center space-y-6">
           <EmptyState
@@ -87,7 +119,7 @@ export default function DashboardPage({
             title="No Active Health Assessment Found"
             description="Upload your medical reports, wearable telemetry, or gut microbiome data to generate multi-disease predictions and TreeSHAP explainability insights."
             action={
-              <Button variant="primary" size="lg" leftIcon={<PlusCircle className="w-5 h-5" />} onClick={onStartAnalysis || (() => onNavigate('intake'))}>
+              <Button variant="primary" size="lg" leftIcon={<PlusCircle className="w-5 h-5" />} onClick={onStartAnalysis || (() => onNavigate('analysis'))}>
                 Start New Multimodal Analysis
               </Button>
             }
