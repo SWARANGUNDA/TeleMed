@@ -373,6 +373,7 @@ def get_user_by_id(user_id: str) -> Optional[Dict[str, Any]]:
             "created_at": u.created_at,
             "updated_at": u.updated_at
         }
+        email_clean = (u.email or "").strip().lower()
         role = u.role
 
         if role == "PATIENT":
