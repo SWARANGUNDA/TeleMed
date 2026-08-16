@@ -36,6 +36,15 @@ except (ImportError, ValueError):
 logger = logging.getLogger("web_platform.database")
 
 
+def get_db_connection():
+    """Return SQLite connection for raw legacy SQL functions."""
+    import sqlite3
+    db_path = Path(__file__).resolve().parent / "telemed_local.db"
+    conn = sqlite3.connect(db_path, check_same_thread=False)
+    conn.row_factory = sqlite3.Row
+    return conn
+
+
 def init_db() -> None:
     """Initialize database connection verification on startup."""
     check_db_connection()
