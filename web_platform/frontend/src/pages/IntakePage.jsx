@@ -18,7 +18,7 @@ import ProvenancePopover from '../components/ProvenancePopover';
 import {
   CLINICAL_V4_FEATURES, WEARABLE_V4_FEATURES, GUT_V4_TAXA_40, GUT_V4_INDICES_9,
   computeGutDerivedIndices, normalizeRawKey, normalizeExtractedDict,
-  CLIENT_PHYSIOLOGICAL_BOUNDS, validateClientField
+  CLIENT_PHYSIOLOGICAL_BOUNDS, validateClientField, detectFileModality
 } from '../utils/intakeValidation';
 import { GUT_PDF_B64, WEAR_PDF_B64, CLIN_PDF_B64, b64ToFile } from '../dev_pdfs';
 
@@ -103,15 +103,21 @@ export default function IntakePage({
     if (onResetSession) onResetSession();
   };
 
-  // Add files safely
+  // Add files safely with normalized modality detection
   const handleAddFiles = (filesList) => {
-    const newFiles = Array.from(filesList || []);
-    if (!newFiles.length) return;
+    const rawFiles = Array.from(filesList || []);
+    if (!rawFiles.length) return;
+    const newFiles = rawFiles.map((file) => {
+      if (!file.modality) {
+        file.modality = detectFileModality(file);
+      }
+      return file;
+    });
     setSelectedFiles((prev) => [...prev, ...newFiles]);
     setErrorMsg(null);
 
     newFiles.forEach((file) => {
-      if (file.type.startsWith('image/')) {
+      if (file.type && file.type.startsWith('image/')) {
         const reader = new FileReader();
         reader.onloadend = () => {
           setFilePreviews((prev) => [...prev, { name: file.name, url: reader.result }]);
@@ -227,9 +233,13 @@ export default function IntakePage({
           });
         }
 
-        setEnableClinical(hasExtractedClinical);
-        setEnableWearable(hasExtractedWearable);
-        setEnableGut(hasExtractedGut);
+        const hasQueuedClinical = selectedFiles.some(f => detectFileModality(f) === 'clinical');
+        const hasQueuedWearable = selectedFiles.some(f => detectFileModality(f) === 'wearable/cgm');
+        const hasQueuedGut = selectedFiles.some(f => detectFileModality(f) === 'gut_microbiome');
+
+        setEnableClinical(hasExtractedClinical || hasQueuedClinical);
+        setEnableWearable(hasExtractedWearable || hasQueuedWearable);
+        setEnableGut(hasExtractedGut || hasQueuedGut);
 
         setExtractedMap((prevMap) => ({
           clinical: { ...prevMap.clinical, ...normClinical },
@@ -442,16 +452,18 @@ export default function IntakePage({
     }
   };
 
-  // Helper V4 CSV Sample loaders
+  // Helper V4 CSV Sample loaders with explicit modality metadata
   const loadDevClinSample = () => {
     fetch('/samples/clinical_v4_sample.csv')
       .then(res => res.blob())
       .then(blob => {
         const file = new File([blob], 'clinical_v4_sample.csv', { type: 'text/csv' });
+        file.modality = 'clinical';
         handleAddFiles([file]);
       })
       .catch(() => {
         const f = b64ToFile(CLIN_PDF_B64, 'clinical_v4_sample.pdf');
+        f.modality = 'clinical';
         handleAddFiles([f]);
       });
   };
@@ -460,10 +472,12 @@ export default function IntakePage({
       .then(res => res.blob())
       .then(blob => {
         const file = new File([blob], 'wearable_v4_sample.csv', { type: 'text/csv' });
+        file.modality = 'wearable/cgm';
         handleAddFiles([file]);
       })
       .catch(() => {
         const f = b64ToFile(WEAR_PDF_B64, 'wearable_v4_sample.csv');
+        f.modality = 'wearable/cgm';
         handleAddFiles([f]);
       });
   };
@@ -472,10 +486,12 @@ export default function IntakePage({
       .then(res => res.blob())
       .then(blob => {
         const file = new File([blob], 'gut_v4_sample.csv', { type: 'text/csv' });
+        file.modality = 'gut_microbiome';
         handleAddFiles([file]);
       })
       .catch(() => {
         const f = b64ToFile(GUT_PDF_B64, 'gut_v4_sample.csv');
+        f.modality = 'gut_microbiome';
         handleAddFiles([f]);
       });
   };
@@ -619,16 +635,15 @@ export default function IntakePage({
               {selectedFiles.length > 0 ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {selectedFiles.map((file, idx) => {
-                    const isPdf = file.name.endsWith('.pdf');
-                    const isCsv = file.name.endsWith('.csv');
-                    const modType = isCsv ? 'Wearables' : (file.name.toLowerCase().includes('gut') || file.name.toLowerCase().includes('ayumetrix') ? 'Gut Microbiome' : 'Clinical Lab');
-                    const modVar = isCsv ? 'secondary' : (modType === 'Gut Microbiome' ? 'accent' : 'primary');
+                    const modality = detectFileModality(file);
+                    const modLabel = modality === 'clinical' ? 'CLINICAL' : (modality === 'gut_microbiome' ? 'GUT MICROBIOME' : 'WEARABLES');
+                    const modVar = modality === 'clinical' ? 'primary' : (modality === 'gut_microbiome' ? 'accent' : 'secondary');
 
                     return (
                       <Card key={idx} isGlass={true} className="p-4 flex flex-col justify-between space-y-3">
                         <div className="flex items-start justify-between gap-3">
                           <div className="p-2.5 rounded-xl bg-[var(--primary-light)] text-[var(--primary)] shrink-0">
-                            {isCsv ? <FileSpreadsheet className="w-5 h-5" /> : <FileText className="w-5 h-5" />}
+                            {modality === 'gut_microbiome' ? <Dna className="w-5 h-5" /> : (modality === 'wearable/cgm' ? <Watch className="w-5 h-5" /> : <FileText className="w-5 h-5" />)}
                           </div>
                           <div className="flex-1 min-w-0">
                             <h5 className="text-xs font-bold text-[var(--text-main)] truncate">{file.name}</h5>
@@ -640,7 +655,7 @@ export default function IntakePage({
                         </div>
 
                         <div className="flex items-center justify-between">
-                          <Badge variant={modVar} size="sm">{modType}</Badge>
+                          <Badge variant={modVar} size="sm">{modLabel}</Badge>
                           <span className="text-[10px] font-mono text-[var(--success)] font-semibold flex items-center gap-1">
                             <CheckCircle2 className="w-3 h-3" /> Ready
                           </span>
@@ -669,37 +684,45 @@ export default function IntakePage({
 
               <CardBody className="space-y-4">
                 {/* Modality Coverage List */}
-                <div className="space-y-2.5">
-                  <div className="flex items-center justify-between p-3 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-subtle)]">
-                    <div className="flex items-center gap-2">
-                      <FileText className="w-4 h-4 text-blue-500" />
-                      <span className="text-xs font-semibold text-[var(--text-main)]">Clinical Lab PDF</span>
-                    </div>
-                    <Badge variant={selectedFiles.some(f => !f.name.endsWith('.csv') && !f.name.toLowerCase().includes('gut')) ? 'success' : 'outline'} size="sm">
-                      {selectedFiles.some(f => !f.name.endsWith('.csv') && !f.name.toLowerCase().includes('gut')) ? 'Uploaded' : 'NOT PROVIDED'}
-                    </Badge>
-                  </div>
+                {(() => {
+                  const hasClinical = selectedFiles.some(f => detectFileModality(f) === 'clinical');
+                  const hasWearable = selectedFiles.some(f => detectFileModality(f) === 'wearable/cgm');
+                  const hasGut = selectedFiles.some(f => detectFileModality(f) === 'gut_microbiome');
 
-                  <div className="flex items-center justify-between p-3 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-subtle)]">
-                    <div className="flex items-center gap-2">
-                      <Watch className="w-4 h-4 text-teal-500" />
-                      <span className="text-xs font-semibold text-[var(--text-main)]">Wearables CSV</span>
-                    </div>
-                    <Badge variant={selectedFiles.some(f => f.name.endsWith('.csv')) ? 'success' : 'outline'} size="sm">
-                      {selectedFiles.some(f => f.name.endsWith('.csv')) ? 'Uploaded' : 'NOT PROVIDED'}
-                    </Badge>
-                  </div>
+                  return (
+                    <div className="space-y-2.5">
+                      <div className="flex items-center justify-between p-3 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-subtle)]">
+                        <div className="flex items-center gap-2">
+                          <FileText className="w-4 h-4 text-blue-500" />
+                          <span className="text-xs font-semibold text-[var(--text-main)]">Clinical Lab PDF</span>
+                        </div>
+                        <Badge variant={hasClinical ? 'success' : 'outline'} size="sm">
+                          {hasClinical ? 'Uploaded' : 'NOT PROVIDED'}
+                        </Badge>
+                      </div>
 
-                  <div className="flex items-center justify-between p-3 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-subtle)]">
-                    <div className="flex items-center gap-2">
-                      <Dna className="w-4 h-4 text-purple-500" />
-                      <span className="text-xs font-semibold text-[var(--text-main)]">Gut Microbiome PDF</span>
+                      <div className="flex items-center justify-between p-3 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-subtle)]">
+                        <div className="flex items-center gap-2">
+                          <Watch className="w-4 h-4 text-teal-500" />
+                          <span className="text-xs font-semibold text-[var(--text-main)]">Wearables CSV</span>
+                        </div>
+                        <Badge variant={hasWearable ? 'success' : 'outline'} size="sm">
+                          {hasWearable ? 'Uploaded' : 'NOT PROVIDED'}
+                        </Badge>
+                      </div>
+
+                      <div className="flex items-center justify-between p-3 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-subtle)]">
+                        <div className="flex items-center gap-2">
+                          <Dna className="w-4 h-4 text-purple-500" />
+                          <span className="text-xs font-semibold text-[var(--text-main)]">Gut Microbiome PDF</span>
+                        </div>
+                        <Badge variant={hasGut ? 'success' : 'outline'} size="sm">
+                          {hasGut ? 'Uploaded' : 'NOT PROVIDED'}
+                        </Badge>
+                      </div>
                     </div>
-                    <Badge variant={selectedFiles.some(f => f.name.toLowerCase().includes('gut')) ? 'success' : 'outline'} size="sm">
-                      {selectedFiles.some(f => f.name.toLowerCase().includes('gut')) ? 'Uploaded' : 'NOT PROVIDED'}
-                    </Badge>
-                  </div>
-                </div>
+                  );
+                })()}
 
                 {/* Data Quality Score Preview */}
                 <div className="p-4 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-subtle)] text-center space-y-2">

@@ -43,6 +43,43 @@ export const GUT_V4_INDICES_9 = [
 
 export const GUT_V4_TOTAL_FEATURES = [...GUT_V4_TAXA_40, ...GUT_V4_INDICES_9];
 
+/**
+ * Detect normalized modality ('clinical' | 'wearable/cgm' | 'gut_microbiome') for a file object.
+ * Explicit metadata on file object takes highest precedence (e.g. for instant test shortcuts).
+ */
+export function detectFileModality(file) {
+  if (!file) return 'clinical';
+  
+  if (file.modality) {
+    if (file.modality === 'clinical' || file.modality === 'wearable/cgm' || file.modality === 'gut_microbiome') {
+      return file.modality;
+    }
+    if (file.modality === 'wearable' || file.modality === 'cgm' || file.modality === 'wearables') return 'wearable/cgm';
+    if (file.modality === 'gut' || file.modality === 'microbiome') return 'gut_microbiome';
+    if (file.modality === 'clinical_lab') return 'clinical';
+  }
+
+  const name = (file.name || '').toLowerCase();
+
+  if (name.includes('gut') || name.includes('microbiome') || name.includes('ayumetrix') || name.includes('16s') || name.includes('taxa')) {
+    return 'gut_microbiome';
+  }
+
+  if (name.includes('wearable') || name.includes('fitbit') || name.includes('cgm') || name.includes('telemetry') || name.includes('hrv') || name.includes('garmin') || name.includes('apple_watch') || name.includes('sensor')) {
+    return 'wearable/cgm';
+  }
+
+  if (name.includes('clinical') || name.includes('lab') || name.includes('cmp') || name.includes('lipid') || name.includes('cbc') || name.includes('hba1c') || name.includes('apollo')) {
+    return 'clinical';
+  }
+
+  if (name.endsWith('.csv')) {
+    return 'wearable/cgm';
+  }
+
+  return 'clinical';
+}
+
 // Canonical Alias Normalizer Map
 export const CANONICAL_ALIASES = {
   'patient_id': 'Patient_ID', 'patient id': 'Patient_ID', 'pid': 'Patient_ID', 'id': 'Patient_ID',
