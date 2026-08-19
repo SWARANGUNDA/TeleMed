@@ -62,7 +62,11 @@ const makeCertificateSvg = (docTitle, docCategory, docId, doctorName, licenseNum
     <text x="120" y="530" fill="#64748B" font-family="monospace" font-size="12">DOCUMENT ID: ${docId}</text>
     <text x="560" y="530" fill="#34D399" font-family="monospace" font-size="12">✓ REGISTRY AUDIT PASSED</text>
   </svg>`;
-  return `data:image/svg+xml;utf8,${encodeURIComponent(svgString)}`;
+  try {
+    return `data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(svgString)))}`;
+  } catch (e) {
+    return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svgString)}`;
+  }
 };
 
 export default function AdminDoctorVerificationPage() {
