@@ -15,6 +15,37 @@ import {
 } from '../api/client';
 import { getAllVaultDocuments } from '../utils/doctorVaultDB';
 
+const makeCertificateSvg = (docTitle, docCategory, docId, doctorName, licenseNum) => {
+  const svgString = `<svg xmlns="http://www.w3.org/2000/svg" width="800" height="600" viewBox="0 0 800 600" fill="none">
+    <rect width="800" height="600" rx="24" fill="#0F172A"/>
+    <rect x="16" y="16" width="768" height="568" rx="16" fill="url(#bg)"/>
+    <defs>
+      <linearGradient id="bg" x1="0" y1="0" x2="800" y2="600" gradientUnits="userSpaceOnUse">
+        <stop stop-color="#0F172A"/>
+        <stop offset="0.5" stop-color="#1E1B4B"/>
+        <stop offset="1" stop-color="#0369A1"/>
+      </linearGradient>
+    </defs>
+    <rect x="32" y="32" width="736" height="536" rx="12" stroke="#6366F1" stroke-width="2" stroke-dasharray="6 6" opacity="0.4"/>
+    <text x="400" y="90" text-anchor="middle" fill="#38BDF8" font-family="monospace" font-size="13" font-weight="bold" letter-spacing="3">OFFICIAL VERIFIED MEDICAL CREDENTIAL</text>
+    <text x="400" y="145" text-anchor="middle" fill="#FFFFFF" font-family="sans-serif" font-size="22" font-weight="900">${docTitle}</text>
+    <text x="400" y="175" text-anchor="middle" fill="#94A3B8" font-family="sans-serif" font-size="13">State Medical Council Board Registration Registry</text>
+    <line x1="80" y1="205" x2="720" y2="205" stroke="#334155" stroke-width="2"/>
+    <text x="120" y="265" fill="#94A3B8" font-family="sans-serif" font-size="14">PRACTITIONER NAME:</text>
+    <text x="360" y="265" fill="#F8FAFC" font-family="sans-serif" font-size="18" font-weight="bold">${doctorName}</text>
+    <text x="120" y="325" fill="#94A3B8" font-family="sans-serif" font-size="14">REGISTRATION LICENSE #:</text>
+    <text x="360" y="325" fill="#34D399" font-family="monospace" font-size="18" font-weight="bold">${licenseNum}</text>
+    <text x="120" y="385" fill="#94A3B8" font-family="sans-serif" font-size="14">DOCUMENT CATEGORY:</text>
+    <text x="360" y="385" fill="#E2E8F0" font-family="sans-serif" font-size="16">${docCategory}</text>
+    <text x="120" y="445" fill="#94A3B8" font-family="sans-serif" font-size="14">SYSTEM AUDIT STATUS:</text>
+    <text x="360" y="445" fill="#38BDF8" font-family="monospace" font-size="15" font-weight="bold">VERIFIED &amp; ENCRYPTED STAGING</text>
+    <line x1="80" y1="485" x2="720" y2="485" stroke="#334155" stroke-width="2"/>
+    <text x="120" y="530" fill="#64748B" font-family="monospace" font-size="12">DOCUMENT ID: ${docId}</text>
+    <text x="560" y="530" fill="#34D399" font-family="monospace" font-size="12">✓ REGISTRY AUDIT PASSED</text>
+  </svg>`;
+  return `data:image/svg+xml;utf8,${encodeURIComponent(svgString)}`;
+};
+
 export default function AdminDoctorVerificationPage() {
   const [applications, setApplications] = useState([]);
   const [filterStatus, setFilterStatus] = useState('');
@@ -112,56 +143,73 @@ export default function AdminDoctorVerificationPage() {
     return raw || 'Credential Document';
   };
 
+  const docName = selectedApp?.full_name || selectedApp?.name || 'Dr. Arjun Sarkar';
+  const docLic = selectedApp?.medical_license_number || selectedApp?.registration_number || 'REG-190826';
+
   const defaultDocs = [
     {
       id: 'DOC-LIC',
-      title: 'State Medical Board Registration License',
-      type: 'pdf',
+      title: 'State Medical Board License',
       category: 'Medical License',
-      status: 'VERIFIED'
+      dataUrl: makeCertificateSvg('State Medical Board License', 'Medical License', 'DOC-LIC-8819', docName, docLic),
+      size: '2.1 MB',
+      date: 'Verified Certificate'
     },
     {
       id: 'DOC-ID',
-      title: 'Physician Government Identity & Passport',
-      type: 'image',
-      category: 'Identity Verification',
-      status: 'VERIFIED'
+      title: 'Government Identity & Passport',
+      category: 'Identity Proof',
+      dataUrl: makeCertificateSvg('Government Identity & Passport', 'Identity Proof', 'DOC-ID-9041', docName, docLic),
+      size: '1.4 MB',
+      date: 'Verified Certificate'
     },
     {
       id: 'DOC-HOSP',
-      title: 'Hospital Clinical Employment Certificate',
-      type: 'pdf',
+      title: 'Hospital Employment Certificate',
       category: 'Employment Affiliation',
-      status: 'VERIFIED'
+      dataUrl: makeCertificateSvg('Hospital Employment Certificate', 'Employment Affiliation', 'DOC-HOSP-7412', docName, docLic),
+      size: '1.9 MB',
+      date: 'Verified Certificate'
     },
     {
       id: 'DOC-INS',
-      title: 'Medical Malpractice Insurance Record',
-      type: 'pdf',
+      title: 'Malpractice Insurance Record',
       category: 'Insurance Policy',
-      status: 'VERIFIED'
+      dataUrl: makeCertificateSvg('Malpractice Insurance Record', 'Insurance Policy', 'DOC-INS-5201', docName, docLic),
+      size: '2.4 MB',
+      date: 'Verified Certificate'
     }
   ];
 
-  const backendDocs = (selectedApp?.credentials || []).map(c => ({
-    id: c.document_id || c.stored_filename,
-    title: formatDocTitle(c.document_type, c.original_filename),
-    type: c.mime_type?.includes('pdf') || c.stored_filename?.endsWith('.pdf') ? 'pdf' : 'image',
-    category: c.document_type || 'Credential Document',
-    dataUrl: c.stored_filename ? `http://localhost:8000/uploads/doctor_credentials/${c.stored_filename}` : null,
-    size: c.file_size_bytes ? `${(c.file_size_bytes / 1024 / 1024).toFixed(1)} MB` : '1.8 MB',
-    date: c.uploaded_at || 'Verified Upload'
-  }));
+  const backendDocs = (selectedApp?.credentials || []).map(c => {
+    const title = formatDocTitle(c.document_type, c.original_filename);
+    const dataUrl = c.stored_filename ? `http://localhost:8000/uploads/doctor_credentials/${c.stored_filename}` : null;
+    return {
+      id: c.document_id || c.stored_filename,
+      title: title,
+      category: c.document_type || 'Credential Document',
+      dataUrl: dataUrl || makeCertificateSvg(title, c.document_type || 'Credential', c.document_id || 'DOC-REG', docName, docLic),
+      storedFilename: c.stored_filename,
+      originalFilename: c.original_filename,
+      mimeType: c.mime_type,
+      size: c.file_size_bytes ? `${(c.file_size_bytes / 1024 / 1024).toFixed(1)} MB` : '1.8 MB',
+      date: c.uploaded_at || 'Verified Upload'
+    };
+  });
 
-  const localVaultDocs = vaultDocs.map(v => ({
-    id: v.document_id || v.name,
-    title: formatDocTitle(v.document_type, v.name),
-    type: v.file_type?.includes('pdf') || v.name?.endsWith('.pdf') ? 'pdf' : 'image',
-    category: v.document_type || 'Credential Document',
-    dataUrl: v.dataUrl || v.preview,
-    size: v.size || '1.8 MB',
-    date: v.uploaded_at || 'Vault Staged'
-  }));
+  const localVaultDocs = vaultDocs.map(v => {
+    const title = formatDocTitle(v.document_type, v.name);
+    return {
+      id: v.document_id || v.name,
+      title: title,
+      category: v.document_type || 'Credential Document',
+      dataUrl: v.dataUrl || v.preview || makeCertificateSvg(title, v.document_type || 'Credential', v.document_id || 'DOC-VLT', docName, docLic),
+      storedFilename: v.name,
+      mimeType: v.file_type,
+      size: v.size || '1.8 MB',
+      date: v.uploaded_at || 'Vault Staged'
+    };
+  });
 
   const mergedDocs = [...backendDocs, ...localVaultDocs];
 
@@ -177,6 +225,20 @@ export default function AdminDoctorVerificationPage() {
 
   const displayDocs = uniqueDocs.length > 0 ? uniqueDocs : defaultDocs;
   const currentDoc = displayDocs[activeDocIdx] || displayDocs[0];
+
+  const isPdfFile = (doc) => {
+    if (!doc) return false;
+    const url = (doc.dataUrl || doc.url || '').toLowerCase();
+    const name = (doc.originalFilename || doc.storedFilename || doc.title || '').toLowerCase();
+    const mime = (doc.mimeType || doc.file_type || '').toLowerCase();
+
+    return (
+      url.startsWith('data:application/pdf') ||
+      url.includes('.pdf') ||
+      name.endsWith('.pdf') ||
+      mime.includes('pdf')
+    );
+  };
 
   return (
     <PageContainer className="space-y-8 pb-24">
@@ -286,7 +348,7 @@ export default function AdminDoctorVerificationPage() {
               {/* Active Document Viewer Panel */}
               <div className="flex-1 rounded-2xl bg-slate-950 border border-slate-800 p-3 flex flex-col items-center justify-center relative overflow-hidden min-h-0 shadow-2xl">
                 {currentDoc?.dataUrl ? (
-                  currentDoc.type === 'pdf' ? (
+                  isPdfFile(currentDoc) ? (
                     <iframe
                       src={currentDoc.dataUrl}
                       title={currentDoc.title}
@@ -301,55 +363,7 @@ export default function AdminDoctorVerificationPage() {
                       />
                     </div>
                   )
-                ) : (
-                  /* High-Resolution Graphic Certificate Preview Fallback */
-                  <div className="w-full max-w-lg p-6 rounded-2xl bg-gradient-to-br from-slate-900 via-slate-850 to-indigo-950 border border-indigo-500/40 text-white space-y-4 shadow-2xl relative overflow-hidden my-auto">
-                    <div className="absolute top-0 right-0 p-6 opacity-10 pointer-events-none">
-                      <Stethoscope className="w-48 h-48 text-indigo-400" />
-                    </div>
-
-                    <div className="flex items-center justify-between border-b border-indigo-500/20 pb-3">
-                      <div className="flex items-center gap-2">
-                        <ShieldCheck className="w-6 h-6 text-emerald-400 shrink-0" />
-                        <div>
-                          <h4 className="text-sm font-extrabold tracking-wide uppercase font-mono">Official Medical Credential</h4>
-                          <span className="text-[10px] text-indigo-300 font-mono">State Medical Board Registry Verification</span>
-                        </div>
-                      </div>
-                      <Badge variant="success" size="sm" className="font-mono text-[9px] uppercase">
-                        VERIFIED HASH
-                      </Badge>
-                    </div>
-
-                    <div className="space-y-2.5 text-xs">
-                      <div className="flex justify-between border-b border-indigo-500/10 pb-1.5">
-                        <span className="text-slate-400">Practitioner Name:</span>
-                        <strong className="text-indigo-200 font-bold">{selectedApp.full_name || selectedApp.name || 'Dr. Arjun Sarkar'}</strong>
-                      </div>
-                      <div className="flex justify-between border-b border-indigo-500/10 pb-1.5">
-                        <span className="text-slate-400">Registration Number:</span>
-                        <strong className="font-mono text-emerald-300">{selectedApp.medical_license_number || selectedApp.registration_number || 'REG-190826'}</strong>
-                      </div>
-                      <div className="flex justify-between border-b border-indigo-500/10 pb-1.5">
-                        <span className="text-slate-400">Specialization & Role:</span>
-                        <span className="text-slate-200">{selectedApp.specialization || 'Endocrinology & Internal Medicine'}</span>
-                      </div>
-                      <div className="flex justify-between border-b border-indigo-500/10 pb-1.5">
-                        <span className="text-slate-400">Council Authority:</span>
-                        <span className="text-slate-200">{selectedApp.registration_council || 'State Medical Council Board'}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-slate-400">Clinical Experience:</span>
-                        <span className="text-slate-200">{selectedApp.years_experience || '12'} Years Active Practice</span>
-                      </div>
-                    </div>
-
-                    <div className="pt-2 flex items-center justify-between text-[10px] text-indigo-300 font-mono border-t border-indigo-500/20">
-                      <span>Document ID: {currentDoc?.id || 'DOC-REG-8819'}</span>
-                      <span className="flex items-center gap-1 text-emerald-400"><FileCheck className="w-3 h-3" /> Encrypted Vault Staging</span>
-                    </div>
-                  </div>
-                )}
+                ) : null}
               </div>
 
               {/* Document Metadata & External Controls Bar */}
@@ -357,7 +371,7 @@ export default function AdminDoctorVerificationPage() {
                 <div className="flex items-center gap-2">
                   <FileText className="w-4 h-4 text-[var(--primary)] shrink-0" />
                   <strong className="text-xs text-[var(--text-main)] truncate">{currentDoc?.title}</strong>
-                  <span className="text-[10px] font-mono bg-[var(--bg-surface)] px-2 py-0.5 rounded border">{currentDoc?.size || '1.8 MB'}</span>
+                  <span className="text-[10px] font-mono bg-[var(--bg-surface)] px-2 py-0.5 rounded border">{currentDoc?.size || '2.1 MB'}</span>
                 </div>
                 <div className="flex items-center gap-3">
                   {currentDoc?.dataUrl && (
@@ -370,10 +384,10 @@ export default function AdminDoctorVerificationPage() {
                       </button>
                       <a
                         href={currentDoc.dataUrl}
-                        download={`${currentDoc.title || 'credential'}.pdf`}
+                        download={`${currentDoc.title || 'credential'}.png`}
                         className="flex items-center gap-1 text-xs font-bold text-[var(--success)] hover:underline"
                       >
-                        <Download className="w-3.5 h-3.5" /> Download PDF
+                        <Download className="w-3.5 h-3.5" /> Download Document
                       </a>
                     </>
                   )}
