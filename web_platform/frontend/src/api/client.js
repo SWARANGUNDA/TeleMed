@@ -779,9 +779,8 @@ export async function revokeSharedRecordConsent(consultationId, recordId) {
 
 export async function fetchAdminConsultations(statusFilter = '', searchQuery = '') {
   const params = new URLSearchParams();
-  if (statusFilter) {
+  if (statusFilter && statusFilter !== 'ALL') {
     params.append('status', statusFilter);
-    params.append('verification_status', statusFilter);
   }
   if (searchQuery) params.append('search', searchQuery);
 
