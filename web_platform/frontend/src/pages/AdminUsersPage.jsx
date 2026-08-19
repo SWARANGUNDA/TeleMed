@@ -40,6 +40,13 @@ export default function AdminUsersPage() {
     loadUsers();
   };
 
+  const isUserActive = (u) => {
+    if (!u) return true;
+    if (u.is_active !== undefined && u.is_active !== null) return Boolean(u.is_active);
+    if (u.status !== undefined && u.status !== null) return u.status.toUpperCase() === 'ACTIVE';
+    return true; // Default registered system accounts to ACTIVE
+  };
+
   return (
     <PageContainer className="space-y-8 pb-24">
       <PageHeader
@@ -94,16 +101,16 @@ export default function AdminUsersPage() {
             users.map((u) => (
               <TableRow key={u.user_id}>
                 <TableCell className="font-mono text-xs font-bold text-[var(--primary)]">{u.user_id}</TableCell>
-                <TableCell className="font-semibold text-xs">{u.full_name}</TableCell>
+                <TableCell className="font-semibold text-xs text-[var(--text-main)]">{u.full_name}</TableCell>
                 <TableCell><Badge variant={u.role === 'ADMIN' ? 'accent' : u.role === 'DOCTOR' ? 'secondary' : 'primary'} size="sm">{u.role}</Badge></TableCell>
                 <TableCell className="font-mono text-xs text-[var(--text-muted)]">{u.email}</TableCell>
                 <TableCell>
-                  <Badge variant={u.is_active ? 'success' : 'danger'} size="sm">
-                    {u.is_active ? 'ACTIVE' : 'SUSPENDED'}
+                  <Badge variant={isUserActive(u) ? 'success' : 'danger'} size="sm">
+                    {isUserActive(u) ? 'ACTIVE' : 'SUSPENDED'}
                   </Badge>
                 </TableCell>
                 <TableCell>
-                  <Button variant="outline" size="sm" className="!px-2.5 !py-1 text-xs" leftIcon={<Eye className="w-3.5 h-3.5" />} onClick={() => setSelectedUser(u)}>
+                  <Button variant="outline" size="sm" className="!px-2.5 !py-1 text-xs font-semibold text-[var(--primary)] border-[var(--primary)]/30 hover:bg-[var(--primary)]/10" leftIcon={<Eye className="w-3.5 h-3.5" />} onClick={() => setSelectedUser(u)}>
                     Inspect Account
                   </Button>
                 </TableCell>
@@ -129,16 +136,22 @@ export default function AdminUsersPage() {
         {selectedUser && (
           <div className="space-y-4">
             <div className="p-4 bg-[var(--bg-primary)] rounded-xl border border-[var(--border-subtle)] space-y-2 text-xs">
-              <div><span className="text-[10px] font-mono text-[var(--text-muted)] block">USER ID</span><strong className="font-mono">{selectedUser.user_id}</strong></div>
-              <div><span className="text-[10px] font-mono text-[var(--text-muted)] block">EMAIL</span><strong>{selectedUser.email}</strong></div>
-              <div><span className="text-[10px] font-mono text-[var(--text-muted)] block">ROLE</span><Badge variant="primary" size="sm">{selectedUser.role}</Badge></div>
-              <div><span className="text-[10px] font-mono text-[var(--text-muted)] block">ACCOUNT STATUS</span><Badge variant={selectedUser.is_active ? 'success' : 'danger'} size="sm">{selectedUser.is_active ? 'ACTIVE' : 'SUSPENDED'}</Badge></div>
+              <div><span className="text-[10px] font-mono text-[var(--text-muted)] block uppercase">User ID</span><strong className="font-mono text-[var(--primary)]">{selectedUser.user_id}</strong></div>
+              <div><span className="text-[10px] font-mono text-[var(--text-muted)] block uppercase">Full Name</span><strong className="text-[var(--text-main)]">{selectedUser.full_name}</strong></div>
+              <div><span className="text-[10px] font-mono text-[var(--text-muted)] block uppercase">Email</span><strong className="font-mono text-[var(--text-main)]">{selectedUser.email}</strong></div>
+              <div><span className="text-[10px] font-mono text-[var(--text-muted)] block uppercase">Role</span><Badge variant={selectedUser.role === 'ADMIN' ? 'accent' : selectedUser.role === 'DOCTOR' ? 'secondary' : 'primary'} size="sm">{selectedUser.role}</Badge></div>
+              <div>
+                <span className="text-[10px] font-mono text-[var(--text-muted)] block uppercase">Account Status</span>
+                <Badge variant={isUserActive(selectedUser) ? 'success' : 'danger'} size="sm">
+                  {isUserActive(selectedUser) ? 'ACTIVE' : 'SUSPENDED'}
+                </Badge>
+              </div>
             </div>
 
             <div className="flex justify-between gap-2 pt-2 border-t border-[var(--border-subtle)]">
               <Button variant="outline" size="sm" onClick={() => setSelectedUser(null)}>Close</Button>
-              <Button variant={selectedUser.is_active ? 'danger' : 'success'} size="sm">
-                {selectedUser.is_active ? 'Suspend User' : 'Activate Account'}
+              <Button variant={isUserActive(selectedUser) ? 'danger' : 'success'} size="sm">
+                {isUserActive(selectedUser) ? 'Suspend User' : 'Activate Account'}
               </Button>
             </div>
           </div>

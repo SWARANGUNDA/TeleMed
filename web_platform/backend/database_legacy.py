@@ -380,10 +380,15 @@ def get_user_by_id(user_id: str) -> Optional[Dict[str, Any]]:
         if not u:
             return None
 
+        is_act = getattr(u, "is_active", True)
+        if is_act is None:
+            is_act = True
+
         user_dict = {
             "user_id": u.user_id,
             "email": u.email,
             "role": u.role,
+            "is_active": bool(is_act),
             "created_at": u.created_at,
             "updated_at": u.updated_at
         }
