@@ -286,6 +286,15 @@ export default function AdminDashboardPage({ onNavigate }) {
                     <TableCell>
                       <div className="flex items-center gap-2">
                         <Button
+                          variant="outline"
+                          size="sm"
+                          className="!px-3 !py-1 text-xs font-semibold text-[var(--primary)] border-[var(--primary)]/30 hover:bg-[var(--primary)]/10"
+                          leftIcon={<Eye className="w-3.5 h-3.5" />}
+                          onClick={() => onNavigate ? onNavigate('verification') : setActiveTab('verification')}
+                        >
+                          Review Documents
+                        </Button>
+                        <Button
                           variant="success"
                           size="sm"
                           className="!px-2.5 !py-1 text-xs"
