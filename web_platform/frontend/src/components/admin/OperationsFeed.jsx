@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Card, Badge } from '../ui';
 import { Activity, ShieldAlert, CheckCircle2, UserCheck, FileText, Lock, Clock } from 'lucide-react';
-import { fetchDoctorVerificationStatus } from '../../api/client';
+import { fetchAdminDoctorApplications } from '../../api/client';
 
 export default function OperationsFeed() {
   const [activities, setActivities] = useState([
@@ -18,17 +18,20 @@ export default function OperationsFeed() {
 
   const loadRealAuditLogs = async () => {
     try {
-      const res = await fetchDoctorVerificationStatus().catch(() => null);
-      if (res?.application?.audit_history && res.application.audit_history.length > 0) {
-        const mappedLogs = res.application.audit_history.slice(0, 5).map((log, idx) => ({
-          id: log.log_id || `AUD-${idx}`,
-          action: log.action ? log.action.replace('_', ' ') : 'Audit Event Logged',
-          detail: log.reason || `Action performed by ${log.actor_role || 'User'}`,
-          time: new Date(log.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          severity: log.action || 'INFO',
-          variant: log.action === 'STATUS_CHANGED' ? 'primary' : log.action === 'DOCUMENT_UPLOADED' ? 'secondary' : 'success'
-        }));
-        setActivities(mappedLogs);
+      const res = await fetchAdminDoctorApplications('').catch(() => null);
+      if (res?.applications && res.applications.length > 0) {
+        const firstApp = res.applications[0];
+        if (firstApp.audit_history && firstApp.audit_history.length > 0) {
+          const mappedLogs = firstApp.audit_history.slice(0, 5).map((log, idx) => ({
+            id: log.log_id || `AUD-${idx}`,
+            action: log.action ? log.action.replace('_', ' ') : 'Audit Event Logged',
+            detail: log.reason || `Action performed by ${log.actor_role || 'User'}`,
+            time: new Date(log.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            severity: log.action || 'INFO',
+            variant: log.action === 'STATUS_CHANGED' ? 'primary' : log.action === 'DOCUMENT_UPLOADED' ? 'secondary' : 'success'
+          }));
+          setActivities(mappedLogs);
+        }
       }
     } catch (e) {
       // Retain clean defaults

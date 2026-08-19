@@ -617,16 +617,19 @@ export async function deleteDoctorCredential(documentId) {
 }
 
 export async function fetchDoctorVerificationStatus() {
-  const res = await fetch(`${API_BASE}/doctor/verification-status`, {
-    method: 'GET',
-    headers: getAuthHeaders(),
-  });
+  try {
+    const res = await fetch(`${API_BASE}/doctor/verification-status`, {
+      method: 'GET',
+      headers: getAuthHeaders(),
+    });
 
-  const data = await res.json();
-  if (!res.ok) {
-    throw new Error(data.message || data.detail || 'Failed to fetch doctor verification status');
+    if (!res.ok) {
+      return { verification_status: 'NOT_SUBMITTED', application: null };
+    }
+    return await res.json();
+  } catch (err) {
+    return { verification_status: 'NOT_SUBMITTED', application: null };
   }
-  return data;
 }
 
 export async function submitDoctorApplicationForReview() {
