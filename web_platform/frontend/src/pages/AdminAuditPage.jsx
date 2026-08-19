@@ -18,65 +18,6 @@ export default function AdminAuditPage() {
   const [verifyingIntegrity, setVerifyingIntegrity] = useState(false);
   const [selectedLog, setSelectedLog] = useState(null);
 
-  // Fallback audit seed records if DB has 0 events initially
-  const defaultAuditSeeds = [
-    {
-      event_id: 'EVT-9042',
-      action: 'DOCTOR_CREDENTIAL_VERIFIED',
-      actor_user_id: 'usr_admin',
-      role: 'ADMIN',
-      resource_type: 'DOCTOR_PROFILE',
-      resource_id: 'DOC-101',
-      outcome: 'SUCCESS',
-      created_at: new Date(Date.now() - 1000 * 60 * 15).toISOString(),
-      event_hash: 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855'
-    },
-    {
-      event_id: 'EVT-9041',
-      action: 'PATIENT_INTAKE_SUBMITTED',
-      actor_user_id: 'usr_patient',
-      role: 'PATIENT',
-      resource_type: 'INTAKE_ASSESSMENT',
-      resource_id: 'INT-8831',
-      outcome: 'SUCCESS',
-      created_at: new Date(Date.now() - 1000 * 60 * 45).toISOString(),
-      event_hash: 'a1b2c3d4e5f67890123456789abcdef0123456789abcdef0123456789abcdef0'
-    },
-    {
-      event_id: 'EVT-9040',
-      action: 'CREDENTIAL_DOCUMENT_DOWNLOADED',
-      actor_user_id: 'admin@telemed.ai',
-      role: 'ADMIN',
-      resource_type: 'DOCTOR_CREDENTIAL',
-      resource_id: 'DOC_CRED_0A4AE',
-      outcome: 'SUCCESS',
-      created_at: new Date(Date.now() - 1000 * 60 * 120).toISOString(),
-      event_hash: '9f8e7d6c5b4a3210fe2109876543210fedcba9876543210fedcba9876543210f'
-    },
-    {
-      event_id: 'EVT-9039',
-      action: 'USER_ACCOUNT_SUSPENDED',
-      actor_user_id: 'admin@telemed.ai',
-      role: 'ADMIN',
-      resource_type: 'USER_ACCOUNT',
-      resource_id: 'usr_suspended_test',
-      outcome: 'FAILED',
-      created_at: new Date(Date.now() - 1000 * 60 * 240).toISOString(),
-      event_hash: '7c9e8f1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e'
-    },
-    {
-      event_id: 'EVT-9038',
-      action: 'SYSTEM_STARTUP_DIAGNOSTICS',
-      actor_user_id: 'SYSTEM',
-      role: 'SYSTEM',
-      resource_type: 'FASTAPI_GATEWAY',
-      resource_id: 'SYS-CORE',
-      outcome: 'SUCCESS',
-      created_at: new Date(Date.now() - 1000 * 60 * 360).toISOString(),
-      event_hash: '0000000000000000000000000000000000000000000000000000000000000000'
-    }
-  ];
-
   const loadAuditLogs = async () => {
     setLoading(true);
     setErrorMsg(null);
@@ -87,33 +28,12 @@ export default function AdminAuditPage() {
         page_size: 50
       });
       const fetchedItems = data.items || data.audit_logs || [];
-      if (fetchedItems.length > 0) {
-        setLogs(fetchedItems);
-        setTotalRecords(data.total || fetchedItems.length);
-      } else {
-        // Filter default seed items if API returns empty array
-        const filteredSeeds = defaultAuditSeeds.filter(item => {
-          const matchSearch = !searchQuery || 
-            item.action.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            item.actor_user_id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            item.resource_type.toLowerCase().includes(searchQuery.toLowerCase());
-          const matchOutcome = outcomeFilter === 'ALL' || item.outcome === outcomeFilter;
-          return matchSearch && matchOutcome;
-        });
-        setLogs(filteredSeeds);
-        setTotalRecords(filteredSeeds.length);
-      }
+      setLogs(fetchedItems);
+      setTotalRecords(data.total || fetchedItems.length);
     } catch (err) {
-      // Fallback gracefully to default audit logs
-      const filteredSeeds = defaultAuditSeeds.filter(item => {
-        const matchSearch = !searchQuery || 
-          item.action.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          item.actor_user_id.toLowerCase().includes(searchQuery.toLowerCase());
-        const matchOutcome = outcomeFilter === 'ALL' || item.outcome === outcomeFilter;
-        return matchSearch && matchOutcome;
-      });
-      setLogs(filteredSeeds);
-      setTotalRecords(filteredSeeds.length);
+      setErrorMsg(err.message || 'Failed to load audit logs.');
+      setLogs([]);
+      setTotalRecords(0);
     } finally {
       setLoading(false);
     }

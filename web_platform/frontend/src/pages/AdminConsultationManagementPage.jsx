@@ -31,113 +31,26 @@ export default function AdminConsultationManagementPage() {
   const [assignmentNotes, setAssignmentNotes] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
-  // Rich fallback seed data for consultation queue
-  const defaultConsultationSeeds = [
-    {
-      consultation_id: 'cons_101_cardiology',
-      patient_name: 'Aravind Bhatiya',
-      patient_email: 'aravind@telemed.ai',
-      requested_specialization: 'Cardiology',
-      specialization: 'Cardiology',
-      category: 'Symptom Triage',
-      reason: 'Chest pressure and mild shortness of breath during physical exertion.',
-      urgency: 'SOON',
-      doctor_name: null,
-      assigned_doctor_id: null,
-      status: 'REQUESTED'
-    },
-    {
-      consultation_id: 'cons_102_general',
-      patient_name: 'Ramu Sharma',
-      patient_email: 'ramu@telemed.ai',
-      requested_specialization: 'General Medicine',
-      specialization: 'General Medicine',
-      category: 'Routine Checkup',
-      reason: 'Follow-up consultation for blood pressure management and lab intake review.',
-      urgency: 'ROUTINE',
-      doctor_name: 'Arjun Sarkaar',
-      doctor_specialization: 'Internal Medicine',
-      assigned_doctor_id: 'usr_doctor',
-      status: 'ASSIGNED'
-    },
-    {
-      consultation_id: 'cons_103_dermatology',
-      patient_name: 'Swaran Gunda',
-      patient_email: 'swaran@telemed.ai',
-      requested_specialization: 'Dermatology',
-      specialization: 'Dermatology',
-      category: 'Skin Lesion Review',
-      reason: 'Persistent erythematous rash on right forearm.',
-      urgency: 'SOON',
-      doctor_name: 'Arjun Sarkaar',
-      doctor_specialization: 'Dermatology',
-      assigned_doctor_id: 'usr_doctor',
-      status: 'ACTIVE'
-    },
-    {
-      consultation_id: 'cons_104_neurology',
-      patient_name: 'Ram Krishna',
-      patient_email: 'ramkrishna@telemed.ai',
-      requested_specialization: 'Neurology',
-      specialization: 'Neurology',
-      category: 'Migraine Evaluation',
-      reason: 'Frequent tension headache episodes and photophobia.',
-      urgency: 'ROUTINE',
-      doctor_name: 'Arjun Sarkaar',
-      doctor_specialization: 'Neurology',
-      assigned_doctor_id: 'usr_doctor',
-      status: 'COMPLETED'
-    },
-    {
-      consultation_id: 'cons_105_internal',
-      patient_name: 'Patient 1',
-      patient_email: 'patient1@telemed.ai',
-      requested_specialization: 'Internal Medicine',
-      specialization: 'Internal Medicine',
-      category: 'Biomarker Review',
-      reason: 'Fasting blood glucose elevated at 128 mg/dL.',
-      urgency: 'SOON',
-      doctor_name: 'Arjun Sarkaar',
-      doctor_specialization: 'Internal Medicine',
-      assigned_doctor_id: 'usr_doctor',
-      status: 'ACCEPTED'
-    }
-  ];
-
   const loadData = async () => {
     setLoading(true);
     setErrorMsg(null);
     try {
       const [consData, allConsData, docData] = await Promise.all([
-        fetchAdminConsultations(filterStatus !== 'ALL' ? filterStatus : '', searchQuery || '').catch(() => ({ consultations: [] })),
-        fetchAdminConsultations('', '').catch(() => ({ consultations: [] })),
+        fetchAdminConsultations(filterStatus !== 'ALL' ? filterStatus : '', searchQuery || ''),
+        fetchAdminConsultations('', ''),
         fetchAdminDoctorApplications('VERIFIED').catch(() => ({ applications: [] }))
       ]);
 
-      let fetchedCons = consData.consultations || [];
-      let fetchedAll = allConsData.consultations || [];
-
-      if (fetchedAll.length === 0) {
-        fetchedAll = defaultConsultationSeeds;
-      }
-      if (fetchedCons.length === 0) {
-        fetchedCons = fetchedAll.filter(c => {
-          const matchStatus = filterStatus === 'ALL' || c.status === filterStatus;
-          const matchSearch = !searchQuery || 
-            (c.patient_name || c.full_name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-            (c.patient_email || c.email || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-            (c.specialization || c.requested_specialization || '').toLowerCase().includes(searchQuery.toLowerCase());
-          return matchStatus && matchSearch;
-        });
-      }
+      const fetchedCons = consData.consultations || [];
+      const fetchedAll = allConsData.consultations || [];
 
       setConsultations(fetchedCons);
       setAllConsultations(fetchedAll);
       setDoctors(docData.applications || docData.doctors || []);
     } catch (err) {
       setErrorMsg(err.message || 'Failed to load consultation queue.');
-      setConsultations(defaultConsultationSeeds);
-      setAllConsultations(defaultConsultationSeeds);
+      setConsultations([]);
+      setAllConsultations([]);
     } finally {
       setLoading(false);
     }
