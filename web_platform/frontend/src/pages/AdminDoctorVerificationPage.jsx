@@ -472,58 +472,57 @@ export default function AdminDoctorVerificationPage() {
             </div>
 
             {/* RIGHT COLUMN (5 cols): Physician Metadata & Audit Decision Form */}
-            <div className="lg:col-span-5 flex flex-col h-full space-y-4 min-h-0 overflow-y-auto pr-1">
+            <div className="lg:col-span-5 flex flex-col justify-between h-full space-y-2.5 min-h-0 pr-1 overflow-hidden">
               
               {/* Doctor Details Summary Card */}
-              <Card isGlass={true} className="p-4 bg-[var(--bg-primary)] space-y-2 border-l-4 border-l-[var(--primary)] shrink-0">
+              <Card isGlass={true} className="p-3 bg-[var(--bg-primary)] space-y-1.5 border-l-4 border-l-[var(--primary)] shrink-0">
                 <div className="flex items-center justify-between">
-                  <h4 className="text-xs font-mono font-bold uppercase text-[var(--text-muted)]">Practitioner Identity</h4>
+                  <h4 className="text-[11px] font-mono font-bold uppercase text-[var(--text-muted)]">Practitioner Identity</h4>
                   <Badge variant="primary" size="sm font-mono">{selectedApp.doctor_id || selectedApp.id || 'DOC-101'}</Badge>
                 </div>
                 <div className="text-sm font-extrabold text-[var(--text-main)]">{selectedApp.full_name || selectedApp.name || 'Dr. Arjun Sarkar'}</div>
                 <div className="text-xs font-mono text-[var(--text-muted)]">{selectedApp.email || 'arjun@telemed.ai'}</div>
                 
-                <div className="grid grid-cols-2 gap-2 text-xs pt-2 border-t border-[var(--border-subtle)]">
+                <div className="grid grid-cols-2 gap-2 text-xs pt-1.5 border-t border-[var(--border-subtle)]">
                   <div>
                     <span className="text-[10px] font-mono text-[var(--text-muted)] uppercase block">Specialization</span>
-                    <strong className="text-[var(--text-main)]">{selectedApp.specialization || 'Internal Medicine'}</strong>
+                    <strong className="text-[var(--text-main)] text-xs">{selectedApp.specialization || 'Internal Medicine'}</strong>
                   </div>
                   <div>
                     <span className="text-[10px] font-mono text-[var(--text-muted)] uppercase block">License Number</span>
-                    <strong className="font-mono text-[var(--primary)]">{selectedApp.medical_license_number || selectedApp.registration_number || 'REG-190826'}</strong>
+                    <strong className="font-mono text-[var(--primary)] text-xs">{selectedApp.medical_license_number || selectedApp.registration_number || 'REG-190826'}</strong>
                   </div>
                 </div>
               </Card>
 
               {/* Compliance Verification Checklist */}
-              <Card isGlass={true} className="p-4 bg-[var(--bg-primary)] space-y-3 shrink-0">
-                <h5 className="text-xs font-mono uppercase font-bold text-[var(--text-muted)]">Compliance Verification Checklist</h5>
-                <div className="space-y-2 text-xs">
+              <Card isGlass={true} className="p-3 bg-[var(--bg-primary)] space-y-2 shrink-0">
+                <h5 className="text-[11px] font-mono uppercase font-bold text-[var(--text-muted)]">Compliance Verification Checklist</h5>
+                <div className="space-y-1.5 text-xs">
                   <label className="flex items-center gap-2 cursor-pointer text-[var(--text-main)] hover:text-[var(--primary)] transition-colors">
-                    <input type="checkbox" checked={checklist.licenseVerified} onChange={(e) => setChecklist(prev => ({ ...prev, licenseVerified: e.target.checked }))} className="rounded accent-[var(--primary)] w-4 h-4" />
-                    <span className="font-semibold">State Medical Board License Validated</span>
+                    <input type="checkbox" checked={checklist.licenseVerified} onChange={(e) => setChecklist(prev => ({ ...prev, licenseVerified: e.target.checked }))} className="rounded accent-[var(--primary)] w-3.5 h-3.5" />
+                    <span className="font-semibold text-xs">State Medical Board License Validated</span>
                   </label>
                   <label className="flex items-center gap-2 cursor-pointer text-[var(--text-main)] hover:text-[var(--primary)] transition-colors">
-                    <input type="checkbox" checked={checklist.identityVerified} onChange={(e) => setChecklist(prev => ({ ...prev, identityVerified: e.target.checked }))} className="rounded accent-[var(--primary)] w-4 h-4" />
-                    <span className="font-semibold">Government Identity Proof Match Passed</span>
+                    <input type="checkbox" checked={checklist.identityVerified} onChange={(e) => setChecklist(prev => ({ ...prev, identityVerified: e.target.checked }))} className="rounded accent-[var(--primary)] w-3.5 h-3.5" />
+                    <span className="font-semibold text-xs">Government Identity Proof Match Passed</span>
                   </label>
                   <label className="flex items-center gap-2 cursor-pointer text-[var(--text-main)] hover:text-[var(--primary)] transition-colors">
-                    <input type="checkbox" checked={checklist.hospitalVerified} onChange={(e) => setChecklist(prev => ({ ...prev, hospitalVerified: e.target.checked }))} className="rounded accent-[var(--primary)] w-4 h-4" />
-                    <span className="font-semibold">Hospital Employment Affiliation Active</span>
+                    <input type="checkbox" checked={checklist.hospitalVerified} onChange={(e) => setChecklist(prev => ({ ...prev, hospitalVerified: e.target.checked }))} className="rounded accent-[var(--primary)] w-3.5 h-3.5" />
+                    <span className="font-semibold text-xs">Hospital Employment Affiliation Active</span>
                   </label>
                   <label className="flex items-center gap-2 cursor-pointer text-[var(--text-main)] hover:text-[var(--primary)] transition-colors">
-                    <input type="checkbox" checked={checklist.insuranceVerified} onChange={(e) => setChecklist(prev => ({ ...prev, insuranceVerified: e.target.checked }))} className="rounded accent-[var(--primary)] w-4 h-4" />
-                    <span className="font-semibold">Malpractice Insurance Active</span>
+                    <input type="checkbox" checked={checklist.insuranceVerified} onChange={(e) => setChecklist(prev => ({ ...prev, insuranceVerified: e.target.checked }))} className="rounded accent-[var(--primary)] w-3.5 h-3.5" />
+                    <span className="font-semibold text-xs">Malpractice Insurance Active</span>
                   </label>
                 </div>
               </Card>
 
               {/* Decision & Revision Notes */}
-              <div className="space-y-1.5 shrink-0 pt-1">
+              <div className="space-y-1 flex-1 min-h-0 flex flex-col">
                 <label className="text-xs font-bold text-[var(--text-main)] block">Audit Decision Notes / Revision Instructions</label>
                 <textarea
-                  rows={3}
-                  className="w-full h-24 p-3 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] text-[var(--text-main)] text-xs focus:outline-none focus:ring-2 focus:ring-[var(--primary)] resize-none"
+                  className="w-full flex-1 p-2.5 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] text-[var(--text-main)] text-xs focus:outline-none focus:ring-2 focus:ring-[var(--primary)] resize-none"
                   placeholder="Enter audit decision details, missing document requests, or credential verification notes..."
                   value={transitionReason}
                   onChange={(e) => setTransitionReason(e.target.value)}
@@ -531,18 +530,18 @@ export default function AdminDoctorVerificationPage() {
               </div>
 
               {/* Action Buttons Footer */}
-              <div className="pt-3 border-t border-[var(--border-subtle)] space-y-2 shrink-0">
+              <div className="pt-2 border-t border-[var(--border-subtle)] space-y-2 shrink-0">
                 <div className="grid grid-cols-2 gap-2">
-                  <Button variant="outline" size="sm" className="!py-2 text-amber-600 dark:text-amber-400 border-amber-500/40 hover:bg-amber-500/10 font-bold text-xs" isLoading={submitting} onClick={() => handleExecuteTransition('RESUBMISSION_REQUIRED')}>
+                  <Button variant="outline" size="sm" className="!py-1.5 text-amber-600 dark:text-amber-400 border-amber-500/40 hover:bg-amber-500/10 font-bold text-xs" isLoading={submitting} onClick={() => handleExecuteTransition('RESUBMISSION_REQUIRED')}>
                     Request Revision
                   </Button>
-                  <Button variant="outline" size="sm" className="!py-2 text-rose-600 dark:text-rose-400 border-rose-500/40 hover:bg-rose-500/10 font-bold text-xs" isLoading={submitting} onClick={() => handleExecuteTransition('REJECTED')}>
+                  <Button variant="outline" size="sm" className="!py-1.5 text-rose-600 dark:text-rose-400 border-rose-500/40 hover:bg-rose-500/10 font-bold text-xs" isLoading={submitting} onClick={() => handleExecuteTransition('REJECTED')}>
                     Reject Application
                   </Button>
                 </div>
-                <div className="flex items-center justify-between gap-2 pt-0.5">
-                  <Button variant="outline" size="sm" className="text-xs !py-2" onClick={() => setSelectedApp(null)}>Cancel Audit</Button>
-                  <Button variant="success" size="sm" className="flex-1 font-bold text-xs !py-2 shadow-lg shadow-blue-500/20" isLoading={submitting} leftIcon={<Check className="w-4 h-4" />} onClick={() => handleExecuteTransition('VERIFIED')}>
+                <div className="flex items-center justify-between gap-2">
+                  <Button variant="outline" size="sm" className="text-xs !py-1.5" onClick={() => setSelectedApp(null)}>Cancel Audit</Button>
+                  <Button variant="success" size="sm" className="flex-1 font-bold text-xs !py-1.5 shadow-lg shadow-blue-500/20" isLoading={submitting} leftIcon={<Check className="w-4 h-4" />} onClick={() => handleExecuteTransition('VERIFIED')}>
                     Approve Credentials & Grant Access →
                   </Button>
                 </div>
