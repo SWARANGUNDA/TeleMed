@@ -532,18 +532,38 @@ export default function AdminDoctorVerificationPage() {
               {/* Action Buttons Footer */}
               <div className="pt-2 border-t border-[var(--border-subtle)] space-y-2 shrink-0">
                 <div className="grid grid-cols-2 gap-2">
-                  <Button variant="outline" size="sm" className="!py-1.5 text-amber-600 dark:text-amber-400 border-amber-500/40 hover:bg-amber-500/10 font-bold text-xs" isLoading={submitting} onClick={() => handleExecuteTransition('RESUBMISSION_REQUIRED')}>
+                  <button
+                    onClick={() => handleExecuteTransition('RESUBMISSION_REQUIRED')}
+                    disabled={submitting}
+                    className="py-2 px-3 rounded-xl bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-white font-extrabold text-xs shadow-md shadow-amber-500/25 flex items-center justify-center gap-1.5 transition-all disabled:opacity-50 cursor-pointer"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5" />
                     Request Revision
-                  </Button>
-                  <Button variant="outline" size="sm" className="!py-1.5 text-rose-600 dark:text-rose-400 border-rose-500/40 hover:bg-rose-500/10 font-bold text-xs" isLoading={submitting} onClick={() => handleExecuteTransition('REJECTED')}>
+                  </button>
+                  <button
+                    onClick={() => handleExecuteTransition('REJECTED')}
+                    disabled={submitting}
+                    className="py-2 px-3 rounded-xl bg-rose-600 hover:bg-rose-700 active:bg-rose-800 text-white font-extrabold text-xs shadow-md shadow-rose-600/25 flex items-center justify-center gap-1.5 transition-all disabled:opacity-50 cursor-pointer"
+                  >
+                    <XCircle className="w-3.5 h-3.5" />
                     Reject Application
-                  </Button>
+                  </button>
                 </div>
                 <div className="flex items-center justify-between gap-2">
-                  <Button variant="outline" size="sm" className="text-xs !py-1.5" onClick={() => setSelectedApp(null)}>Cancel Audit</Button>
-                  <Button variant="success" size="sm" className="flex-1 font-bold text-xs !py-1.5 shadow-lg shadow-blue-500/20" isLoading={submitting} leftIcon={<Check className="w-4 h-4" />} onClick={() => handleExecuteTransition('VERIFIED')}>
+                  <button
+                    onClick={() => setSelectedApp(null)}
+                    className="py-2 px-4 rounded-xl bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold text-xs border border-slate-300 dark:border-slate-700 transition-all cursor-pointer"
+                  >
+                    Cancel Audit
+                  </button>
+                  <button
+                    onClick={() => handleExecuteTransition('VERIFIED')}
+                    disabled={submitting}
+                    className="flex-1 py-2 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-extrabold text-xs shadow-lg shadow-emerald-600/30 flex items-center justify-center gap-1.5 transition-all disabled:opacity-50 cursor-pointer"
+                  >
+                    <Check className="w-4 h-4" />
                     Approve Credentials & Grant Access →
-                  </Button>
+                  </button>
                 </div>
               </div>
 
