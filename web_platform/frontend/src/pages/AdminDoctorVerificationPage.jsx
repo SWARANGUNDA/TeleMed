@@ -16,9 +16,19 @@ import {
 import { getAllVaultDocuments } from '../utils/doctorVaultDB';
 import { getAuthToken } from '../api/client';
 
+function blobToDataUrl(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+}
+
 /**
- * Fetch a credential file as a blob using authenticated fetch, then create a blob: URL.
+ * Fetch a credential file as a Base64 Data URL using authenticated fetch.
  * This is necessary because <iframe>/<object> elements CANNOT send Authorization headers.
+ * Base64 Data URLs prevent ERR_FILE_NOT_FOUND caused by browser blob: URL revocation.
  */
 async function fetchCredentialBlob(documentId) {
   const API_BASE = (['5173','5174','5175','5176'].includes(window.location.port))
@@ -43,7 +53,9 @@ async function fetchCredentialBlob(documentId) {
   }
 
   const blob = await res.blob();
-  return URL.createObjectURL(blob);
+  if (!blob || blob.size === 0) return null;
+
+  return await blobToDataUrl(blob).catch(() => null);
 }
 
 const makeCertificateSvg = (docTitle, docCategory, docId, doctorName, licenseNum) => {
@@ -95,10 +107,9 @@ export default function AdminDoctorVerificationPage() {
   const [vaultDocs, setVaultDocs] = useState([]);
   const [activeDocIdx, setActiveDocIdx] = useState(0);
 
-  // Blob URLs for authenticated document previews
-  const [blobUrls, setBlobUrls] = useState({});  // { documentId: blobUrl }
+  // Base64 Data URLs for authenticated document previews
+  const [blobUrls, setBlobUrls] = useState({});  // { documentId: dataUrl }
   const [blobLoading, setBlobLoading] = useState({});
-  const blobUrlsRef = useRef({});
 
   // Transition Form State inside modal
   const [transitionReason, setTransitionReason] = useState('');
@@ -111,15 +122,6 @@ export default function AdminDoctorVerificationPage() {
   });
 
   const [allApps, setAllApps] = useState([]);
-
-  // Cleanup blob URLs on unmount
-  useEffect(() => {
-    return () => {
-      Object.values(blobUrlsRef.current).forEach(url => {
-        try { URL.revokeObjectURL(url); } catch (e) {}
-      });
-    };
-  }, []);
 
   const loadApplications = async () => {
     setLoading(true);
@@ -146,12 +148,7 @@ export default function AdminDoctorVerificationPage() {
     setDetailLoading(true);
     setTransitionReason('');
     setActiveDocIdx(0);
-    // Clear old blob URLs
-    Object.values(blobUrlsRef.current).forEach(url => {
-      try { URL.revokeObjectURL(url); } catch (e) {}
-    });
     setBlobUrls({});
-    blobUrlsRef.current = {};
     setBlobLoading({});
 
     try {
@@ -168,10 +165,9 @@ export default function AdminDoctorVerificationPage() {
         if (cred.document_id) {
           setBlobLoading(prev => ({ ...prev, [cred.document_id]: true }));
           fetchCredentialBlob(cred.document_id)
-            .then(blobUrl => {
-              if (blobUrl) {
-                setBlobUrls(prev => ({ ...prev, [cred.document_id]: blobUrl }));
-                blobUrlsRef.current[cred.document_id] = blobUrl;
+            .then(dataUrl => {
+              if (dataUrl) {
+                setBlobUrls(prev => ({ ...prev, [cred.document_id]: dataUrl }));
               }
             })
             .catch(() => {})
