@@ -103,11 +103,19 @@ export default function AdminDoctorVerificationPage() {
     }
   };
 
-  // Compile list of documents to display in modal
+  const formatDocTitle = (type = '', name = '') => {
+    const raw = (type || name || '').toUpperCase().replace(/_/g, ' ');
+    if (raw.includes('LICENSE') || raw.includes('REGISTRATION')) return 'State Medical Board License';
+    if (raw.includes('IDENTITY') || raw.includes('PASSPORT') || raw.includes('ID')) return 'Government Identity & Passport';
+    if (raw.includes('HOSPITAL') || raw.includes('EMPLOYMENT') || raw.includes('AFFILIATION')) return 'Hospital Employment Certificate';
+    if (raw.includes('INSURANCE') || raw.includes('MALPRACTICE')) return 'Malpractice Insurance Record';
+    return raw || 'Credential Document';
+  };
+
   const defaultDocs = [
     {
       id: 'DOC-LIC',
-      title: 'State Medical Council Registration License',
+      title: 'State Medical Board Registration License',
       type: 'pdf',
       category: 'Medical License',
       status: 'VERIFIED'
@@ -128,25 +136,46 @@ export default function AdminDoctorVerificationPage() {
     },
     {
       id: 'DOC-INS',
-      title: 'Medical Malpractice Insurance Policy',
+      title: 'Medical Malpractice Insurance Record',
       type: 'pdf',
       category: 'Insurance Policy',
       status: 'VERIFIED'
     }
   ];
 
-  const displayDocs = vaultDocs.length > 0 
-    ? vaultDocs.map(v => ({
-        id: v.document_id || v.name,
-        title: v.name || v.document_type || 'Uploaded Credential',
-        type: v.file_type?.includes('pdf') || v.name?.endsWith('.pdf') ? 'pdf' : 'image',
-        category: v.document_type || 'Credential Document',
-        dataUrl: v.dataUrl || v.preview,
-        size: v.size || '1.8 MB',
-        date: v.uploaded_at || 'Just now'
-      }))
-    : defaultDocs;
+  const backendDocs = (selectedApp?.credentials || []).map(c => ({
+    id: c.document_id || c.stored_filename,
+    title: formatDocTitle(c.document_type, c.original_filename),
+    type: c.mime_type?.includes('pdf') || c.stored_filename?.endsWith('.pdf') ? 'pdf' : 'image',
+    category: c.document_type || 'Credential Document',
+    dataUrl: c.stored_filename ? `http://localhost:8000/uploads/doctor_credentials/${c.stored_filename}` : null,
+    size: c.file_size_bytes ? `${(c.file_size_bytes / 1024 / 1024).toFixed(1)} MB` : '1.8 MB',
+    date: c.uploaded_at || 'Verified Upload'
+  }));
 
+  const localVaultDocs = vaultDocs.map(v => ({
+    id: v.document_id || v.name,
+    title: formatDocTitle(v.document_type, v.name),
+    type: v.file_type?.includes('pdf') || v.name?.endsWith('.pdf') ? 'pdf' : 'image',
+    category: v.document_type || 'Credential Document',
+    dataUrl: v.dataUrl || v.preview,
+    size: v.size || '1.8 MB',
+    date: v.uploaded_at || 'Vault Staged'
+  }));
+
+  const mergedDocs = [...backendDocs, ...localVaultDocs];
+
+  // Deduplicate documents by clean title
+  const uniqueDocs = [];
+  const seenTitles = new Set();
+  for (const d of mergedDocs) {
+    if (!seenTitles.has(d.title)) {
+      seenTitles.add(d.title);
+      uniqueDocs.push(d);
+    }
+  }
+
+  const displayDocs = uniqueDocs.length > 0 ? uniqueDocs : defaultDocs;
   const currentDoc = displayDocs[activeDocIdx] || displayDocs[0];
 
   return (
@@ -228,7 +257,7 @@ export default function AdminDoctorVerificationPage() {
         isOpen={Boolean(selectedApp)}
         onClose={() => setSelectedApp(null)}
         title={`Doctor Credential Review & Document Audit Workspace | ${selectedApp?.full_name || selectedApp?.name || 'Physician'}`}
-        className="max-w-6xl w-full h-[90vh] flex flex-col p-6 overflow-hidden"
+        className="max-w-[95vw] w-full h-[92vh] flex flex-col p-6 overflow-hidden"
       >
         {selectedApp && (
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 h-full min-h-0 pt-2 overflow-hidden">
@@ -242,26 +271,26 @@ export default function AdminDoctorVerificationPage() {
                   <button
                     key={doc.id || idx}
                     onClick={() => setActiveDocIdx(idx)}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all whitespace-nowrap border ${
+                    className={`px-3.5 py-2 rounded-xl text-xs font-extrabold flex items-center gap-2 transition-all whitespace-nowrap border ${
                       activeDocIdx === idx
-                        ? 'bg-[var(--primary)] text-white border-[var(--primary)] shadow-md'
-                        : 'bg-[var(--bg-primary)] text-[var(--text-muted)] border-[var(--border-subtle)] hover:text-[var(--text-main)]'
+                        ? 'bg-[var(--primary)] text-white border-[var(--primary)] shadow-lg scale-[1.02]'
+                        : 'bg-[var(--bg-primary)] text-[var(--text-muted)] border-[var(--border-subtle)] hover:text-[var(--text-main)] hover:border-[var(--primary)]/40'
                     }`}
                   >
-                    <FileText className="w-3.5 h-3.5" />
+                    <FileText className="w-4 h-4 shrink-0" />
                     <span>{doc.title}</span>
                   </button>
                 ))}
               </div>
 
               {/* Active Document Viewer Panel */}
-              <div className="flex-1 rounded-2xl bg-slate-900/90 border border-slate-700/60 p-4 flex flex-col items-center justify-center relative overflow-hidden min-h-0 shadow-inner">
+              <div className="flex-1 rounded-2xl bg-slate-950 border border-slate-800 p-3 flex flex-col items-center justify-center relative overflow-hidden min-h-0 shadow-2xl">
                 {currentDoc?.dataUrl ? (
                   currentDoc.type === 'pdf' ? (
                     <iframe
                       src={currentDoc.dataUrl}
                       title={currentDoc.title}
-                      className="w-full h-full rounded-xl border border-slate-800 bg-white"
+                      className="w-full h-full min-h-[480px] rounded-xl border border-slate-800 bg-white"
                     />
                   ) : (
                     <div className="w-full h-full flex flex-col items-center justify-center p-2 overflow-auto">
@@ -274,14 +303,14 @@ export default function AdminDoctorVerificationPage() {
                   )
                 ) : (
                   /* High-Resolution Graphic Certificate Preview Fallback */
-                  <div className="w-full max-w-lg p-6 rounded-2xl bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-950 border border-indigo-500/30 text-white space-y-4 shadow-2xl relative overflow-hidden my-auto">
+                  <div className="w-full max-w-lg p-6 rounded-2xl bg-gradient-to-br from-slate-900 via-slate-850 to-indigo-950 border border-indigo-500/40 text-white space-y-4 shadow-2xl relative overflow-hidden my-auto">
                     <div className="absolute top-0 right-0 p-6 opacity-10 pointer-events-none">
                       <Stethoscope className="w-48 h-48 text-indigo-400" />
                     </div>
 
                     <div className="flex items-center justify-between border-b border-indigo-500/20 pb-3">
                       <div className="flex items-center gap-2">
-                        <ShieldCheck className="w-6 h-6 text-emerald-400" />
+                        <ShieldCheck className="w-6 h-6 text-emerald-400 shrink-0" />
                         <div>
                           <h4 className="text-sm font-extrabold tracking-wide uppercase font-mono">Official Medical Credential</h4>
                           <span className="text-[10px] text-indigo-300 font-mono">State Medical Board Registry Verification</span>
@@ -292,7 +321,7 @@ export default function AdminDoctorVerificationPage() {
                       </Badge>
                     </div>
 
-                    <div className="space-y-2 text-xs">
+                    <div className="space-y-2.5 text-xs">
                       <div className="flex justify-between border-b border-indigo-500/10 pb-1.5">
                         <span className="text-slate-400">Practitioner Name:</span>
                         <strong className="text-indigo-200 font-bold">{selectedApp.full_name || selectedApp.name || 'Dr. Arjun Sarkar'}</strong>
@@ -323,22 +352,32 @@ export default function AdminDoctorVerificationPage() {
                 )}
               </div>
 
-              {/* Document Metadata Bar */}
-              <div className="flex items-center justify-between text-xs text-[var(--text-muted)] bg-[var(--bg-primary)] p-2.5 rounded-xl border border-[var(--border-subtle)] shrink-0">
+              {/* Document Metadata & External Controls Bar */}
+              <div className="flex items-center justify-between text-xs text-[var(--text-muted)] bg-[var(--bg-primary)] p-3 rounded-xl border border-[var(--border-subtle)] shrink-0">
                 <div className="flex items-center gap-2">
-                  <FileText className="w-4 h-4 text-[var(--primary)]" />
-                  <span className="font-bold text-[var(--text-main)]">{currentDoc?.title}</span>
+                  <FileText className="w-4 h-4 text-[var(--primary)] shrink-0" />
+                  <strong className="text-xs text-[var(--text-main)] truncate">{currentDoc?.title}</strong>
                   <span className="text-[10px] font-mono bg-[var(--bg-surface)] px-2 py-0.5 rounded border">{currentDoc?.size || '1.8 MB'}</span>
                 </div>
-                {currentDoc?.dataUrl && (
-                  <a
-                    href={currentDoc.dataUrl}
-                    download={`${currentDoc.title || 'credential'}.pdf`}
-                    className="flex items-center gap-1 text-xs font-semibold text-[var(--primary)] hover:underline"
-                  >
-                    <Download className="w-3.5 h-3.5" /> Download Document
-                  </a>
-                )}
+                <div className="flex items-center gap-3">
+                  {currentDoc?.dataUrl && (
+                    <>
+                      <button
+                        onClick={() => window.open(currentDoc.dataUrl, '_blank')}
+                        className="flex items-center gap-1 text-xs font-bold text-[var(--primary)] hover:underline"
+                      >
+                        <ExternalLink className="w-3.5 h-3.5" /> Open Fullscreen
+                      </button>
+                      <a
+                        href={currentDoc.dataUrl}
+                        download={`${currentDoc.title || 'credential'}.pdf`}
+                        className="flex items-center gap-1 text-xs font-bold text-[var(--success)] hover:underline"
+                      >
+                        <Download className="w-3.5 h-3.5" /> Download PDF
+                      </a>
+                    </>
+                  )}
+                </div>
               </div>
 
             </div>

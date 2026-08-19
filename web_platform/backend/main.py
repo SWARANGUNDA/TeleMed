@@ -158,6 +158,13 @@ app.include_router(websocket_routes.router)
 app.include_router(ops_monitoring_routes.router)
 app.include_router(prometheus_metrics.router)
 
+from fastapi.staticfiles import StaticFiles
+import os
+
+uploads_dir = os.path.join(os.path.dirname(__file__), "uploads")
+os.makedirs(uploads_dir, exist_ok=True)
+app.mount("/uploads", StaticFiles(directory=uploads_dir), name="uploads")
+
 
 @app.exception_handler(HTTPException)
 async def http_exception_handler(request: Request, exc: HTTPException):
