@@ -32,3 +32,9 @@ Thumbs.db
 
 # Temp uploads
 web_platform/backend/temp_uploads/
+
+# Large media files & test recordings
+test_videos/
+*.mp4
+*.avi
+*.mov

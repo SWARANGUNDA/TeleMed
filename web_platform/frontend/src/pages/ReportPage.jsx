@@ -12,9 +12,22 @@ import {
 } from '../components/ui';
 import { PageContainer, PageHeader, ContentSection } from '../components/layout';
 import { generateReportV3, askRAGQuestion, askRAGQuestionV3, fetchSuggestedQuestions } from '../api/client';
+import PersonalizedRecommendations from '../components/copilot/PersonalizedRecommendations';
 import MarkdownRenderer from '../components/MarkdownRenderer';
 
+const formatDisplayValue = (val) => {
+  if (val === null || val === undefined) return 'N/A';
+  if (typeof val === 'object') {
+    if (val.value !== undefined && val.value !== null) return String(val.value);
+    if (val.raw_value !== undefined && val.raw_value !== null) return String(val.raw_value);
+    if (val.score !== undefined && val.score !== null) return String(val.score);
+    return JSON.stringify(val);
+  }
+  return String(val);
+};
+
 export default function ReportPage({ user, session, predictionData, onDiscussWithDoctor }) {
+
   const navigate = useNavigate();
   const [reportStatus, setReportStatus] = useState('NOT_GENERATED');
   const [reportData, setReportData] = useState(null);
@@ -228,10 +241,15 @@ export default function ReportPage({ user, session, predictionData, onDiscussWit
           </div>
 
           <p className="text-xs text-[var(--text-muted)] leading-relaxed">
-            {reportData?.executive_summary || reportData?.summary || (
-              `Multimodal diagnostic evaluation completed across pathway ${pathwayUsed}. Model inference identifies ${highestRiskName} (${highestRiskPct}%) as the primary health factor. Biomarker and telemetry inputs were processed with an overall data quality index of ${dqScore}%.`
-            )}
+            {typeof reportData?.executive_summary === 'string'
+              ? reportData.executive_summary
+              : (typeof reportData?.summary === 'string'
+                ? reportData.summary
+                : `Multimodal diagnostic evaluation completed across pathway ${pathwayUsed}. Model inference identifies ${highestRiskName} (${highestRiskPct}%) as the primary health factor. Biomarker and telemetry inputs were processed with an overall data quality index of ${dqScore}%.`
+              )
+            }
           </p>
+
 
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2 text-center text-xs">
             <div className="p-3 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-subtle)]">
@@ -248,7 +266,7 @@ export default function ReportPage({ user, session, predictionData, onDiscussWit
             </div>
             <div className="p-3 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-subtle)]">
               <span className="text-[10px] font-mono text-[var(--text-muted)] block">Model Calibration</span>
-              <strong className="text-[var(--primary)]">Isotonic (v3.3)</strong>
+              <strong className="text-[var(--primary)]">Isotonic (v4.0)</strong>
             </div>
           </div>
         </Card>
@@ -294,7 +312,7 @@ export default function ReportPage({ user, session, predictionData, onDiscussWit
                         <TableRow key={k}>
                           <TableCell className="font-semibold text-xs">{k}</TableCell>
                           <TableCell className="font-mono font-bold text-[var(--primary)] text-xs">
-                            {typeof clinFeats[k] === 'object' ? clinFeats[k].value : clinFeats[k]}
+                            {formatDisplayValue(clinFeats[k])}
                           </TableCell>
                           <TableCell><Badge variant="primary" size="sm">CONFIRMED</Badge></TableCell>
                         </TableRow>
@@ -317,7 +335,7 @@ export default function ReportPage({ user, session, predictionData, onDiscussWit
                         <TableRow key={k}>
                           <TableCell className="font-semibold text-xs">{k}</TableCell>
                           <TableCell className="font-mono font-bold text-[var(--secondary)] text-xs">
-                            {typeof wearFeats[k] === 'object' ? wearFeats[k].value : wearFeats[k]}
+                            {formatDisplayValue(wearFeats[k])}
                           </TableCell>
                           <TableCell><Badge variant="secondary" size="sm">ACTIVE</Badge></TableCell>
                         </TableRow>
@@ -340,7 +358,7 @@ export default function ReportPage({ user, session, predictionData, onDiscussWit
                         <TableRow key={k}>
                           <TableCell className="font-semibold text-xs">{k}</TableCell>
                           <TableCell className="font-mono font-bold text-[var(--accent)] text-xs">
-                            {typeof gutFeats[k] === 'object' ? gutFeats[k].value : gutFeats[k]}
+                            {formatDisplayValue(gutFeats[k])}
                           </TableCell>
                           <TableCell><Badge variant="accent" size="sm">PROFILED</Badge></TableCell>
                         </TableRow>
@@ -355,34 +373,69 @@ export default function ReportPage({ user, session, predictionData, onDiscussWit
               }
             ]}
           />
+
         </ContentSection>
 
         {/* SECTION 5: EVIDENCE-GROUNDED RECOMMENDATIONS */}
         <ContentSection title="3. Evidence-Grounded Clinical Recommendations" subtitle="Medical guideline recommendations retrieved via vector RAG">
-          <Card isGlass={true} className="p-6 space-y-4">
-            {reportData?.retrieved_evidence && reportData.retrieved_evidence.length > 0 ? (
-              reportData.retrieved_evidence.map((ev, idx) => (
-                <div key={idx} className="p-4 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-subtle)] space-y-2">
-                  <div className="flex items-center justify-between">
-                    <Badge variant="primary" size="sm">Evidence Guideline #{idx + 1}</Badge>
-                    <span className="text-[10px] font-mono text-[var(--text-muted)] uppercase">{ev.source || 'Medical Guidelines'}</span>
+          <div className="space-y-6">
+            <PersonalizedRecommendations predictionData={predictionData} />
+
+            <Card isGlass={true} className="p-6 space-y-4">
+              <h4 className="text-sm font-extrabold text-[var(--text-main)]">Understanding Your Results — What Medical Guidelines Say</h4>
+              <p className="text-[11px] text-[var(--text-muted)] leading-relaxed">
+                Below are evidence-based medical guidelines relevant to your assessment, explained in everyday language.
+              </p>
+              {reportData?.retrieved_evidence && reportData.retrieved_evidence.length > 0 ? (
+                reportData.retrieved_evidence.map((ev, idx) => (
+                  <div key={idx} className="p-4 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-subtle)] space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Badge variant="primary" size="sm">Guideline #{idx + 1}</Badge>
+                      <span className="text-[10px] font-mono text-[var(--text-muted)] uppercase">{ev.source || 'Medical Guidelines'}</span>
+                    </div>
+                    <p className="text-xs text-[var(--text-main)] font-semibold">
+                      {typeof ev === 'string' ? ev : (ev.snippet || ev.text || ev.title || JSON.stringify(ev))}
+                    </p>
                   </div>
-                  <p className="text-xs text-[var(--text-main)] font-semibold">{ev.snippet || ev.text || ev}</p>
+                ))
+              ) : (
+                <div className="space-y-3">
+                  <div className="p-4 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-subtle)] space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Badge variant="primary" size="sm">🩺 Blood Sugar Management</Badge>
+                      <span className="text-[10px] font-mono text-[var(--text-muted)]">ADA Guidelines 2026</span>
+                    </div>
+                    <p className="text-xs text-[var(--text-main)] leading-relaxed">
+                      {highestRiskPct >= 40
+                        ? `Your highest risk area is ${highestRiskName} at ${highestRiskPct}%. Medical guidelines recommend regular monitoring of blood sugar levels, a balanced diet low in refined carbohydrates, and at least 150 minutes of moderate exercise per week.`
+                        : `Your risk levels are within manageable ranges. Medical guidelines recommend maintaining a balanced diet, regular physical activity, and annual health checkups to stay on track.`
+                      }
+                    </p>
+                  </div>
+                  <div className="p-4 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-subtle)] space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Badge variant="secondary" size="sm">💡 Lifestyle Recommendation</Badge>
+                      <span className="text-[10px] font-mono text-[var(--text-muted)]">Evidence-Based</span>
+                    </div>
+                    <p className="text-xs text-[var(--text-main)] leading-relaxed">
+                      Based on your assessment pathway ({pathwayUsed}), focus on the areas where your data shows room for improvement. Small, consistent lifestyle changes — like walking 30 minutes daily, eating more vegetables, and getting 7-9 hours of sleep — can significantly reduce your health risks over time.
+                    </p>
+                  </div>
+                  <div className="p-4 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-subtle)] space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Badge variant="accent" size="sm">👨‍⚕️ Next Steps</Badge>
+                      <span className="text-[10px] font-mono text-[var(--text-muted)]">Clinical Recommendation</span>
+                    </div>
+                    <p className="text-xs text-[var(--text-main)] leading-relaxed">
+                      Share this report with your doctor at your next visit. They can review these AI-generated insights alongside your full medical history and determine if any additional testing or treatment adjustments are needed.
+                    </p>
+                  </div>
                 </div>
-              ))
-            ) : (
-              <div className="p-4 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-subtle)] space-y-2">
-                <div className="flex items-center justify-between">
-                  <Badge variant="primary" size="sm">Primary Guideline</Badge>
-                  <span className="text-[10px] font-mono text-[var(--text-muted)] uppercase">Clinical Recommendation</span>
-                </div>
-                <p className="text-xs text-[var(--text-main)] font-semibold">
-                  Post-prandial glycemic management and moderate aerobic activity recommended based on prediction risk profile ({highestRiskName} {highestRiskPct}%).
-                </p>
-              </div>
-            )}
-          </Card>
+              )}
+            </Card>
+          </div>
         </ContentSection>
+
 
         {/* SECTION 6: REPORT FOOTER & CLINICAL DISCLAIMER */}
         <div className="pt-6 border-t border-[var(--border-subtle)] space-y-3 text-[10px] text-[var(--text-muted)]">

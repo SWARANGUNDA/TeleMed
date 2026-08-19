@@ -28,7 +28,8 @@ export default function IntakePage({
   onAnalysisComplete,
   onInvalidateDownstream,
   onResetSession,
-  activeSubNav
+  activeSubNav,
+  assessmentId
 }) {
   const navigate = useNavigate();
   const [currentStep, setCurrentStep] = useState(1);
@@ -39,6 +40,8 @@ export default function IntakePage({
   const [isCameraOpen, setIsCameraOpen] = useState(false);
   const [isQualityModalOpen, setIsQualityModalOpen] = useState(false);
   const [featureSearchQuery, setFeatureSearchQuery] = useState('');
+  const [showAllClinical, setShowAllClinical] = useState(false);
+  const [showAllWearable, setShowAllWearable] = useState(false);
 
   // Gut Pagination, Search & Composition State
   const [taxaSearchQuery, setTaxaSearchQuery] = useState('');
@@ -51,7 +54,7 @@ export default function IntakePage({
   const fileInputRef = useRef(null);
 
   // Modality Toggles
-  const [enableClinical, setEnableClinical] = useState(true);
+  const [enableClinical, setEnableClinical] = useState(false);
   const [enableWearable, setEnableWearable] = useState(false);
   const [enableCGM, setEnableCGM] = useState(false);
   const [enableGut, setEnableGut] = useState(false);
@@ -100,8 +103,51 @@ export default function IntakePage({
     setFilePreviews([]);
     setErrorMsg(null);
     setCurrentStep(1);
-    if (onResetSession) onResetSession();
+    setUploadStage(null);
+    setJourneyStage('intake');
+    setProvenanceMap({});
+    setSelectedProvenance(null);
+    setFeatureSearchQuery('');
+    setTaxaSearchQuery('');
+    setCurrentPage(1);
+    setIsShowingAllTaxa(false);
+    setOtherTaxa(4.5);
   };
+
+  // P0 FIX: Auto-reset all local form/file/modality state when a new assessment begins.
+  // Triggered when App.jsx sets session=null + new assessmentId via handleStartNewAssessment.
+  useEffect(() => {
+    if (session === null && assessmentId) {
+      setFormClinical(emptyClinical);
+      setFormWearable(emptyWearable);
+      setFormGut(emptyGut);
+      setEnableClinical(false);
+      setEnableWearable(false);
+      setEnableGut(false);
+      setEnableCGM(false);
+      setExtractedMap({ clinical: {}, wearable: {}, gut: {} });
+      setManualMap(new Set());
+      setEditedMap(new Set());
+      setConflictMap({});
+      setVerifyFlags({});
+      setDifferentPatientWarning(null);
+      setFileStatuses([]);
+      setQualityScores(null);
+      setSelectedFiles([]);
+      setFilePreviews([]);
+      setErrorMsg(null);
+      setCurrentStep(1);
+      setUploadStage(null);
+      setJourneyStage('intake');
+      setProvenanceMap({});
+      setSelectedProvenance(null);
+      setFeatureSearchQuery('');
+      setTaxaSearchQuery('');
+      setCurrentPage(1);
+      setIsShowingAllTaxa(false);
+      setOtherTaxa(4.5);
+    }
+  }, [session, assessmentId]);
 
   // Add files safely with normalized modality detection
   const handleAddFiles = (filesList) => {
@@ -166,6 +212,24 @@ export default function IntakePage({
     setFormGut((prev) => ({ ...prev, [key]: numVal }));
   };
 
+  const handleNormalizeGutTaxa = (currentTaxaSum) => {
+    if (!currentTaxaSum || currentTaxaSum <= 0) return;
+    const targetVal = 100.0 - (parseFloat(otherTaxa) || 0.0);
+    const factor = targetVal / currentTaxaSum;
+    setFormGut((prev) => {
+      const updated = { ...prev };
+      GUT_V4_TAXA_40.forEach(t => {
+        const val = parseFloat(prev[t]) || 0;
+        if (val > 0) {
+          updated[t] = parseFloat((val * factor).toFixed(4));
+          setEditedMap((ePrev) => new Set(ePrev).add(`gut.${t}`));
+        }
+      });
+      return updated;
+    });
+  };
+
+
   // Step 1 -> Step 2: Process files and normalize canonical fields
   const handleProceedToReview = async () => {
     setErrorMsg(null);
@@ -199,10 +263,11 @@ export default function IntakePage({
         const hasExtractedWearable = Object.keys(normWearable).some(k => normWearable[k] !== '' && normWearable[k] !== null && normWearable[k] !== undefined);
         const hasExtractedGut = Object.keys(normGut).some(k => normGut[k] !== '' && normGut[k] !== null && normGut[k] !== undefined);
 
+        // P0 FIX: Merge from empty schema, NOT from prev — prevents Assessment A values leaking into B.
         // Merge Clinical
         if (hasExtractedClinical || Object.keys(normClinical).length > 0) {
-          setFormClinical((prev) => {
-            const next = { ...emptyClinical, ...prev };
+          setFormClinical(() => {
+            const next = { ...emptyClinical };
             Object.entries(normClinical).forEach(([k, extVal]) => {
               if (extVal !== '' && extVal !== null && extVal !== undefined) next[k] = extVal;
             });
@@ -213,8 +278,8 @@ export default function IntakePage({
         // Merge Wearable
         if (hasExtractedWearable) {
           if (Object.keys(normWearable).some(k => k.startsWith('Average_Glucose') || k.startsWith('Glucose_Variability') || k.startsWith('Time_In_Range') || k.startsWith('Time_Above_Range') || k.startsWith('CGM_'))) setEnableCGM(true);
-          setFormWearable((prev) => {
-            const next = { ...emptyWearable, ...prev };
+          setFormWearable(() => {
+            const next = { ...emptyWearable };
             Object.entries(normWearable).forEach(([k, extVal]) => {
               if (extVal !== '' && extVal !== null && extVal !== undefined) next[k] = extVal;
             });
@@ -224,8 +289,8 @@ export default function IntakePage({
 
         // Merge Gut
         if (hasExtractedGut) {
-          setFormGut((prev) => {
-            const next = { ...emptyGut, ...prev };
+          setFormGut(() => {
+            const next = { ...emptyGut };
             Object.entries(normGut).forEach(([k, extVal]) => {
               if (extVal !== '' && extVal !== null && extVal !== undefined) next[k] = extVal;
             });
@@ -241,19 +306,20 @@ export default function IntakePage({
         setEnableWearable(hasExtractedWearable || hasQueuedWearable);
         setEnableGut(hasExtractedGut || hasQueuedGut);
 
-        setExtractedMap((prevMap) => ({
-          clinical: { ...prevMap.clinical, ...normClinical },
-          wearable: { ...prevMap.wearable, ...normWearable },
-          gut: { ...prevMap.gut, ...normGut }
-        }));
+        // P0 FIX: Replace extractedMap cleanly — do NOT spread prevMap.
+        setExtractedMap({
+          clinical: normClinical,
+          wearable: normWearable,
+          gut: normGut
+        });
 
         setSession({
           session_id: res.session_id,
           status: 'EXTRACTED',
           extracted_features: {
-            clinical: { ...(extractedMap.clinical || {}), ...normClinical },
-            wearable: { ...(extractedMap.wearable || {}), ...normWearable },
-            gut: { ...(extractedMap.gut || {}), ...normGut }
+            clinical: normClinical,
+            wearable: normWearable,
+            gut: normGut
           },
           data_quality_scores: res.data_quality_scores
         });
@@ -420,8 +486,29 @@ export default function IntakePage({
 
     const cleanClinicalData = cleanClinicalDict(formClinical);
     if (cleanClinicalData) {
+      if (cleanClinicalData.Height !== undefined && cleanClinicalData.Height !== null && cleanClinicalData.Height !== '') {
+        const h = parseFloat(cleanClinicalData.Height);
+        if (isNaN(h) || !isFinite(h) || h < 50 || h > 250) {
+          setErrorMsg('Invalid Height value: Must be a valid number between 50 cm and 250 cm.');
+          return;
+        }
+      }
+      if (cleanClinicalData.Weight !== undefined && cleanClinicalData.Weight !== null && cleanClinicalData.Weight !== '') {
+        const w = parseFloat(cleanClinicalData.Weight);
+        if (isNaN(w) || !isFinite(w) || w < 20 || w > 300) {
+          setErrorMsg('Invalid Weight value: Must be a valid number between 20 kg and 300 kg.');
+          return;
+        }
+      }
+      const h = parseFloat(cleanClinicalData.Height);
+      const w = parseFloat(cleanClinicalData.Weight);
+      if (h > 0 && w > 0 && !isNaN(h) && !isNaN(w) && isFinite(h) && isFinite(w)) {
+        const htMeters = h / 100;
+        cleanClinicalData.BMI = parseFloat((w / (htMeters * htMeters)).toFixed(1));
+      }
       cleanClinicalData.Patient_ID = patientId || 'P000301';
     }
+
 
     const confirmedPayload = {
       clinical: cleanClinicalData,
@@ -595,9 +682,9 @@ export default function IntakePage({
                 {/* Format Chips & Badges */}
                 <div className="flex flex-wrap items-center justify-center gap-2 pt-2">
                   <Badge variant="primary" size="sm">PDF / CSV / TXT / PNG</Badge>
-                  <Badge variant="secondary" size="sm">25 MB Max</Badge>
-                  <Badge variant="success" size="sm"><Lock className="w-3 h-3 mr-1 inline" /> HIPAA Encrypted</Badge>
-                  <Badge variant="accent" size="sm"><ShieldCheck className="w-3 h-3 mr-1 inline" /> Magic Byte Verified</Badge>
+                  <Badge variant="secondary" size="sm">10 MB Limit</Badge>
+                  <Badge variant="success" size="sm"><Lock className="w-3 h-3 mr-1 inline" /> TLS 1.3 Transport</Badge>
+                  <Badge variant="accent" size="sm"><ShieldCheck className="w-3 h-3 mr-1 inline" /> Server-Side Verified</Badge>
                 </div>
 
                 <div className="flex items-center gap-3 pt-4">
@@ -615,20 +702,21 @@ export default function IntakePage({
             <Card isGlass={true} className="p-5">
               <div className="flex items-center justify-between mb-3">
                 <h4 className="text-xs font-mono uppercase font-bold text-[var(--text-muted)]">Instant Test Dataset Shortcuts</h4>
-                <Badge variant="info" size="sm">Pre-built Dev Files</Badge>
+                <Badge variant="info" size="sm">Sample Datasets</Badge>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <Button variant="outline" size="sm" className="!justify-start text-xs" leftIcon={<FileText className="w-4 h-4 text-blue-500" />} onClick={loadDevClinSample}>
-                  V4 Clinical Sample (18D CSV)
+                  Clinical Dataset (18 Features)
                 </Button>
                 <Button variant="outline" size="sm" className="!justify-start text-xs" leftIcon={<FileSpreadsheet className="w-4 h-4 text-teal-500" />} onClick={loadDevWearSample}>
-                  V4 Wearable Sample (15D CSV)
+                  Wearable Telemetry (15 Features)
                 </Button>
                 <Button variant="outline" size="sm" className="!justify-start text-xs" leftIcon={<Dna className="w-4 h-4 text-purple-500" />} onClick={loadDevGutSample}>
-                  V4 Gut Microbiome (40 Taxa CSV)
+                  Gut Microbiome (40 Taxa + 9 Derived)
                 </Button>
               </div>
             </Card>
+
 
             {/* Uploaded File Cards Grid */}
             <ContentSection title={`Uploaded Files Queue (${selectedFiles.length})`}>
@@ -685,11 +773,23 @@ export default function IntakePage({
               <CardBody className="space-y-4">
                 {/* Modality Coverage List */}
                 {(() => {
-                  const hasClinical = selectedFiles.some(f => detectFileModality(f) === 'clinical');
-                  const hasWearable = selectedFiles.some(f => detectFileModality(f) === 'wearable/cgm');
-                  const hasGut = selectedFiles.some(f => detectFileModality(f) === 'gut_microbiome');
+                  // P0 FIX: ONLY use current intake state — never use session?.active_modalities
+                  // which bleeds data from previous assessments
+                  const hasClinFile = selectedFiles.some(f => detectFileModality(f) === 'clinical');
+                  const hasClinForm = Object.values(formClinical || {}).some(v => v !== '' && v !== null && v !== undefined && !['Patient_ID', 'Gender'].includes(v));
+                  const hasClinical = hasClinFile || hasClinForm || enableClinical;
+
+                  const hasWearFile = selectedFiles.some(f => detectFileModality(f) === 'wearable/cgm');
+                  const hasWearForm = Object.values(formWearable || {}).some(v => v !== '' && v !== null && v !== undefined);
+                  const hasWearable = hasWearFile || hasWearForm || enableWearable;
+
+                  const hasGutFile = selectedFiles.some(f => detectFileModality(f) === 'gut_microbiome');
+                  const hasGutForm = Object.values(formGut || {}).some(v => v !== '' && v !== null && v !== undefined && v !== 0);
+                  const hasGut = hasGutFile || hasGutForm || enableGut;
 
                   return (
+
+
                     <div className="space-y-2.5">
                       <div className="flex items-center justify-between p-3 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-subtle)]">
                         <div className="flex items-center gap-2">
@@ -802,72 +902,108 @@ export default function IntakePage({
               {
                 id: 'clinical_feats',
                 label: 'Clinical Lab Biomarkers (18)',
-                content: (
-                  <Table headers={['Canonical Biomarker', 'Extracted Value', 'Physiological Bounds', 'Status & Provenance']}>
-                    {CLINICAL_V4_FEATURES
-                      .filter(k => k.toLowerCase().includes(featureSearchQuery.toLowerCase()))
-                      .map((featKey) => {
-                        const val = formClinical[featKey];
-                        const isEdited = editedMap.has(`clinical.${featKey}`);
-                        const bounds = CLIENT_PHYSIOLOGICAL_BOUNDS[featKey] || { min: 0, max: 1000, unit: 'units' };
+                content: (() => {
+                  const filtered = CLINICAL_V4_FEATURES.filter(k => k.toLowerCase().includes(featureSearchQuery.toLowerCase()));
+                  const visible = showAllClinical ? filtered : filtered.slice(0, 7);
+                  return (
+                    <div className="space-y-3">
+                      <Table headers={['Canonical Biomarker', 'Extracted Value', 'Physiological Bounds', 'Status & Provenance']}>
+                        {visible.map((featKey) => {
+                          const val = formClinical[featKey];
+                          const isEdited = editedMap.has(`clinical.${featKey}`);
+                          const bounds = CLIENT_PHYSIOLOGICAL_BOUNDS[featKey] || { min: 0, max: 1000, unit: 'units' };
 
-                        return (
-                          <TableRow key={featKey} className={isEdited ? 'bg-amber-500/5' : ''}>
-                            <TableCell className="font-semibold text-xs">{featKey}</TableCell>
-                            <TableCell>
-                              <Input
-                                value={val ?? ''}
-                                onChange={(e) => updateClinicalField(featKey, e.target.value)}
-                                className="!py-1 !px-2 text-xs font-mono max-w-[140px]"
-                              />
-                            </TableCell>
-                            <TableCell className="font-mono text-xs text-[var(--text-muted)]">
-                              {bounds.min} - {bounds.max} {bounds.unit}
-                            </TableCell>
-                            <TableCell>
-                              <Badge variant={isEdited ? 'warning' : (val !== '' && val !== null && val !== undefined ? 'success' : 'info')} size="sm">
-                                {isEdited ? 'EDITED' : (val !== '' && val !== null && val !== undefined ? 'EXTRACTED' : 'MISSING')}
-                              </Badge>
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })}
-                  </Table>
-                )
+                          return (
+                            <TableRow key={featKey} className={isEdited ? 'bg-amber-500/5' : ''}>
+                              <TableCell className="font-semibold text-xs">{featKey}</TableCell>
+                              <TableCell>
+                                <Input
+                                  value={val ?? ''}
+                                  onChange={(e) => updateClinicalField(featKey, e.target.value)}
+                                  className="!py-1 !px-2 text-xs font-mono max-w-[140px]"
+                                />
+                              </TableCell>
+                              <TableCell className="font-mono text-xs text-[var(--text-muted)]">
+                                {bounds.min} - {bounds.max} {bounds.unit}
+                              </TableCell>
+                              <TableCell>
+                                <Badge variant={isEdited ? 'warning' : (val !== '' && val !== null && val !== undefined ? 'success' : 'info')} size="sm">
+                                  {isEdited ? 'EDITED' : (val !== '' && val !== null && val !== undefined ? 'EXTRACTED' : 'MISSING')}
+                                </Badge>
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </Table>
+                      {filtered.length > 7 && (
+                        <div className="flex items-center justify-between pt-2">
+                          <span className="text-xs text-[var(--text-muted)] font-mono">
+                            Showing {visible.length} of {filtered.length} clinical biomarkers
+                          </span>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setShowAllClinical(!showAllClinical)}
+                          >
+                            {showAllClinical ? 'Show Less (Top 7)' : `Show All (${filtered.length}) Biomarkers`}
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()
               },
               {
                 id: 'wearable_feats',
                 label: 'Wearable Telemetry (15)',
-                content: (
-                  <Table headers={['Telemetry Metric', 'Measured Value', 'Standard Unit', 'Status']}>
-                    {WEARABLE_V4_FEATURES
-                      .filter(k => k.toLowerCase().includes(featureSearchQuery.toLowerCase()))
-                      .map((featKey) => {
-                        const val = formWearable[featKey];
-                        const isEdited = editedMap.has(`wearable.${featKey}`);
-                        const bounds = CLIENT_PHYSIOLOGICAL_BOUNDS[featKey] || { unit: 'units' };
+                content: (() => {
+                  const filtered = WEARABLE_V4_FEATURES.filter(k => k.toLowerCase().includes(featureSearchQuery.toLowerCase()));
+                  const visible = showAllWearable ? filtered : filtered.slice(0, 7);
+                  return (
+                    <div className="space-y-3">
+                      <Table headers={['Telemetry Metric', 'Measured Value', 'Standard Unit', 'Status']}>
+                        {visible.map((featKey) => {
+                          const val = formWearable[featKey];
+                          const isEdited = editedMap.has(`wearable.${featKey}`);
+                          const bounds = CLIENT_PHYSIOLOGICAL_BOUNDS[featKey] || { unit: 'units' };
 
-                        return (
-                          <TableRow key={featKey} className={isEdited ? 'bg-amber-500/5' : ''}>
-                            <TableCell className="font-semibold text-xs">{featKey}</TableCell>
-                            <TableCell>
-                              <Input
-                                value={val ?? ''}
-                                onChange={(e) => updateWearableField(featKey, e.target.value)}
-                                className="!py-1 !px-2 text-xs font-mono max-w-[140px]"
-                              />
-                            </TableCell>
-                            <TableCell className="font-mono text-xs text-[var(--text-muted)]">{bounds.unit || 'units'}</TableCell>
-                            <TableCell>
-                              <Badge variant={isEdited ? 'warning' : (val !== '' && val !== null && val !== undefined ? 'success' : 'info')} size="sm">
-                                {isEdited ? 'EDITED' : (val !== '' && val !== null && val !== undefined ? 'EXTRACTED' : 'MISSING')}
-                              </Badge>
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })}
-                  </Table>
-                )
+                          return (
+                            <TableRow key={featKey} className={isEdited ? 'bg-amber-500/5' : ''}>
+                              <TableCell className="font-semibold text-xs">{featKey}</TableCell>
+                              <TableCell>
+                                <Input
+                                  value={val ?? ''}
+                                  onChange={(e) => updateWearableField(featKey, e.target.value)}
+                                  className="!py-1 !px-2 text-xs font-mono max-w-[140px]"
+                                />
+                              </TableCell>
+                              <TableCell className="font-mono text-xs text-[var(--text-muted)]">{bounds.unit || 'units'}</TableCell>
+                              <TableCell>
+                                <Badge variant={isEdited ? 'warning' : (val !== '' && val !== null && val !== undefined ? 'success' : 'info')} size="sm">
+                                  {isEdited ? 'EDITED' : (val !== '' && val !== null && val !== undefined ? 'EXTRACTED' : 'MISSING')}
+                                </Badge>
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </Table>
+                      {filtered.length > 7 && (
+                        <div className="flex items-center justify-between pt-2">
+                          <span className="text-xs text-[var(--text-muted)] font-mono">
+                            Showing {visible.length} of {filtered.length} telemetry metrics
+                          </span>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setShowAllWearable(!showAllWearable)}
+                          >
+                            {showAllWearable ? 'Show Less (Top 7)' : `Show All (${filtered.length}) Metrics`}
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()
               },
               {
                 id: 'gut_feats',
@@ -913,7 +1049,18 @@ export default function IntakePage({
                             </div>
                           </div>
                           <ProgressBar value={Math.min(totalCompositionSum, 100)} variant={isCompositionValid ? 'success' : 'warning'} className="h-1.5" />
+                          
+                          <Button
+                            variant={isCompositionValid ? 'outline' : 'warning'}
+                            size="sm"
+                            className="w-full mt-2 text-xs !py-1"
+                            leftIcon={<RefreshCw className="w-3.5 h-3.5" />}
+                            onClick={() => handleNormalizeGutTaxa(taxaSum)}
+                          >
+                            ⚡ Auto-Normalize 40 Taxa Abundances to 100.0%
+                          </Button>
                         </Card>
+
 
                         <Card isGlass={true} className="p-4 space-y-2 border-l-4 border-l-[var(--accent)]">
                           <div className="flex items-center justify-between">

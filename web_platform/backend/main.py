@@ -139,10 +139,11 @@ xai_routes.router.session_mgr = session_manager
 rag_routes.router.session_mgr = session_manager
 
 # Register Routers
-app.include_router(metrics_routes.router)
 app.include_router(health_routes.router)
+app.include_router(metrics_routes.router)
 app.include_router(auth_routes.router)
 app.include_router(admin_routes.router)
+
 app.include_router(records_routes.router)
 app.include_router(doctor_verification_routes.router)
 app.include_router(consultation_routes.router)

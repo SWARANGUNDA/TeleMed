@@ -192,6 +192,7 @@ export function normalizeExtractedDict(extractedDict) {
 
 /**
  * Computes 9 ecological and functional gut indices from 40 species taxa.
+ * Robustly renormalizes any raw taxa sum to a standard 100% simplex.
  */
 export function computeGutDerivedIndices(taxaDict = {}) {
   const taxaVals = GUT_V4_TAXA_40.map(t => {
@@ -200,12 +201,13 @@ export function computeGutDerivedIndices(taxaDict = {}) {
     return isNaN(val) ? 0.0 : val;
   });
 
-  let sum = taxaVals.reduce((acc, v) => acc + v, 0.0);
-  let pFrac = [...taxaVals];
-  if (sum > 0 && sum <= 1.1) {
-    pFrac = taxaVals.map(v => v);
-  } else if (sum > 1.1) {
-    pFrac = taxaVals.map(v => v / 100.0);
+  const rawSum = taxaVals.reduce((acc, v) => acc + v, 0.0);
+  let pFrac = taxaVals.map(() => 0.0);
+  let taxaPct = taxaVals.map(() => 0.0);
+
+  if (rawSum > 0) {
+    pFrac = taxaVals.map(v => v / rawSum);
+    taxaPct = taxaVals.map(v => (v / rawSum) * 100.0);
   }
 
   const pNoZero = pFrac.map(v => (v > 0 ? v : 1.0));
@@ -215,7 +217,7 @@ export function computeGutDerivedIndices(taxaDict = {}) {
   const pielou = shannon / Math.log(Math.max(richness, 2));
 
   const getMean = (indices) => {
-    const vals = indices.map(idx => taxaVals[idx]);
+    const vals = indices.map(idx => taxaPct[idx]);
     return vals.reduce((a, b) => a + b, 0) / Math.max(vals.length, 1);
   };
 
@@ -226,8 +228,8 @@ export function computeGutDerivedIndices(taxaDict = {}) {
 
   const firmicutesIdx = [1, 2, 10, 11, 12, 13, 17, 20, 21, 22, 23, 25, 26, 27, 29, 31, 32, 34, 35, 36];
   const bacteroidetesIdx = [5, 6, 7, 8, 9, 18, 19, 24, 33];
-  const firmicutes = firmicutesIdx.reduce((acc, idx) => acc + taxaVals[idx], 0.0);
-  const bacteroidetes = bacteroidetesIdx.reduce((acc, idx) => acc + taxaVals[idx], 0.0);
+  const firmicutes = firmicutesIdx.reduce((acc, idx) => acc + taxaPct[idx], 0.0);
+  const bacteroidetes = bacteroidetesIdx.reduce((acc, idx) => acc + taxaPct[idx], 0.0);
   const logFB = Math.log((firmicutes + 0.01) / (bacteroidetes + 0.01));
 
   return {

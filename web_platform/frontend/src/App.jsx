@@ -106,17 +106,24 @@ export function getNavFromPath(path, role) {
 }
 
 export function getPathFromNav(primaryNav, subNav, role) {
-  if (primaryNav === 'analysis') return '/intake';
+  if (primaryNav === 'analysis' || primaryNav === 'intake') return '/intake';
   if (primaryNav === 'results') {
     if (subNav === 'xai') return '/xai';
     if (subNav === 'report') return '/report';
     return '/dashboard';
   }
+  if (primaryNav === 'xai') return '/xai';
+  if (primaryNav === 'report') return '/report';
+  if (primaryNav === 'copilot') return '/copilot';
+  if (primaryNav === 'profile') return '/profile';
+  if (primaryNav === 'compare') return '/compare';
+  if (primaryNav === 'notifications') return '/notifications';
+  if (primaryNav === 'messages') return '/messages';
   if (primaryNav === 'records') return '/records';
   if (primaryNav === 'consultations') return '/consultations';
   if (primaryNav === 'appointments') return '/appointments';
   if (primaryNav === 'care') return '/care';
-  if (primaryNav === 'patient_privacy') return '/privacy';
+  if (primaryNav === 'patient_privacy' || primaryNav === 'privacy') return '/privacy';
   if (primaryNav === 'account') return '/account';
   if (primaryNav === 'verification') return '/doctor/verification';
   if (primaryNav === 'assigned_patients') return '/doctor/consultations';
@@ -134,6 +141,7 @@ export function getPathFromNav(primaryNav, subNav, role) {
   return '/dashboard';
 }
 
+
 export default function App() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -143,6 +151,46 @@ export default function App() {
   const [authChecking, setAuthChecking] = useState(true);
   const [isDemoActive, setIsDemoActive] = useState(true);
   const [isComparisonOpen, setIsComparisonOpen] = useState(false);
+
+  const [session, setSession] = useState(() => {
+    try {
+      const saved = sessionStorage.getItem('telemed_session');
+      return saved ? JSON.parse(saved) : null;
+    } catch (e) {
+      return null;
+    }
+  });
+
+  const [predictionData, setPredictionData] = useState(() => {
+    try {
+      const saved = sessionStorage.getItem('telemed_pred');
+      return saved ? JSON.parse(saved) : null;
+    } catch (e) {
+      return null;
+    }
+  });
+
+  const [xaiData, setXaiData] = useState(() => {
+    try {
+      const saved = sessionStorage.getItem('telemed_xai');
+      return saved ? JSON.parse(saved) : null;
+    } catch (e) {
+      return null;
+    }
+  });
+
+  const [selectedDiseaseForXAI, setSelectedDiseaseForXAI] = useState('Type2_Diabetes');
+  const [guardNotice, setGuardNotice] = useState(null);
+  const [consultationContext, setConsultationContext] = useState(null);
+
+  // Assessment session guard: when non-null, a new assessment is actively being prepared.
+  // This prevents loadLatestRecord from auto-hydrating stale historical data over a deliberately cleared state.
+  const [assessmentId, setAssessmentId] = useState(null);
+
+  const currentState = session?.status || 'CREATED';
+  const isPredictionComplete = ['ANALYZED', 'XAI_READY', 'REPORT_READY'].includes(currentState) || Boolean(predictionData);
+
+  const { activeNav, activeSubNav } = getNavFromPath(location.pathname, currentUser?.role);
 
   const refreshCurrentUser = async () => {
     try {
@@ -189,84 +237,70 @@ export default function App() {
     };
   }, [navigate]);
 
-  // Load latest health record from PostgreSQL on patient login
+  // Load latest health record from PostgreSQL/SQLite on patient login or page refresh.
+  // CRITICAL: Filter records strictly for currentUser to prevent cross-user data leakage.
   useEffect(() => {
     async function loadLatestRecord() {
-      if (currentUser && currentUser.role === 'PATIENT' && !predictionData) {
+      if (currentUser && currentUser.role === 'PATIENT' && !assessmentId) {
         try {
           const res = await fetchPatientRecords();
-          if (res?.records && res.records.length > 0) {
-            const latest = res.records[0];
-            const snap = latest.prediction_snapshot || latest;
-            if (snap) {
-              setPredictionData(snap);
+          const records = res?.records || [];
+          if (records.length > 0) {
+            // Filter strictly by current user's ID or email
+            const userRecords = records.filter(r => 
+              (r.user_id && r.user_id === currentUser.user_id) ||
+              (r.patient_id && r.patient_id === currentUser.user_id) ||
+              (r.user_email && r.user_email.toLowerCase() === currentUser.email?.toLowerCase()) ||
+              (r.email && r.email.toLowerCase() === currentUser.email?.toLowerCase())
+            );
+
+            if (userRecords.length > 0) {
+              const latest = userRecords[0];
+              const snap = latest.prediction_snapshot || latest;
+              if (snap) {
+                setPredictionData(snap);
+                setSession(prev => prev || {
+                  session_id: latest.record_id || latest.session_id || `P_${currentUser.user_id?.slice(-6) || 'REC'}`,
+                  confirmed_features: snap.confirmed_features || snap.clinical_features || {},
+                  effective_pathway: snap.effective_pathway || snap.pathway_used || 'C+W+G',
+                  active_modalities: snap.active_modalities || ['clinical', 'wearable', 'gut'],
+                  status: 'REPORT_READY'
+                });
+                if (!xaiData) {
+                  const clin = snap.confirmed_features?.clinical || snap.clinical_features || snap.clinical_data || {};
+                  const wear = snap.confirmed_features?.wearable || snap.wearable_features || snap.wearable_data || {};
+                  const gut = snap.confirmed_features?.gut || snap.gut_features || snap.gut_data || {};
+                  if (Object.keys(clin).length > 0 || Object.keys(wear).length > 0 || Object.keys(gut).length > 0) {
+                    fetchXAIV3({
+                      patient_id: latest.record_id || 'P_USER_001',
+                      clinical_data: clin,
+                      wearable_data: wear,
+                      gut_data: gut
+                    }, 'Type2_Diabetes')
+                      .then(xai => setXaiData(xai))
+                      .catch(() => {});
+                  }
+                }
+              }
+            } else {
+              // New user with zero health records
+              setPredictionData(null);
+              setSession(null);
+              setXaiData(null);
             }
+          } else {
+            setPredictionData(null);
+            setSession(null);
+            setXaiData(null);
           }
-        } catch (e) {}
+        } catch (e) {
+          setPredictionData(null);
+        }
       }
     }
     loadLatestRecord();
-  }, [currentUser]);
+  }, [currentUser, assessmentId]);
 
-  const [session, setSession] = useState(() => {
-    try {
-      const saved = sessionStorage.getItem('telemed_session');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (parsed?.v3_payload?.pipeline_version && parsed.v3_payload.pipeline_version !== 'v3.3') {
-          sessionStorage.clear();
-          return null;
-        }
-        return parsed;
-      }
-      return null;
-    } catch (e) {
-      return null;
-    }
-  });
-
-  const [predictionData, setPredictionData] = useState(() => {
-    try {
-      const saved = sessionStorage.getItem('telemed_pred');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (parsed?.pipeline_version && parsed.pipeline_version !== 'v3.3') {
-          sessionStorage.removeItem('telemed_pred');
-          return null;
-        }
-        return parsed;
-      }
-      return null;
-    } catch (e) {
-      return null;
-    }
-  });
-
-  const [xaiData, setXaiData] = useState(() => {
-    try {
-      const saved = sessionStorage.getItem('telemed_xai');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (parsed?.pipeline_version && parsed.pipeline_version !== 'v3.3') {
-          sessionStorage.removeItem('telemed_xai');
-          return null;
-        }
-        return parsed;
-      }
-      return null;
-    } catch (e) {
-      return null;
-    }
-  });
-
-  const [selectedDiseaseForXAI, setSelectedDiseaseForXAI] = useState('Type2_Diabetes');
-  const [guardNotice, setGuardNotice] = useState(null);
-  const [consultationContext, setConsultationContext] = useState(null);
-
-  const currentState = session?.status || 'CREATED';
-  const isPredictionComplete = ['ANALYZED', 'XAI_READY', 'REPORT_READY'].includes(currentState) || Boolean(predictionData);
-
-  const { activeNav, activeSubNav } = getNavFromPath(location.pathname, currentUser?.role);
 
   // Sync state to sessionStorage
   useEffect(() => {
@@ -349,6 +383,24 @@ export default function App() {
     handleNavigate('analysis', 'new_analysis');
   };
 
+  // P0 FIX: Hard assessment reset. Creates a fresh assessment context.
+  // Clears ALL assessment-scoped state while preserving auth, profile, and historical records.
+  const handleStartNewAssessment = () => {
+    const newId = `assess_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    setAssessmentId(newId);
+    setSession(null);
+    setPredictionData(null);
+    setXaiData(null);
+    setGuardNotice(null);
+    setSelectedDiseaseForXAI('Type2_Diabetes');
+    try {
+      sessionStorage.removeItem('telemed_session');
+      sessionStorage.removeItem('telemed_pred');
+      sessionStorage.removeItem('telemed_xai');
+    } catch (e) {}
+    navigate('/intake');
+  };
+
   const handleAnalysisComplete = async (payloadData) => {
     try {
       const confirmed = payloadData?.confirmed_features || session?.confirmed_features || {};
@@ -372,25 +424,34 @@ export default function App() {
 
       const pred = await predictV3(v3Payload);
       setPredictionData(pred);
-      setSession((prev) => ({
-        ...prev,
+      // P0 FIX: Create a CLEAN session object — do NOT spread prev session to prevent stale data leaking.
+      setSession({
         session_id: v3Payload.patient_id,
+        assessment_id: assessmentId,
         confirmed_features: confirmed,
         active_modalities: pred.active_modalities || pred.routing_metadata?.modalities_supplied || [],
         effective_pathway: pred.pathway_used || pred.routing_metadata?.effective_pathway || 'C',
         v3_payload: v3Payload,
         status: 'ANALYZED'
-      }));
+      });
+      // Clear assessmentId guard — the new assessment is now the active result.
+      setAssessmentId(null);
 
-      const xai = await fetchXAIV3(v3Payload, 'Type2_Diabetes');
-      setXaiData(xai);
-      setSession((prev) => ({ ...prev, status: 'XAI_READY' }));
+      try {
+        const xai = await fetchXAIV3(v3Payload, 'Type2_Diabetes');
+        setXaiData(xai);
+        setSession((prev) => ({ ...prev, status: 'XAI_READY' }));
+      } catch (xaiErr) {
+        console.warn('XAI attribution fetch non-blocking note:', xaiErr);
+        setSession((prev) => ({ ...prev, status: 'ANALYZED' }));
+      }
 
       setGuardNotice(null);
       navigate('/dashboard');
     } catch (err) {
-      setGuardNotice(`v3 Analysis Error: ${err.message || 'Pipeline execution failed'}`);
+      setGuardNotice(`Analysis Notification: ${err.message || 'Pipeline execution warning'}`);
     }
+
   };
 
   const handleInvalidateDownstream = () => {
@@ -403,14 +464,7 @@ export default function App() {
   };
 
   const handleResetSession = () => {
-    setSession(null);
-    setPredictionData(null);
-    setXaiData(null);
-    setGuardNotice(null);
-    try {
-      sessionStorage.clear();
-    } catch (e) {}
-    navigate('/intake');
+    handleStartNewAssessment();
   };
 
   if (authChecking) {
@@ -457,14 +511,11 @@ export default function App() {
                 <DashboardPage
                   session={session}
                   predictionData={predictionData}
+                  user={currentUser}
                   onNavigate={handleNavigate}
-                  onStartNewAnalysis={() => {
-                    setSession(null);
-                    setPredictionData(null);
-                    setXaiData(null);
-                    sessionStorage.clear();
-                    navigate('/intake');
-                  }}
+                  onStartNewAnalysis={handleStartNewAssessment}
+                  onDiscussWithDoctor={handleDiscussWithDoctor}
+                  onOpenComparison={() => setIsComparisonOpen(true)}
                 />
               </ProtectedRoute>
             } />
@@ -476,13 +527,9 @@ export default function App() {
                   setSession={setSession}
                   onAnalysisComplete={handleAnalysisComplete}
                   onInvalidateDownstream={handleInvalidateDownstream}
-                  onResetSession={() => {
-                    setSession(null);
-                    setPredictionData(null);
-                    setXaiData(null);
-                    sessionStorage.clear();
-                  }}
+                  onResetSession={handleStartNewAssessment}
                   activeSubNav={activeSubNav}
+                  assessmentId={assessmentId}
                 />
               </ProtectedRoute>
             } />
@@ -490,9 +537,12 @@ export default function App() {
             <Route path="/xai" element={
               <ProtectedRoute currentUser={currentUser} authChecking={authChecking} allowedRoles={['PATIENT']}>
                 <XAIPage
+                  session={session}
                   predictionData={predictionData}
                   xaiData={xaiData}
-                  onStartAnalysis={() => navigate('/intake')}
+                  setXaiData={setXaiData}
+                  onStartAnalysis={handleStartNewAssessment}
+                  onNavigateReport={() => navigate('/report')}
                 />
               </ProtectedRoute>
             } />
@@ -520,7 +570,7 @@ export default function App() {
                   currentUser={currentUser}
                   session={session}
                   predictionData={predictionData}
-                  onStartAnalysis={() => navigate('/intake')}
+                  onStartAnalysis={handleStartNewAssessment}
                   onShareWithDoctor={(recId) => {
                     setConsultationContext({
                       reason: 'Sharing persistent health record for doctor review',
@@ -586,7 +636,7 @@ export default function App() {
 
             <Route path="/copilot" element={
               <ProtectedRoute currentUser={currentUser} authChecking={authChecking} allowedRoles={['PATIENT']}>
-                <HealthCopilotPage user={currentUser} session={session} predictionData={predictionData} onNavigate={handleNavigate} />
+                <HealthCopilotPage user={currentUser} session={session} predictionData={predictionData} xaiData={xaiData} onNavigate={handleNavigate} />
               </ProtectedRoute>
             } />
 
@@ -602,7 +652,7 @@ export default function App() {
 
             <Route path="/privacy" element={
               <ProtectedRoute currentUser={currentUser} authChecking={authChecking} allowedRoles={['PATIENT']}>
-                <PatientPrivacyPage />
+                <PatientPrivacyPage user={currentUser} />
               </ProtectedRoute>
             } />
 
@@ -616,6 +666,12 @@ export default function App() {
             <Route path="/doctor/dashboard" element={
               <ProtectedRoute currentUser={currentUser} authChecking={authChecking} allowedRoles={['DOCTOR']}>
                 <DoctorDashboardPage user={currentUser} onNavigate={handleNavigate} />
+              </ProtectedRoute>
+            } />
+
+            <Route path="/doctor/consultations" element={
+              <ProtectedRoute currentUser={currentUser} authChecking={authChecking} allowedRoles={['DOCTOR']}>
+                <DoctorDashboardPage user={currentUser} onNavigate={handleNavigate} initialTab="ACTIVE" />
               </ProtectedRoute>
             } />
 

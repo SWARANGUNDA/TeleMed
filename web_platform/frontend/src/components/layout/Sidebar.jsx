@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard,
@@ -20,10 +20,18 @@ import {
   Calendar,
   Sparkles
 } from 'lucide-react';
+import { Avatar } from '../ui/Avatar';
 
 export function Sidebar({ isCollapsed, onToggleCollapse, userRole = 'PATIENT', className = '' }) {
   const location = useLocation();
   const navigate = useNavigate();
+  const [, setTick] = useState(0);
+
+  useEffect(() => {
+    const handleUpdate = () => setTick(t => t + 1);
+    window.addEventListener('telemed_profile_updated', handleUpdate);
+    return () => window.removeEventListener('telemed_profile_updated', handleUpdate);
+  }, []);
 
   const patientMenu = [
     {
@@ -56,7 +64,7 @@ export function Sidebar({ isCollapsed, onToggleCollapse, userRole = 'PATIENT', c
       group: "Doctor Portal",
       items: [
         { label: "Doctor Dashboard", icon: LayoutDashboard, path: "/doctor/dashboard" },
-        { label: "Verified Consultations", icon: Stethoscope, path: "/consultations" },
+        { label: "Verified Consultations", icon: Stethoscope, path: "/doctor/consultations" },
         { label: "Appointments", icon: Calendar, path: "/appointments" },
         { label: "Credentials Upload", icon: UserCheck, path: "/doctor/verification" },
       ]
@@ -150,9 +158,7 @@ export function Sidebar({ isCollapsed, onToggleCollapse, userRole = 'PATIENT', c
       {/* Footer User Role Badge */}
       <div className="p-3 border-t border-[var(--border-subtle)]">
         <div className={`flex items-center gap-3 p-2 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] ${isCollapsed ? 'justify-center' : ''}`}>
-          <div className="w-8 h-8 rounded-lg bg-[var(--primary-light)] text-[var(--primary)] flex items-center justify-center font-bold text-xs shrink-0">
-            {userRole[0]}
-          </div>
+          <Avatar user={{ role: userRole }} size="sm" className="rounded-lg" />
           {!isCollapsed && (
             <div className="flex flex-col overflow-hidden">
               <span className="text-xs font-bold text-[var(--text-main)] truncate">{userRole} Portal</span>

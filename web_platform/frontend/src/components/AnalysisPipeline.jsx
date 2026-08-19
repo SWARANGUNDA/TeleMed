@@ -32,15 +32,16 @@ export function AnalysisPipeline({
     { key: 'mapping', title: 'Canonical Feature Mapping', desc: 'Context-aware alias disambiguation & schema mapping', icon: Activity, latency: 24 },
     { key: 'feat_valid', title: 'Feature Validation', desc: 'Physiological boundary validation & duplicate checks', icon: CheckCircle2, latency: 16 },
     { key: 'quality', title: 'Quality Assessment', desc: 'Multi-factor report & feature confidence scoring', icon: ShieldCheck, latency: 22 },
-    { key: 'clin_expert', title: 'Clinical Expert v4', desc: 'Gradient Boosted Decision Trees (18 biomarkers)', icon: Activity, latency: 28 },
-    { key: 'wear_expert', title: 'Wearable Expert v4', desc: '15D continuous sensor streams & circadian metrics', icon: Watch, latency: 32 },
-    { key: 'gut_expert', title: 'Gut Expert v4', desc: '40 Taxa species + 9 derived ecological indices profiler', icon: Dna, latency: 30 },
-    { key: 'fusion', title: 'Fusion Engine', desc: '7-Pathway scientific router & logistic stacker', icon: Layers, latency: 15 },
+    { key: 'clin_expert', title: 'Clinical Expert Model', desc: 'Gradient Boosted Decision Trees (18 biomarkers)', icon: Activity, latency: 28 },
+    { key: 'wear_expert', title: 'Wearable Expert Model', desc: '15D continuous sensor streams & circadian metrics', icon: Watch, latency: 32 },
+    { key: 'gut_expert', title: 'Gut Expert Model', desc: '40 Taxa species + 9 derived ecological indices profiler', icon: Dna, latency: 30 },
+    { key: 'fusion', title: 'Fusion Engine', desc: '7-Pathway Multimodal Ensemble Fusion Engine', icon: Layers, latency: 15 },
     { key: 'reliability', title: 'Prediction Reliability', desc: 'Modality reliability ratings & missing feature impact', icon: Cpu, latency: 20 },
     { key: 'shap', title: 'TreeSHAP Explainability', desc: 'Attribution matrix & directional driver rankings', icon: Brain, latency: 40 },
-    { key: 'rag', title: 'Medical RAG', desc: 'ChromaDB vector store guideline evidence retrieval', icon: Sparkles, latency: 35 },
+    { key: 'rag', title: 'Medical RAG Evidence', desc: 'Medical guideline vector evidence retrieval', icon: Sparkles, latency: 35 },
     { key: 'report_gen', title: 'Clinical Report Generation', desc: 'Patient-facing diagnostic synthesis & summary', icon: FileText, latency: 25 },
     { key: 'complete', title: 'Assessment Complete', desc: 'Multimodal predictions ready for clinical review', icon: CheckCircle2, latency: 10 },
+
   ];
 
   useEffect(() => {

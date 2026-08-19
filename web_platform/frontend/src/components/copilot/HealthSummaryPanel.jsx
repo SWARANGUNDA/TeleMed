@@ -1,8 +1,11 @@
 import React from 'react';
 import { Card, Badge, CircularProgress } from '../ui';
 import { Sparkles, ShieldCheck, Activity, CheckCircle2, Calendar } from 'lucide-react';
+import { calculateOverallHealthScore } from '../../utils/healthIntelligence';
 
 export default function HealthSummaryPanel({ predictionData }) {
+  const healthObj = calculateOverallHealthScore(predictionData);
+  const healthScore = healthObj ? healthObj.score : null;
   const dq = predictionData ? Math.round((predictionData.data_quality_score || 0.85) * 100) : null;
   const pathway = predictionData?.effective_pathway || predictionData?.pathway_used || 'C+W+G';
   const mainRisk = predictionData?.disease_outcomes?.Type2_Diabetes;
@@ -23,9 +26,9 @@ export default function HealthSummaryPanel({ predictionData }) {
       <div className="flex flex-col sm:flex-row items-center gap-6">
         {/* Score Ring */}
         <div className="flex flex-col items-center">
-          {dq !== null ? (
-            <CircularProgress value={dq} size={96} strokeWidth={8} variant="success">
-              <span className="text-2xl font-extrabold font-mono text-[var(--text-main)]">{dq}</span>
+          {healthScore !== null ? (
+            <CircularProgress value={healthScore} size={96} strokeWidth={8} variant="success">
+              <span className="text-2xl font-extrabold font-mono text-[var(--text-main)]">{healthScore}</span>
               <span className="text-[9px] font-mono text-[var(--text-muted)] uppercase">Out of 100</span>
             </CircularProgress>
           ) : (
@@ -37,6 +40,7 @@ export default function HealthSummaryPanel({ predictionData }) {
             {predictionData ? 'Overall Health Score' : 'Score Not Available'}
           </span>
         </div>
+
 
         {/* Key Metrics Grid */}
         <div className="flex-1 grid grid-cols-2 gap-2.5 text-xs">
@@ -53,7 +57,15 @@ export default function HealthSummaryPanel({ predictionData }) {
             <strong className="text-[var(--primary)] text-xs block">
               {predictionData ? `Pathway ${pathway}` : 'NOT PROVIDED'}
             </strong>
-            <span className="text-[9px] text-[var(--text-muted)]">Clinical + Wearable + Gut</span>
+            <span className="text-[9px] text-[var(--text-muted)]">{
+              pathway === 'C' ? 'Clinical Only' :
+              pathway === 'W' ? 'Wearable Only' :
+              pathway === 'G' ? 'Gut Only' :
+              pathway === 'C+W' ? 'Clinical + Wearable' :
+              pathway === 'C+G' ? 'Clinical + Gut' :
+              pathway === 'W+G' ? 'Wearable + Gut' :
+              'Clinical + Wearable + Gut'
+            }</span>
           </div>
 
           <div className="p-2.5 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-subtle)] space-y-0.5">

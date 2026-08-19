@@ -47,6 +47,12 @@ class CompleteConsultationRequest(BaseModel):
     notes: Optional[str] = Field(None, description="Completion summary notes")
 
 
+class InviteCoDoctorRequest(BaseModel):
+    doctor_id: str = Field(..., description="Target VERIFIED specialist doctor ID")
+    specialty_role: Optional[str] = Field(None, description="Specialty role (e.g. Endocrinologist, Gastroenterologist, Hepatologist)")
+
+
+
 # ------------------------------------------------------------------
 # Patient Consultation Endpoints
 # ------------------------------------------------------------------
@@ -398,3 +404,40 @@ def get_consultation_note(
         }
     except ValueError as e:
         raise HTTPException(status_code=403, detail=str(e))
+
+
+@router.post("/api/v1/doctor/consultations/{consultation_id}/co-doctors", status_code=status.HTTP_200_OK)
+def invite_co_doctor(
+    consultation_id: str,
+    req: InviteCoDoctorRequest,
+    current_user: dict = Depends(require_doctor_user)
+):
+    """
+    Doctor invites a secondary VERIFIED specialist doctor for MDT co-consultation.
+    """
+    try:
+        res = database.invite_co_doctor(
+            inviting_user_id=current_user["user_id"],
+            consultation_id=consultation_id,
+            target_doctor_id=req.doctor_id,
+            specialty_role=req.specialty_role
+        )
+        return res
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.get("/api/v1/doctor/consultations/{consultation_id}/co-doctors", status_code=status.HTTP_200_OK)
+def list_co_doctors(
+    consultation_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    List all active MDT co-consultant doctors for a consultation.
+    """
+    co_docs = database.list_co_doctors(consultation_id)
+    return {
+        "consultation_id": consultation_id,
+        "co_doctors": co_docs
+    }
+

@@ -91,13 +91,24 @@ def update_doctor_verification_status(
     Validates state machine and logs an explicit audit trail.
     """
     try:
+        new_status_clean = req.status.strip().upper()
+        existing_doc = database.get_doctor_application_detail(doctor_id)
+        if existing_doc and existing_doc.get("verification_status") == new_status_clean:
+            return {
+                "message": f"Doctor verification status is already '{new_status_clean}'.",
+                "verification_status": new_status_clean,
+                "doctor": existing_doc,
+                "application": existing_doc
+            }
+
         reason_text = req.reason or req.notes
         updated_detail = database.update_doctor_verification_status(
             admin_user_id=admin_user["user_id"],
             doctor_id=doctor_id,
-            new_status=req.status,
+            new_status=new_status_clean,
             reason=reason_text
         )
+
         return {
             "message": f"Doctor verification status successfully updated to '{req.status.upper()}'.",
             "verification_status": updated_detail["verification_status"],

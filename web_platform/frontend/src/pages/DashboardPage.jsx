@@ -12,8 +12,14 @@ import {
 import { PageContainer, PageHeader, ContentSection } from '../components/layout';
 import RiskGauge from '../components/RiskGauge';
 import WhyQualityModal from '../components/WhyQualityModal';
-import { fetchUserAppointments, fetchPatientConsultations } from '../api/client';
+import { fetchUserAppointments, fetchPatientConsultations, fetchPatientRecords } from '../api/client';
 import { classifyBiomarker, classifyWearable, classifyGut } from '../utils/clinicalRanges';
+import {
+  calculateOverallHealthScore,
+  analyzeLongitudinalShifts,
+  detectEarlyWarnings,
+  generateCrossModalityInsights
+} from '../utils/healthIntelligence';
 
 export default function DashboardPage({
   session,
@@ -22,16 +28,20 @@ export default function DashboardPage({
   onStartAnalysis,
   user,
   onDiscussWithDoctor,
-  onOpenComparison
+  onOpenComparison,
+  onStartNewAnalysis
 }) {
   const [expandedWhy, setExpandedWhy] = useState({});
   const [isQualityModalOpen, setIsQualityModalOpen] = useState(false);
 
   const [appointments, setAppointments] = useState([]);
   const [consultations, setConsultations] = useState([]);
+  const [savedRecords, setSavedRecords] = useState([]);
+  const [recordsLoading, setRecordsLoading] = useState(true);
 
   useEffect(() => {
     async function loadUserData() {
+      setRecordsLoading(true);
       try {
         const appts = await fetchUserAppointments();
         setAppointments(appts || []);
@@ -40,11 +50,29 @@ export default function DashboardPage({
         const consData = await fetchPatientConsultations();
         setConsultations(consData.consultations || []);
       } catch (e) {}
+      try {
+        const recsData = await fetchPatientRecords();
+        setSavedRecords(recsData.records || []);
+      } catch (e) {} finally {
+        setRecordsLoading(false);
+      }
     }
     if (user) {
       loadUserData();
     }
   }, [user]);
+
+  // Determine active prediction payload: passed session prediction OR latest saved record snapshot
+  const activeRecord = savedRecords.length > 0 ? savedRecords[0] : null;
+  const activePredictionData = predictionData || (activeRecord ? activeRecord.prediction_snapshot : null);
+
+  // Compute Health Intelligence
+  const healthScoreObj = calculateOverallHealthScore(activePredictionData);
+  const longitudinalShifts = analyzeLongitudinalShifts(savedRecords);
+  const earlyWarnings = detectEarlyWarnings(activePredictionData, savedRecords);
+  const crossModalityInsights = generateCrossModalityInsights(activePredictionData);
+
+
 
   const toggleWhy = (diseaseKey) => {
     setExpandedWhy(prev => ({ ...prev, [diseaseKey]: !prev[diseaseKey] }));
@@ -64,8 +92,24 @@ export default function DashboardPage({
   const filledFields = profileFields.filter(f => f.val !== null && f.val !== undefined && f.val !== '');
   const completionPct = Math.round((filledFields.length / profileFields.length) * 100);
 
-  // EMPTY STATE if no predictionData
-  if (!predictionData) {
+  // EMPTY STATE if no predictionData and no saved historical assessment
+  if (!activePredictionData) {
+    if (recordsLoading) {
+      return (
+        <PageContainer className="space-y-12">
+          <PageHeader
+            title={`Welcome back, ${user?.name || user?.full_name || user?.patient_profile?.full_name || 'Patient'}! 👋`}
+            description="Personal Health Command Center & AI Multimodal Intake Workspace"
+            badge={completionPct === 100 ? 'Profile 100%' : `Profile ${completionPct}%`}
+          />
+          <Card isGlass={true} className="p-12 text-center">
+            <RefreshCw className="w-8 h-8 spin mx-auto text-[var(--primary)] mb-3" />
+            <p className="text-sm text-[var(--text-muted)]">Loading personal health command center...</p>
+          </Card>
+        </PageContainer>
+      );
+    }
+
     return (
       <PageContainer className="space-y-12">
         <PageHeader
@@ -130,14 +174,16 @@ export default function DashboardPage({
   }
 
   // Active Prediction Payload Extraction
-  const outcomes = predictionData.disease_outcomes || predictionData.predictions || {};
-  const pathwayUsed = predictionData.pathway_used || predictionData.effective_pathway || 'C+W+G';
-  const activeMods = predictionData.active_modalities || ['clinical', 'wearable', 'gut'];
-  const dqScore = predictionData.data_quality_score ? Math.round(predictionData.data_quality_score * 100) : (predictionData.overall_quality_score ? Math.round(predictionData.overall_quality_score * 100) : 100);
+  const outcomes = activePredictionData.disease_outcomes || activePredictionData.predictions || {};
+  const pathwayUsed = activePredictionData.pathway_used || activePredictionData.effective_pathway || 'C+W+G';
+  const activeMods = activePredictionData.active_modalities || ['clinical', 'wearable', 'gut'];
+  const rawDq = activePredictionData.data_quality_score ?? activePredictionData.overall_quality_score ?? 0.94;
+  const dqScore = rawDq <= 1 ? Math.round(rawDq * 100) : Math.min(100, Math.round(rawDq));
 
-  const clinFeats = predictionData.confirmed_features?.clinical || predictionData.clinical_features || {};
-  const wearFeats = predictionData.confirmed_features?.wearable || predictionData.wearable_features || {};
-  const gutFeats = predictionData.confirmed_features?.gut || predictionData.gut_features || {};
+  const clinFeats = activePredictionData.confirmed_features?.clinical || activePredictionData.clinical_features || (activeRecord?.confirmed_features?.clinical || {});
+  const wearFeats = activePredictionData.confirmed_features?.wearable || activePredictionData.wearable_features || (activeRecord?.confirmed_features?.wearable || {});
+  const gutFeats = activePredictionData.confirmed_features?.gut || activePredictionData.gut_features || (activeRecord?.confirmed_features?.gut || {});
+
 
   const diseasesList = [
     { key: 'Type2_Diabetes', title: 'Type 2 Diabetes', desc: 'Glycemic control & insulin resistance' },
@@ -257,6 +303,145 @@ export default function DashboardPage({
         </div>
       </Card>
 
+      {/* PATIENT HEALTH INTELLIGENCE SECTION */}
+      <ContentSection title="Patient Health Intelligence" subtitle="Transparent clinical risk synthesis, longitudinal trajectory, and cross-modality insights">
+        
+        {/* Early Warning Indicators Banner (if any) */}
+        {earlyWarnings.length > 0 && (
+          <div className="space-y-3 mb-6">
+            {earlyWarnings.map(ew => (
+              <Alert key={ew.id} variant="warning" icon={<AlertCircle className="w-5 h-5 text-amber-500" />}>
+                <div className="flex flex-col gap-1">
+                  <div className="flex items-center gap-2">
+                    <strong className="text-sm font-bold text-[var(--text-main)]">{ew.title}</strong>
+                    <Badge variant="danger" size="sm">{ew.severity} INDICATOR</Badge>
+                  </div>
+                  <p className="text-xs text-[var(--text-main)] font-mono">{ew.indicator}</p>
+                  <p className="text-[11px] text-[var(--text-muted)]">{ew.clinicalNote}</p>
+                </div>
+              </Alert>
+            ))}
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          
+          {/* Health Score Card */}
+          {healthScoreObj && (
+            <Card isGlass={true} className="p-6 space-y-4 border-l-4 border-l-[var(--primary)] shadow-md">
+              <div className="flex items-center justify-between">
+                <div>
+                  <Badge variant="primary" size="sm">Overall Health Score</Badge>
+                  <h4 className="text-base font-extrabold text-[var(--text-main)] mt-1">Health Index</h4>
+                </div>
+                <div className="text-right">
+                  <span className="text-3xl font-extrabold font-mono text-[var(--primary)]">{healthScoreObj.score}</span>
+                  <span className="text-xs text-[var(--text-muted)] block">/ 100</span>
+                </div>
+              </div>
+              <ProgressBar value={healthScoreObj.score} max={100} variant="primary" />
+              <div className="text-[11px] text-[var(--text-muted)] space-y-1 bg-[var(--bg-primary)] p-3 rounded-lg border border-[var(--border-subtle)] font-mono">
+                <div className="flex justify-between">
+                  <span>Data Quality (20%):</span>
+                  <strong className="text-[var(--text-main)]">{healthScoreObj.breakdown.dataQualityPts} pts</strong>
+                </div>
+                <div className="flex justify-between">
+                  <span>Metabolic Risk Index (50%):</span>
+                  <strong className="text-[var(--text-main)]">{healthScoreObj.breakdown.metabolicRiskPts} pts</strong>
+                </div>
+                <div className="flex justify-between">
+                  <span>Biomarker Normalcy ({healthScoreObj.breakdown.normalBiomarkersCount}/{healthScoreObj.breakdown.totalBiomarkersEvaluated}):</span>
+                  <strong className="text-[var(--text-main)]">{healthScoreObj.breakdown.biomarkerNormalcyPts} pts</strong>
+                </div>
+              </div>
+              <p className="text-[10px] text-[var(--text-muted)] italic">{healthScoreObj.formulaDescription}</p>
+            </Card>
+          )}
+
+          {/* Longitudinal Shifts: What's Improving / Worsening */}
+          <Card isGlass={true} className="p-6 space-y-4 shadow-md col-span-1 lg:col-span-2">
+            <div className="flex items-center justify-between border-b border-[var(--border-subtle)] pb-3">
+              <h4 className="text-sm font-bold text-[var(--text-main)] flex items-center gap-2">
+                <TrendingUp className="w-4 h-4 text-[var(--primary)]" />
+                Longitudinal Biomarker & Risk Shifts
+              </h4>
+              <Badge variant="outline" size="sm">
+                {longitudinalShifts.hasHistory ? `${savedRecords.length} Assessments` : 'Single Assessment'}
+              </Badge>
+            </div>
+
+            {longitudinalShifts.hasHistory ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* What's Improving */}
+                <div className="p-3 bg-emerald-500/5 rounded-xl border border-emerald-500/20 space-y-2">
+                  <span className="text-xs font-bold text-emerald-400 uppercase tracking-wide flex items-center gap-1">
+                    ✓ What's Improving ({longitudinalShifts.improving.length})
+                  </span>
+                  {longitudinalShifts.improving.length === 0 ? (
+                    <p className="text-[11px] text-[var(--text-muted)] italic">No significant improvements detected between baseline and current assessment.</p>
+                  ) : (
+                    <div className="space-y-1.5">
+                      {longitudinalShifts.improving.map((item, idx) => (
+                        <div key={idx} className="flex items-center justify-between text-xs p-1.5 bg-[var(--bg-primary)] rounded-lg">
+                          <div>
+                            <strong className="text-[var(--text-main)] block text-[11px]">{item.label}</strong>
+                            <span className="text-[10px] text-[var(--text-muted)]">{item.detail}</span>
+                          </div>
+                          <Badge variant="success" size="sm">{item.shift}</Badge>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* What's Worsening */}
+                <div className="p-3 bg-amber-500/5 rounded-xl border border-amber-500/20 space-y-2">
+                  <span className="text-xs font-bold text-amber-400 uppercase tracking-wide flex items-center gap-1">
+                    ▲ What's Worsening ({longitudinalShifts.worsening.length})
+                  </span>
+                  {longitudinalShifts.worsening.length === 0 ? (
+                    <p className="text-[11px] text-[var(--text-muted)] italic">No adverse biomarker shifts detected.</p>
+                  ) : (
+                    <div className="space-y-1.5">
+                      {longitudinalShifts.worsening.map((item, idx) => (
+                        <div key={idx} className="flex items-center justify-between text-xs p-1.5 bg-[var(--bg-primary)] rounded-lg">
+                          <div>
+                            <strong className="text-[var(--text-main)] block text-[11px]">{item.label}</strong>
+                            <span className="text-[10px] text-[var(--text-muted)]">{item.detail}</span>
+                          </div>
+                          <Badge variant="warning" size="sm">{item.shift}</Badge>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <p className="text-xs text-[var(--text-muted)]">Perform a second health intake assessment to unlock longitudinal trajectory tracking.</p>
+            )}
+
+            {/* Cross-Modality Insights */}
+            {crossModalityInsights.length > 0 && (
+              <div className="pt-2 border-t border-[var(--border-subtle)] space-y-2">
+                <span className="text-[11px] font-mono font-bold text-[var(--text-muted)] uppercase block">Cross-Modality Correlative Observations</span>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {crossModalityInsights.map((ci, idx) => (
+                    <div key={idx} className="p-2.5 rounded-lg bg-[var(--bg-primary)] border border-[var(--border-subtle)] space-y-1 text-xs">
+                      <div className="flex items-center justify-between">
+                        <strong className="text-[var(--text-main)] font-semibold text-[11px]">{ci.title}</strong>
+                        <Badge variant={ci.variant} size="sm">{ci.tag}</Badge>
+                      </div>
+                      <p className="text-[11px] text-[var(--text-muted)] leading-relaxed">{ci.description}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </Card>
+
+        </div>
+      </ContentSection>
+
       {/* 3. FIVE DISEASE RISK CARDS GRID (Thin Colored Top Border, Equal Height, Hover Elevation Only) */}
       <ContentSection title="Multi-Disease Risk Predictions" subtitle="Ensemble predictions powered by Clinical v3, Wearables v3 (15D), and Gut v3 Models">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
@@ -318,38 +503,15 @@ export default function DashboardPage({
                   <div className="mt-3 p-3 bg-[var(--bg-primary)] rounded-xl text-xs space-y-1.5 border border-[var(--border-subtle)] animate-fade-in">
                     <p className="font-semibold text-[var(--text-main)]">Contributing Risk Factors:</p>
                     <ul className="list-disc list-inside text-[var(--text-muted)] space-y-0.5 text-[11px]">
-                      {(data.top_drivers && data.top_drivers.length > 0
-                        ? data.top_drivers
-                        : {
-                            Type2_Diabetes: [
-                              'HbA1c & Fasting Glucose Glycemic Balance',
-                              'HOMA-IR Insulin Resistance Index',
-                              'Family History of Type 2 Diabetes'
-                            ],
-                            Prediabetes: [
-                              'Impaired Fasting Glucose (100–125 mg/dL)',
-                              'Postprandial Glycemic Excursion Risk',
-                              'Sedentary Duration & Activity Deficit'
-                            ],
-                            High_Adiposity_Risk: [
-                              'Body Mass Index (BMI) Elevation',
-                              'Waist-to-Height Visceral Fat Ratio',
-                              'Caloric Balance & Daily Energy Expenditure'
-                            ],
-                            Metabolic_Syndrome: [
-                              'Triglyceride / HDL Lipid Ratio (>3.0)',
-                              'Systolic & Diastolic Blood Pressure Elevation',
-                              'Combined Central Adiposity & Hyperglycemia'
-                            ],
-                            NAFLD: [
-                              'ALT & AST Hepatic Enzyme Ratio Elevation',
-                              'Hepatic Steatosis Risk & Lipid Accumulation',
-                              'Gut Microbiome Taxa Alterations (Firmicutes/Bacteroidetes)'
-                            ]
-                          }[disease.key] || []
-                      ).map((drv, idx) => (
-                        <li key={idx}>{drv}</li>
-                      ))}
+                      {data.top_drivers && data.top_drivers.length > 0 ? (
+                        data.top_drivers.map((drv, idx) => (
+                          <li key={idx}>{drv}</li>
+                        ))
+                      ) : (
+                        <li className="text-[var(--text-dim)] italic">
+                          Visit the XAI Driver Analysis page to see which specific health factors influence this risk score.
+                        </li>
+                      )}
                     </ul>
                   </div>
                 )}
@@ -359,93 +521,122 @@ export default function DashboardPage({
         </div>
       </ContentSection>
 
-      {/* 4. PHYSIOLOGICAL SYSTEM CARDS (Larger Icon, Status Beside Title, Primary Metric, Equal Heights) */}
-      <ContentSection title="Physiological Systems Overview" subtitle="Organ system health status derived from multimodal canonical features">
+      {/* 4. PHYSIOLOGICAL SYSTEM CARDS (Dynamic, strictly derived from active assessment data) */}
+      <ContentSection title="Physiological Systems Overview" subtitle="Organ system health status derived from active validated features">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-          {/* Card 1: Cardiovascular */}
-          <Card isGlass={true} className="p-6 h-full flex flex-col justify-between hover:border-[var(--primary)]/40 transition-all duration-200">
-            <div className="space-y-3">
-              <div className="p-3 w-12 h-12 rounded-xl bg-rose-500/10 text-rose-500 flex items-center justify-center shrink-0">
-                <Heart className="w-6 h-6" />
-              </div>
-              <div className="flex items-center justify-between">
-                <h5 className="text-sm font-bold text-[var(--text-main)]">Cardiovascular</h5>
-                <Badge variant="success" size="sm">Normal</Badge>
-              </div>
-              <div>
-                <span className="text-lg font-extrabold font-mono text-[var(--text-main)]">120/80 mmHg</span>
-                <p className="text-[11px] text-[var(--text-muted)] mt-1">Systolic/Diastolic BP & Resting Heart Rate within healthy range.</p>
-              </div>
-            </div>
-          </Card>
+          {(() => {
+            // 1. Cardiovascular
+            const sys = clinFeats.Systolic_BP ?? clinFeats.Systolic;
+            const dia = clinFeats.Diastolic_BP ?? clinFeats.Diastolic;
+            const rhr = wearFeats.Resting_Heart_Rate ?? wearFeats.Heart_Rate;
+            let cardioValue = 'NOT PROVIDED';
+            let cardioDesc = 'Upload clinical BP or wearable heart rate to evaluate cardiovascular metrics.';
+            let cardioStatus = 'NOT PROVIDED';
+            let cardioVariant = 'outline';
+            if (sys !== undefined && dia !== undefined) {
+              cardioValue = `${sys}/${dia} mmHg`;
+              const isElev = sys >= 130 || dia >= 85;
+              cardioStatus = isElev ? 'Elevated' : 'Normal';
+              cardioVariant = isElev ? 'warning' : 'success';
+              cardioDesc = isElev ? 'Systolic/Diastolic blood pressure is elevated; clinical monitoring advised.' : 'Systolic & Diastolic blood pressure within optimal range.';
+            } else if (rhr !== undefined) {
+              cardioValue = `${rhr} bpm (RHR)`;
+              cardioStatus = rhr > 85 ? 'Elevated' : 'Normal';
+              cardioVariant = rhr > 85 ? 'warning' : 'success';
+              cardioDesc = `Resting heart rate measured at ${rhr} bpm.`;
+            }
 
-          {/* Card 2: Hepatic */}
-          <Card isGlass={true} className="p-6 h-full flex flex-col justify-between hover:border-[var(--primary)]/40 transition-all duration-200">
-            <div className="space-y-3">
-              <div className="p-3 w-12 h-12 rounded-xl bg-amber-500/10 text-amber-500 flex items-center justify-center shrink-0">
-                <ActivitySquare className="w-6 h-6" />
-              </div>
-              <div className="flex items-center justify-between">
-                <h5 className="text-sm font-bold text-[var(--text-main)]">Hepatic (Liver)</h5>
-                <Badge variant="success" size="sm">Optimal</Badge>
-              </div>
-              <div>
-                <span className="text-lg font-extrabold font-mono text-[var(--text-main)]">24 U/L ALT</span>
-                <p className="text-[11px] text-[var(--text-muted)] mt-1">ALT and AST enzymes within normal physiological limits.</p>
-              </div>
-            </div>
-          </Card>
+            // 2. Hepatic (Liver)
+            const alt = clinFeats.ALT;
+            const ast = clinFeats.AST;
+            let hepaticValue = 'NOT PROVIDED';
+            let hepaticDesc = 'Upload liver enzyme panel to evaluate ALT and AST markers.';
+            let hepaticStatus = 'NOT PROVIDED';
+            let hepaticVariant = 'outline';
+            if (alt !== undefined || ast !== undefined) {
+              hepaticValue = alt !== undefined ? `${alt} U/L ALT` : `${ast} U/L AST`;
+              const isElev = (alt && alt > 40) || (ast && ast > 40);
+              hepaticStatus = isElev ? 'Elevated' : 'Optimal';
+              hepaticVariant = isElev ? 'warning' : 'success';
+              hepaticDesc = isElev ? 'Liver transaminases elevated; lifestyle hepatic support recommended.' : 'ALT & AST hepatic enzymes within normal physiological limits.';
+            }
 
-          {/* Card 3: Metabolic */}
-          <Card isGlass={true} className="p-6 h-full flex flex-col justify-between hover:border-[var(--primary)]/40 transition-all duration-200">
-            <div className="space-y-3">
-              <div className="p-3 w-12 h-12 rounded-xl bg-blue-500/10 text-blue-500 flex items-center justify-center shrink-0">
-                <Droplet className="w-6 h-6" />
-              </div>
-              <div className="flex items-center justify-between">
-                <h5 className="text-sm font-bold text-[var(--text-main)]">Glycemic System</h5>
-                <Badge variant="warning" size="sm">Elevated</Badge>
-              </div>
-              <div>
-                <span className="text-lg font-extrabold font-mono text-[var(--warning)]">6.1% HbA1c</span>
-                <p className="text-[11px] text-[var(--text-muted)] mt-1">Suboptimal fasting glucose; early glycemic monitoring advised.</p>
-              </div>
-            </div>
-          </Card>
+            // 3. Glycemic System
+            const gluc = clinFeats.Fasting_Blood_Glucose ?? clinFeats.Glucose ?? clinFeats.Fasting_Glucose;
+            const hba1c = clinFeats.HbA1c;
+            let glycemicValue = 'NOT PROVIDED';
+            let glycemicDesc = 'Upload fasting glucose or HbA1c lab report for glycemic profiling.';
+            let glycemicStatus = 'NOT PROVIDED';
+            let glycemicVariant = 'outline';
+            if (gluc !== undefined || hba1c !== undefined) {
+              glycemicValue = hba1c !== undefined ? `${hba1c}% HbA1c` : `${gluc} mg/dL Glucose`;
+              const isElev = (hba1c && hba1c >= 5.7) || (gluc && gluc >= 100);
+              glycemicStatus = isElev ? 'Elevated' : 'Optimal';
+              glycemicVariant = isElev ? 'warning' : 'success';
+              glycemicDesc = isElev ? 'Glycemic markers suggest insulin resistance or impaired fasting glucose.' : 'Fasting blood glucose and HbA1c within normal reference range.';
+            }
 
-          {/* Card 4: Gut */}
-          <Card isGlass={true} className="p-6 h-full flex flex-col justify-between hover:border-[var(--primary)]/40 transition-all duration-200">
-            <div className="space-y-3">
-              <div className="p-3 w-12 h-12 rounded-xl bg-purple-500/10 text-purple-500 flex items-center justify-center shrink-0">
-                <Dna className="w-6 h-6" />
-              </div>
-              <div className="flex items-center justify-between">
-                <h5 className="text-sm font-bold text-[var(--text-main)]">Gut Microbiome</h5>
-                <Badge variant="success" size="sm">Balanced</Badge>
-              </div>
-              <div>
-                <span className="text-lg font-extrabold font-mono text-[var(--text-main)]">3.2% Akkermansia</span>
-                <p className="text-[11px] text-[var(--text-muted)] mt-1">Akkermansia & Faecalibacterium abundance well balanced.</p>
-              </div>
-            </div>
-          </Card>
+            // 4. Gut Microbiome
+            const akk = gutFeats.Akkermansia_muciniphila ?? gutFeats.Akkermansia;
+            const faec = gutFeats.Faecalibacterium_prausnitzii ?? gutFeats.Faecalibacterium;
+            let gutValue = 'NOT PROVIDED';
+            let gutDesc = 'Upload 16S gut sequencing data to assess microbial composition.';
+            let gutStatus = 'NOT PROVIDED';
+            let gutVariant = 'outline';
+            if (akk !== undefined || faec !== undefined) {
+              gutValue = akk !== undefined ? `${akk}% Akkermansia` : `${faec}% Faecalibacterium`;
+              const isLow = (akk !== undefined && akk < 1.0);
+              gutStatus = isLow ? 'Suboptimal' : 'Balanced';
+              gutVariant = isLow ? 'warning' : 'success';
+              gutDesc = isLow ? 'Low abundance of protective keystone taxa detected.' : 'Key symbiotic microbial taxa detected at healthy relative abundance.';
+            }
 
-          {/* Card 5: Wearables */}
-          <Card isGlass={true} className="p-6 h-full flex flex-col justify-between hover:border-[var(--primary)]/40 transition-all duration-200">
-            <div className="space-y-3">
-              <div className="p-3 w-12 h-12 rounded-xl bg-teal-500/10 text-teal-500 flex items-center justify-center shrink-0">
-                <Watch className="w-6 h-6" />
-              </div>
-              <div className="flex items-center justify-between">
-                <h5 className="text-sm font-bold text-[var(--text-main)]">Wearables</h5>
-                <Badge variant="success" size="sm">Optimal</Badge>
-              </div>
-              <div>
-                <span className="text-lg font-extrabold font-mono text-[var(--text-main)]">8,400 Steps/Day</span>
-                <p className="text-[11px] text-[var(--text-muted)] mt-1">Daily activity target met; sleep duration optimal at 7.5 hrs.</p>
-              </div>
-            </div>
-          </Card>
+            // 5. Wearables & Telemetry
+            const steps = wearFeats.Average_Daily_Steps ?? wearFeats.Daily_Steps ?? wearFeats.Total_Steps;
+            const sleep = wearFeats.Sleep_Duration_Hours ?? wearFeats.Total_Sleep_Duration_Hours;
+            let wearValue = 'NOT PROVIDED';
+            let wearDesc = 'Upload wearable activity/sleep data to monitor continuous telemetry.';
+            let wearStatus = 'NOT PROVIDED';
+            let wearVariant = 'outline';
+            if (steps !== undefined || sleep !== undefined) {
+              wearValue = steps !== undefined ? `${Number(steps).toLocaleString()} Steps/Day` : `${sleep} hrs Sleep`;
+              const isSub = (steps !== undefined && steps < 5000);
+              wearStatus = isSub ? 'Suboptimal' : 'Optimal';
+              wearVariant = isSub ? 'warning' : 'success';
+              wearDesc = isSub ? 'Daily activity below 5,000 steps baseline; light daily walks recommended.' : 'Daily activity and recovery metrics met.';
+            }
+
+            const sysCards = [
+              { name: 'Cardiovascular', icon: Heart, iconBg: 'bg-rose-500/10 text-rose-500', value: cardioValue, desc: cardioDesc, status: cardioStatus, variant: cardioVariant },
+              { name: 'Hepatic (Liver)', icon: ActivitySquare, iconBg: 'bg-amber-500/10 text-amber-500', value: hepaticValue, desc: hepaticDesc, status: hepaticStatus, variant: hepaticVariant },
+              { name: 'Glycemic System', icon: Droplet, iconBg: 'bg-blue-500/10 text-blue-500', value: glycemicValue, desc: glycemicDesc, status: glycemicStatus, variant: glycemicVariant },
+              { name: 'Gut Microbiome', icon: Dna, iconBg: 'bg-purple-500/10 text-purple-500', value: gutValue, desc: gutDesc, status: gutStatus, variant: gutVariant },
+              { name: 'Wearables & Telemetry', icon: Watch, iconBg: 'bg-teal-500/10 text-teal-500', value: wearValue, desc: wearDesc, status: wearStatus, variant: wearVariant },
+            ];
+
+            return sysCards.map((card, idx) => {
+              const Icon = card.icon;
+              return (
+                <Card key={idx} isGlass={true} className="p-6 h-full flex flex-col justify-between hover:border-[var(--primary)]/40 transition-all duration-200">
+                  <div className="space-y-3">
+                    <div className={`p-3 w-12 h-12 rounded-xl ${card.iconBg} flex items-center justify-center shrink-0`}>
+                      <Icon className="w-6 h-6" />
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <h5 className="text-sm font-bold text-[var(--text-main)]">{card.name}</h5>
+                      <Badge variant={card.variant} size="sm">{card.status}</Badge>
+                    </div>
+                    <div>
+                      <span className={`text-lg font-extrabold font-mono ${card.value === 'NOT PROVIDED' ? 'text-[var(--text-muted)] text-sm' : 'text-[var(--text-main)]'}`}>
+                        {card.value}
+                      </span>
+                      <p className="text-[11px] text-[var(--text-muted)] mt-1">{card.desc}</p>
+                    </div>
+                  </div>
+                </Card>
+              );
+            });
+          })()}
         </div>
       </ContentSection>
 
@@ -534,30 +725,86 @@ export default function DashboardPage({
                 <Sparkles className="w-5 h-5 text-[var(--accent)]" />
                 <h4 className="text-base font-bold text-[var(--text-main)]">Personalized Care Recommendations</h4>
               </div>
-              <Badge variant="accent" size="sm">RAG Grounded</Badge>
+              <Badge variant="accent" size="sm">Evidence Grounded</Badge>
             </CardHeader>
             <CardBody className="space-y-3">
-              <div className="p-4 bg-[var(--bg-primary)] rounded-xl border border-[var(--border-subtle)] space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Badge variant="warning" size="sm">High Priority</Badge>
-                    <span className="text-[10px] font-mono text-[var(--text-muted)] uppercase font-semibold">Glycemic Protocol</span>
-                  </div>
-                </div>
-                <p className="text-xs font-semibold text-[var(--text-main)]">30-Min Post-Prandial Walking</p>
-                <p className="text-xs text-[var(--text-muted)]">Engage in moderate post-meal physical activity to suppress Fasting Blood Glucose spikes.</p>
-              </div>
+              {(() => {
+                const recs = [];
+                const glucose = clinFeats?.Glucose ?? clinFeats?.Fasting_Blood_Glucose ?? clinFeats?.Fasting_Glucose;
+                const hba1c = clinFeats?.HbA1c;
+                const bmi = clinFeats?.BMI;
+                const steps = wearFeats?.Total_Steps ?? wearFeats?.Daily_Steps ?? wearFeats?.Average_Daily_Steps;
+                const akk = gutFeats?.Akkermansia_muciniphila ?? gutFeats?.Akkermansia;
 
-              <div className="p-4 bg-[var(--bg-primary)] rounded-xl border border-[var(--border-subtle)] space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Badge variant="success" size="sm">Routine</Badge>
-                    <span className="text-[10px] font-mono text-[var(--text-muted)] uppercase font-semibold">Dietary Fiber</span>
-                  </div>
-                </div>
-                <p className="text-xs font-semibold text-[var(--text-main)]">Prebiotic Polyphenol Intake</p>
-                <p className="text-xs text-[var(--text-muted)]">Increase prebiotic dietary fiber to maintain high Akkermansia muciniphila abundance.</p>
-              </div>
+                if (glucose !== undefined && glucose !== null) {
+                  recs.push(
+                    <div key="glyc" className="p-4 bg-[var(--bg-primary)] rounded-xl border border-[var(--border-subtle)] space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Badge variant={glucose >= 126 || (hba1c && hba1c >= 6.5) ? "danger" : glucose >= 100 ? "warning" : "success"} size="sm">
+                            {glucose >= 126 ? "High Priority" : glucose >= 100 ? "Watch Closely" : "Optimal"}
+                          </Badge>
+                          <span className="text-[10px] font-mono text-[var(--text-muted)] uppercase font-semibold">Glycemic Protocol</span>
+                        </div>
+                      </div>
+                      <p className="text-xs font-semibold text-[var(--text-main)]">Post-Prandial Glycemic Management</p>
+                      <p className="text-xs text-[var(--text-muted)]">
+                        Why this recommendation: Measured Fasting Glucose is <span className="font-mono font-bold text-[var(--primary)]">{glucose} mg/dL</span>{hba1c ? ` and HbA1c is ${hba1c}%` : ''}. A 15–20 minute post-meal walk is recommended to optimize glycemic response.
+                      </p>
+                    </div>
+                  );
+                }
+
+                if (steps !== undefined && steps !== null) {
+                  recs.push(
+                    <div key="step" className="p-4 bg-[var(--bg-primary)] rounded-xl border border-[var(--border-subtle)] space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Badge variant={steps < 7500 ? "warning" : "success"} size="sm">
+                            {steps < 7500 ? "Room to Improve" : "Active Target"}
+                          </Badge>
+                          <span className="text-[10px] font-mono text-[var(--text-muted)] uppercase font-semibold">Telemetry Goal</span>
+                        </div>
+                      </div>
+                      <p className="text-xs font-semibold text-[var(--text-main)]">Target Physical Activity</p>
+                      <p className="text-xs text-[var(--text-muted)]">
+                        Why this recommendation: Measured daily activity is <span className="font-mono text-[var(--secondary)] font-bold">{Number(steps).toLocaleString()} steps/day</span>{bmi ? ` (BMI: ${bmi})` : ''}. Target 8,500+ steps/day with structured recovery.
+                      </p>
+                    </div>
+                  );
+                }
+
+                if (akk !== undefined && akk !== null) {
+                  recs.push(
+                    <div key="gut" className="p-4 bg-[var(--bg-primary)] rounded-xl border border-[var(--border-subtle)] space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Badge variant={akk < 2.0 ? "warning" : "accent"} size="sm">Microbiome Protocol</Badge>
+                          <span className="text-[10px] font-mono text-[var(--text-muted)] uppercase font-semibold">Gut Support</span>
+                        </div>
+                      </div>
+                      <p className="text-xs font-semibold text-[var(--text-main)]">Prebiotic Fiber & Gut Flora Support</p>
+                      <p className="text-xs text-[var(--text-muted)]">
+                        Why this recommendation: Measured Akkermansia muciniphila relative abundance is <span className="font-mono text-[var(--accent)] font-bold">{akk}%</span>. Increase dietary polyphenol and prebiotic fiber intake (25-30g/day).
+                      </p>
+                    </div>
+                  );
+                }
+
+                if (recs.length === 0) {
+                  return (
+                    <div className="p-6 bg-[var(--bg-primary)] rounded-xl border border-dashed border-[var(--border-subtle)] text-center space-y-2">
+                      <Sparkles className="w-8 h-8 text-[var(--accent)] mx-auto opacity-70" />
+                      <p className="text-xs font-semibold text-[var(--text-main)]">Personalized Recommendations Ready</p>
+                      <p className="text-[11px] text-[var(--text-muted)]">
+                        Upload your health reports in New Analysis to receive clinical-grade, evidence-grounded care steps tailored to your exact measurements.
+                      </p>
+                    </div>
+                  );
+                }
+
+                return recs;
+              })()}
             </CardBody>
           </div>
 
@@ -626,16 +873,27 @@ export default function DashboardPage({
             </Button>
           </div>
           <div className="space-y-3">
-            <div className="p-4 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-subtle)] flex items-center justify-between flex-wrap gap-3">
-              <div className="flex items-center gap-3">
-                <div className="p-2.5 rounded-xl bg-[var(--primary-light)] text-[var(--primary)] shrink-0"><FileText className="w-5 h-5" /></div>
-                <div>
-                  <h5 className="text-xs font-bold text-[var(--text-main)]">Multimodal Health Intake Assessment</h5>
-                  <p className="text-[10px] font-mono text-[var(--text-muted)] mt-0.5">Uploaded: August 1, 2026 • 3 Files (Apollo Lab, Apple Watch CSV, Ayumetrix Gut)</p>
+            {savedRecords && savedRecords.length > 0 ? (
+              savedRecords.slice(0, 3).map((rec) => (
+                <div key={rec.record_id} className="p-4 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-subtle)] flex items-center justify-between flex-wrap gap-3 hover:border-[var(--primary)] transition-all cursor-pointer" onClick={() => onNavigate('records')}>
+                  <div className="flex items-center gap-3">
+                    <div className="p-2.5 rounded-xl bg-[var(--primary-light)] text-[var(--primary)] shrink-0"><FileText className="w-5 h-5" /></div>
+                    <div>
+                      <h5 className="text-xs font-bold text-[var(--text-main)]">Assessment #{rec.record_id}</h5>
+                      <p className="text-[10px] font-mono text-[var(--text-muted)] mt-0.5">
+                        Uploaded: {new Date(rec.created_at).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })} • Modalities: {(rec.active_modalities || ['clinical']).join(', ')}
+                      </p>
+                    </div>
+                  </div>
+                  <Badge variant="primary" size="sm">Pathway {rec.effective_pathway || rec.pathway_used || 'C'}</Badge>
                 </div>
+              ))
+            ) : (
+              <div className="p-6 text-center text-xs text-[var(--text-muted)] border border-dashed border-[var(--border-subtle)] rounded-xl space-y-2">
+                <FolderClock className="w-8 h-8 text-[var(--text-muted)] mx-auto" />
+                <p>No historical assessments recorded yet. Run your first analysis in New Analysis workspace to build your timeline.</p>
               </div>
-              <Badge variant="primary" size="sm">C+W+G Pathway</Badge>
-            </div>
+            )}
           </div>
         </Card>
       </ContentSection>
@@ -645,8 +903,8 @@ export default function DashboardPage({
         isOpen={isQualityModalOpen}
         onClose={() => setIsQualityModalOpen(false)}
         score={dqScore}
-        metadata={predictionData.processed_reports_metadata || []}
-        verifyFlags={predictionData.verify_flags || {}}
+        metadata={predictionData?.processed_reports_metadata || []}
+        verifyFlags={predictionData?.verify_flags || {}}
       />
     </PageContainer>
   );

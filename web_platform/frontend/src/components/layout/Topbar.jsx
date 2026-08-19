@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
   Search,
@@ -14,11 +14,29 @@ import {
 } from 'lucide-react';
 import { Avatar } from '../ui/Avatar';
 import NotificationDrawer from '../NotificationDrawer';
+import { notificationStore } from '../../utils/notificationStore';
 
 export function Topbar({ user, onLogout, onToggleTheme, theme = 'dark', onOpenMobileMenu, className = '' }) {
   const location = useLocation();
   const navigate = useNavigate();
   const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const [, setTick] = useState(0);
+  const userId = user?.user_id || 'default_user';
+  const [unreadBadgeCount, setUnreadBadgeCount] = useState(() => notificationStore.getUnreadCount(userId));
+
+  useEffect(() => {
+    const handleProfileUpdate = () => setTick(t => t + 1);
+    const handleNotifUpdate = () => {
+      setUnreadBadgeCount(notificationStore.getUnreadCount(userId));
+    };
+
+    window.addEventListener('telemed_profile_updated', handleProfileUpdate);
+    window.addEventListener('telemed_notifications_updated', handleNotifUpdate);
+    return () => {
+      window.removeEventListener('telemed_profile_updated', handleProfileUpdate);
+      window.removeEventListener('telemed_notifications_updated', handleNotifUpdate);
+    };
+  }, [userId]);
 
   const getBreadcrumbs = () => {
     const path = location.pathname;
@@ -38,9 +56,26 @@ export function Topbar({ user, onLogout, onToggleTheme, theme = 'dark', onOpenMo
   const breadcrumbs = getBreadcrumbs();
 
   const [isNotificationDrawerOpen, setIsNotificationDrawerOpen] = useState(false);
-  const [drawerNotifications, setDrawerNotifications] = useState([]);
-
-  const unreadBadgeCount = drawerNotifications.filter(n => !n.isRead).length;
+  const [drawerNotifications, setDrawerNotifications] = useState([
+    {
+      id: 'NOT-101',
+      category: 'AI Analysis',
+      title: 'Multimodal AI Assessment Complete',
+      description: 'Fasting Glucose 118 mg/dL, HbA1c 6.2%, Data Quality 85%.',
+      timestamp: '10:15 AM',
+      priority: 'HIGH',
+      isRead: false,
+    },
+    {
+      id: 'NOT-102',
+      category: 'Prescriptions',
+      title: 'Digital E-Prescription Issued',
+      description: 'Rx-994208: Metformin 500mg daily by Dr. Sarah Jenkins.',
+      timestamp: '10:22 AM',
+      priority: 'HIGH',
+      isRead: false,
+    }
+  ]);
 
   return (
     <>
@@ -83,18 +118,17 @@ export function Topbar({ user, onLogout, onToggleTheme, theme = 'dark', onOpenMo
 
         {/* Right: Actions & User Profile */}
         <div className="flex items-center gap-3">
-          {/* Notification Bell */}
+          {/* Instagram-Style Notification Bell */}
           <button
-            onClick={() => setIsNotificationDrawerOpen(true)}
-            className="p-2 rounded-xl text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--bg-surface-hover)] relative transition-colors"
+            onClick={() => navigate('/notifications')}
+            className="p-2 rounded-xl text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--bg-surface-hover)] relative transition-all group"
             title="Open Notification Center"
           >
-            <Bell className="w-5 h-5" />
+            <Bell className="w-5 h-5 transition-transform group-hover:scale-110" />
             {unreadBadgeCount > 0 && (
-              <>
-                <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-[var(--primary)] rounded-full animate-ping" />
-                <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-[var(--primary)] rounded-full" />
-              </>
+              <span className="absolute -top-1 -right-1 flex h-4 min-w-[16px] px-1 items-center justify-center rounded-full bg-gradient-to-r from-rose-500 to-red-600 text-[9.5px] font-black text-white shadow-md border-2 border-[var(--bg-surface)] animate-pulse">
+                {unreadBadgeCount}
+              </span>
             )}
           </button>
 
@@ -113,7 +147,7 @@ export function Topbar({ user, onLogout, onToggleTheme, theme = 'dark', onOpenMo
             onClick={() => setShowProfileMenu(!showProfileMenu)}
             className="flex items-center gap-2.5 p-1.5 rounded-xl hover:bg-[var(--bg-surface-hover)] transition-colors"
           >
-            <Avatar name={user?.name || user?.full_name || 'User Profile'} size="sm" />
+            <Avatar user={user} name={user?.name || user?.full_name || 'User Profile'} size="sm" />
             <div className="hidden sm:flex flex-col text-left">
               <span className="text-xs font-bold text-[var(--text-main)] leading-tight">{user?.name || user?.full_name || 'Guest User'}</span>
               <span className="text-[10px] font-mono text-[var(--text-muted)]">{user?.role || 'PATIENT'}</span>

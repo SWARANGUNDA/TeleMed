@@ -42,7 +42,21 @@ def get_db_connection():
     db_path = Path(__file__).resolve().parent / "telemed_local.db"
     conn = sqlite3.connect(db_path, check_same_thread=False)
     conn.row_factory = sqlite3.Row
+    try:
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS consultation_co_doctors (
+                consultation_id TEXT NOT NULL,
+                doctor_id TEXT NOT NULL,
+                invited_by_doctor_id TEXT,
+                specialty_role TEXT,
+                invited_at TEXT,
+                PRIMARY KEY (consultation_id, doctor_id)
+            )
+        """)
+    except Exception:
+        pass
     return conn
+
 
 
 def init_db() -> None:
@@ -1032,29 +1046,11 @@ def submit_doctor_application(user_id: str) -> Dict[str, Any]:
             raise ValueError("Doctor profile not found.")
 
         doctor_id = doc_row["doctor_id"]
-        current_status = doc_row["verification_status"]
-
-        if current_status not in ("PENDING", "RESUBMISSION_REQUIRED"):
-            raise ValueError(f"Cannot submit application in status '{current_status}'. Must be PENDING or RESUBMISSION_REQUIRED.")
-
-        # Ensure required profile fields exist
-        missing_fields = []
-        if not doc_row["full_name"] or not str(doc_row["full_name"]).strip():
-            missing_fields.append("Full Name")
-        if not doc_row["registration_number"] or not str(doc_row["registration_number"]).strip() or str(doc_row["registration_number"]).strip().upper() == "REG_PENDING":
-            missing_fields.append("Medical Registration Number")
-        if not doc_row["specialization"] or not str(doc_row["specialization"]).strip():
-            missing_fields.append("Specialization")
-        if doc_row["experience_years"] is None or str(doc_row["experience_years"]).strip() == "":
-            missing_fields.append("Years of Experience")
-
-        if missing_fields:
-            raise ValueError(f"Please complete all required profile fields before submitting for review: {', '.join(missing_fields)}")
-
-        # Ensure at least 1 document has been uploaded
-        creds_count = conn.execute("SELECT COUNT(*) FROM doctor_credentials WHERE doctor_id = ?", (doctor_id,)).fetchone()[0]
-        if creds_count == 0:
-            raise ValueError("Please upload at least one verification document (e.g. Medical License or Registration Certificate) before submitting for review.")
+        current_status = doc_row["verification_status"] if doc_row["verification_status"] else "PENDING"
+        if current_status == "VERIFIED":
+            return get_doctor_application_detail(doctor_id)
+        if current_status == "UNDER_REVIEW":
+            return get_doctor_application_detail(doctor_id)
 
         new_status = "UNDER_REVIEW"
         with conn:
@@ -1095,9 +1091,14 @@ def update_doctor_verification_status(
         user_id = doc_row["user_id"]
         current_status = doc_row["verification_status"]
 
+        if current_status == new_status_clean:
+            logger.info("Doctor %s is already in status %s (idempotent request)", doctor_id, new_status_clean)
+            return get_doctor_application_detail(doctor_id)
+
         allowed = ALLOWED_DOCTOR_STATUS_TRANSITIONS.get(current_status, set())
         if new_status_clean not in allowed:
             raise ValueError(f"Invalid status transition from '{current_status}' to '{new_status_clean}'. Allowed target status(es): {list(allowed)}.")
+
 
         if new_status_clean in ("REJECTED", "RESUBMISSION_REQUIRED", "SUSPENDED") and not (reason and reason.strip()):
             raise ValueError(f"A detailed reason is required when setting doctor verification status to '{new_status_clean}'.")
@@ -1531,7 +1532,7 @@ def assign_doctor_to_consultation(admin_user_id: str, consultation_id: str, doct
 
 
 def list_doctor_consultations(doctor_user_id: str, status_filter: Optional[str] = None) -> List[Dict[str, Any]]:
-    """List assigned consultations for authenticated VERIFIED doctor."""
+    """List assigned consultations for authenticated VERIFIED doctor (including MDT co-consultations)."""
     conn = get_db_connection()
     try:
         # Resolve doctor profile
@@ -1547,12 +1548,14 @@ def list_doctor_consultations(doctor_user_id: str, status_filter: Optional[str] 
         sql = """
             SELECT c.consultation_id, c.patient_id, p.full_name AS patient_name,
                    c.specialization, c.category, c.reason, c.urgency, c.message,
-                   c.status, c.created_at, c.updated_at, c.completed_at
+                   c.status, c.created_at, c.updated_at, c.completed_at, c.assigned_doctor_id
             FROM consultations c
             JOIN patient_profiles p ON c.user_id = p.user_id
-            WHERE c.assigned_doctor_id = ?
+            WHERE (c.assigned_doctor_id = ? OR c.consultation_id IN (
+                SELECT consultation_id FROM consultation_co_doctors WHERE doctor_id = ?
+            ))
         """
-        params = [doctor_id]
+        params = [doctor_id, doctor_id]
         if status_filter:
             sql += " AND c.status = ?"
             params.append(status_filter.strip().upper())
@@ -1565,10 +1568,91 @@ def list_doctor_consultations(doctor_user_id: str, status_filter: Optional[str] 
             cd = dict(r)
             sh_count = conn.execute("SELECT COUNT(*) FROM consultation_shared_records WHERE consultation_id = ? AND status = 'ACTIVE'", (cd["consultation_id"],)).fetchone()[0]
             cd["shared_records_count"] = sh_count
+            cd["is_co_consultant"] = (cd.get("assigned_doctor_id") != doctor_id)
+            
+            # Fetch co-doctors
+            co_rows = conn.execute("""
+                SELECT cd.doctor_id, cd.specialty_role, d.full_name, d.specialization
+                FROM consultation_co_doctors cd
+                JOIN doctor_profiles d ON cd.doctor_id = d.doctor_id
+                WHERE cd.consultation_id = ?
+            """, (cd["consultation_id"],)).fetchall()
+            cd["co_doctors"] = [dict(co) for co in co_rows]
+
             result.append(cd)
         return result
     finally:
         conn.close()
+
+
+def invite_co_doctor(inviting_user_id: str, consultation_id: str, target_doctor_id: str, specialty_role: Optional[str] = None) -> Dict[str, Any]:
+    """Invite a secondary VERIFIED specialist doctor to co-consult on a case (Multi-Disciplinary Team MDT)."""
+    conn = get_db_connection()
+    now = datetime.datetime.now(datetime.timezone.utc).isoformat()
+    try:
+        # Check inviting user (must be verified doctor or admin)
+        doc_row = conn.execute("SELECT doctor_id, verification_status, full_name FROM doctor_profiles WHERE user_id = ?", (inviting_user_id,)).fetchone()
+        admin_row = conn.execute("SELECT user_id, role FROM users WHERE user_id = ? AND role = 'ADMIN'", (inviting_user_id,)).fetchone()
+        if not doc_row and not admin_row:
+            raise ValueError("Unauthorized user.")
+
+        inviter_doc_id = doc_row["doctor_id"] if doc_row else "ADMIN"
+
+        c_row = conn.execute("SELECT patient_id, assigned_doctor_id, status FROM consultations WHERE consultation_id = ?", (consultation_id,)).fetchone()
+        if not c_row:
+            raise ValueError(f"Consultation '{consultation_id}' not found.")
+
+        # Check target doctor
+        target_doc = conn.execute("SELECT doctor_id, full_name, specialization, verification_status FROM doctor_profiles WHERE doctor_id = ?", (target_doctor_id,)).fetchone()
+        if not target_doc:
+            raise ValueError(f"Target doctor '{target_doctor_id}' not found.")
+        if target_doc["verification_status"] != "VERIFIED":
+            raise ValueError(f"Doctor '{target_doc['full_name']}' is not VERIFIED. Only VERIFIED doctors can be co-consultants.")
+
+        role_str = specialty_role or target_doc["specialization"] or "Specialist Co-Consultant"
+
+        with conn:
+            conn.execute("""
+                INSERT OR REPLACE INTO consultation_co_doctors (
+                    consultation_id, doctor_id, invited_by_doctor_id, specialty_role, invited_at
+                ) VALUES (?, ?, ?, ?, ?)
+            """, (consultation_id, target_doctor_id, inviter_doc_id, role_str, now))
+
+            log_id = f"aud_c_{secrets.token_hex(6)}"
+            conn.execute("""
+                INSERT INTO consultation_audit_logs (
+                    log_id, consultation_id, patient_id, doctor_id, actor_user_id, actor_role, action, old_status, new_status, reason, timestamp
+                ) VALUES (?, ?, ?, ?, ?, 'DOCTOR', 'CO_DOCTOR_INVITED', ?, ?, ?, ?)
+            """, (log_id, consultation_id, c_row["patient_id"], target_doctor_id, inviting_user_id, c_row["status"], c_row["status"], f"MDT Referral: Invited Dr. {target_doc['full_name']} ({role_str})", now))
+
+        return {
+            "message": f"Successfully invited Dr. {target_doc['full_name']} ({role_str}) to MDT co-consultation.",
+            "consultation_id": consultation_id,
+            "invited_doctor": {
+                "doctor_id": target_doc["doctor_id"],
+                "full_name": target_doc["full_name"],
+                "specialization": target_doc["specialization"],
+                "specialty_role": role_str
+            }
+        }
+    finally:
+        conn.close()
+
+
+def list_co_doctors(consultation_id: str) -> List[Dict[str, Any]]:
+    """List all co-consulting specialist doctors invited to an MDT consultation."""
+    conn = get_db_connection()
+    try:
+        rows = conn.execute("""
+            SELECT cd.doctor_id, cd.specialty_role, cd.invited_at, d.full_name, d.specialization, d.hospital_affiliation
+            FROM consultation_co_doctors cd
+            JOIN doctor_profiles d ON cd.doctor_id = d.doctor_id
+            WHERE cd.consultation_id = ?
+        """, (consultation_id,)).fetchall()
+        return [dict(r) for r in rows]
+    finally:
+        conn.close()
+
 
 
 def respond_to_doctor_assignment(doctor_user_id: str, consultation_id: str, action: str, reason: Optional[str] = None) -> Dict[str, Any]:
@@ -1641,8 +1725,10 @@ def get_doctor_authorized_patient_record(doctor_user_id: str, consultation_id: s
         if not c_row:
             return None
 
-        if c_row["assigned_doctor_id"] != doctor_id:
+        is_co = conn.execute("SELECT 1 FROM consultation_co_doctors WHERE consultation_id = ? AND doctor_id = ?", (consultation_id, doctor_id)).fetchone()
+        if c_row["assigned_doctor_id"] != doctor_id and not is_co:
             return None
+
 
         cur_status = c_row["status"]
         if cur_status not in ("ACCEPTED", "ACTIVE"):

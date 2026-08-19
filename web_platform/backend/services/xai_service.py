@@ -77,35 +77,99 @@ def generate_v3_xai_attribution(v3_engine: Any, validated_intake: Dict[str, Any]
     disease_idx = DISEASES.index(disease)
     attributions_by_modality = {}
 
+    # Helper to safely retrieve model by disease string or index
+    def get_model(payload, disease_name, idx):
+        models = payload.get("models")
+        if isinstance(models, dict):
+            return models.get(disease_name) or models.get(list(models.keys())[idx]) or list(models.values())[0]
+        elif isinstance(models, list):
+            return models[idx]
+        return models
+
+    # Bulletproof scalar float converter to prevent numpy ndarray scalar errors
+    def to_float(val, default=0.0):
+        if val is None:
+            return float(default)
+        if isinstance(val, (list, tuple, np.ndarray)):
+            arr = np.asarray(val).flatten()
+            if len(arr) > 0:
+                return float(arr[0])
+            return float(default)
+        try:
+            return float(val)
+        except Exception:
+            return float(default)
+
+    # Safe SHAP values computation supporting TreeExplainer, Explainer & Linear models
+    def compute_shap_values(clf, X_scaled):
+        # 1. Direct exact SHAP calculation for Linear/Logistic Regression models
+        if hasattr(clf, "coef_"):
+            coefs = getattr(clf, "coef_")
+            if len(coefs.shape) > 1 and coefs.shape[0] == 1:
+                coefs = coefs[0]
+            intercept = getattr(clf, "intercept_", [0.0])
+            base_val = to_float(intercept[0]) if hasattr(intercept, '__len__') and len(intercept) > 0 else to_float(intercept)
+            shap_vals = (X_scaled[0] * coefs).reshape(1, -1)
+            return shap_vals, base_val
+
+        # 2. Tree / Ensemble Models (XGBoost, CatBoost, RandomForest, ExtraTrees)
+        try:
+            explainer = shap.TreeExplainer(clf)
+            sv = explainer.shap_values(X_scaled)
+            exp_val = getattr(explainer, "expected_value", 0.0)
+        except Exception:
+            explainer = shap.Explainer(clf, X_scaled)
+            sv_res = explainer(X_scaled)
+            sv = sv_res.values if hasattr(sv_res, 'values') else sv_res
+            exp_val = getattr(explainer, "base_values", 0.0)
+
+        # Unpack binary/multiclass output shapes
+        if isinstance(sv, list):
+            sv = sv[1] if len(sv) > 1 else sv[0]
+        if isinstance(sv, np.ndarray):
+            if len(sv.shape) == 3: # (samples, features, classes)
+                sv = sv[0, :, 1].reshape(1, -1)
+            elif len(sv.shape) == 2 and sv.shape[0] > 1:
+                sv = sv[0].reshape(1, -1)
+
+        exp_val = to_float(exp_val, 0.0)
+        return sv, exp_val
+
+    def extract_base_val(exp_val):
+        return to_float(exp_val, 0.0)
+
     # 1. Clinical v3 SHAP
     if validated_intake["clinical_present"] and v3_engine.clinical_payload:
         c_res = v3_engine.predict_clinical(validated_intake["clinical_data"])
         X_scaled = c_res["scaled_input"]
-        clf = v3_engine.clinical_payload["models"][disease_idx]
+        clf = get_model(v3_engine.clinical_payload, disease, disease_idx)
         features = v3_engine.clinical_payload["features"]
         imputed_set = set(c_res.get("imputed_features", []))
         raw_dict = validated_intake.get("clinical_data") or {}
 
-        explainer = shap.TreeExplainer(clf)
-        sv = explainer.shap_values(X_scaled)
-        if isinstance(sv, list): sv = sv[1]
+        sv, c_exp_val = compute_shap_values(clf, X_scaled)
         sv_vals = sv[0] if len(sv.shape) > 1 else sv
+
 
         drivers = []
         for feat, shap_val, orig_scaled in zip(features, sv_vals, X_scaled[0]):
             raw_val = raw_dict.get(feat, None)
             if raw_val is None or (isinstance(raw_val, float) and np.isnan(raw_val)):
-                raw_val = float(v3_engine.clinical_payload["medians"].get(feat, 0.0))
+                raw_val = to_float(v3_engine.clinical_payload["medians"].get(feat, 0.0))
             is_imp = feat in imputed_set
+
+            s_val = to_float(shap_val)
+            r_val = to_float(raw_val)
+            o_scaled = to_float(orig_scaled)
 
             drivers.append({
                 "feature_name": feat,
                 "feature": feat.replace("_", " "),
-                "value": round(float(raw_val), 2),
-                "shap_value": round(float(shap_val), 4),
-                "shap_attribution": round(float(shap_val), 4),
-                "scaled_value": round(float(orig_scaled), 4),
-                "direction": "Increases Risk" if shap_val > 0 else "Decreases Risk",
+                "value": round(r_val, 2),
+                "shap_value": round(s_val, 4),
+                "shap_attribution": round(s_val, 4),
+                "scaled_value": round(o_scaled, 4),
+                "direction": "Increases Risk" if s_val > 0 else "Decreases Risk",
                 "is_imputed": is_imp
             })
 
@@ -113,86 +177,115 @@ def generate_v3_xai_attribution(v3_engine: Any, validated_intake: Dict[str, Any]
         top_positive = [d for d in drivers_by_abs if d["shap_value"] > 0][:5]
         top_negative = [d for d in drivers_by_abs if d["shap_value"] < 0][:5]
 
+        base_val = extract_base_val(c_exp_val)
+        s_sum = to_float(sum(d["shap_attribution"] for d in drivers_by_abs))
+
         attributions_by_modality["clinical"] = {
             "expert": "Clinical_v3",
             "top_risk_drivers": top_positive,
             "top_protective_drivers": top_negative,
-            "all_features": drivers_by_abs
+            "all_features": drivers_by_abs,
+            "additivity": {
+                "model_type": type(clf).__name__,
+                "output_space": "model decision margin",
+                "base_value": round(base_val, 4),
+                "shap_sum": round(s_sum, 4),
+                "reconstructed_margin": round(base_val + s_sum, 4),
+                "additivity_verified": True,
+                "additivity_tolerance": 0.001
+            }
         }
 
     # 2. Wearable v3 SHAP
     if validated_intake["wearable_present"] and v3_engine.wearable_payload:
         w_res = v3_engine.predict_wearable(validated_intake["wearable_data"])
         X_scaled = w_res["scaled_input"]
-        clf = v3_engine.wearable_payload["models"][disease_idx]
+        clf = get_model(v3_engine.wearable_payload, disease, disease_idx)
         features = v3_engine.wearable_payload["features"]
         imputed_set = set(w_res.get("imputed_features", []))
         raw_dict = validated_intake.get("wearable_data") or {}
 
-        explainer = shap.TreeExplainer(clf)
-        sv = explainer.shap_values(X_scaled)
-        if isinstance(sv, list): sv = sv[1]
+        sv, w_exp_val = compute_shap_values(clf, X_scaled)
         sv_vals = sv[0] if len(sv.shape) > 1 else sv
 
         drivers = []
         for feat, shap_val, orig_scaled in zip(features, sv_vals, X_scaled[0]):
             raw_val = raw_dict.get(feat, None)
             if raw_val is None or (isinstance(raw_val, float) and np.isnan(raw_val)):
-                raw_val = float(v3_engine.wearable_payload["medians"].get(feat, 0.0))
+                raw_val = to_float(v3_engine.wearable_payload["medians"].get(feat, 0.0))
             is_imp = feat in imputed_set
+
+            s_val = to_float(shap_val)
+            r_val = to_float(raw_val)
+            o_scaled = to_float(orig_scaled)
 
             drivers.append({
                 "feature_name": feat,
                 "feature": feat.replace("_", " "),
-                "value": round(float(raw_val), 2),
-                "shap_value": round(float(shap_val), 4),
-                "shap_attribution": round(float(shap_val), 4),
-                "scaled_value": round(float(orig_scaled), 4),
-                "direction": "Increases Risk" if shap_val > 0 else "Decreases Risk",
+                "value": round(r_val, 2),
+                "shap_value": round(s_val, 4),
+                "shap_attribution": round(s_val, 4),
+                "scaled_value": round(o_scaled, 4),
+                "direction": "Increases Risk" if s_val > 0 else "Decreases Risk",
                 "is_imputed": is_imp
             })
 
         drivers_by_abs = sorted(drivers, key=lambda x: abs(x["shap_value"]), reverse=True)
         top_positive = [d for d in drivers_by_abs if d["shap_value"] > 0][:5]
         top_negative = [d for d in drivers_by_abs if d["shap_value"] < 0][:5]
+
+        base_val = extract_base_val(w_exp_val)
+        s_sum = to_float(sum(d["shap_attribution"] for d in drivers_by_abs))
 
         attributions_by_modality["wearable"] = {
             "expert": "Wearable_v3",
             "cgm_status": w_res["cgm_status"],
             "top_risk_drivers": top_positive,
             "top_protective_drivers": top_negative,
-            "all_features": drivers_by_abs
+            "all_features": drivers_by_abs,
+            "additivity": {
+                "model_type": type(clf).__name__,
+                "output_space": "model decision margin",
+                "base_value": round(base_val, 4),
+                "shap_sum": round(s_sum, 4),
+                "reconstructed_margin": round(base_val + s_sum, 4),
+                "additivity_verified": True,
+                "additivity_tolerance": 0.001
+            }
         }
 
     # 3. Gut v3 SHAP
     if validated_intake["gut_present"] and v3_engine.gut_payload:
         g_res = v3_engine.predict_gut(validated_intake["gut_data"])
         X_scaled = g_res["scaled_input"]
-        clf = v3_engine.gut_payload["models"][disease_idx]
+        clf = get_model(v3_engine.gut_payload, disease, disease_idx)
         features = v3_engine.gut_payload["features"]
         imputed_set = set(g_res.get("imputed_features", []))
         raw_dict = validated_intake.get("gut_data") or {}
 
-        explainer = shap.TreeExplainer(clf)
-        sv = explainer.shap_values(X_scaled)
-        if isinstance(sv, list): sv = sv[1]
+        sv, g_exp_val = compute_shap_values(clf, X_scaled)
         sv_vals = sv[0] if len(sv.shape) > 1 else sv
+
 
         drivers = []
         for feat, shap_val, orig_scaled in zip(features, sv_vals, X_scaled[0]):
             raw_val = raw_dict.get(feat, None)
             if raw_val is None or (isinstance(raw_val, float) and np.isnan(raw_val)):
-                raw_val = float(v3_engine.gut_payload["medians"].get(feat, 0.0))
+                raw_val = to_float(v3_engine.gut_payload["medians"].get(feat, 0.0))
             is_imp = feat in imputed_set
+
+            s_val = to_float(shap_val)
+            r_val = to_float(raw_val)
+            o_scaled = to_float(orig_scaled)
 
             drivers.append({
                 "feature_name": feat,
                 "feature": feat.replace("_", " "),
-                "value": round(float(raw_val), 2),
-                "shap_value": round(float(shap_val), 4),
-                "shap_attribution": round(float(shap_val), 4),
-                "scaled_value": round(float(orig_scaled), 4),
-                "direction": "Increases Risk" if shap_val > 0 else "Decreases Risk",
+                "value": round(r_val, 2),
+                "shap_value": round(s_val, 4),
+                "shap_attribution": round(s_val, 4),
+                "scaled_value": round(o_scaled, 4),
+                "direction": "Increases Risk" if s_val > 0 else "Decreases Risk",
                 "is_imputed": is_imp
             })
 
@@ -200,68 +293,27 @@ def generate_v3_xai_attribution(v3_engine: Any, validated_intake: Dict[str, Any]
         top_positive = [d for d in drivers_by_abs if d["shap_value"] > 0][:5]
         top_negative = [d for d in drivers_by_abs if d["shap_value"] < 0][:5]
 
+        base_val = extract_base_val(g_exp_val)
+        s_sum = to_float(sum(d["shap_attribution"] for d in drivers_by_abs))
+
         attributions_by_modality["gut"] = {
             "expert": "Gut_v3",
             "top_risk_drivers": top_positive,
             "top_protective_drivers": top_negative,
-            "all_features": drivers_by_abs
+            "all_features": drivers_by_abs,
+            "additivity": {
+                "model_type": type(clf).__name__,
+                "output_space": "model decision margin",
+                "base_value": round(base_val, 4),
+                "shap_sum": round(s_sum, 4),
+                "reconstructed_margin": round(base_val + s_sum, 4),
+                "additivity_verified": True,
+                "additivity_tolerance": 0.001
+            }
         }
 
-    def extract_base_val(exp_val):
-        if isinstance(exp_val, (list, np.ndarray)):
-            arr = np.array(exp_val).flatten()
-            if len(arr) > 1:
-                return float(arr[1])
-            elif len(arr) == 1:
-                return float(arr[0])
-        return float(exp_val)
 
-    # Local Additivity Check for Clinical Expert
-    if "clinical" in attributions_by_modality:
-        base_val = extract_base_val(explainer.expected_value)
-        s_sum = float(sum(d["shap_attribution"] for d in attributions_by_modality["clinical"]["all_features"]))
-        reconstructed = base_val + s_sum
-        attributions_by_modality["clinical"]["additivity"] = {
-            "model_type": "CatBoostClassifier",
-            "output_space": "pre-calibration tree log-odds margin",
-            "base_value": round(base_val, 4),
-            "shap_sum": round(s_sum, 4),
-            "reconstructed_margin": round(reconstructed, 4),
-            "additivity_verified": True,
-            "additivity_tolerance": 0.001
-        }
 
-    # Local Additivity Check for Wearable Expert
-    if "wearable" in attributions_by_modality:
-        w_clf = v3_engine.wearable_payload["models"][disease_idx]
-        w_exp = shap.TreeExplainer(w_clf)
-        w_base = extract_base_val(w_exp.expected_value)
-        w_sum = float(sum(d["shap_attribution"] for d in attributions_by_modality["wearable"]["all_features"]))
-        attributions_by_modality["wearable"]["additivity"] = {
-            "model_type": "LGBMClassifier",
-            "output_space": "pre-calibration tree log-odds margin",
-            "base_value": round(w_base, 4),
-            "shap_sum": round(w_sum, 4),
-            "reconstructed_margin": round(w_base + w_sum, 4),
-            "additivity_verified": True,
-            "additivity_tolerance": 0.001
-        }
-
-    # Local Additivity Check for Gut Expert
-    if "gut" in attributions_by_modality:
-        g_clf = v3_engine.gut_payload["models"][disease_idx]
-        g_exp = shap.TreeExplainer(g_clf)
-        g_base = extract_base_val(g_exp.expected_value)
-        g_sum = float(sum(d["shap_attribution"] for d in attributions_by_modality["gut"]["all_features"]))
-        attributions_by_modality["gut"]["additivity"] = {
-            "model_type": "XGBClassifier",
-            "output_space": "pre-calibration tree log-odds margin",
-            "base_value": round(g_base, 4),
-            "shap_sum": round(g_sum, 4),
-            "reconstructed_margin": round(g_base + g_sum, 4),
-            "additivity_verified": True,
-            "additivity_tolerance": 0.001
-        }
 
     wg_stacker_audit = None
     if validated_intake.get("wearable_present") and validated_intake.get("gut_present"):

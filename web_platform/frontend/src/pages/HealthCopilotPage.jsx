@@ -21,11 +21,14 @@ import AssessmentAssistant from '../components/copilot/AssessmentAssistant';
 import SuggestedQuestions from '../components/copilot/SuggestedQuestions';
 import KnowledgePanel from '../components/copilot/KnowledgePanel';
 import ConversationInsights from '../components/copilot/ConversationInsights';
+import { askRAGQuestionV3, askRAGQuestion } from '../api/client';
 
-export default function HealthCopilotPage({ user, session, predictionData, onNavigate }) {
+export default function HealthCopilotPage({ user, session, predictionData, xaiData, onNavigate }) {
   const [activeTab, setActiveTab] = useState('copilot'); // 'copilot', 'xai', 'biomarkers', 'comparison', 'knowledge'
   const [chatInput, setChatInput] = useState('');
+  const [isAiLoading, setIsAiLoading] = useState(false);
   const [copiedId, setCopiedId] = useState(null);
+
 
   const userName = user?.name || user?.full_name || user?.patient_profile?.full_name || (user?.email ? user.email.split('@')[0].replace('.', ' ').replace('_', ' ') : 'Patient');
   const pathwayUsed = predictionData?.effective_pathway || predictionData?.pathway_used || 'C+W+G';
@@ -61,30 +64,41 @@ export default function HealthCopilotPage({ user, session, predictionData, onNav
     );
   }
 
-  const handleSendMessage = (e) => {
-    e.preventDefault();
-    if (!chatInput.trim()) return;
+  const handleSendMessage = async (e) => {
+    if (e && e.preventDefault) e.preventDefault();
+    if (!chatInput.trim() || isAiLoading) return;
 
     const userText = chatInput.trim();
     const newMsg = {
       id: `MSG-${Date.now()}`,
       sender: 'USER',
       text: userText,
-      timestamp: 'Just now',
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     };
 
     setChatMessages(prev => [...prev, newMsg]);
     setChatInput('');
+    setIsAiLoading(true);
 
-    // Generate intelligent copilot response
-    setTimeout(() => {
-      let botResponse = `I've reviewed your request against your active health assessment. ${predictionData ? 'Your TreeSHAP drivers indicate stable metabolic parameters.' : 'Perform your first intake assessment to calculate personalized TreeSHAP drivers and risk vectors.'}`;
-      if (userText.toLowerCase().includes('report') || userText.toLowerCase().includes('explain')) {
-        botResponse = "Your diagnostic report evaluates across Clinical Laboratory, Wearable telemetry, and Gut Microbiome modalities with high AI confidence.";
-      } else if (userText.toLowerCase().includes('risk') || userText.toLowerCase().includes('change')) {
-        botResponse = predictionData
-          ? `Your active risk assessment for Type 2 Diabetes is evaluated at ${predictionData.disease_outcomes?.Type2_Diabetes?.risk_level || 'EVALUATED'} RISK.`
-          : "No active risk assessment found. Upload medical files to evaluate disease risk.";
+    try {
+      let botResponseText = '';
+      let retrievedEvidence = [];
+
+      if (predictionData) {
+        const res = await askRAGQuestionV3(predictionData, userText);
+        const ans = res.answer_payload || res;
+        botResponseText = ans.response_text || ans.text || ans.response;
+        retrievedEvidence = ans.retrieved_evidence || [];
+      } else {
+        const sid = session?.session_id || user?.user_id || 'P_GUEST';
+        const res = await askRAGQuestion(sid, userText);
+        const ans = res.answer_payload || res;
+        botResponseText = ans.response_text || ans.text || ans.response;
+        retrievedEvidence = ans.retrieved_evidence || [];
+      }
+
+      if (!botResponseText) {
+        botResponseText = `Based on your active assessment (Pathway: ${pathwayUsed}), your biomarkers and TreeSHAP feature attributions have been evaluated against clinical guidelines.`;
       }
 
       setChatMessages(prev => [
@@ -92,12 +106,26 @@ export default function HealthCopilotPage({ user, session, predictionData, onNav
         {
           id: `MSG-BOT-${Date.now()}`,
           sender: 'COPILOT',
-          text: botResponse,
-          timestamp: 'Just now',
+          text: botResponseText,
+          evidence: retrievedEvidence,
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         },
       ]);
-    }, 600);
+    } catch (err) {
+      setChatMessages(prev => [
+        ...prev,
+        {
+          id: `MSG-BOT-${Date.now()}`,
+          sender: 'COPILOT',
+          text: `Clinical Copilot Advisory: ${err.message || 'Unable to retrieve guideline evidence at this moment. Please try again.'}`,
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        },
+      ]);
+    } finally {
+      setIsAiLoading(false);
+    }
   };
+
 
   const handleSelectPrompt = (promptText) => {
     setChatInput(promptText);
@@ -207,20 +235,24 @@ export default function HealthCopilotPage({ user, session, predictionData, onNav
                   placeholder="Ask about report, TreeSHAP, biomarkers, or risk change..."
                   value={chatInput}
                   onChange={(e) => setChatInput(e.target.value)}
+                  disabled={isAiLoading}
                   className="flex-1"
                 />
-                <Button variant="primary" size="md" type="submit" leftIcon={<Send className="w-4 h-4" />}>
+                <Button variant="primary" size="md" type="submit" isLoading={isAiLoading} leftIcon={<Send className="w-4 h-4" />}>
                   Ask
                 </Button>
               </form>
+
             </Card>
 
             {/* Right Column (4 cols) — Report Intelligence & SHAP Preview */}
             <div className="lg:col-span-4 space-y-6">
+              <PersonalizedRecommendations predictionData={predictionData} />
               <ReportIntelligence predictionData={predictionData} />
               <AssessmentAssistant predictionData={predictionData} />
               <SmartInsights predictionData={predictionData} />
             </div>
+
 
           </div>
         </div>
@@ -229,28 +261,28 @@ export default function HealthCopilotPage({ user, session, predictionData, onNav
       {/* TAB 2: TREESHAP EXPLAINABILITY STUDIO */}
       {activeTab === 'xai' && (
         <div className="space-y-6 animate-fade-in">
-          <ExplainabilityStudio predictionData={predictionData} />
+          <ExplainabilityStudio predictionData={predictionData} xaiData={xaiData} />
         </div>
       )}
 
       {/* TAB 3: BIOMARKER INTELLIGENCE EXPLORER */}
       {activeTab === 'biomarkers' && (
         <div className="space-y-6 animate-fade-in">
-          <BiomarkerExplorer predictionData={predictionData} />
+          <BiomarkerExplorer predictionData={predictionData} user={user} />
         </div>
       )}
 
       {/* TAB 4: ASSESSMENT COMPARISON */}
       {activeTab === 'comparison' && (
         <div className="space-y-6 animate-fade-in">
-          <AssessmentAssistant />
+          <AssessmentAssistant predictionData={predictionData} user={user} />
         </div>
       )}
 
       {/* TAB 5: CLINICAL EVIDENCE LIBRARY */}
       {activeTab === 'knowledge' && (
         <div className="max-w-4xl mx-auto space-y-6 animate-fade-in">
-          <KnowledgePanel />
+          <KnowledgePanel predictionData={predictionData} />
         </div>
       )}
 

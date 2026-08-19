@@ -23,16 +23,19 @@ connect_args = {}
 # Test PostgreSQL connectivity if configured; fallback to local SQLite if unreachable
 if db_url.startswith("postgresql"):
     try:
-        test_engine = create_engine(db_url, connect_args={"connect_timeout": 2}, pool_pre_ping=True)
+        pg_fast_url = db_url.replace("localhost", "127.0.0.1")
+        test_engine = create_engine(pg_fast_url, connect_args={"connect_timeout": 1})
         with test_engine.connect() as conn:
             conn.execute(text("SELECT 1"))
         test_engine.dispose()
+        db_url = pg_fast_url
         logger.info("Connected to PostgreSQL database server successfully.")
     except Exception as e:
         sqlite_db_path = Path(__file__).resolve().parent.parent / "telemed_local.db"
-        logger.warning(f"PostgreSQL server unreachable ({e}). Automatically switching to local SQLite database ({sqlite_db_path}).")
+        logger.warning(f"PostgreSQL server unreachable. Automatically switching to local SQLite database ({sqlite_db_path}).")
         db_url = f"sqlite:///{sqlite_db_path}"
         connect_args = {"check_same_thread": False}
+
 
 if db_url.startswith("sqlite"):
     connect_args = {"check_same_thread": False}

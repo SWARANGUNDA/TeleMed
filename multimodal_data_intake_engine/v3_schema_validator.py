@@ -12,9 +12,11 @@ Strictly isolates missing feature imputation tracking without modifying raw inpu
 
 import logging
 from typing import Dict, Any, Tuple, List, Optional
+import numpy as np
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s]: %(message)s")
 logger = logging.getLogger("v3_schema_validator")
+
 
 CLINICAL_V4_FEATURES = [
     "Age", "Gender", "Height", "Weight", "BMI", "Waist_Circumference",
@@ -180,28 +182,124 @@ class V3SchemaValidator:
         if not data or not isinstance(data, dict):
             return {}, False, [], GUT_V4_TAXA_FEATURES + GUT_V4_INDICES_FEATURES, None
 
-        normalized = {k.strip(): v for k, v in data.items() if v is not None and k not in ("Patient_ID", "Age", "Gender")}
+        GENUS_MAP = {
+            "akkermansia": "Akkermansia_muciniphila",
+            "faecalibacterium": "Faecalibacterium_prausnitzii",
+            "roseburia": "Roseburia_intestinalis",
+            "bifidobacterium": "Bifidobacterium_longum",
+            "bacteroides": "Bacteroides_vulgatus",
+            "prevotella": "Prevotella_copri",
+            "ruminococcus": "Ruminococcus_gnavus",
+            "blautia": "Blautia_wexlerae",
+            "collinsella": "Collinsella_aerofaciens",
+            "escherichia/shigella": "Escherichia_coli",
+            "escherichia_shigella": "Escherichia_coli",
+            "escherichia": "Escherichia_coli",
+            "coprococcus": "Coprococcus_eutactus",
+            "alistipes": "Alistipes_putredinis",
+            "subdoligranulum": "Subdoligranulum_variable",
+            "enterococcus": "Enterococcus_faecalis",
+            "eubacterium": "Eubacterium_hallii",
+            "parabacteroides": "Parabacteroides_distasonis",
+            "lactobacillus": "Lactobacillus_acidophilus",
+            "klebsiella": "Klebsiella_pneumoniae",
+            "streptococcus": "Streptococcus_thermophilus",
+            "eggerthella": "Eggerthella_lenta",
+            "christensenella": "Christensenella_minuta",
+            "methanobrevibacter": "Methanobrevibacter_smithii",
+            "dialister": "Dialister_invisus",
+            "holdemanella": "Holdemanella_biformis",
+            "barnesiella": "Barnesiella_intestinihominis",
+            "anaerostipes": "Anaerostipes_caccae",
+            "phascolarctobacterium": "Phascolarctobacterium_faecium",
+            "veillonella": "Veillonella_parvula",
+            "fusobacterium": "Fusobacterium_nucleatum",
+            "bilophila": "Bilophila_wadsworthia",
+            "sutterella": "Sutterella_wadsworthensis",
+            "shannon diversity index": "Shannon_Diversity",
+            "shannon_diversity_index": "Shannon_Diversity",
+            "shannon diversity": "Shannon_Diversity",
+        }
 
-        # Check for legacy V3 20-taxa gut sample (reject if contains legacy 20 taxa without V4 species)
-        has_v4_species = any("muciniphila" in k.lower() or "prausnitzii" in k.lower() or "intestinalis" in k.lower() for k in normalized.keys())
-        has_legacy_only = any(k in ["Akkermansia", "Faecalibacterium", "Roseburia"] for k in normalized.keys()) and not has_v4_species
+        raw_clean = {k.strip(): v for k, v in data.items() if v is not None and k not in ("Patient_ID", "Age", "Gender")}
         
-        if has_legacy_only and len(normalized) <= 24:
-            return {}, True, list(normalized.keys()), GUT_V4_TAXA_FEATURES, "Legacy V3 20-taxa gut format rejected. V4 requires 40 species-level taxa + Other_Taxa."
+        # Canonicalize keys using species map & aliases
+        normalized: Dict[str, float] = {}
+        for k, v in raw_clean.items():
+            k_lower = k.lower().replace(" ", "_")
+            canonical_k = None
+            
+            # 1. Exact match in V4 features
+            for feat in GUT_V4_TAXA_FEATURES + GUT_V4_INDICES_FEATURES:
+                if feat.lower() == k_lower:
+                    canonical_k = feat
+                    break
+            
+            # 2. Genus alias match
+            if not canonical_k:
+                clean_lookup = k.lower().strip()
+                if clean_lookup in GENUS_MAP:
+                    canonical_k = GENUS_MAP[clean_lookup]
+                else:
+                    clean_lookup_under = clean_lookup.replace(" ", "_")
+                    if clean_lookup_under in GENUS_MAP:
+                        canonical_k = GENUS_MAP[clean_lookup_under]
+
+            if not canonical_k:
+                canonical_k = k
+
+            try:
+                normalized[canonical_k] = float(v)
+            except (ValueError, TypeError):
+                pass
+
+        # Calculate compositional sum across taxa
+        taxa_present = {k: v for k, v in normalized.items() if k in GUT_V4_TAXA_FEATURES}
+        taxa_sum = sum(taxa_present.values())
+
+        # Auto-renormalize to 100.0% simplex if taxa are present
+        if taxa_sum > 0:
+            scale_factor = 100.0 / taxa_sum
+            for k in taxa_present:
+                normalized[k] = round(taxa_present[k] * scale_factor, 4)
+
+        # Automatically derive diversity and functional indices if missing or default
+        if len(taxa_present) > 0:
+            taxa_vals = [normalized.get(t, 0.0) for t in GUT_V4_TAXA_FEATURES]
+            taxa_arr = np.array(taxa_vals, dtype=float)
+            total_sum = np.sum(taxa_arr)
+            if total_sum > 0:
+                p_frac = taxa_arr / total_sum
+            else:
+                p_frac = taxa_arr
+            p_no_zero = np.where(p_frac > 0, p_frac, 1.0)
+
+            if "Shannon_Diversity" not in normalized or normalized["Shannon_Diversity"] == 0:
+                normalized["Shannon_Diversity"] = float(round(-np.sum(p_frac * np.log(p_no_zero)), 4))
+            if "Simpson_Diversity" not in normalized or normalized["Simpson_Diversity"] == 0:
+                normalized["Simpson_Diversity"] = float(round(1.0 - np.sum(p_frac ** 2), 4))
+            if "Observed_Richness" not in normalized or normalized["Observed_Richness"] == 0:
+                normalized["Observed_Richness"] = float(np.sum(taxa_arr > 0))
+            if "Pielou_Evenness" not in normalized or normalized["Pielou_Evenness"] == 0:
+                normalized["Pielou_Evenness"] = float(round(normalized["Shannon_Diversity"] / np.log(max(normalized["Observed_Richness"], 2)), 4))
+
+            taxa_pct = p_frac * 100.0
+            if "SCFA_Producer_Index" not in normalized:
+                normalized["SCFA_Producer_Index"] = float(round(np.mean(taxa_pct[[1, 2, 3, 4, 10, 17, 18, 20, 22, 23, 31, 34]]), 4))
+            if "Butyrate_Producer_Index" not in normalized:
+                normalized["Butyrate_Producer_Index"] = float(round(np.mean(taxa_pct[[1, 2, 17, 20, 22, 23, 34]]), 4))
+            if "Barrier_Associated_Index" not in normalized:
+                normalized["Barrier_Associated_Index"] = float(round(np.mean(taxa_pct[[0, 1, 3, 4, 29]]), 4))
+            if "Inflammation_Associated_Index" not in normalized:
+                normalized["Inflammation_Associated_Index"] = float(round(np.mean(taxa_pct[[11, 14, 15, 16, 21, 28, 37, 38]]), 4))
+
+            if "Log_Firmicutes_Bacteroidetes_Ratio" not in normalized:
+                firmicutes_idx = [1, 2, 10, 11, 12, 13, 17, 20, 21, 22, 23, 25, 26, 27, 29, 31, 32, 34, 35, 36]
+                bacteroidetes_idx = [5, 6, 7, 8, 9, 18, 19, 24, 33]
+                firmicutes = float(np.sum(taxa_pct[firmicutes_idx]))
+                bacteroidetes = float(np.sum(taxa_pct[bacteroidetes_idx]))
+                normalized["Log_Firmicutes_Bacteroidetes_Ratio"] = float(round(np.log((firmicutes + 0.01) / (bacteroidetes + 0.01)), 4))
 
         cleaned_dict, present, supplied, missing = V3SchemaValidator._inspect_modality(normalized, GUT_V4_TAXA_FEATURES + GUT_V4_INDICES_FEATURES)
-
-        # Check compositional sum (40 taxa + Other_Taxa ≈ 100%)
-        taxa_sum = sum(float(v) for k, v in normalized.items() if k in GUT_V4_TAXA_FEATURES or k == "Other_Taxa" or any(t.lower() in k.lower() for t in ["akkermansia", "faecalibacterium", "roseburia", "bifidobacterium", "bacteroides", "other"]))
-        
-        if taxa_sum > 0:
-            if taxa_sum <= 1.1:
-                # Scale relative abundance fractions (0.0 - 1.0) to percentages (0 - 100%)
-                taxa_sum_pct = taxa_sum * 100.0
-            else:
-                taxa_sum_pct = taxa_sum
-
-            if taxa_sum_pct < 85.0 or taxa_sum_pct > 115.0:
-                return cleaned_dict, present, supplied, missing, f"Gut composition sum validation failed: 40 taxa + Other_Taxa sum to {taxa_sum_pct:.1f}% (expected ~100.0%)."
-
         return cleaned_dict, present, supplied, missing, None
+

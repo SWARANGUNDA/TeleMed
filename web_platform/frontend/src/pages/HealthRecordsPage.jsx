@@ -1,10 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import {
   FileText, History, Download, Trash2, Calendar, Activity, GitCompare,
-  TrendingUp, Eye, ShieldCheck, Database, AlertTriangle, CheckCircle,
-  HelpCircle, RefreshCw, X, ChevronRight, Layers, ArrowRight
+  TrendingUp, Eye, ShieldCheck, Database, AlertTriangle, CheckCircle2,
+  HelpCircle, RefreshCw, X, ChevronRight, Layers, ArrowRight, Dna, Watch,
+  Sparkles, Filter, Check, ArrowUpRight, ArrowDownRight, Minus
 } from 'lucide-react';
+import {
+  ResponsiveContainer, AreaChart, Area, LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid
+} from 'recharts';
+import {
+  Button, Card, CardHeader, CardBody, CardFooter, Badge,
+  ProgressBar, Table, TableRow, TableCell, Modal, Tabs, Input, EmptyState, Alert
+} from '../components/ui';
+import { PageContainer, PageHeader, ContentSection } from '../components/layout';
 import { fetchPatientRecords, fetchRecordDetail, exportRecord, deleteRecord } from '../api/client';
+import { classifyBiomarker } from '../utils/clinicalRanges';
 
 export default function HealthRecordsPage({ currentUser }) {
   const [activeTab, setActiveTab] = useState('history'); // 'history' | 'compare' | 'trends'
@@ -23,6 +33,10 @@ export default function HealthRecordsPage({ currentUser }) {
   const [recordToDelete, setRecordToDelete] = useState(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
 
+  // Trends Tab state
+  const [trendCategory, setTrendCategory] = useState('all'); // 'all' | 'glycemic' | 'cardio' | 'hepatic' | 'scores'
+  const [featuredMetricKey, setFeaturedMetricKey] = useState('clinical.Fasting_Blood_Glucose');
+
   useEffect(() => {
     loadRecords();
   }, []);
@@ -32,9 +46,16 @@ export default function HealthRecordsPage({ currentUser }) {
     setErrorMsg(null);
     try {
       const data = await fetchPatientRecords();
-      setRecords(data.records || []);
+      const allRecs = data.records || [];
+      const userRecs = allRecs.filter(r => 
+        (r.user_id && r.user_id === currentUser?.user_id) ||
+        (r.patient_id && r.patient_id === currentUser?.user_id) ||
+        (r.user_email && r.user_email.toLowerCase() === currentUser?.email?.toLowerCase()) ||
+        (r.email && r.email.toLowerCase() === currentUser?.email?.toLowerCase())
+      );
+      setRecords(userRecs);
     } catch (err) {
-      setErrorMsg(err.message || 'Failed to load health records history.');
+      setErrorMsg('Failed to load health records history.');
     } finally {
       setLoading(false);
     }
@@ -84,7 +105,6 @@ export default function HealthRecordsPage({ currentUser }) {
       setSelectedForCompare((prev) => prev.filter((id) => id !== recordId));
     } else {
       if (selectedForCompare.length >= 2) {
-        // Replace oldest selection
         setSelectedForCompare([selectedForCompare[1], recordId]);
       } else {
         setSelectedForCompare((prev) => [...prev, recordId]);
@@ -92,12 +112,28 @@ export default function HealthRecordsPage({ currentUser }) {
     }
   };
 
+  // Helper for safe risk percentage calculation (fixes NaN%)
+  const getProbPct = (info) => {
+    if (!info) return '0%';
+    const val = info.calibrated_probability ?? info.probability ?? info.final_fusion_probability ?? info.risk_score ?? 0;
+    if (typeof val === 'number' && !isNaN(val)) {
+      return `${Math.round(val * 100)}%`;
+    }
+    return '0%';
+  };
+
+  const getRiskVariant = (info) => {
+    const val = info?.calibrated_probability ?? info?.probability ?? info?.final_fusion_probability ?? info?.risk_score ?? 0;
+    if (val >= 0.5) return 'danger';
+    if (val >= 0.3) return 'warning';
+    return 'success';
+  };
+
   // Metric extraction helper for Comparison & Trends
   const extractNumericVal = (record, keyPath) => {
     if (!record) return null;
     const [category, key] = keyPath.split('.');
 
-    // Check confirmed_features
     const cf = record.confirmed_features || {};
     if (category in cf && cf[category] && key in cf[category]) {
       const raw = cf[category][key];
@@ -106,12 +142,11 @@ export default function HealthRecordsPage({ currentUser }) {
       }
     }
 
-    // Check disease outcomes
     if (category === 'disease_outcomes') {
-      const outcomes = record.prediction_snapshot?.disease_outcomes || {};
+      const outcomes = record.prediction_snapshot?.disease_outcomes || record.prediction_snapshot?.predictions || {};
       if (key in outcomes) {
-        const prob = outcomes[key]?.final_fusion_probability;
-        if (prob !== undefined && prob !== null) {
+        const prob = outcomes[key]?.calibrated_probability ?? outcomes[key]?.probability ?? outcomes[key]?.final_fusion_probability;
+        if (prob !== undefined && prob !== null && !isNaN(prob)) {
           return parseFloat((prob * 100).toFixed(1));
         }
       }
@@ -120,563 +155,661 @@ export default function HealthRecordsPage({ currentUser }) {
     return null;
   };
 
-  // Trend metrics definitions
   const trendMetricsList = [
-    { label: 'Fasting Blood Glucose (mg/dL)', path: 'clinical.Fasting_Blood_Glucose', unit: 'mg/dL' },
-    { label: 'HbA1c (%)', path: 'clinical.HbA1c', unit: '%' },
-    { label: 'BMI (kg/m²)', path: 'clinical.BMI', unit: 'kg/m²' },
-    { label: 'Waist Circumference (cm)', path: 'clinical.Waist_Circumference_cm', unit: 'cm' },
-    { label: 'Systolic BP (mmHg)', path: 'clinical.Systolic_BP', unit: 'mmHg' },
-    { label: 'Diastolic BP (mmHg)', path: 'clinical.Diastolic_BP', unit: 'mmHg' },
-    { label: 'Triglycerides (mg/dL)', path: 'clinical.Triglycerides', unit: 'mg/dL' },
-    { label: 'LDL Cholesterol (mg/dL)', path: 'clinical.LDL_Cholesterol', unit: 'mg/dL' },
-    { label: 'HDL Cholesterol (mg/dL)', path: 'clinical.HDL_Cholesterol', unit: 'mg/dL' },
-    { label: 'ALT Liver Enzyme (U/L)', path: 'clinical.ALT', unit: 'U/L' },
-    { label: 'AST Liver Enzyme (U/L)', path: 'clinical.AST', unit: 'U/L' },
-    { label: 'Type 2 Diabetes Screening Score (%)', path: 'disease_outcomes.Type2_Diabetes', unit: '%' },
-    { label: 'Prediabetes Screening Score (%)', path: 'disease_outcomes.Prediabetes', unit: '%' },
-    { label: 'Obesity Screening Score (%)', path: 'disease_outcomes.Obesity', unit: '%' },
-    { label: 'Metabolic Syndrome Screening Score (%)', path: 'disease_outcomes.Metabolic_Syndrome', unit: '%' },
-    { label: 'NAFLD Screening Score (%)', path: 'disease_outcomes.NAFLD', unit: '%' },
+    { label: 'Fasting Blood Glucose', path: 'clinical.Fasting_Blood_Glucose', unit: 'mg/dL', category: 'glycemic', targetRange: '70 – 99 mg/dL', color: '#06b6d4', icon: Activity },
+    { label: 'HbA1c', path: 'clinical.HbA1c', unit: '%', category: 'glycemic', targetRange: '< 5.7 %', color: '#3b82f6', icon: FileText },
+    { label: 'Body Mass Index (BMI)', path: 'clinical.BMI', unit: 'kg/m²', category: 'glycemic', targetRange: '18.5 – 24.9 kg/m²', color: '#8b5cf6', icon: Activity },
+    { label: 'Waist Circumference', path: 'clinical.Waist_Circumference_cm', unit: 'cm', category: 'glycemic', targetRange: '< 94 cm', color: '#ec4899', icon: Activity },
+    { label: 'Systolic Blood Pressure', path: 'clinical.Systolic_BP', unit: 'mmHg', category: 'cardio', targetRange: '< 120 mmHg', color: '#ef4444', icon: Activity },
+    { label: 'Diastolic Blood Pressure', path: 'clinical.Diastolic_BP', unit: 'mmHg', category: 'cardio', targetRange: '< 80 mmHg', color: '#f97316', icon: Activity },
+    { label: 'Triglycerides', path: 'clinical.Triglycerides', unit: 'mg/dL', category: 'cardio', targetRange: '< 150 mg/dL', color: '#eab308', icon: FileText },
+    { label: 'LDL Cholesterol', path: 'clinical.LDL_Cholesterol', unit: 'mg/dL', category: 'cardio', targetRange: '< 100 mg/dL', color: '#f59e0b', icon: FileText },
+    { label: 'HDL Cholesterol', path: 'clinical.HDL_Cholesterol', unit: 'mg/dL', category: 'cardio', targetRange: '> 40 mg/dL', color: '#10b981', icon: FileText },
+    { label: 'ALT Liver Enzyme', path: 'clinical.ALT', unit: 'U/L', category: 'hepatic', targetRange: '7 – 35 U/L', color: '#a855f7', icon: Activity },
+    { label: 'AST Liver Enzyme', path: 'clinical.AST', unit: 'U/L', category: 'hepatic', targetRange: '8 – 40 U/L', color: '#6366f1', icon: Activity },
+    { label: 'Type 2 Diabetes Screening Risk', path: 'disease_outcomes.Type2_Diabetes', unit: '%', category: 'scores', targetRange: '< 30%', color: '#ef4444', icon: TrendingUp },
+    { label: 'Prediabetes Risk Score', path: 'disease_outcomes.Prediabetes', unit: '%', category: 'scores', targetRange: '< 30%', color: '#f97316', icon: TrendingUp },
+    { label: 'Obesity Risk Score', path: 'disease_outcomes.High_Adiposity_Risk', unit: '%', category: 'scores', targetRange: '< 30%', color: '#8b5cf6', icon: TrendingUp },
+    { label: 'Metabolic Syndrome Risk Score', path: 'disease_outcomes.Metabolic_Syndrome', unit: '%', category: 'scores', targetRange: '< 30%', color: '#eab308', icon: TrendingUp },
+    { label: 'NAFLD Liver Health Risk', path: 'disease_outcomes.NAFLD', unit: '%', category: 'scores', targetRange: '< 30%', color: '#10b981', icon: TrendingUp },
   ];
 
   const sortedChronologicalRecords = [...records].sort(
     (a, b) => new Date(a.created_at) - new Date(b.created_at)
   );
 
-  return (
-    <div className="page-container">
-      {/* Header Banner */}
-      <div className="glass-card" style={{ marginBottom: '24px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-              <span className="badge badge-cyan">v3.3 LONGITUDINAL ARCHIVE</span>
-              <h1 style={{ fontSize: '1.6rem', fontWeight: 800, color: 'var(--text-main)', margin: 0 }}>
-                Persistent Health Records & History
-              </h1>
-            </div>
-            <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', margin: 0 }}>
-              Archived multimodal clinical assessments, side-by-side analysis comparison, and longitudinal measurement trends.
-            </p>
-          </div>
-
-          <div style={{ display: 'flex', gap: '8px' }}>
-            <button
-              className={`btn ${activeTab === 'history' ? 'btn-cyan' : 'btn-outline'}`}
-              onClick={() => setActiveTab('history')}
-              style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
-            >
-              <History size={16} /> Record History ({records.length})
-            </button>
-            <button
-              className={`btn ${activeTab === 'compare' ? 'btn-cyan' : 'btn-outline'}`}
-              onClick={() => setActiveTab('compare')}
-              disabled={records.length < 2}
-              style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
-            >
-              <GitCompare size={16} /> Compare ({selectedForCompare.length}/2)
-            </button>
-            <button
-              className={`btn ${activeTab === 'trends' ? 'btn-cyan' : 'btn-outline'}`}
-              onClick={() => setActiveTab('trends')}
-              disabled={records.length === 0}
-              style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
-            >
-              <TrendingUp size={16} /> Trends
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {loading ? (
-        <div className="glass-card" style={{ textAlign: 'center', padding: '48px 24px' }}>
-          <RefreshCw size={36} className="spin" style={{ color: 'var(--accent-cyan)', marginBottom: '16px' }} />
-          <p style={{ color: 'var(--text-muted)' }}>Loading persistent health records...</p>
-        </div>
-      ) : errorMsg ? (
-        <div className="glass-card" style={{ borderLeft: '4px solid var(--accent-rose)', padding: '24px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', color: 'var(--accent-rose)' }}>
-            <AlertTriangle size={24} />
-            <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700 }}>Error Loading Records</h3>
-          </div>
-          <p style={{ color: 'var(--text-muted)', marginTop: '8px', marginBottom: '16px' }}>{errorMsg}</p>
-          <button className="btn btn-outline" onClick={loadRecords}>Retry</button>
-        </div>
-      ) : records.length === 0 ? (
-        /* Empty State */
-        <div className="glass-card" style={{ textAlign: 'center', padding: '64px 24px' }}>
-          <Database size={56} style={{ color: 'var(--accent-cyan)', marginBottom: '16px', opacity: 0.8 }} />
-          <h3 style={{ fontSize: '1.3rem', fontWeight: 700, color: 'var(--text-main)', marginBottom: '8px' }}>
-            No Persistent Health Records Found
-          </h3>
-          <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', maxWidth: '520px', margin: '0 auto 24px auto' }}>
-            You have not completed any health analysis assessments yet. Complete your first multimodal intake assessment to generate persistent clinical records and build your longitudinal health history.
+  // Custom Recharts Glassmorphism Tooltip
+  const CustomRechartsTooltip = ({ active, payload, label, unit }) => {
+    if (active && payload && payload.length) {
+      return (
+        <div className="p-3 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-medium)] shadow-xl text-xs space-y-1">
+          <p className="font-mono text-[10px] text-[var(--text-muted)]">{label}</p>
+          <p className="font-bold font-mono text-xs text-[var(--text-main)]">
+            Measured: <span className="text-[var(--primary)] font-extrabold">{payload[0].value} {unit}</span>
           </p>
         </div>
+      );
+    }
+    return null;
+  };
+
+  return (
+    <PageContainer className="space-y-8">
+      {/* Header Banner */}
+      <PageHeader
+        title="Persistent Health Records & History"
+        description="Longitudinal archive of your multimodal health assessments, diagnostic snapshots, and interactive trend charts."
+        badge={`Archived Records: ${records.length}`}
+        actions={
+          <div className="flex items-center gap-2">
+            <Button
+              variant={activeTab === 'history' ? 'primary' : 'outline'}
+              size="sm"
+              leftIcon={<History className="w-4 h-4" />}
+              onClick={() => setActiveTab('history')}
+            >
+              History ({records.length})
+            </Button>
+            <Button
+              variant={activeTab === 'compare' ? 'primary' : 'outline'}
+              size="sm"
+              disabled={records.length < 2}
+              leftIcon={<GitCompare className="w-4 h-4" />}
+              onClick={() => setActiveTab('compare')}
+            >
+              Compare ({selectedForCompare.length}/2)
+            </Button>
+            <Button
+              variant={activeTab === 'trends' ? 'primary' : 'outline'}
+              size="sm"
+              disabled={records.length === 0}
+              leftIcon={<TrendingUp className="w-4 h-4" />}
+              onClick={() => setActiveTab('trends')}
+            >
+              Interactive Trends
+            </Button>
+          </div>
+        }
+      />
+
+      {loading ? (
+        <Card isGlass={true} className="p-12 text-center space-y-3">
+          <RefreshCw className="w-8 h-8 spin text-[var(--primary)] mx-auto" />
+          <p className="text-sm text-[var(--text-muted)]">Loading persistent health records...</p>
+        </Card>
+      ) : errorMsg ? (
+        <Alert variant="danger" title="Error Loading Records">
+          {errorMsg}
+          <div className="mt-3">
+            <Button variant="outline" size="sm" onClick={loadRecords}>Retry</Button>
+          </div>
+        </Alert>
+      ) : records.length === 0 ? (
+        <Card isGlass={true} className="p-12 text-center space-y-4">
+          <Database className="w-12 h-12 text-[var(--primary)] mx-auto opacity-80" />
+          <h3 className="text-lg font-bold text-[var(--text-main)]">No Persistent Health Records Found</h3>
+          <p className="text-xs text-[var(--text-muted)] max-w-md mx-auto leading-relaxed">
+            You have not completed any health assessments yet. Run your first analysis in the Intake workspace to build your longitudinal clinical record.
+          </p>
+        </Card>
       ) : (
         <>
           {/* TAB 1: HISTORY LIST */}
           {activeTab === 'history' && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <div className="space-y-4">
               {records.map((record) => {
                 const isSelected = selectedForCompare.includes(record.record_id);
-                const outcomes = record.prediction_snapshot?.disease_outcomes || {};
+                const outcomes = record.prediction_snapshot?.disease_outcomes || record.prediction_snapshot?.predictions || {};
                 const outcomeKeys = Object.keys(outcomes);
+                const dqScore = record.data_quality_score != null ? Math.round(record.data_quality_score * (record.data_quality_score <= 1 ? 100 : 1)) : 100;
 
                 return (
-                  <div
+                  <Card
                     key={record.record_id}
-                    className="glass-card hover-glow"
-                    style={{
-                      borderLeft: `4px solid ${
-                        record.status === 'REPORT_READY' ? 'var(--accent-emerald)' :
-                        record.status === 'XAI_READY' ? 'var(--accent-cyan)' : 'var(--accent-amber)'
-                      }`,
-                      transition: 'all 0.2s ease'
-                    }}
+                    isGlass={true}
+                    className={`p-6 transition-all border-l-4 ${
+                      record.status === 'REPORT_READY' ? 'border-l-[var(--success)]' :
+                      record.status === 'XAI_READY' ? 'border-l-[var(--primary)]' : 'border-l-[var(--warning)]'
+                    }`}
                   >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '16px' }}>
-                      <div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', marginBottom: '8px' }}>
-                          <span style={{ fontWeight: 700, fontSize: '1rem', color: 'var(--text-main)' }}>
+                    <div className="flex items-start justify-between flex-wrap gap-4">
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <strong className="text-sm font-extrabold text-[var(--text-main)]">
                             Record #{record.record_id}
-                          </span>
-                          <span className="badge badge-outline">
-                            <Calendar size={12} style={{ marginRight: '4px' }} />
+                          </strong>
+                          <Badge variant="outline" size="sm">
+                            <Calendar className="w-3 h-3 mr-1 inline" />
                             {new Date(record.created_at).toLocaleString()}
-                          </span>
-                          <span className="badge badge-cyan">Pipeline {record.pipeline_version || 'v3.3'}</span>
-                          <span className="badge badge-purple">Pathway {record.effective_pathway || record.pathway_used || 'N/A'}</span>
-                          <span className={`badge ${
-                            record.status === 'REPORT_READY' ? 'badge-emerald' :
-                            record.status === 'XAI_READY' ? 'badge-cyan' : 'badge-amber'
-                          }`}>
+                          </Badge>
+                          <Badge variant="primary" size="sm">
+                            Pipeline {record.pipeline_version || 'v3.3'}
+                          </Badge>
+                          <Badge variant="secondary" size="sm">
+                            Pathway {record.effective_pathway || record.pathway_used || 'C'}
+                          </Badge>
+                          <Badge
+                            variant={record.status === 'REPORT_READY' ? 'success' : record.status === 'XAI_READY' ? 'primary' : 'warning'}
+                            size="sm"
+                          >
                             {record.status}
-                          </span>
+                          </Badge>
                         </div>
 
-                        <div style={{ display: 'flex', gap: '16px', alignItems: 'center', flexWrap: 'wrap', fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: '6px' }}>
-                          <span>
-                            Data Quality: <strong style={{ color: 'var(--accent-emerald)' }}>{record.data_quality_score != null ? `${record.data_quality_score}%` : 'N/A'}</strong>
-                          </span>
-                          <span>|</span>
+                        <div className="flex items-center gap-3 text-xs text-[var(--text-muted)] flex-wrap font-mono">
+                          <span>Data Quality: <strong className="text-[var(--success)]">{dqScore}%</strong></span>
+                          <span>•</span>
                           <span>
                             Modalities:{' '}
-                            {(record.active_modalities || []).map((m) => (
-                              <span key={m} className="badge badge-outline" style={{ marginLeft: '4px', textTransform: 'capitalize' }}>
+                            {(record.active_modalities || ['clinical']).map((m) => (
+                              <Badge key={m} variant="outline" size="sm" className="ml-1 capitalize">
                                 {m}
-                              </span>
+                              </Badge>
                             ))}
                           </span>
                         </div>
                       </div>
 
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <button
-                          className={`btn ${isSelected ? 'btn-cyan' : 'btn-outline'}`}
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant={isSelected ? 'primary' : 'outline'}
+                          size="sm"
                           onClick={() => toggleSelectForCompare(record.record_id)}
-                          style={{ fontSize: '0.8rem', padding: '6px 12px' }}
                         >
-                          {isSelected ? '✓ Selected for Compare' : '+ Select to Compare'}
-                        </button>
-                        <button
-                          className="btn btn-outline"
+                          {isSelected ? '✓ Selected for Compare' : '+ Compare'}
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          leftIcon={<Eye className="w-4 h-4" />}
                           onClick={() => handleOpenDetail(record.record_id)}
-                          style={{ fontSize: '0.8rem', padding: '6px 12px' }}
                         >
-                          <Eye size={14} style={{ marginRight: '4px' }} /> View Snapshot
-                        </button>
-                        <button
-                          className="btn btn-outline"
+                          View Snapshot
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          title="Export Safe JSON"
                           onClick={(e) => handleExport(record.record_id, e)}
-                          title="Export Safe Structured JSON Record"
-                          style={{ fontSize: '0.8rem', padding: '6px 10px' }}
                         >
-                          <Download size={14} />
-                        </button>
-                        <button
-                          className="btn btn-outline"
+                          <Download className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="!text-[var(--danger)] hover:bg-red-50 dark:hover:bg-red-900/20"
                           onClick={() => setRecordToDelete(record)}
-                          title="Delete Health Record"
-                          style={{ fontSize: '0.8rem', padding: '6px 10px', color: 'var(--accent-rose)', borderColor: 'var(--border-subtle)' }}
                         >
-                          <Trash2 size={14} />
-                        </button>
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
                       </div>
                     </div>
-
-                    {/* Screening outcome pills summary */}
-                    {outcomeKeys.length > 0 && (
-                      <div style={{
-                        marginTop: '16px',
-                        paddingTop: '12px',
-                        borderTop: '1px solid var(--border-subtle)',
-                        display: 'flex',
-                        gap: '12px',
-                        flexWrap: 'wrap'
-                      }}>
-                        {outcomeKeys.map((disease) => {
-                          const outcome = outcomes[disease];
-                          const probPct = outcome?.final_fusion_probability != null
-                            ? (outcome.final_fusion_probability * 100).toFixed(1)
-                            : 'N/A';
-                          const isHigh = outcome?.final_prediction === 1;
-
-                          return (
-                            <div
-                              key={disease}
-                              style={{
-                                padding: '6px 12px',
-                                borderRadius: '6px',
-                                background: isHigh ? 'rgba(244, 63, 94, 0.1)' : 'rgba(16, 185, 129, 0.1)',
-                                border: `1px solid ${isHigh ? 'rgba(244, 63, 94, 0.3)' : 'rgba(16, 185, 129, 0.3)'}`,
-                                fontSize: '0.78rem'
-                              }}
-                            >
-                              <span style={{ color: 'var(--text-muted)' }}>{disease.replace(/_/g, ' ')}: </span>
-                              <strong style={{ color: isHigh ? 'var(--accent-rose)' : 'var(--accent-emerald)' }}>
-                                {probPct}%
-                              </strong>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
+                  </Card>
                 );
               })}
             </div>
           )}
 
-          {/* TAB 2: SIDE-BY-SIDE COMPARISON */}
+          {/* TAB 2: COMPARE RECORDS */}
           {activeTab === 'compare' && (
-            <div className="glass-card">
-              <h3 style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--text-main)', marginBottom: '8px' }}>
-                Side-by-Side Analysis Comparison Matrix
-              </h3>
-              <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '16px' }}>
-                Compare observations between 2 selected historical assessments. Missing fields remain N/A.
-              </p>
-
-              {/* Research Non-Diagnostic Disclaimer */}
-              <div style={{
-                padding: '12px 16px',
-                borderRadius: '8px',
-                background: 'rgba(245, 158, 11, 0.1)',
-                border: '1px solid rgba(245, 158, 11, 0.3)',
-                fontSize: '0.8rem',
-                color: 'var(--accent-amber)',
-                marginBottom: '20px'
-              }}>
-                <strong>Non-Diagnostic Research Disclaimer:</strong> Score changes reflect model screening differences across distinct input samples; they do not constitute medical prognosis or diagnostic trend confirmation.
+            <Card isGlass={true} className="p-6 space-y-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-base font-extrabold text-[var(--text-main)]">Side-by-Side Assessment Comparison</h3>
+                  <p className="text-xs text-[var(--text-muted)]">Comparing selected historical snapshots ({selectedForCompare.length}/2 selected)</p>
+                </div>
+                {selectedForCompare.length < 2 && (
+                  <Badge variant="warning" size="sm">Select 2 records in History tab to compare</Badge>
+                )}
               </div>
 
-              {selectedForCompare.length < 2 ? (
-                <div style={{ textAlign: 'center', padding: '36px', color: 'var(--text-muted)' }}>
-                  <GitCompare size={40} style={{ marginBottom: '12px', opacity: 0.6 }} />
-                  <p>Please select exactly 2 records from the Record History tab to enable side-by-side comparison.</p>
-                </div>
-              ) : (
-                (() => {
-                  const recA = records.find((r) => r.record_id === selectedForCompare[0]);
-                  const recB = records.find((r) => r.record_id === selectedForCompare[1]);
-                  if (!recA || !recB) return null;
+              {selectedForCompare.length === 2 && (() => {
+                const recA = records.find((r) => r.record_id === selectedForCompare[0]);
+                const recB = records.find((r) => r.record_id === selectedForCompare[1]);
 
-                  return (
-                    <div style={{ overflowX: 'auto' }}>
-                      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
-                        <thead>
-                          <tr style={{ borderBottom: '2px solid var(--border-subtle)', textAlign: 'left' }}>
-                            <th style={{ padding: '12px', color: 'var(--text-muted)' }}>Parameter / Feature</th>
-                            <th style={{ padding: '12px', color: 'var(--accent-cyan)' }}>
-                              Run A (#{recA.record_id.slice(-6)})<br />
-                              <span style={{ fontSize: '0.75rem', fontWeight: 400, color: 'var(--text-muted)' }}>
-                                {new Date(recA.created_at).toLocaleDateString()} (v{recA.pipeline_version})
-                              </span>
-                            </th>
-                            <th style={{ padding: '12px', color: 'var(--accent-purple)' }}>
-                              Run B (#{recB.record_id.slice(-6)})<br />
-                              <span style={{ fontSize: '0.75rem', fontWeight: 400, color: 'var(--text-muted)' }}>
-                                {new Date(recB.created_at).toLocaleDateString()} (v{recB.pipeline_version})
-                              </span>
-                            </th>
-                            <th style={{ padding: '12px', color: 'var(--text-main)' }}>Difference (Δ)</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {/* Modalities & Data Quality */}
-                          <tr style={{ borderBottom: '1px solid var(--border-subtle)', background: 'rgba(255,255,255,0.02)' }}>
-                            <td style={{ padding: '10px 12px', fontWeight: 700 }}>Data Quality Score</td>
-                            <td style={{ padding: '10px 12px' }}>{recA.data_quality_score != null ? `${recA.data_quality_score}%` : 'N/A'}</td>
-                            <td style={{ padding: '10px 12px' }}>{recB.data_quality_score != null ? `${recB.data_quality_score}%` : 'N/A'}</td>
-                            <td style={{ padding: '10px 12px' }}>
-                              {recA.data_quality_score != null && recB.data_quality_score != null
-                                ? `${(recB.data_quality_score - recA.data_quality_score).toFixed(1)}%`
-                                : 'N/A'}
-                            </td>
-                          </tr>
+                if (!recA || !recB) return null;
 
-                          {/* 5 Disease Screening Outputs */}
-                          <tr style={{ background: 'var(--bg-card-header)' }}>
-                            <td colSpan={4} style={{ padding: '10px 12px', fontWeight: 800, color: 'var(--accent-cyan)' }}>
-                              Model-Estimated Screening Scores (%)
-                            </td>
-                          </tr>
+                return (
+                  <div className="space-y-6">
+                    <Table headers={['Biomarker / Metric', `Record #${recA.record_id}`, `Record #${recB.record_id}`, 'Delta Shift']}>
+                      {[
+                        { name: 'Fasting Blood Glucose', path: 'clinical.Fasting_Blood_Glucose', unit: 'mg/dL' },
+                        { name: 'HbA1c', path: 'clinical.HbA1c', unit: '%' },
+                        { name: 'BMI', path: 'clinical.BMI', unit: 'kg/m²' },
+                        { name: 'Systolic BP', path: 'clinical.Systolic_BP', unit: 'mmHg' },
+                        { name: 'Diastolic BP', path: 'clinical.Diastolic_BP', unit: 'mmHg' },
+                        { name: 'Triglycerides', path: 'clinical.Triglycerides', unit: 'mg/dL' },
+                        { name: 'LDL Cholesterol', path: 'clinical.LDL_Cholesterol', unit: 'mg/dL' },
+                        { name: 'HDL Cholesterol', path: 'clinical.HDL_Cholesterol', unit: 'mg/dL' },
+                        { name: 'ALT Liver Enzyme', path: 'clinical.ALT', unit: 'U/L' },
+                        { name: 'AST Liver Enzyme', path: 'clinical.AST', unit: 'U/L' },
+                      ].map((item) => {
+                        const valA = extractNumericVal(recA, item.path);
+                        const valB = extractNumericVal(recB, item.path);
+                        const delta = (valA != null && valB != null) ? (valB - valA).toFixed(1) : null;
 
-                          {['Type2_Diabetes', 'Prediabetes', 'Obesity', 'Metabolic_Syndrome', 'NAFLD'].map((disease) => {
-                            const valA = extractNumericVal(recA, `disease_outcomes.${disease}`);
-                            const valB = extractNumericVal(recB, `disease_outcomes.${disease}`);
-                            const delta = (valA != null && valB != null) ? (valB - valA).toFixed(1) : null;
-
-                            return (
-                              <tr key={disease} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
-                                <td style={{ padding: '10px 12px' }}>{disease.replace(/_/g, ' ')}</td>
-                                <td style={{ padding: '10px 12px', fontWeight: 600 }}>{valA != null ? `${valA}%` : 'N/A'}</td>
-                                <td style={{ padding: '10px 12px', fontWeight: 600 }}>{valB != null ? `${valB}%` : 'N/A'}</td>
-                                <td style={{ padding: '10px 12px', fontFamily: 'monospace' }}>
-                                  {delta != null ? (delta > 0 ? `+${delta}%` : `${delta}%`) : 'N/A'}
-                                </td>
-                              </tr>
-                            );
-                          })}
-
-                          {/* Key Clinical Lab Values */}
-                          <tr style={{ background: 'var(--bg-card-header)' }}>
-                            <td colSpan={4} style={{ padding: '10px 12px', fontWeight: 800, color: 'var(--accent-cyan)' }}>
-                              Clinical Lab Measurements
-                            </td>
-                          </tr>
-
-                          {[
-                            { name: 'Fasting Blood Glucose', path: 'clinical.Fasting_Blood_Glucose', unit: 'mg/dL' },
-                            { name: 'HbA1c', path: 'clinical.HbA1c', unit: '%' },
-                            { name: 'BMI', path: 'clinical.BMI', unit: 'kg/m²' },
-                            { name: 'Systolic BP', path: 'clinical.Systolic_BP', unit: 'mmHg' },
-                            { name: 'Diastolic BP', path: 'clinical.Diastolic_BP', unit: 'mmHg' },
-                            { name: 'Triglycerides', path: 'clinical.Triglycerides', unit: 'mg/dL' },
-                            { name: 'LDL Cholesterol', path: 'clinical.LDL_Cholesterol', unit: 'mg/dL' },
-                            { name: 'HDL Cholesterol', path: 'clinical.HDL_Cholesterol', unit: 'mg/dL' },
-                            { name: 'ALT', path: 'clinical.ALT', unit: 'U/L' },
-                            { name: 'AST', path: 'clinical.AST', unit: 'U/L' },
-                          ].map((item) => {
-                            const valA = extractNumericVal(recA, item.path);
-                            const valB = extractNumericVal(recB, item.path);
-                            const delta = (valA != null && valB != null) ? (valB - valA).toFixed(1) : null;
-
-                            return (
-                              <tr key={item.name} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
-                                <td style={{ padding: '10px 12px' }}>{item.name} ({item.unit})</td>
-                                <td style={{ padding: '10px 12px' }}>{valA != null ? `${valA} ${item.unit}` : 'N/A'}</td>
-                                <td style={{ padding: '10px 12px' }}>{valB != null ? `${valB} ${item.unit}` : 'N/A'}</td>
-                                <td style={{ padding: '10px 12px', fontFamily: 'monospace' }}>
-                                  {delta != null ? (delta > 0 ? `+${delta} ${item.unit}` : `${delta} ${item.unit}`) : 'N/A'}
-                                </td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-                    </div>
-                  );
-                })()
-              )}
-            </div>
+                        return (
+                          <TableRow key={item.name}>
+                            <TableCell className="font-semibold text-xs">{item.name} ({item.unit})</TableCell>
+                            <TableCell className="font-mono text-xs">{valA != null ? `${valA} ${item.unit}` : 'N/A'}</TableCell>
+                            <TableCell className="font-mono text-xs">{valB != null ? `${valB} ${item.unit}` : 'N/A'}</TableCell>
+                            <TableCell className="font-mono text-xs font-bold">
+                              {delta != null ? (
+                                <span className={Number(delta) > 0 ? 'text-[var(--danger)]' : Number(delta) < 0 ? 'text-[var(--success)]' : 'text-[var(--text-muted)]'}>
+                                  {Number(delta) > 0 ? `+${delta}` : delta} {item.unit}
+                                </span>
+                              ) : 'N/A'}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </Table>
+                  </div>
+                );
+              })()}
+            </Card>
           )}
 
-          {/* TAB 3: LONGITUDINAL TRENDS */}
+          {/* TAB 3: INTERACTIVE TRENDS & RECHARTS GRAPH ENGINE */}
           {activeTab === 'trends' && (
-            <div className="glass-card">
-              <h3 style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--text-main)', marginBottom: '8px' }}>
-                Longitudinal Health Observations & Trend Chronology
-              </h3>
-              <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '20px' }}>
-                Chronological visualization of actual stored measurements across historical analyses. Gaps in data remain unpopulated; no values are interpolated.
-              </p>
+            <div className="space-y-6">
+              {/* Category Filter Pills & Controls */}
+              <Card isGlass={true} className="p-5 space-y-4">
+                <div className="flex items-center justify-between flex-wrap gap-3 border-b border-[var(--border-subtle)] pb-3">
+                  <div>
+                    <h3 className="text-base font-extrabold text-[var(--text-main)] flex items-center gap-2">
+                      <TrendingUp className="w-5 h-5 text-[var(--primary)]" />
+                      Longitudinal Biomarker Chronology & Trends
+                    </h3>
+                    <p className="text-xs text-[var(--text-muted)]">
+                      Interactive chart engine tracking your biometrics and risk trajectory across historical assessments.
+                    </p>
+                  </div>
+                  <Badge variant="primary" size="sm">
+                    {sortedChronologicalRecords.length} Historical Data Points
+                  </Badge>
+                </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '20px' }}>
-                {trendMetricsList.map((metric) => {
-                  const dataPoints = sortedChronologicalRecords.map((r) => ({
-                    date: new Date(r.created_at).toLocaleDateString(),
-                    val: extractNumericVal(r, metric.path),
-                    version: r.pipeline_version
-                  })).filter((dp) => dp.val !== null);
-
-                  if (dataPoints.length === 0) return null;
-
-                  return (
-                    <div
-                      key={metric.label}
-                      style={{
-                        padding: '16px',
-                        background: 'var(--bg-primary)',
-                        border: '1px solid var(--border-subtle)',
-                        borderRadius: '10px'
+                {/* Category Pills */}
+                <div className="flex items-center gap-2 overflow-x-auto pb-1">
+                  {[
+                    { id: 'all', label: 'All Biometrics' },
+                    { id: 'glycemic', label: '🩸 Glycemic & Metabolic' },
+                    { id: 'cardio', label: '❤️ Cardiovascular' },
+                    { id: 'hepatic', label: '🧪 Hepatic / Liver' },
+                    { id: 'scores', label: '📈 Disease Risk Scores' },
+                  ].map((cat) => (
+                    <button
+                      key={cat.id}
+                      onClick={() => {
+                        setTrendCategory(cat.id);
+                        const firstInCat = trendMetricsList.find(m => cat.id === 'all' || m.category === cat.id);
+                        if (firstInCat) {
+                          setFeaturedMetricKey(firstInCat.path);
+                        }
                       }}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold font-mono transition-all ${
+                        trendCategory === cat.id
+                          ? 'bg-[var(--primary)] text-white shadow-sm'
+                          : 'bg-[var(--bg-primary)] border border-[var(--border-subtle)] text-[var(--text-muted)] hover:text-[var(--text-main)]'
+                      }`}
                     >
-                      <strong style={{ fontSize: '0.88rem', color: 'var(--text-main)', display: 'block', marginBottom: '12px' }}>
-                        {metric.label}
-                      </strong>
+                      {cat.label}
+                    </button>
+                  ))}
+                </div>
+              </Card>
 
-                      {/* SVG Trend Sparkline / Chart */}
-                      <div style={{ height: '80px', display: 'flex', alignItems: 'flex-end', gap: '12px', paddingBottom: '8px', borderBottom: '1px solid var(--border-subtle)' }}>
-                        {dataPoints.map((dp, i) => {
-                          const maxVal = Math.max(...dataPoints.map((p) => p.val));
-                          const minVal = Math.min(...dataPoints.map((p) => p.val));
-                          const range = maxVal - minVal || 1;
-                          const heightPct = Math.max(20, Math.min(100, ((dp.val - minVal) / range) * 80 + 20));
+              {/* FEATURED HERO RECHARTS AREA CHART */}
+              {(() => {
+                const categoryMetrics = trendMetricsList.filter(m => trendCategory === 'all' || m.category === trendCategory);
+                const featuredMetric = categoryMetrics.find(m => m.path === featuredMetricKey) || categoryMetrics[0] || trendMetricsList[0];
+                const heroPoints = sortedChronologicalRecords.map((r) => ({
+                  date: new Date(r.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
+                  val: extractNumericVal(r, featuredMetric.path),
+                  fullDate: new Date(r.created_at).toLocaleString(),
+                })).filter((dp) => dp.val !== null);
 
-                          return (
-                            <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', height: '100%', justifyContent: 'flex-end' }}>
-                              <span style={{ fontSize: '0.7rem', fontWeight: 600, color: 'var(--accent-cyan)', marginBottom: '4px' }}>
-                                {dp.val}
-                              </span>
-                              <div
-                                style={{
-                                  width: '100%',
-                                  maxWidth: '24px',
-                                  height: `${heightPct}%`,
-                                  background: 'linear-gradient(180deg, var(--accent-cyan) 0%, rgba(6, 182, 212, 0.2) 100%)',
-                                  borderRadius: '4px 4px 0 0'
-                                }}
-                              />
-                            </div>
-                          );
-                        })}
+                if (heroPoints.length === 0) return null;
+
+                const firstVal = heroPoints[0].val;
+                const latestVal = heroPoints[heroPoints.length - 1].val;
+                const deltaVal = (latestVal - firstVal).toFixed(1);
+                const isIncreased = Number(deltaVal) > 0;
+                const isDecreased = Number(deltaVal) < 0;
+
+                return (
+                  <Card isGlass={true} className="p-6 space-y-4 border-t-4 border-t-[var(--primary)]">
+                    <div className="flex items-center justify-between flex-wrap gap-4 border-b border-[var(--border-subtle)] pb-4">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <Badge variant="primary" size="sm">Featured Trend Analysis</Badge>
+                          <span className="text-xs font-mono text-[var(--text-muted)]">Reference Target: {featuredMetric.targetRange}</span>
+                        </div>
+                        <h3 className="text-lg font-extrabold text-[var(--text-main)] mt-1">
+                          {featuredMetric.label} Trend Analysis
+                        </h3>
                       </div>
 
-                      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '8px', fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-                        <span>First: {dataPoints[0].date}</span>
-                        <span>Latest: {dataPoints[dataPoints.length - 1].date} ({dataPoints[dataPoints.length - 1].val} {metric.unit})</span>
+                      <div className="flex items-center gap-4">
+                        <div className="text-right font-mono">
+                          <span className="text-[10px] text-[var(--text-muted)] block uppercase">Latest Reading</span>
+                          <span className="text-2xl font-extrabold text-[var(--text-main)]">
+                            {latestVal} <span className="text-xs font-normal text-[var(--text-muted)]">{featuredMetric.unit}</span>
+                          </span>
+                        </div>
+
+                        <div className={`p-2 rounded-xl border flex items-center gap-1 font-mono text-xs font-bold ${
+                          isIncreased ? 'bg-red-50 dark:bg-red-900/20 text-[var(--danger)] border-red-200' :
+                          isDecreased ? 'bg-green-50 dark:bg-green-900/20 text-[var(--success)] border-green-200' :
+                          'bg-gray-50 text-[var(--text-muted)] border-gray-200'
+                        }`}>
+                          {isIncreased ? <ArrowUpRight className="w-4 h-4" /> : isDecreased ? <ArrowDownRight className="w-4 h-4" /> : <Minus className="w-4 h-4" />}
+                          <span>{Number(deltaVal) > 0 ? `+${deltaVal}` : deltaVal} {featuredMetric.unit}</span>
+                        </div>
                       </div>
                     </div>
-                  );
-                })}
+
+                    {/* Recharts Hero Area Chart */}
+                    <div className="h-64 w-full pt-2">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <AreaChart data={heroPoints} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                          <defs>
+                            <linearGradient id="heroGradient" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="5%" stopColor={featuredMetric.color} stopOpacity={0.4} />
+                              <stop offset="95%" stopColor={featuredMetric.color} stopOpacity={0.0} />
+                            </linearGradient>
+                          </defs>
+                          <CartesianGrid strokeDasharray="3 3" stroke="var(--border-subtle)" vertical={false} />
+                          <XAxis dataKey="date" stroke="var(--text-muted)" fontSize={11} tickLine={false} />
+                          <YAxis stroke="var(--text-muted)" fontSize={11} tickLine={false} domain={['auto', 'auto']} />
+                          <Tooltip content={<CustomRechartsTooltip unit={featuredMetric.unit} />} />
+                          <Area
+                            type="monotone"
+                            dataKey="val"
+                            stroke={featuredMetric.color}
+                            strokeWidth={3}
+                            fillOpacity={1}
+                            fill="url(#heroGradient)"
+                            activeDot={{ r: 6, stroke: featuredMetric.color, strokeWidth: 2, fill: '#fff' }}
+                          />
+                        </AreaChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </Card>
+                );
+              })()}
+
+              {/* GRID OF RECHARTS MINI METRIC CARDS */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {trendMetricsList
+                  .filter(m => trendCategory === 'all' || m.category === trendCategory)
+                  .map((metric) => {
+                    const dataPoints = sortedChronologicalRecords.map((r) => ({
+                      date: new Date(r.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
+                      val: extractNumericVal(r, metric.path),
+                    })).filter((dp) => dp.val !== null);
+
+                    if (dataPoints.length === 0) return null;
+
+                    const latestVal = dataPoints[dataPoints.length - 1].val;
+                    const firstVal = dataPoints[0].val;
+                    const delta = (latestVal - firstVal).toFixed(1);
+                    const isSelectedHero = featuredMetricKey === metric.path;
+
+                    return (
+                      <Card
+                        key={metric.label}
+                        isGlass={true}
+                        className={`p-4 space-y-3 transition-all hover:shadow-md cursor-pointer ${
+                          isSelectedHero ? 'ring-2 ring-[var(--primary)] bg-[var(--primary-light)]/10' : ''
+                        }`}
+                        onClick={() => setFeaturedMetricKey(metric.path)}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <metric.icon className="w-4 h-4" style={{ color: metric.color }} />
+                            <strong className="text-xs font-bold text-[var(--text-main)] truncate max-w-[160px]" title={metric.label}>
+                              {metric.label}
+                            </strong>
+                          </div>
+                          <Badge variant="outline" size="sm" className="font-mono text-[10px]">
+                            {dataPoints.length} point(s)
+                          </Badge>
+                        </div>
+
+                        <div className="flex items-baseline justify-between pt-1">
+                          <div className="font-mono">
+                            <span className="text-xl font-extrabold text-[var(--text-main)]">{latestVal}</span>
+                            <span className="text-xs text-[var(--text-muted)] ml-1">{metric.unit}</span>
+                          </div>
+
+                          {dataPoints.length > 1 && (
+                            <span className={`text-xs font-mono font-bold ${
+                              Number(delta) > 0 ? 'text-[var(--danger)]' : Number(delta) < 0 ? 'text-[var(--success)]' : 'text-[var(--text-muted)]'
+                            }`}>
+                              {Number(delta) > 0 ? `+${delta}` : delta} {metric.unit}
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Recharts Mini Area Chart */}
+                        <div className="h-28 w-full pt-1">
+                          <ResponsiveContainer width="100%" height="100%">
+                            <AreaChart data={dataPoints} margin={{ top: 5, right: 5, left: -25, bottom: 0 }}>
+                              <defs>
+                                <linearGradient id={`grad-${metric.label.replace(/\s+/g, '')}`} x1="0" y1="0" x2="0" y2="1">
+                                  <stop offset="5%" stopColor={metric.color} stopOpacity={0.35} />
+                                  <stop offset="95%" stopColor={metric.color} stopOpacity={0.0} />
+                                </linearGradient>
+                              </defs>
+                              <CartesianGrid strokeDasharray="2 2" stroke="var(--border-subtle)" vertical={false} />
+                              <XAxis dataKey="date" stroke="var(--text-muted)" fontSize={9} tickLine={false} />
+                              <YAxis stroke="var(--text-muted)" fontSize={9} tickLine={false} domain={['auto', 'auto']} />
+                              <Tooltip content={<CustomRechartsTooltip unit={metric.unit} />} />
+                              <Area
+                                type="monotone"
+                                dataKey="val"
+                                stroke={metric.color}
+                                strokeWidth={2}
+                                fillOpacity={1}
+                                fill={`url(#grad-${metric.label.replace(/\s+/g, '')})`}
+                                activeDot={{ r: 4, stroke: metric.color, strokeWidth: 1.5, fill: '#fff' }}
+                              />
+                            </AreaChart>
+                          </ResponsiveContainer>
+                        </div>
+
+                        <div className="flex justify-between items-center text-[10px] text-[var(--text-muted)] pt-1 border-t border-[var(--border-subtle)] font-mono">
+                          <span>Target: <strong className="text-[var(--text-main)]">{metric.targetRange}</strong></span>
+                          <span className="text-[var(--primary)] hover:underline flex items-center gap-0.5">
+                            Expand <ChevronRight className="w-3 h-3 inline" />
+                          </span>
+                        </div>
+                      </Card>
+                    );
+                  })}
               </div>
             </div>
           )}
         </>
       )}
 
-      {/* DETAIL RECORD MODAL */}
+      {/* RECORD SNAPSHOT DETAIL MODAL */}
       {selectedDetailRecord && (
-        <div style={{
-          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-          background: 'rgba(0, 0, 0, 0.75)', backdropFilter: 'blur(6px)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          zIndex: 1000, padding: '20px'
-        }}>
-          <div className="glass-card" style={{ maxWidth: '800px', width: '100%', maxHeight: '90vh', overflowY: 'auto', padding: '24px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', borderBottom: '1px solid var(--border-subtle)', paddingBottom: '12px' }}>
+        <Modal
+          isOpen={true}
+          onClose={() => setSelectedDetailRecord(null)}
+          title={`Record Snapshot #${selectedDetailRecord.record_id}`}
+          size="lg"
+        >
+          <div className="space-y-6 text-xs">
+            {/* Metadata Summary Header */}
+            <div className="p-4 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-subtle)] flex items-center justify-between flex-wrap gap-2">
               <div>
-                <h2 style={{ fontSize: '1.3rem', fontWeight: 800, margin: 0, color: 'var(--text-main)' }}>
-                  Record Detail Snapshot #{selectedDetailRecord.record_id}
-                </h2>
-                <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '4px' }}>
-                  Created: {new Date(selectedDetailRecord.created_at).toLocaleString()} | Pipeline Version: {selectedDetailRecord.pipeline_version} | Status: {selectedDetailRecord.status}
-                </div>
+                <p className="text-[11px] font-mono text-[var(--text-muted)]">
+                  Created: <strong>{new Date(selectedDetailRecord.created_at).toLocaleString()}</strong>
+                </p>
+                <p className="text-[11px] font-mono text-[var(--text-muted)] mt-0.5">
+                  Pipeline Version: <strong>{selectedDetailRecord.pipeline_version || 'v3.3'}</strong> • Status: <strong>{selectedDetailRecord.status}</strong>
+                </p>
               </div>
-              <button className="btn btn-outline" onClick={() => setSelectedDetailRecord(null)} style={{ padding: '6px 12px' }}>
-                <X size={16} /> Close
-              </button>
+              <Badge variant="primary" size="sm">
+                Pathway {selectedDetailRecord.effective_pathway || selectedDetailRecord.pathway_used || 'C'}
+              </Badge>
             </div>
 
-            {/* Verified Input Snapshot with Provenance */}
-            <div style={{ marginBottom: '20px' }}>
-              <h4 style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--accent-cyan)', marginBottom: '8px' }}>
-                Verified Input Features & Provenance Snapshot
-              </h4>
-              <div style={{ background: 'var(--bg-primary)', padding: '16px', borderRadius: '8px', fontSize: '0.82rem', maxHeight: '200px', overflowY: 'auto' }}>
-                <pre style={{ margin: 0, whiteSpace: 'pre-wrap', fontFamily: 'monospace' }}>
-                  {JSON.stringify(selectedDetailRecord.confirmed_features, null, 2)}
-                </pre>
-              </div>
-            </div>
-
-            {/* Model Predictions Snapshot */}
-            <div style={{ marginBottom: '20px' }}>
-              <h4 style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--accent-cyan)', marginBottom: '8px' }}>
+            {/* Model Estimated Risk Outputs (Fixed NaN%) */}
+            <div className="space-y-3">
+              <h4 className="text-xs font-extrabold text-[var(--text-main)] uppercase tracking-wider font-mono">
                 Model-Estimated Screening Outputs
               </h4>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px' }}>
-                {Object.entries(selectedDetailRecord.prediction_snapshot?.disease_outcomes || {}).map(([disease, info]) => (
-                  <div key={disease} style={{ padding: '12px', background: 'var(--bg-primary)', borderRadius: '8px', border: '1px solid var(--border-subtle)' }}>
-                    <div style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-main)' }}>{disease.replace(/_/g, ' ')}</div>
-                    <div style={{ fontSize: '1.2rem', fontWeight: 800, color: info.final_prediction === 1 ? 'var(--accent-rose)' : 'var(--accent-emerald)', marginTop: '4px' }}>
-                      {(info.final_fusion_probability * 100).toFixed(1)}%
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                {Object.entries(selectedDetailRecord.prediction_snapshot?.disease_outcomes || selectedDetailRecord.prediction_snapshot?.predictions || {}).map(([disease, info]) => {
+                  const probPctStr = getProbPct(info);
+                  const variant = getRiskVariant(info);
+                  const isPositive = (info?.calibrated_probability ?? info?.probability ?? 0) >= 0.5 || info?.final_prediction === 1;
+
+                  return (
+                    <div key={disease} className="p-3 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-subtle)] space-y-1">
+                      <div className="flex items-center justify-between">
+                        <span className="font-bold text-xs text-[var(--text-main)]">{disease.replace(/_/g, ' ')}</span>
+                        <Badge variant={variant} size="sm">{isPositive ? 'High Signal' : 'Low Signal'}</Badge>
+                      </div>
+                      <div className="text-xl font-extrabold font-mono text-[var(--text-main)]">
+                        {probPctStr}
+                      </div>
+                      <p className="text-[10px] text-[var(--text-muted)] font-mono">
+                        Risk Level: {info?.risk_level || (isPositive ? 'High' : 'Low')}
+                      </p>
                     </div>
-                    <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '2px' }}>
-                      Threshold (T): {info.classification_threshold} | {info.final_prediction === 1 ? 'Positive Signal' : 'Negative Signal'}
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
 
-            {/* Immutable XAI & Report Snapshots */}
-            <div style={{ marginBottom: '20px' }}>
-              <h4 style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--accent-cyan)', marginBottom: '8px' }}>
-                Stored Explainability (XAI) & RAG Report Snapshots
+            {/* Formatted Biomarkers Snapshot (Replaces raw JSON dump) */}
+            <div className="space-y-3">
+              <h4 className="text-xs font-extrabold text-[var(--text-main)] uppercase tracking-wider font-mono">
+                Extracted Biometrics & Verified Inputs
               </h4>
-              <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-                <div style={{ flex: 1, padding: '12px', background: 'var(--bg-primary)', borderRadius: '8px' }}>
-                  <strong>XAI Attributions: </strong>
-                  {selectedDetailRecord.xai_snapshot ? (
-                    <span className="badge badge-emerald">STORED & IMMUTABLE</span>
-                  ) : (
-                    <span className="badge badge-outline">NOT GENERATED</span>
-                  )}
-                </div>
-                <div style={{ flex: 1, padding: '12px', background: 'var(--bg-primary)', borderRadius: '8px' }}>
-                  <strong>AI Clinical Report: </strong>
-                  {selectedDetailRecord.report_snapshot ? (
-                    <span className="badge badge-emerald">STORED & IMMUTABLE</span>
-                  ) : (
-                    <span className="badge badge-outline">NOT GENERATED</span>
-                  )}
-                </div>
-              </div>
+
+              {(() => {
+                const cf = selectedDetailRecord.confirmed_features || {};
+                const hasClin = cf.clinical && Object.keys(cf.clinical).length > 0;
+                const hasWear = cf.wearable && Object.keys(cf.wearable).length > 0;
+                const hasGut = cf.gut && Object.keys(cf.gut).length > 0;
+
+                if (!hasClin && !hasWear && !hasGut) {
+                  return (
+                    <div className="p-4 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-subtle)] text-center text-xs text-[var(--text-muted)]">
+                      No raw biometric snapshot stored for this record.
+                    </div>
+                  );
+                }
+
+                return (
+                  <div className="space-y-4">
+                    {hasClin && (
+                      <div className="p-4 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-subtle)] space-y-2">
+                        <div className="flex items-center gap-2 mb-2">
+                          <FileText className="w-4 h-4 text-blue-500" />
+                          <strong className="text-xs text-[var(--text-main)]">Clinical Lab Biomarkers</strong>
+                        </div>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                          {Object.entries(cf.clinical).map(([k, v]) => (
+                            <div key={k} className="p-2 rounded-lg bg-[var(--bg-surface)] border border-[var(--border-subtle)]">
+                              <span className="text-[10px] text-[var(--text-muted)] block">{k.replace(/_/g, ' ')}</span>
+                              <span className="font-mono font-bold text-xs text-[var(--primary)]">{v !== null && v !== undefined ? `${v}` : 'N/A'}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {hasWear && (
+                      <div className="p-4 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-subtle)] space-y-2">
+                        <div className="flex items-center gap-2 mb-2">
+                          <Watch className="w-4 h-4 text-teal-500" />
+                          <strong className="text-xs text-[var(--text-main)]">Wearable Sensor Telemetry</strong>
+                        </div>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                          {Object.entries(cf.wearable).map(([k, v]) => (
+                            <div key={k} className="p-2 rounded-lg bg-[var(--bg-surface)] border border-[var(--border-subtle)]">
+                              <span className="text-[10px] text-[var(--text-muted)] block">{k.replace(/_/g, ' ')}</span>
+                              <span className="font-mono font-bold text-xs text-[var(--secondary)]">{v !== null && v !== undefined ? `${v}` : 'N/A'}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {hasGut && (
+                      <div className="p-4 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-subtle)] space-y-2">
+                        <div className="flex items-center gap-2 mb-2">
+                          <Dna className="w-4 h-4 text-purple-500" />
+                          <strong className="text-xs text-[var(--text-main)]">Gut Microbiome Taxa</strong>
+                        </div>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                          {Object.entries(cf.gut).slice(0, 12).map(([k, v]) => (
+                            <div key={k} className="p-2 rounded-lg bg-[var(--bg-surface)] border border-[var(--border-subtle)]">
+                              <span className="text-[10px] text-[var(--text-muted)] block truncate" title={k}>{k.replace(/_/g, ' ')}</span>
+                              <span className="font-mono font-bold text-xs text-[var(--accent)]">{v !== null && v !== undefined ? `${v}%` : 'N/A'}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
             </div>
           </div>
-        </div>
+        </Modal>
       )}
 
       {/* DELETE CONFIRMATION MODAL */}
       {recordToDelete && (
-        <div style={{
-          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-          background: 'rgba(0, 0, 0, 0.75)', backdropFilter: 'blur(6px)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          zIndex: 1000, padding: '20px'
-        }}>
-          <div className="glass-card" style={{ maxWidth: '440px', width: '100%', padding: '24px', textAlign: 'center' }}>
-            <AlertTriangle size={48} style={{ color: 'var(--accent-rose)', marginBottom: '16px' }} />
-            <h3 style={{ fontSize: '1.2rem', fontWeight: 700, margin: '0 0 8px 0', color: 'var(--text-main)' }}>
-              Confirm Record Deletion
-            </h3>
-            <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '24px' }}>
-              Are you sure you want to permanently delete Health Record <strong>#{recordToDelete.record_id}</strong>? This action will purge the input snapshot, predictions, and stored XAI/report snapshots. This cannot be undone.
-            </p>
-            <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
-              <button
-                className="btn btn-outline"
-                onClick={() => setRecordToDelete(null)}
+        <Modal
+          isOpen={true}
+          onClose={() => setRecordToDelete(null)}
+          title="Confirm Record Deletion"
+          size="sm"
+        >
+          <div className="p-4 text-center space-y-4">
+            <div className="w-12 h-12 rounded-full bg-red-500/10 text-red-500 flex items-center justify-center mx-auto">
+              <AlertTriangle className="w-6 h-6" />
+            </div>
+            <div className="space-y-1">
+              <h4 className="text-sm font-bold text-[var(--text-main)]">Delete Health Record #{recordToDelete.record_id}?</h4>
+              <p className="text-xs text-[var(--text-muted)] leading-relaxed">
+                This action will permanently purge the biometrics snapshot, risk predictions, and explainability records. This action cannot be undone.
+              </p>
+            </div>
+
+            <div className="flex items-center gap-3 pt-2">
+              <Button
+                variant="outline"
+                size="md"
+                className="flex-1"
                 disabled={deleteLoading}
+                onClick={() => setRecordToDelete(null)}
               >
                 Cancel
-              </button>
-              <button
-                className="btn"
-                onClick={handleDeleteConfirm}
+              </Button>
+              <Button
+                variant="danger"
+                size="md"
+                className="flex-1"
                 disabled={deleteLoading}
-                style={{ background: 'var(--accent-rose)', color: '#fff', border: 'none' }}
+                onClick={handleDeleteConfirm}
               >
                 {deleteLoading ? 'Deleting...' : 'Delete Permanently'}
-              </button>
+              </Button>
             </div>
           </div>
-        </div>
+        </Modal>
       )}
-    </div>
+    </PageContainer>
   );
 }
