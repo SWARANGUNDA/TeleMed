@@ -131,6 +131,15 @@ export default function AdminConsultationManagementPage() {
     }
   };
 
+  const formatDoctorName = (name) => {
+    if (!name) return 'Dr. Arjun Sarkaar';
+    const clean = name.trim();
+    if (/^dr\.?\s+/i.test(clean)) {
+      return clean;
+    }
+    return `Dr. ${clean}`;
+  };
+
   const renderStatusBadge = (status) => {
     switch (status) {
       case 'ACCEPTED':
@@ -219,7 +228,7 @@ export default function AdminConsultationManagementPage() {
                 <TableCell>
                   {c.doctor_name || c.assigned_doctor_id ? (
                     <div>
-                      <strong className="text-xs text-[var(--text-main)] block">Dr. {c.doctor_name || 'Arjun Sarkaar'}</strong>
+                      <strong className="text-xs text-[var(--text-main)] block">{formatDoctorName(c.doctor_name || 'Arjun Sarkaar')}</strong>
                       <span className="text-[10px] font-mono text-[var(--text-muted)]">{c.doctor_specialization || 'Internal Medicine'}</span>
                     </div>
                   ) : (
@@ -294,12 +303,14 @@ export default function AdminConsultationManagementPage() {
                 required
               >
                 <option value="">-- Select Verified Physician --</option>
-                <option value="usr_doctor">Dr. Arjun Sarkaar — General Medicine / Cardiology (VERIFIED)</option>
-                {doctors.map(d => (
-                  <option key={d.doctor_id || d.user_id} value={d.doctor_id || d.user_id}>
-                    Dr. {d.full_name || d.name} — {d.specialization || 'General Practitioner'} ({d.verification_status || 'VERIFIED'})
-                  </option>
-                ))}
+                {doctors.map(d => {
+                  const docName = formatDoctorName(d.full_name || d.name || 'Arjun Sarkaar');
+                  return (
+                    <option key={d.doctor_id || d.user_id || d.id} value={d.doctor_id || d.user_id}>
+                      {docName} — {d.specialization || 'General Medicine'} ({d.verification_status || 'VERIFIED'})
+                    </option>
+                  );
+                })}
               </select>
             </div>
 
