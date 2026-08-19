@@ -141,6 +141,25 @@ def get_system_settings(admin_user: Dict[str, Any] = Depends(require_role(["ADMI
     """Retrieve operational system settings."""
     return {"settings": database.get_system_settings()}
 
+@router.post("/system/settings", status_code=status.HTTP_200_OK)
+def update_system_settings(
+    req: UpdateSystemSettingsRequest,
+    admin_user: Dict[str, Any] = Depends(require_role(["ADMIN"]))
+):
+    """
+    Update non-scientific system configuration (maintenance banner, support text).
+    Rejects any attempts to modify scientific ML model parameters.
+    """
+    try:
+        updated = database.update_system_settings(admin_user["user_id"], req.settings)
+        return {
+            "status": "SUCCESS",
+            "message": "Operational system settings updated successfully.",
+            "settings": updated
+        }
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+
 
 @router.get("/doctor-credentials/{document_id}/file", status_code=status.HTTP_200_OK)
 def view_doctor_credential_file(
