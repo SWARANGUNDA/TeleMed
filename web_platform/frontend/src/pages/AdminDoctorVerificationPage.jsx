@@ -183,7 +183,11 @@ export default function AdminDoctorVerificationPage() {
 
   const backendDocs = (selectedApp?.credentials || []).map(c => {
     const title = formatDocTitle(c.document_type, c.original_filename);
-    const dataUrl = c.stored_filename ? `http://localhost:8000/uploads/doctor_credentials/${c.stored_filename}` : null;
+    const dataUrl = c.document_id 
+      ? `http://localhost:8000/api/v1/admin/doctor-credentials/${c.document_id}/file` 
+      : c.stored_filename 
+        ? `http://localhost:8000/uploads/doctor_credentials/${c.stored_filename}`
+        : null;
     return {
       id: c.document_id || c.stored_filename,
       title: title,
@@ -226,7 +230,7 @@ export default function AdminDoctorVerificationPage() {
   const displayDocs = uniqueDocs.length > 0 ? uniqueDocs : defaultDocs;
   const currentDoc = displayDocs[activeDocIdx] || displayDocs[0];
 
-  const isPdfFile = (doc) => {
+  const isPdfDoc = (doc) => {
     if (!doc) return false;
     const url = (doc.dataUrl || doc.url || '').toLowerCase();
     const name = (doc.originalFilename || doc.storedFilename || doc.title || '').toLowerCase();
@@ -235,6 +239,7 @@ export default function AdminDoctorVerificationPage() {
     return (
       url.startsWith('data:application/pdf') ||
       url.includes('.pdf') ||
+      (url.includes('/file') && !url.includes('data:image')) ||
       name.endsWith('.pdf') ||
       mime.includes('pdf')
     );
@@ -348,7 +353,7 @@ export default function AdminDoctorVerificationPage() {
               {/* Active Document Viewer Panel */}
               <div className="flex-1 rounded-2xl bg-slate-950 border border-slate-800 p-3 flex flex-col items-center justify-center relative overflow-hidden min-h-0 shadow-2xl">
                 {currentDoc?.dataUrl ? (
-                  isPdfFile(currentDoc) ? (
+                  isPdfDoc(currentDoc) ? (
                     <iframe
                       src={currentDoc.dataUrl}
                       title={currentDoc.title}
