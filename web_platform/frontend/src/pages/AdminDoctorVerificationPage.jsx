@@ -506,11 +506,11 @@ export default function AdminDoctorVerificationPage() {
               </Card>
 
               {/* Decision & Revision Notes */}
-              <div className="space-y-1.5 flex-1 min-h-0 flex flex-col">
-                <label className="text-xs font-bold text-[var(--text-main)]">Audit Decision Notes / Revision Instructions</label>
-                <TextArea
+              <div className="space-y-1.5 shrink-0 pt-1">
+                <label className="text-xs font-bold text-[var(--text-main)] block">Audit Decision Notes / Revision Instructions</label>
+                <textarea
                   rows={3}
-                  className="flex-1 min-h-[90px]"
+                  className="w-full h-24 p-3 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] text-[var(--text-main)] text-xs focus:outline-none focus:ring-2 focus:ring-[var(--primary)] resize-none"
                   placeholder="Enter audit decision details, missing document requests, or credential verification notes..."
                   value={transitionReason}
                   onChange={(e) => setTransitionReason(e.target.value)}
@@ -520,16 +520,16 @@ export default function AdminDoctorVerificationPage() {
               {/* Action Buttons Footer */}
               <div className="pt-3 border-t border-[var(--border-subtle)] space-y-2 shrink-0">
                 <div className="grid grid-cols-2 gap-2">
-                  <Button variant="outline" size="sm" className="text-amber-500 border-amber-500/30 hover:bg-amber-500/10 font-bold" isLoading={submitting} onClick={() => handleExecuteTransition('RESUBMISSION_REQUIRED')}>
+                  <Button variant="outline" size="sm" className="!py-2 text-amber-600 dark:text-amber-400 border-amber-500/40 hover:bg-amber-500/10 font-bold text-xs" isLoading={submitting} onClick={() => handleExecuteTransition('RESUBMISSION_REQUIRED')}>
                     Request Revision
                   </Button>
-                  <Button variant="outline" size="sm" className="text-rose-500 border-rose-500/30 hover:bg-rose-500/10 font-bold" isLoading={submitting} onClick={() => handleExecuteTransition('REJECTED')}>
+                  <Button variant="outline" size="sm" className="!py-2 text-rose-600 dark:text-rose-400 border-rose-500/40 hover:bg-rose-500/10 font-bold text-xs" isLoading={submitting} onClick={() => handleExecuteTransition('REJECTED')}>
                     Reject Application
                   </Button>
                 </div>
-                <div className="flex items-center justify-between gap-2">
-                  <Button variant="outline" size="sm" onClick={() => setSelectedApp(null)}>Cancel Audit</Button>
-                  <Button variant="success" size="sm" className="flex-1 font-bold shadow-lg shadow-blue-500/20" isLoading={submitting} leftIcon={<Check className="w-4 h-4" />} onClick={() => handleExecuteTransition('VERIFIED')}>
+                <div className="flex items-center justify-between gap-2 pt-0.5">
+                  <Button variant="outline" size="sm" className="text-xs !py-2" onClick={() => setSelectedApp(null)}>Cancel Audit</Button>
+                  <Button variant="success" size="sm" className="flex-1 font-bold text-xs !py-2 shadow-lg shadow-blue-500/20" isLoading={submitting} leftIcon={<Check className="w-4 h-4" />} onClick={() => handleExecuteTransition('VERIFIED')}>
                     Approve Credentials & Grant Access →
                   </Button>
                 </div>

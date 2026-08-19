@@ -6,13 +6,14 @@ export function TextArea({
   helperText,
   rows = 4,
   className = '',
+  containerClassName = '',
   id,
   ...props
 }) {
   const areaId = id || `textarea-${Math.random().toString(36).substring(2, 9)}`;
 
   return (
-    <div className="flex flex-col gap-1.5 w-full">
+    <div className={`flex flex-col gap-1.5 w-full ${containerClassName}`}>
       {label && (
         <label htmlFor={areaId} className="text-xs font-semibold text-[var(--text-muted)] tracking-wide uppercase">
           {label}
