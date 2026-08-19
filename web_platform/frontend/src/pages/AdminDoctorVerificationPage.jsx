@@ -25,10 +25,23 @@ async function fetchCredentialBlob(documentId) {
     ? 'http://localhost:8000/api/v1'
     : '/api/v1';
   const token = getAuthToken();
-  const res = await fetch(`${API_BASE}/admin/doctor-credentials/${documentId}/file`, {
+
+  // Try standard doctor credential download endpoint first
+  let res = await fetch(`${API_BASE}/doctor/credentials/${documentId}/download`, {
     headers: { 'Authorization': `Bearer ${token}` }
-  });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  }).catch(() => null);
+
+  // Fallback to admin route if doctor route fails
+  if (!res || !res.ok) {
+    res = await fetch(`${API_BASE}/admin/doctor-credentials/${documentId}/file`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    }).catch(() => null);
+  }
+
+  if (!res || !res.ok) {
+    return null;
+  }
+
   const blob = await res.blob();
   return URL.createObjectURL(blob);
 }
@@ -156,12 +169,12 @@ export default function AdminDoctorVerificationPage() {
           setBlobLoading(prev => ({ ...prev, [cred.document_id]: true }));
           fetchCredentialBlob(cred.document_id)
             .then(blobUrl => {
-              setBlobUrls(prev => ({ ...prev, [cred.document_id]: blobUrl }));
-              blobUrlsRef.current[cred.document_id] = blobUrl;
+              if (blobUrl) {
+                setBlobUrls(prev => ({ ...prev, [cred.document_id]: blobUrl }));
+                blobUrlsRef.current[cred.document_id] = blobUrl;
+              }
             })
-            .catch(err => {
-              console.warn(`Failed to fetch credential blob for ${cred.document_id}:`, err);
-            })
+            .catch(() => {})
             .finally(() => {
               setBlobLoading(prev => ({ ...prev, [cred.document_id]: false }));
             });

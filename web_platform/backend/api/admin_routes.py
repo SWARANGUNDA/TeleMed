@@ -175,7 +175,7 @@ def view_doctor_credential_file(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Credential document '{document_id}' not found.")
     
     file_path = Path(cred.get("file_path", ""))
-    if not file_path.is_absolute() or not file_path.exists():
+    if not file_path.exists():
         filename = cred.get("stored_filename", "")
         file_path = Path(__file__).parent.parent / "uploads" / "doctor_credentials" / filename
 

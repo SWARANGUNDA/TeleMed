@@ -176,14 +176,18 @@ def download_doctor_credential(
     if not (is_owner or is_admin):
         raise HTTPException(status_code=403, detail="Access denied to credential document belonging to another doctor.")
 
-    file_path = Path(cred["file_path"])
+    file_path = Path(cred.get("file_path", ""))
     if not file_path.exists():
-        raise HTTPException(status_code=404, detail="Stored document file missing on server disk.")
+        filename = cred.get("stored_filename", "")
+        file_path = Path(__file__).parent.parent / "uploads" / "doctor_credentials" / filename
+
+    if not file_path.exists():
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Stored document file missing on server disk.")
 
     return FileResponse(
         path=str(file_path),
-        filename=cred["original_filename"],
-        media_type=cred["mime_type"]
+        filename=cred.get("original_filename", "credential.pdf"),
+        media_type=cred.get("mime_type", "application/pdf")
     )
 
 
