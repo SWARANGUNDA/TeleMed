@@ -84,13 +84,21 @@ app.add_middleware(
 
 
 # ---------------------------------------------------------------------------
-# Level 11: Security Headers Middleware
-# ---------------------------------------------------------------------------
 @app.middleware("http")
 async def security_headers_middleware(request: Request, call_next):
     response = await call_next(request)
     for header, value in SECURITY_HEADERS.items():
         response.headers[header] = value
+    
+    # Allow iframe embedding for doctor credential previews & uploads in review workspace
+    path = request.url.path.lower()
+    if "credential" in path or "upload" in path:
+        response.headers["X-Frame-Options"] = "SAMEORIGIN"
+        response.headers["Content-Security-Policy"] = (
+            "default-src 'self' 'unsafe-inline' data: blob: http://localhost:* http://127.0.0.1:*; "
+            "frame-ancestors 'self' http://localhost:* http://127.0.0.1:*; "
+            "frame-src 'self' data: blob: http://localhost:* http://127.0.0.1:*;"
+        )
     return response
 
 

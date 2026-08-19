@@ -233,6 +233,8 @@ export default function AdminDoctorVerificationPage() {
   const isPdfDoc = (doc) => {
     if (!doc) return false;
     const url = (doc.dataUrl || doc.url || '').toLowerCase();
+    if (url.startsWith('data:image/')) return false;
+
     const name = (doc.originalFilename || doc.storedFilename || doc.title || '').toLowerCase();
     const mime = (doc.mimeType || doc.file_type || '').toLowerCase();
 
@@ -354,11 +356,17 @@ export default function AdminDoctorVerificationPage() {
               <div className="flex-1 rounded-2xl bg-slate-950 border border-slate-800 p-3 flex flex-col items-center justify-center relative overflow-hidden min-h-0 shadow-2xl">
                 {currentDoc?.dataUrl ? (
                   isPdfDoc(currentDoc) ? (
-                    <iframe
-                      src={currentDoc.dataUrl}
-                      title={currentDoc.title}
+                    <object
+                      data={currentDoc.dataUrl}
+                      type="application/pdf"
                       className="w-full h-full min-h-[480px] rounded-xl border border-slate-800 bg-white"
-                    />
+                    >
+                      <iframe
+                        src={currentDoc.dataUrl}
+                        title={currentDoc.title}
+                        className="w-full h-full min-h-[480px] rounded-xl border border-slate-800 bg-white"
+                      />
+                    </object>
                   ) : (
                     <div className="w-full h-full flex flex-col items-center justify-center p-2 overflow-auto">
                       <img
