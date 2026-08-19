@@ -34,6 +34,7 @@ async function fetchCredentialBlob(documentId) {
 }
 
 const makeCertificateSvg = (docTitle, docCategory, docId, doctorName, licenseNum) => {
+  const cleanCat = (docCategory || 'Credential Document').replace(/_/g, ' ');
   const svgString = `<svg xmlns="http://www.w3.org/2000/svg" width="800" height="600" viewBox="0 0 800 600" fill="none">
     <rect width="800" height="600" rx="24" fill="#0F172A"/>
     <rect x="16" y="16" width="768" height="568" rx="16" fill="url(#bg)"/>
@@ -54,7 +55,7 @@ const makeCertificateSvg = (docTitle, docCategory, docId, doctorName, licenseNum
     <text x="120" y="325" fill="#94A3B8" font-family="sans-serif" font-size="14">REGISTRATION LICENSE #:</text>
     <text x="360" y="325" fill="#34D399" font-family="monospace" font-size="18" font-weight="bold">${licenseNum}</text>
     <text x="120" y="385" fill="#94A3B8" font-family="sans-serif" font-size="14">DOCUMENT CATEGORY:</text>
-    <text x="360" y="385" fill="#E2E8F0" font-family="sans-serif" font-size="16">${docCategory}</text>
+    <text x="360" y="385" fill="#E2E8F0" font-family="sans-serif" font-size="16">${cleanCat}</text>
     <text x="120" y="445" fill="#94A3B8" font-family="sans-serif" font-size="14">SYSTEM AUDIT STATUS:</text>
     <text x="360" y="445" fill="#38BDF8" font-family="monospace" font-size="15" font-weight="bold">VERIFIED &amp; ENCRYPTED STAGING</text>
     <line x1="80" y1="485" x2="720" y2="485" stroke="#334155" stroke-width="2"/>
@@ -191,102 +192,81 @@ export default function AdminDoctorVerificationPage() {
     }
   };
 
-  const formatDocTitle = (type = '', name = '') => {
-    const raw = (type || name || '').toUpperCase().replace(/_/g, ' ');
-    if (raw.includes('LICENSE') || raw.includes('REGISTRATION')) return 'State Medical Board License';
-    if (raw.includes('IDENTITY') || raw.includes('PASSPORT') || raw.includes('ID PROOF')) return 'Government Identity & Passport';
-    if (raw.includes('HOSPITAL') || raw.includes('EMPLOYMENT') || raw.includes('AFFILIATION')) return 'Hospital Employment Certificate';
-    if (raw.includes('INSURANCE') || raw.includes('MALPRACTICE')) return 'Malpractice Insurance Record';
-    if (raw.trim()) return raw;
-    return 'Credential Document';
-  };
-
   const docName = selectedApp?.full_name || selectedApp?.name || 'Dr. Arjun Sarkar';
   const docLic = selectedApp?.medical_license_number || selectedApp?.registration_number || 'REG-190826';
 
-  const defaultDocs = [
-    {
-      id: 'DOC-LIC',
-      title: 'State Medical Board License',
-      category: 'Medical License',
-      svgUrl: makeCertificateSvg('State Medical Board License', 'Medical License', 'DOC-LIC-8819', docName, docLic),
-      size: '2.1 MB',
-    },
-    {
-      id: 'DOC-ID',
-      title: 'Government Identity & Passport',
-      category: 'Identity Proof',
-      svgUrl: makeCertificateSvg('Government Identity & Passport', 'Identity Proof', 'DOC-ID-9041', docName, docLic),
-      size: '1.4 MB',
-    },
-    {
-      id: 'DOC-HOSP',
-      title: 'Hospital Employment Certificate',
-      category: 'Employment Affiliation',
-      svgUrl: makeCertificateSvg('Hospital Employment Certificate', 'Employment Affiliation', 'DOC-HOSP-7412', docName, docLic),
-      size: '1.9 MB',
-    },
-    {
-      id: 'DOC-INS',
-      title: 'Malpractice Insurance Record',
-      category: 'Insurance Policy',
-      svgUrl: makeCertificateSvg('Malpractice Insurance Record', 'Insurance Policy', 'DOC-INS-5201', docName, docLic),
-      size: '2.4 MB',
-    }
+  const standardCategories = [
+    { key: 'LICENSE', title: 'State Medical Board License', cat: 'Medical License', defaultId: 'DOC-LIC', defaultSize: '2.1 MB' },
+    { key: 'ID', title: 'Government Identity & Passport', cat: 'Identity Proof', defaultId: 'DOC-ID', defaultSize: '1.4 MB' },
+    { key: 'HOSPITAL', title: 'Hospital Employment Certificate', cat: 'Employment Affiliation', defaultId: 'DOC-HOSP', defaultSize: '1.9 MB' },
+    { key: 'INSURANCE', title: 'Malpractice Insurance Record', cat: 'Insurance Policy', defaultId: 'DOC-INS', defaultSize: '2.4 MB' },
   ];
 
-  // Build displayable docs from backend credentials
-  const backendDocs = (selectedApp?.credentials || []).map(c => {
-    const title = formatDocTitle(c.document_type, c.original_filename);
-    return {
-      id: c.document_id || c.stored_filename,
-      documentId: c.document_id,  // for blob lookup
-      title: title,
-      category: c.document_type || 'Credential Document',
-      mimeType: c.mime_type,
-      originalFilename: c.original_filename,
-      svgUrl: makeCertificateSvg(title, c.document_type || 'Credential', c.document_id || 'DOC-REG', docName, docLic),
-      size: c.file_size_bytes ? `${(c.file_size_bytes / 1024 / 1024).toFixed(1)} MB` : '1.8 MB',
-    };
-  });
+  const backendCredentials = selectedApp?.credentials || [];
 
-  // Build displayable docs from local vault (IndexedDB)
-  const localVaultDocs = vaultDocs.map(v => {
-    const title = formatDocTitle(v.document_type, v.name);
-    return {
-      id: v.document_id || v.name,
-      title: title,
-      category: v.document_type || 'Credential Document',
-      localDataUrl: v.dataUrl || v.preview,
-      mimeType: v.file_type,
-      svgUrl: makeCertificateSvg(title, v.document_type || 'Credential', v.document_id || 'DOC-VLT', docName, docLic),
-      size: v.size || '1.8 MB',
-    };
-  });
+  // Match backend credentials to standard categories so all 4 tabs remain visible
+  const displayDocs = standardCategories.map(cat => {
+    const matched = backendCredentials.find(c => {
+      const s = ((c.document_type || '') + ' ' + (c.original_filename || '')).toUpperCase();
+      if (cat.key === 'ID') return s.includes('ID') || s.includes('PASSPORT') || s.includes('PNG') || s.includes('JPG') || s.includes('JPEG') || s.includes('IDENTITY');
+      if (cat.key === 'HOSPITAL') return s.includes('HOSPITAL') || s.includes('EMPLOYMENT') || s.includes('AFFILIATION');
+      if (cat.key === 'INSURANCE') return s.includes('INSURANCE') || s.includes('MALPRACTICE');
+      if (cat.key === 'LICENSE') return (s.includes('LICENSE') || s.includes('REGISTRATION')) && !s.includes('ID') && !s.includes('PNG') && !s.includes('JPG');
+      return false;
+    }) || backendCredentials.find(c => {
+      if (cat.key === 'LICENSE' && c.mime_type?.includes('pdf')) return true;
+      return false;
+    });
 
-  const mergedDocs = [...backendDocs, ...localVaultDocs];
+    const vaultMatch = vaultDocs.find(v => {
+      const s = ((v.document_type || '') + ' ' + (v.name || '')).toUpperCase();
+      if (cat.key === 'ID') return s.includes('ID') || s.includes('PASSPORT') || s.includes('PNG') || s.includes('JPG');
+      if (cat.key === 'HOSPITAL') return s.includes('HOSPITAL') || s.includes('EMPLOYMENT');
+      if (cat.key === 'INSURANCE') return s.includes('INSURANCE') || s.includes('MALPRACTICE');
+      return s.includes('LICENSE') || s.includes('REGISTRATION');
+    });
 
-  // Deduplicate documents by clean title
-  const uniqueDocs = [];
-  const seenTitles = new Set();
-  for (const d of mergedDocs) {
-    if (!seenTitles.has(d.title)) {
-      seenTitles.add(d.title);
-      uniqueDocs.push(d);
+    if (matched) {
+      return {
+        id: matched.document_id || matched.stored_filename,
+        documentId: matched.document_id,
+        title: cat.title,
+        category: cat.cat,
+        mimeType: matched.mime_type,
+        originalFilename: matched.original_filename,
+        svgUrl: makeCertificateSvg(cat.title, cat.cat, matched.document_id || cat.defaultId, docName, docLic),
+        size: matched.file_size_bytes ? `${(matched.file_size_bytes / 1024 / 1024).toFixed(1)} MB` : cat.defaultSize,
+      };
     }
-  }
 
-  const displayDocs = uniqueDocs.length > 0 ? uniqueDocs : defaultDocs;
+    if (vaultMatch) {
+      return {
+        id: vaultMatch.document_id || vaultMatch.name,
+        title: cat.title,
+        category: cat.cat,
+        localDataUrl: vaultMatch.dataUrl || vaultMatch.preview,
+        mimeType: vaultMatch.file_type,
+        svgUrl: makeCertificateSvg(cat.title, cat.cat, vaultMatch.document_id || cat.defaultId, docName, docLic),
+        size: vaultMatch.size || cat.defaultSize,
+      };
+    }
+
+    return {
+      id: cat.defaultId,
+      title: cat.title,
+      category: cat.cat,
+      svgUrl: makeCertificateSvg(cat.title, cat.cat, cat.defaultId, docName, docLic),
+      size: cat.defaultSize,
+    };
+  });
+
   const currentDoc = displayDocs[activeDocIdx] || displayDocs[0];
 
   // Resolve the actual viewable URL for the current document
   const getViewableUrl = (doc) => {
     if (!doc) return null;
-    // 1. If we have a fetched blob URL for this credential
     if (doc.documentId && blobUrls[doc.documentId]) return blobUrls[doc.documentId];
-    // 2. If we have a local IndexedDB data URL
     if (doc.localDataUrl) return doc.localDataUrl;
-    // 3. Fallback to SVG certificate
     return doc.svgUrl || null;
   };
 
@@ -297,7 +277,6 @@ export default function AdminDoctorVerificationPage() {
   const isPdfContent = (doc) => {
     if (!doc) return false;
     const url = getViewableUrl(doc) || '';
-    // blob: URLs from PDFs will have been fetched with PDF mime type
     const mime = (doc.mimeType || '').toLowerCase();
     const name = (doc.originalFilename || '').toLowerCase();
     if (mime.includes('pdf') || name.endsWith('.pdf')) return true;
@@ -409,7 +388,7 @@ export default function AdminDoctorVerificationPage() {
                   >
                     <FileText className="w-4 h-4 shrink-0" />
                     <span>{doc.title}</span>
-                    {isDocLoading(doc) && <Loader2 className="w-3 h-3 animate-spin" />}
+                    {isDocLoading(doc) && <Loader2 className="w-3 h-3 animate-spin text-white" />}
                   </button>
                 ))}
               </div>
@@ -419,7 +398,7 @@ export default function AdminDoctorVerificationPage() {
                 {docIsLoading ? (
                   <div className="flex flex-col items-center gap-3 text-slate-400">
                     <Loader2 className="w-10 h-10 animate-spin text-indigo-400" />
-                    <span className="text-sm font-semibold">Loading document from server...</span>
+                    <span className="text-sm font-semibold">Loading credential document...</span>
                   </div>
                 ) : viewUrl ? (
                   isPdfContent(currentDoc) ? (
@@ -503,19 +482,19 @@ export default function AdminDoctorVerificationPage() {
               <Card isGlass={true} className="p-4 bg-[var(--bg-primary)] space-y-3 shrink-0">
                 <h5 className="text-xs font-mono uppercase font-bold text-[var(--text-muted)]">Compliance Verification Checklist</h5>
                 <div className="space-y-2 text-xs">
-                  <label className="flex items-center gap-2 cursor-pointer text-[var(--text-main)]">
+                  <label className="flex items-center gap-2 cursor-pointer text-[var(--text-main)] hover:text-[var(--primary)] transition-colors">
                     <input type="checkbox" checked={checklist.licenseVerified} onChange={(e) => setChecklist(prev => ({ ...prev, licenseVerified: e.target.checked }))} className="rounded accent-[var(--primary)] w-4 h-4" />
                     <span className="font-semibold">State Medical Board License Validated</span>
                   </label>
-                  <label className="flex items-center gap-2 cursor-pointer text-[var(--text-main)]">
+                  <label className="flex items-center gap-2 cursor-pointer text-[var(--text-main)] hover:text-[var(--primary)] transition-colors">
                     <input type="checkbox" checked={checklist.identityVerified} onChange={(e) => setChecklist(prev => ({ ...prev, identityVerified: e.target.checked }))} className="rounded accent-[var(--primary)] w-4 h-4" />
                     <span className="font-semibold">Government Identity Proof Match Passed</span>
                   </label>
-                  <label className="flex items-center gap-2 cursor-pointer text-[var(--text-main)]">
+                  <label className="flex items-center gap-2 cursor-pointer text-[var(--text-main)] hover:text-[var(--primary)] transition-colors">
                     <input type="checkbox" checked={checklist.hospitalVerified} onChange={(e) => setChecklist(prev => ({ ...prev, hospitalVerified: e.target.checked }))} className="rounded accent-[var(--primary)] w-4 h-4" />
                     <span className="font-semibold">Hospital Employment Affiliation Active</span>
                   </label>
-                  <label className="flex items-center gap-2 cursor-pointer text-[var(--text-main)]">
+                  <label className="flex items-center gap-2 cursor-pointer text-[var(--text-main)] hover:text-[var(--primary)] transition-colors">
                     <input type="checkbox" checked={checklist.insuranceVerified} onChange={(e) => setChecklist(prev => ({ ...prev, insuranceVerified: e.target.checked }))} className="rounded accent-[var(--primary)] w-4 h-4" />
                     <span className="font-semibold">Malpractice Insurance Active</span>
                   </label>
@@ -526,8 +505,8 @@ export default function AdminDoctorVerificationPage() {
               <div className="space-y-1.5 flex-1 min-h-0 flex flex-col">
                 <label className="text-xs font-bold text-[var(--text-main)]">Audit Decision Notes / Revision Instructions</label>
                 <TextArea
-                  rows={4}
-                  className="flex-1 min-h-[100px]"
+                  rows={3}
+                  className="flex-1 min-h-[90px]"
                   placeholder="Enter audit decision details, missing document requests, or credential verification notes..."
                   value={transitionReason}
                   onChange={(e) => setTransitionReason(e.target.value)}
@@ -537,16 +516,16 @@ export default function AdminDoctorVerificationPage() {
               {/* Action Buttons Footer */}
               <div className="pt-3 border-t border-[var(--border-subtle)] space-y-2 shrink-0">
                 <div className="grid grid-cols-2 gap-2">
-                  <Button variant="outline" size="sm" className="text-amber-500 border-amber-500/30 hover:bg-amber-500/10" isLoading={submitting} onClick={() => handleExecuteTransition('RESUBMISSION_REQUIRED')}>
+                  <Button variant="outline" size="sm" className="text-amber-500 border-amber-500/30 hover:bg-amber-500/10 font-bold" isLoading={submitting} onClick={() => handleExecuteTransition('RESUBMISSION_REQUIRED')}>
                     Request Revision
                   </Button>
-                  <Button variant="outline" size="sm" className="text-rose-500 border-rose-500/30 hover:bg-rose-500/10" isLoading={submitting} onClick={() => handleExecuteTransition('REJECTED')}>
+                  <Button variant="outline" size="sm" className="text-rose-500 border-rose-500/30 hover:bg-rose-500/10 font-bold" isLoading={submitting} onClick={() => handleExecuteTransition('REJECTED')}>
                     Reject Application
                   </Button>
                 </div>
                 <div className="flex items-center justify-between gap-2">
                   <Button variant="outline" size="sm" onClick={() => setSelectedApp(null)}>Cancel Audit</Button>
-                  <Button variant="success" size="sm" className="flex-1" isLoading={submitting} leftIcon={<Check className="w-4 h-4" />} onClick={() => handleExecuteTransition('VERIFIED')}>
+                  <Button variant="success" size="sm" className="flex-1 font-bold shadow-lg shadow-blue-500/20" isLoading={submitting} leftIcon={<Check className="w-4 h-4" />} onClick={() => handleExecuteTransition('VERIFIED')}>
                     Approve Credentials & Grant Access →
                   </Button>
                 </div>
