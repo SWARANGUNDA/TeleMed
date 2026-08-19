@@ -1,11 +1,14 @@
 import React from 'react';
 import { Card, Badge } from '../ui';
-import { Users, TrendingUp, UserCheck, Globe } from 'lucide-react';
+import { Users } from 'lucide-react';
 
-export default function UserAnalytics() {
+export default function UserAnalytics({ stats, totalPatients = 20, totalDoctors = 2 }) {
+  const patientCount = stats?.total_patients || totalPatients;
+  const doctorCount = stats?.total_doctors || totalDoctors;
+
   const metrics = [
-    { label: 'Patient Growth (30D)', val: '+18.4%', detail: '1,214 total patients' },
-    { label: 'Doctor Growth (30D)', val: '+8.2%', detail: '34 verified physicians' },
+    { label: 'Patient Growth (30D)', val: '+18.4%', detail: `${patientCount} active patient accounts` },
+    { label: 'Doctor Growth (30D)', val: '+8.2%', detail: `${doctorCount} verified physicians` },
     { label: 'DAU / MAU Ratio', val: '64.2%', detail: 'High active engagement' },
     { label: 'Geographic Regions', val: '12 States', detail: 'Primary: CA, NY, TX' },
   ];

@@ -209,7 +209,7 @@ export default function AdminDashboardPage({ onNavigate }) {
             {/* Center Column (5 cols) — Platform Analytics & User Analytics */}
             <div className="lg:col-span-5 space-y-6">
               <PlatformAnalytics />
-              <UserAnalytics />
+              <UserAnalytics stats={stats} totalPatients={stats?.total_patients || 20} totalDoctors={activeDocCount} />
               <CompliancePanel />
             </div>
 
