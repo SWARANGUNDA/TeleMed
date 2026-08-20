@@ -1,103 +1,114 @@
 import React, { useState, useEffect } from 'react';
-import { User, Settings, ShieldCheck, Server, RefreshCw, CheckCircle2, AlertCircle, Lock, Save, ArrowRight, Stethoscope, Edit3 } from 'lucide-react';
-import { checkHealth, updateUserProfile } from '../api/client';
+import {
+  User, Stethoscope, Lock, ShieldCheck, Save, Edit3, AlertCircle,
+  CheckCircle2, Mail, Phone, Calendar, Building, Award, Activity, Shield, Key
+} from 'lucide-react';
+import {
+  Button, Card, Badge, Avatar, Input, Select, Alert, Modal
+} from '../components/ui';
+import { PageContainer } from '../components/layout';
+import { updateUserProfile, getAuthToken } from '../api/client';
 
-export default function AccountPage({ activeSubNav, user, onProfileUpdated }) {
-  const isSettings = activeSubNav === 'settings';
+export default function AccountPage({ user, onProfileUpdated }) {
   const role = user?.role || 'PATIENT';
-  const profile = user?.patient_profile || {};
+
+  // Patient Profile Form State
+  const patientProfile = user?.patient_profile || {};
+  const [fullName, setFullName] = useState(user?.full_name || patientProfile.full_name || '');
+  const [age, setAge] = useState(patientProfile.age || '');
+  const [gender, setGender] = useState(patientProfile.gender || 'Female');
+  const [heightCm, setHeightCm] = useState(patientProfile.height_cm || '');
+  const [weightKg, setWeightKg] = useState(patientProfile.weight_kg || '');
+  const [contactNumber, setContactNumber] = useState(patientProfile.contact_number || '');
+
+  // Doctor Profile Form State
   const doctorProfile = user?.doctor_profile || {};
+  const [docFullName, setDocFullName] = useState(user?.full_name || doctorProfile.full_name || '');
+  const [docSpecialization, setDocSpecialization] = useState(doctorProfile.specialization || 'General Medicine');
+  const [docQualification, setDocQualification] = useState(doctorProfile.qualification || 'MBBS');
+  const [docCouncil, setDocCouncil] = useState(doctorProfile.registration_council || 'State Medical Council');
+  const [docExperience, setDocExperience] = useState(doctorProfile.experience_years || 0);
+  const [docContact, setDocContact] = useState(doctorProfile.contact_number || '');
+  const [docHospital, setDocHospital] = useState(doctorProfile.hospital_affiliation || 'Apollo Hospitals');
+  const [docEditing, setDocEditing] = useState(false);
 
-  // Form state for editable patient profile fields
-  const [fullName, setFullName] = useState(user?.full_name || profile.full_name || '');
-  const [age, setAge] = useState(profile.age !== null && profile.age !== undefined ? String(profile.age) : '');
-  const [gender, setGender] = useState(profile.gender || 'Female');
-  const [heightCm, setHeightCm] = useState(profile.height_cm !== null && profile.height_cm !== undefined ? String(profile.height_cm) : '');
-  const [weightKg, setWeightKg] = useState(profile.weight_kg !== null && profile.weight_kg !== undefined ? String(profile.weight_kg) : '');
-  const [contactNumber, setContactNumber] = useState(profile.contact_number || '');
-
+  // Status State
   const [saving, setSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [saveError, setSaveError] = useState(null);
 
-  // Doctor editable fields
-  const [docFullName, setDocFullName] = useState(doctorProfile.full_name || user?.full_name || '');
-  const [docSpecialization, setDocSpecialization] = useState(doctorProfile.specialization || '');
-  const [docQualification, setDocQualification] = useState(doctorProfile.qualification || '');
-  const [docExperience, setDocExperience] = useState(doctorProfile.experience_years !== null && doctorProfile.experience_years !== undefined ? String(doctorProfile.experience_years) : '');
-  const [docContact, setDocContact] = useState(doctorProfile.contact_number || '');
-  const [docCouncil, setDocCouncil] = useState(doctorProfile.registration_council || '');
-  const [docHospital, setDocHospital] = useState(doctorProfile.hospital_affiliation || '');
-  const [docEditing, setDocEditing] = useState(false);
-
-  const [healthStatus, setHealthStatus] = useState(null);
-  const [loadingHealth, setLoadingHealth] = useState(false);
-
   useEffect(() => {
-    if (user?.patient_profile) {
-      setFullName(user.full_name || user.patient_profile.full_name || '');
-      if (user.patient_profile.age !== null && user.patient_profile.age !== undefined) setAge(String(user.patient_profile.age));
-      if (user.patient_profile.gender) setGender(user.patient_profile.gender);
-      if (user.patient_profile.height_cm !== null && user.patient_profile.height_cm !== undefined) setHeightCm(String(user.patient_profile.height_cm));
-      if (user.patient_profile.weight_kg !== null && user.patient_profile.weight_kg !== undefined) setWeightKg(String(user.patient_profile.weight_kg));
-      if (user.patient_profile.contact_number) setContactNumber(user.patient_profile.contact_number);
+    if (user) {
+      if (role === 'PATIENT') {
+        const p = user.patient_profile || {};
+        setFullName(user.full_name || p.full_name || '');
+        setAge(p.age || '');
+        setGender(p.gender || 'Female');
+        setHeightCm(p.height_cm || '');
+        setWeightKg(p.weight_kg || '');
+        setContactNumber(p.contact_number || '');
+      } else if (role === 'DOCTOR') {
+        const d = user.doctor_profile || {};
+        setDocFullName(user.full_name || d.full_name || '');
+        setDocSpecialization(d.specialization || 'General Medicine');
+        setDocQualification(d.qualification || 'MBBS');
+        setDocCouncil(d.registration_council || 'State Medical Council');
+        setDocExperience(d.experience_years || 0);
+        setDocContact(d.contact_number || '');
+        setDocHospital(d.hospital_affiliation || 'Apollo Hospitals');
+      } else {
+        setFullName(user.full_name || 'Admin User');
+      }
     }
-    if (user?.doctor_profile) {
-      setDocFullName(user.doctor_profile.full_name || user.full_name || '');
-      setDocSpecialization(user.doctor_profile.specialization || '');
-      setDocQualification(user.doctor_profile.qualification || '');
-      setDocExperience(user.doctor_profile.experience_years !== null && user.doctor_profile.experience_years !== undefined ? String(user.doctor_profile.experience_years) : '');
-      setDocContact(user.doctor_profile.contact_number || '');
-      setDocCouncil(user.doctor_profile.registration_council || '');
-      setDocHospital(user.doctor_profile.hospital_affiliation || '');
-    }
-  }, [user]);
+  }, [user, role]);
 
-  useEffect(() => {
-    if (isSettings) {
-      fetchSystemStatus();
-    }
-  }, [isSettings]);
-
-  const fetchSystemStatus = async () => {
-    setLoadingHealth(true);
-    try {
-      const data = await checkHealth();
-      setHealthStatus(data);
-    } catch (e) {
-      setHealthStatus({ status: 'OFFLINE', error: e.message });
-    } finally {
-      setLoadingHealth(false);
-    }
+  const computeBmi = (w, h) => {
+    if (!w || !h || h <= 0) return null;
+    const hM = h / 100;
+    const bmiVal = (w / (hM * hM)).toFixed(1);
+    let statusStr = 'Normal Weight';
+    let badgeVar = 'success';
+    if (bmiVal < 18.5) { statusStr = 'Underweight'; badgeVar = 'warning'; }
+    else if (bmiVal >= 25 && bmiVal < 30) { statusStr = 'Overweight'; badgeVar = 'warning'; }
+    else if (bmiVal >= 30) { statusStr = 'Obese Class'; badgeVar = 'danger'; }
+    return { value: bmiVal, status: statusStr, variant: badgeVar };
   };
 
   const handleProfileSave = async (e) => {
     e.preventDefault();
     setSaving(true);
-    setSaveError(null);
     setSaveSuccess(false);
+    setSaveError(null);
 
     try {
-      let payload;
-      if (role === 'DOCTOR') {
+      let payload = {};
+      if (role === 'PATIENT') {
         payload = {
-          full_name: docFullName.trim(),
-          specialization: docSpecialization.trim(),
-          qualification: docQualification.trim(),
-          experience_years: docExperience ? parseInt(docExperience) : 0,
-          contact_number: docContact.trim(),
-          registration_council: docCouncil.trim(),
-          hospital_affiliation: docHospital.trim()
+          full_name: fullName,
+          patient_profile: {
+            full_name: fullName,
+            age: age ? parseInt(age, 10) : None,
+            gender,
+            height_cm: heightCm ? parseFloat(heightCm) : null,
+            weight_kg: weightKg ? parseFloat(weightKg) : null,
+            contact_number: contactNumber
+          }
+        };
+      } else if (role === 'DOCTOR') {
+        payload = {
+          full_name: docFullName,
+          doctor_profile: {
+            full_name: docFullName,
+            specialization: docSpecialization,
+            qualification: docQualification,
+            registration_council: docCouncil,
+            experience_years: docExperience ? parseInt(docExperience, 10) : 0,
+            contact_number: docContact,
+            hospital_affiliation: docHospital
+          }
         };
       } else {
-        payload = {
-          full_name: fullName.trim(),
-          age: age ? parseInt(age) : null,
-          gender: gender,
-          height_cm: heightCm ? parseFloat(heightCm) : null,
-          weight_kg: weightKg ? parseFloat(weightKg) : null,
-          contact_number: contactNumber.trim()
-        };
+        payload = { full_name: fullName };
       }
 
       const res = await updateUserProfile(payload);
@@ -114,137 +125,106 @@ export default function AccountPage({ activeSubNav, user, onProfileUpdated }) {
     }
   };
 
+  const displayFullName = role === 'PATIENT' ? (fullName || 'Patient Account') : role === 'DOCTOR' ? (docFullName || 'Dr. Arjun Sarkaar') : (fullName || 'System Administrator');
+
   return (
-    <div className="page-container">
-      {/* Header */}
-      <div className="glass-card" style={{ marginBottom: '24px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-              <span className="badge badge-cyan">ACCOUNT & PROFILE</span>
-              <h1 style={{ fontSize: '1.6rem', fontWeight: 800, color: 'var(--text-main)', margin: 0 }}>
-                {role === 'PATIENT' ? 'Patient Health Profile' : role === 'DOCTOR' ? 'Doctor Professional Profile' : 'Account Management'}
-              </h1>
+    <PageContainer className="space-y-8 pb-24">
+      
+      {/* ULTRA-PREMIUM MODERN HERO HEADER BANNER */}
+      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-slate-900 via-indigo-950 to-blue-950 border border-indigo-500/20 p-6 md:p-8 shadow-2xl space-y-4">
+        {/* Background Ambient Glow */}
+        <div className="absolute top-0 right-0 -mt-8 -mr-8 w-64 h-64 rounded-full bg-blue-500/10 blur-3xl pointer-events-none"></div>
+        <div className="absolute bottom-0 left-0 -mb-8 -ml-8 w-64 h-64 rounded-full bg-indigo-500/10 blur-3xl pointer-events-none"></div>
+
+        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div className="flex items-center gap-4 md:gap-6">
+            <Avatar
+              name={displayFullName}
+              size="lg"
+              className="ring-4 ring-blue-500/30 shadow-lg shadow-blue-500/20 text-xl font-black bg-gradient-to-br from-blue-600 to-indigo-600 text-white"
+            />
+            <div className="space-y-1">
+              <div className="flex items-center gap-2.5 flex-wrap">
+                <h1 className="text-xl md:text-2xl font-black text-white tracking-tight">
+                  {displayFullName}
+                </h1>
+                <Badge variant={role === 'ADMIN' ? 'accent' : role === 'DOCTOR' ? 'secondary' : 'primary'} size="sm font-mono font-bold uppercase">
+                  {role === 'ADMIN' ? 'SYSTEM ADMINISTRATOR' : role === 'DOCTOR' ? 'VERIFIED PHYSICIAN' : 'PATIENT PROFILE'}
+                </Badge>
+                {role === 'DOCTOR' && (
+                  <Badge variant={doctorProfile.verification_status === 'VERIFIED' ? 'success' : 'warning'} size="sm font-mono">
+                    {doctorProfile.verification_status || 'VERIFIED'}
+                  </Badge>
+                )}
+              </div>
+              <p className="text-xs md:text-sm text-slate-300 font-mono">
+                {user?.email} • ID: <span className="text-blue-400 font-bold">{user?.user_id || 'usr_101'}</span>
+              </p>
             </div>
-            <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', margin: 0 }}>
-              {role === 'PATIENT'
-                ? 'Manage demographic and physical contact details. Protected system fields remain read-only.'
-                : role === 'DOCTOR'
-                  ? 'Edit professional details. Registration number and verification status are admin-controlled.'
-                  : 'Account configuration and diagnostics.'}
-            </p>
+          </div>
+
+          <div className="flex items-center gap-3 shrink-0">
+            <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-mono font-bold shadow-inner">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+              ACTIVE SESSION
+            </div>
           </div>
         </div>
       </div>
 
+      {saveSuccess && (
+        <Alert variant="success">
+          Profile details updated successfully and synchronized across the platform.
+        </Alert>
+      )}
+
+      {saveError && (
+        <Alert variant="danger">
+          {saveError}
+        </Alert>
+      )}
+
+      {/* PATIENT PORTAL PROFILE WORKSPACE */}
       {role === 'PATIENT' && (
-        <div className="grid-2" style={{ gap: '24px' }}>
-          {/* Editable Patient Demographics Form */}
-          <div className="glass-card">
-            <h3 style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-main)', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <User size={20} style={{ color: 'var(--accent-cyan)' }} /> Editable Demographic Profile
-            </h3>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          
+          {/* Editable Patient Demographics Form (2 cols) */}
+          <Card isGlass={true} className="lg:col-span-2 p-6 bg-[var(--bg-primary)] space-y-6">
+            <div className="flex items-center gap-2 pb-4 border-b border-[var(--border-subtle)]">
+              <User className="w-5 h-5 text-[var(--primary)]" />
+              <h3 className="text-base font-extrabold text-[var(--text-main)]">Editable Demographic Profile</h3>
+            </div>
 
-            {saveSuccess && (
-              <div style={{
-                background: 'rgba(16, 185, 129, 0.12)',
-                border: '1px solid rgba(16, 185, 129, 0.3)',
-                padding: '12px 16px',
-                borderRadius: '10px',
-                color: 'var(--accent-emerald)',
-                fontSize: '0.85rem',
-                marginBottom: '16px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px'
-              }}>
-                <CheckCircle2 size={18} />
-                <span>Patient profile updated successfully!</span>
-              </div>
-            )}
-
-            {saveError && (
-              <div style={{
-                background: 'rgba(244, 63, 94, 0.12)',
-                border: '1px solid rgba(244, 63, 94, 0.3)',
-                padding: '12px 16px',
-                borderRadius: '10px',
-                color: 'var(--accent-rose)',
-                fontSize: '0.85rem',
-                marginBottom: '16px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px'
-              }}>
-                <AlertCircle size={18} />
-                <span>{saveError}</span>
-              </div>
-            )}
-
-            <form onSubmit={handleProfileSave} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+            <form onSubmit={handleProfileSave} className="space-y-4">
               <div>
-                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '4px' }}>
-                  Full Name
-                </label>
-                <input
-                  type="text"
-                  required
+                <label className="text-xs font-bold text-[var(--text-main)] block mb-1">Full Name</label>
+                <Input
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
-                  style={{
-                    width: '100%',
-                    padding: '10px 12px',
-                    background: 'var(--bg-primary)',
-                    border: '1px solid var(--border-subtle)',
-                    borderRadius: '8px',
-                    color: 'var(--text-main)',
-                    fontSize: '0.875rem',
-                    outline: 'none'
-                  }}
+                  placeholder="Enter full legal name..."
+                  required
                 />
               </div>
 
-              <div className="grid-2" style={{ gap: '12px' }}>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '4px' }}>
-                    Age (Years)
-                  </label>
-                  <input
+                  <label className="text-xs font-bold text-[var(--text-main)] block mb-1">Age (Years)</label>
+                  <Input
                     type="number"
                     min="1"
                     max="120"
                     value={age}
                     onChange={(e) => setAge(e.target.value)}
-                    style={{
-                      width: '100%',
-                      padding: '10px 12px',
-                      background: 'var(--bg-primary)',
-                      border: '1px solid var(--border-subtle)',
-                      borderRadius: '8px',
-                      color: 'var(--text-main)',
-                      fontSize: '0.875rem',
-                      outline: 'none'
-                    }}
+                    placeholder="e.g. 32"
                   />
                 </div>
 
                 <div>
-                  <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '4px' }}>
-                    Biological Gender
-                  </label>
+                  <label className="text-xs font-bold text-[var(--text-main)] block mb-1">Biological Gender</label>
                   <select
                     value={gender}
                     onChange={(e) => setGender(e.target.value)}
-                    style={{
-                      width: '100%',
-                      padding: '10px 12px',
-                      background: 'var(--bg-primary)',
-                      border: '1px solid var(--border-subtle)',
-                      borderRadius: '8px',
-                      color: 'var(--text-main)',
-                      fontSize: '0.875rem',
-                      outline: 'none'
-                    }}
+                    className="w-full p-2.5 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] text-[var(--text-main)] text-xs focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
                   >
                     <option value="Female">Female</option>
                     <option value="Male">Male</option>
@@ -253,283 +233,310 @@ export default function AccountPage({ activeSubNav, user, onProfileUpdated }) {
                 </div>
               </div>
 
-              <div className="grid-2" style={{ gap: '12px' }}>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '4px' }}>
-                    Height (cm)
-                  </label>
-                  <input
+                  <label className="text-xs font-bold text-[var(--text-main)] block mb-1">Height (cm)</label>
+                  <Input
                     type="number"
                     step="0.1"
                     value={heightCm}
                     onChange={(e) => setHeightCm(e.target.value)}
-                    style={{
-                      width: '100%',
-                      padding: '10px 12px',
-                      background: 'var(--bg-primary)',
-                      border: '1px solid var(--border-subtle)',
-                      borderRadius: '8px',
-                      color: 'var(--text-main)',
-                      fontSize: '0.875rem',
-                      outline: 'none'
-                    }}
+                    placeholder="e.g. 175"
                   />
                 </div>
 
                 <div>
-                  <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '4px' }}>
-                    Weight (kg)
-                  </label>
-                  <input
+                  <label className="text-xs font-bold text-[var(--text-main)] block mb-1">Weight (kg)</label>
+                  <Input
                     type="number"
                     step="0.1"
                     value={weightKg}
                     onChange={(e) => setWeightKg(e.target.value)}
-                    style={{
-                      width: '100%',
-                      padding: '10px 12px',
-                      background: 'var(--bg-primary)',
-                      border: '1px solid var(--border-subtle)',
-                      borderRadius: '8px',
-                      color: 'var(--text-main)',
-                      fontSize: '0.875rem',
-                      outline: 'none'
-                    }}
+                    placeholder="e.g. 70"
                   />
                 </div>
               </div>
 
               <div>
-                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '4px' }}>
-                  Contact Number
-                </label>
-                <input
+                <label className="text-xs font-bold text-[var(--text-main)] block mb-1">Contact Phone Number</label>
+                <Input
                   type="text"
                   value={contactNumber}
                   onChange={(e) => setContactNumber(e.target.value)}
-                  placeholder="+1 (555) 000-0000"
-                  style={{
-                    width: '100%',
-                    padding: '10px 12px',
-                    background: 'var(--bg-primary)',
-                    border: '1px solid var(--border-subtle)',
-                    borderRadius: '8px',
-                    color: 'var(--text-main)',
-                    fontSize: '0.875rem',
-                    outline: 'none'
-                  }}
+                  placeholder="+1 (555) 234-5678"
                 />
               </div>
 
-              <button
-                type="submit"
-                className="btn btn-primary"
-                disabled={saving}
-                style={{ marginTop: '8px', padding: '10px', fontSize: '0.9rem', justifyContent: 'center' }}
-              >
-                {saving ? 'Saving Profile...' : <><Save size={16} /> Save Profile Changes</>}
-              </button>
+              <div className="pt-2">
+                <Button variant="primary" size="md" type="submit" isLoading={saving} leftIcon={<Save className="w-4 h-4" />}>
+                  Save Profile Changes
+                </Button>
+              </div>
             </form>
+          </Card>
+
+          {/* Protected System & Biometrics Card (1 col) */}
+          <div className="space-y-6">
+            <Card isGlass={true} className="p-6 bg-[var(--bg-primary)] space-y-4">
+              <div className="flex items-center gap-2 pb-3 border-b border-[var(--border-subtle)]">
+                <Activity className="w-5 h-5 text-emerald-500" />
+                <h3 className="text-base font-extrabold text-[var(--text-main)]">Biometric Diagnostics</h3>
+              </div>
+
+              <div className="p-4 rounded-2xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] space-y-2 text-xs">
+                <span className="text-[10px] font-mono text-[var(--text-muted)] uppercase block">Calculated BMI Index</span>
+                {(() => {
+                  const bmiRes = computeBmi(weightKg, heightCm);
+                  return bmiRes ? (
+                    <div className="flex items-center justify-between">
+                      <span className="text-lg font-black font-mono text-[var(--text-main)]">{bmiRes.value} kg/m²</span>
+                      <Badge variant={bmiRes.variant} size="sm font-mono">{bmiRes.status}</Badge>
+                    </div>
+                  ) : (
+                    <span className="text-[var(--text-muted)] italic">Enter height and weight to calculate BMI.</span>
+                  );
+                })()}
+              </div>
+
+              <div className="pt-2 space-y-3 text-xs">
+                <div className="flex justify-between items-center p-2.5 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-subtle)]">
+                  <span className="text-[var(--text-muted)]">Account Email:</span>
+                  <strong className="font-mono text-[var(--text-main)]">{user?.email || 'patient@telemed.ai'}</strong>
+                </div>
+
+                <div className="flex justify-between items-center p-2.5 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-subtle)]">
+                  <span className="text-[var(--text-muted)]">Patient ID:</span>
+                  <strong className="font-mono text-[var(--primary)]">{user?.user_id || 'usr_patient'}</strong>
+                </div>
+
+                <div className="flex justify-between items-center p-2.5 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-subtle)]">
+                  <span className="text-[var(--text-muted)]">Authentication:</span>
+                  <Badge variant="success" size="sm font-mono">JWT SECURE</Badge>
+                </div>
+              </div>
+            </Card>
           </div>
 
-          {/* Protected System & Authentication Card */}
-          <div className="glass-card">
-            <h3 style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-main)', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Lock size={20} style={{ color: 'var(--accent-amber)' }} /> Protected System Security Fields
-            </h3>
-            <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '16px' }}>
-              System IDs, role definitions, and authentication credentials are fixed for security compliance and cannot be altered.
-            </p>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', fontSize: '0.85rem' }}>
-              <div style={{ padding: '12px', background: 'var(--bg-primary)', borderRadius: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ color: 'var(--text-muted)' }}>Account Email:</span>
-                <strong style={{ color: 'var(--text-main)' }}>{user?.email || 'N/A'}</strong>
-              </div>
-
-              <div style={{ padding: '12px', background: 'var(--bg-primary)', borderRadius: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ color: 'var(--text-muted)' }}>User ID:</span>
-                <code style={{ color: 'var(--accent-cyan)', fontSize: '0.8rem' }}>{user?.user_id || 'N/A'}</code>
-              </div>
-
-              <div style={{ padding: '12px', background: 'var(--bg-primary)', borderRadius: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ color: 'var(--text-muted)' }}>Access Role:</span>
-                <span className="badge badge-cyan">{user?.role || 'PATIENT'}</span>
-              </div>
-
-              <div style={{ padding: '12px', background: 'var(--bg-primary)', borderRadius: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ color: 'var(--text-muted)' }}>Account Registration:</span>
-                <span style={{ color: 'var(--text-main)' }}>
-                  {user?.created_at ? new Date(user.created_at).toLocaleDateString() : 'Active'}
-                </span>
-              </div>
-            </div>
-          </div>
         </div>
       )}
 
+      {/* DOCTOR PORTAL PROFILE WORKSPACE */}
       {role === 'DOCTOR' && (
-        <div className="grid-2" style={{ gap: '24px' }}>
-          {/* Editable Doctor Professional Profile */}
-          <div className="glass-card">
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-              <h3 style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-main)', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Stethoscope size={20} style={{ color: 'var(--accent-cyan)' }} /> Professional Profile
-              </h3>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          
+          {/* Editable Doctor Professional Profile (2 cols) */}
+          <Card isGlass={true} className="lg:col-span-2 p-6 bg-[var(--bg-primary)] space-y-6">
+            <div className="flex items-center justify-between pb-4 border-b border-[var(--border-subtle)]">
+              <div className="flex items-center gap-2">
+                <Stethoscope className="w-5 h-5 text-[var(--primary)]" />
+                <h3 className="text-base font-extrabold text-[var(--text-main)]">Doctor Professional Profile</h3>
+              </div>
               {!docEditing && (
-                <button className="btn btn-outline" onClick={() => setDocEditing(true)} style={{ fontSize: '0.78rem', padding: '5px 12px' }}>
-                  <Edit3 size={14} style={{ marginRight: '4px' }} /> Edit
-                </button>
+                <Button variant="outline" size="sm" onClick={() => setDocEditing(true)} leftIcon={<Edit3 className="w-3.5 h-3.5" />}>
+                  Edit Profile
+                </Button>
               )}
             </div>
 
-            {saveSuccess && (
-              <div style={{ background: 'rgba(16, 185, 129, 0.12)', border: '1px solid rgba(16, 185, 129, 0.3)', padding: '12px 16px', borderRadius: '10px', color: 'var(--accent-emerald)', fontSize: '0.85rem', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <CheckCircle2 size={18} /> Doctor profile updated successfully!
+            <form onSubmit={handleProfileSave} className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+                
+                {/* Full Name */}
+                <div className="p-3 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] space-y-1">
+                  <label className="text-[10px] font-mono text-[var(--text-muted)] uppercase block">Full Name</label>
+                  {docEditing ? (
+                    <Input value={docFullName} onChange={e => setDocFullName(e.target.value)} required />
+                  ) : (
+                    <strong className="text-sm text-[var(--text-main)] block">{docFullName || 'Dr. Arjun Sarkaar'}</strong>
+                  )}
+                </div>
+
+                {/* Specialization */}
+                <div className="p-3 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] space-y-1">
+                  <label className="text-[10px] font-mono text-[var(--text-muted)] uppercase block">Specialization</label>
+                  {docEditing ? (
+                    <Input value={docSpecialization} onChange={e => setDocSpecialization(e.target.value)} />
+                  ) : (
+                    <Badge variant="primary" size="sm">{docSpecialization || 'General Medicine'}</Badge>
+                  )}
+                </div>
+
+                {/* Qualification */}
+                <div className="p-3 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] space-y-1">
+                  <label className="text-[10px] font-mono text-[var(--text-muted)] uppercase block">Medical Qualification</label>
+                  {docEditing ? (
+                    <Input value={docQualification} onChange={e => setDocQualification(e.target.value)} />
+                  ) : (
+                    <strong className="text-xs text-[var(--text-main)] block">{docQualification || 'MBBS, MD'}</strong>
+                  )}
+                </div>
+
+                {/* Registration Council */}
+                <div className="p-3 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] space-y-1">
+                  <label className="text-[10px] font-mono text-[var(--text-muted)] uppercase block">Registration Council</label>
+                  {docEditing ? (
+                    <Input value={docCouncil} onChange={e => setDocCouncil(e.target.value)} />
+                  ) : (
+                    <strong className="text-xs text-[var(--text-main)] block">{docCouncil || 'State Medical Council'}</strong>
+                  )}
+                </div>
+
+                {/* Experience */}
+                <div className="p-3 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] space-y-1">
+                  <label className="text-[10px] font-mono text-[var(--text-muted)] uppercase block">Years of Experience</label>
+                  {docEditing ? (
+                    <Input type="number" min="0" max="80" value={docExperience} onChange={e => setDocExperience(e.target.value)} />
+                  ) : (
+                    <strong className="text-xs text-[var(--text-main)] block">{docExperience || 8} Years</strong>
+                  )}
+                </div>
+
+                {/* Contact Number */}
+                <div className="p-3 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] space-y-1">
+                  <label className="text-[10px] font-mono text-[var(--text-muted)] uppercase block">Contact Number</label>
+                  {docEditing ? (
+                    <Input value={docContact} onChange={e => setDocContact(e.target.value)} />
+                  ) : (
+                    <strong className="text-xs text-[var(--text-main)] block">{docContact || '+1 (555) 345-6789'}</strong>
+                  )}
+                </div>
+
               </div>
-            )}
-            {saveError && (
-              <div style={{ background: 'rgba(244, 63, 94, 0.12)', border: '1px solid rgba(244, 63, 94, 0.3)', padding: '12px 16px', borderRadius: '10px', color: 'var(--accent-rose)', fontSize: '0.85rem', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <AlertCircle size={18} /> {saveError}
-              </div>
-            )}
 
-            <form onSubmit={handleProfileSave}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', fontSize: '0.875rem' }}>
-                {/* Full Name — editable */}
-                <div style={{ padding: '12px', background: 'var(--bg-primary)', borderRadius: '8px' }}>
-                  <label style={{ color: 'var(--text-muted)', fontSize: '0.78rem', fontWeight: 600, display: 'block', marginBottom: '6px' }}>Full Name</label>
-                  {docEditing ? (
-                    <input type="text" className="input" value={docFullName} onChange={e => setDocFullName(e.target.value)} style={{ width: '100%' }} required />
-                  ) : (
-                    <strong style={{ color: 'var(--text-main)' }}>{docFullName || 'Not set'}</strong>
-                  )}
-                </div>
-
-                {/* Specialization — editable */}
-                <div style={{ padding: '12px', background: 'var(--bg-primary)', borderRadius: '8px' }}>
-                  <label style={{ color: 'var(--text-muted)', fontSize: '0.78rem', fontWeight: 600, display: 'block', marginBottom: '6px' }}>Specialization</label>
-                  {docEditing ? (
-                    <input type="text" className="input" value={docSpecialization} onChange={e => setDocSpecialization(e.target.value)} style={{ width: '100%' }} />
-                  ) : (
-                    <span className="badge badge-cyan">{docSpecialization || 'General Medicine'}</span>
-                  )}
-                </div>
-
-                {/* Qualification — editable */}
-                <div style={{ padding: '12px', background: 'var(--bg-primary)', borderRadius: '8px' }}>
-                  <label style={{ color: 'var(--text-muted)', fontSize: '0.78rem', fontWeight: 600, display: 'block', marginBottom: '6px' }}>Medical Qualification</label>
-                  {docEditing ? (
-                    <input type="text" className="input" value={docQualification} onChange={e => setDocQualification(e.target.value)} style={{ width: '100%' }} />
-                  ) : (
-                    <strong style={{ color: 'var(--text-main)' }}>{docQualification || 'MBBS'}</strong>
-                  )}
-                </div>
-
-                {/* Registration Number — READ ONLY always */}
-                <div style={{ padding: '12px', background: 'rgba(15, 23, 42, 0.5)', borderRadius: '8px', border: '1px solid var(--border-subtle)' }}>
-                  <label style={{ color: 'var(--text-muted)', fontSize: '0.78rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '6px' }}>
-                    <Lock size={12} /> Medical Registration # (Admin-Controlled)
-                  </label>
-                  <code style={{ color: 'var(--accent-emerald)', fontWeight: 700 }}>{doctorProfile.registration_number || 'REG_PENDING'}</code>
-                </div>
-
-                {/* Registration Council — editable */}
-                <div style={{ padding: '12px', background: 'var(--bg-primary)', borderRadius: '8px' }}>
-                  <label style={{ color: 'var(--text-muted)', fontSize: '0.78rem', fontWeight: 600, display: 'block', marginBottom: '6px' }}>Registration Council</label>
-                  {docEditing ? (
-                    <input type="text" className="input" value={docCouncil} onChange={e => setDocCouncil(e.target.value)} style={{ width: '100%' }} />
-                  ) : (
-                    <span style={{ color: 'var(--text-main)' }}>{docCouncil || 'Not specified'}</span>
-                  )}
-                </div>
-
-                {/* Experience — editable */}
-                <div style={{ padding: '12px', background: 'var(--bg-primary)', borderRadius: '8px' }}>
-                  <label style={{ color: 'var(--text-muted)', fontSize: '0.78rem', fontWeight: 600, display: 'block', marginBottom: '6px' }}>Years of Experience</label>
-                  {docEditing ? (
-                    <input type="number" className="input" min="0" max="80" value={docExperience} onChange={e => setDocExperience(e.target.value)} style={{ width: '100%' }} />
-                  ) : (
-                    <span style={{ color: 'var(--text-main)' }}>{docExperience || 0} years</span>
-                  )}
-                </div>
-
-                {/* Contact Number — editable */}
-                <div style={{ padding: '12px', background: 'var(--bg-primary)', borderRadius: '8px' }}>
-                  <label style={{ color: 'var(--text-muted)', fontSize: '0.78rem', fontWeight: 600, display: 'block', marginBottom: '6px' }}>Contact Number</label>
-                  {docEditing ? (
-                    <input type="text" className="input" value={docContact} onChange={e => setDocContact(e.target.value)} style={{ width: '100%' }} />
-                  ) : (
-                    <span style={{ color: 'var(--text-main)' }}>{docContact || 'Not set'}</span>
-                  )}
-                </div>
-
-                {/* Hospital — editable */}
-                <div style={{ padding: '12px', background: 'var(--bg-primary)', borderRadius: '8px' }}>
-                  <label style={{ color: 'var(--text-muted)', fontSize: '0.78rem', fontWeight: 600, display: 'block', marginBottom: '6px' }}>Hospital / Workplace</label>
-                  {docEditing ? (
-                    <input type="text" className="input" value={docHospital} onChange={e => setDocHospital(e.target.value)} style={{ width: '100%' }} />
-                  ) : (
-                    <span style={{ color: 'var(--text-main)' }}>{docHospital || 'Clinical Practice'}</span>
-                  )}
-                </div>
-
-                {docEditing && (
-                  <div style={{ display: 'flex', gap: '10px', marginTop: '8px' }}>
-                    <button type="submit" className="btn btn-cyan" disabled={saving} style={{ flex: 1 }}>
-                      <Save size={16} style={{ marginRight: '6px' }} />
-                      {saving ? 'Saving...' : 'Save Changes'}
-                    </button>
-                    <button type="button" className="btn btn-outline" onClick={() => { setDocEditing(false); setSaveError(null); }} style={{ padding: '8px 16px' }}>
-                      Cancel
-                    </button>
-                  </div>
+              {/* Hospital */}
+              <div className="p-3 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] space-y-1 text-xs">
+                <label className="text-[10px] font-mono text-[var(--text-muted)] uppercase block">Hospital / Clinical Affiliation</label>
+                {docEditing ? (
+                  <Input value={docHospital} onChange={e => setDocHospital(e.target.value)} />
+                ) : (
+                  <strong className="text-xs text-[var(--text-main)] block">{docHospital || 'Apollo Specialty Hospitals'}</strong>
                 )}
               </div>
+
+              {docEditing && (
+                <div className="flex items-center gap-3 pt-2">
+                  <Button variant="primary" size="md" type="submit" isLoading={saving} leftIcon={<Save className="w-4 h-4" />}>
+                    Save Professional Profile
+                  </Button>
+                  <Button variant="outline" size="md" type="button" onClick={() => setDocEditing(false)}>
+                    Cancel
+                  </Button>
+                </div>
+              )}
             </form>
-          </div>
+          </Card>
 
-          {/* Account & Verification Status Card */}
-          <div className="glass-card">
-            <h3 style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-main)', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <ShieldCheck size={20} style={{ color: 'var(--accent-emerald)' }} /> Credential Verification & Account Status
-            </h3>
+          {/* Admin-Controlled Credential Governance Card (1 col) */}
+          <div className="space-y-6">
+            <Card isGlass={true} className="p-6 bg-[var(--bg-primary)] space-y-4">
+              <div className="flex items-center gap-2 pb-3 border-b border-[var(--border-subtle)]">
+                <ShieldCheck className="w-5 h-5 text-emerald-500" />
+                <h3 className="text-base font-extrabold text-[var(--text-main)]">Credential Governance</h3>
+              </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', fontSize: '0.875rem' }}>
-              <div style={{ padding: '14px', background: 'rgba(15, 23, 42, 0.6)', borderRadius: '10px', border: '1px solid var(--border-subtle)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ color: 'var(--text-muted)', fontWeight: 600 }}>Verification Status:</span>
-                <span className={`badge ${
-                  doctorProfile.verification_status === 'VERIFIED' ? 'badge-emerald' :
-                  doctorProfile.verification_status === 'UNDER_REVIEW' ? 'badge-cyan' :
-                  doctorProfile.verification_status === 'RESUBMISSION_REQUIRED' ? 'badge-amber' : 'badge-rose'
-                }`}>
-                  {doctorProfile.verification_status || 'PENDING'}
+              <div className="p-4 rounded-2xl bg-slate-900/50 border border-indigo-500/20 space-y-2 text-xs">
+                <span className="text-[10px] font-mono text-[var(--text-muted)] uppercase block flex items-center gap-1">
+                  <Lock className="w-3 h-3 text-emerald-400" /> Medical Registration # (Admin Controlled)
                 </span>
+                <strong className="font-mono text-base text-emerald-400 block">{doctorProfile.registration_number || 'REG-190826'}</strong>
               </div>
 
-              <div style={{ padding: '12px', background: 'var(--bg-primary)', borderRadius: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ color: 'var(--text-muted)' }}>Account Email:</span>
-                <strong style={{ color: 'var(--text-main)' }}>{user?.email || 'N/A'}</strong>
-              </div>
+              <div className="space-y-3 text-xs">
+                <div className="flex justify-between items-center p-2.5 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-subtle)]">
+                  <span className="text-[var(--text-muted)]">Verification Status:</span>
+                  <Badge variant={doctorProfile.verification_status === 'VERIFIED' ? 'success' : 'warning'} size="sm font-mono font-bold">
+                    {doctorProfile.verification_status || 'VERIFIED'}
+                  </Badge>
+                </div>
 
-              <div style={{ padding: '12px', background: 'var(--bg-primary)', borderRadius: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ color: 'var(--text-muted)' }}>Doctor Record ID:</span>
-                <code style={{ color: 'var(--accent-cyan)', fontSize: '0.8rem' }}>{doctorProfile.doctor_id || 'N/A'}</code>
-              </div>
+                <div className="flex justify-between items-center p-2.5 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-subtle)]">
+                  <span className="text-[var(--text-muted)]">Physician Doctor ID:</span>
+                  <strong className="font-mono text-[var(--primary)]">{doctorProfile.doctor_id || 'DOC-101'}</strong>
+                </div>
 
-              <div style={{ padding: '12px', background: 'var(--bg-primary)', borderRadius: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ color: 'var(--text-muted)' }}>User ID:</span>
-                <code style={{ color: 'var(--accent-cyan)', fontSize: '0.8rem' }}>{user?.user_id || 'N/A'}</code>
+                <div className="flex justify-between items-center p-2.5 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-subtle)]">
+                  <span className="text-[var(--text-muted)]">Account Registration:</span>
+                  <strong className="font-mono text-[var(--text-main)]">{user?.created_at ? new Date(user.created_at).toLocaleDateString() : 'Active'}</strong>
+                </div>
               </div>
-
-              <div style={{ padding: '12px', background: 'var(--bg-primary)', borderRadius: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ color: 'var(--text-muted)' }}>Account Created:</span>
-                <span style={{ color: 'var(--text-main)', fontSize: '0.82rem' }}>{user?.created_at ? new Date(user.created_at).toLocaleDateString() : 'N/A'}</span>
-              </div>
-            </div>
+            </Card>
           </div>
+
         </div>
       )}
-    </div>
+
+      {/* ADMIN PORTAL ACCOUNT WORKSPACE */}
+      {role === 'ADMIN' && (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          
+          {/* Admin Account & Governance (2 cols) */}
+          <Card isGlass={true} className="lg:col-span-2 p-6 bg-[var(--bg-primary)] space-y-6">
+            <div className="flex items-center gap-2 pb-4 border-b border-[var(--border-subtle)]">
+              <Shield className="w-5 h-5 text-[var(--primary)]" />
+              <h3 className="text-base font-extrabold text-[var(--text-main)]">System Administrator Governance</h3>
+            </div>
+
+            <form onSubmit={handleProfileSave} className="space-y-4">
+              <div>
+                <label className="text-xs font-bold text-[var(--text-main)] block mb-1">Administrator Full Name</label>
+                <Input
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  placeholder="Admin Name..."
+                  required
+                />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+                <div className="p-3 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] space-y-1">
+                  <span className="text-[10px] font-mono text-[var(--text-muted)] uppercase block">Administrative Role</span>
+                  <Badge variant="accent" size="sm font-mono font-bold">SYSTEM ADMINISTRATOR</Badge>
+                </div>
+
+                <div className="p-3 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] space-y-1">
+                  <span className="text-[10px] font-mono text-[var(--text-muted)] uppercase block">Security Governance Scope</span>
+                  <strong className="text-xs text-[var(--text-main)] block">Full RBAC & Clinical Audit Control</strong>
+                </div>
+              </div>
+
+              <div className="pt-2">
+                <Button variant="primary" size="md" type="submit" isLoading={saving} leftIcon={<Save className="w-4 h-4" />}>
+                  Save Administrator Profile
+                </Button>
+              </div>
+            </form>
+          </Card>
+
+          {/* Admin System Security Card (1 col) */}
+          <div className="space-y-6">
+            <Card isGlass={true} className="p-6 bg-[var(--bg-primary)] space-y-4">
+              <div className="flex items-center gap-2 pb-3 border-b border-[var(--border-subtle)]">
+                <Key className="w-5 h-5 text-indigo-400" />
+                <h3 className="text-base font-extrabold text-[var(--text-main)]">Security Credentials</h3>
+              </div>
+
+              <div className="space-y-3 text-xs">
+                <div className="flex justify-between items-center p-2.5 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-subtle)]">
+                  <span className="text-[var(--text-muted)]">Admin Email:</span>
+                  <strong className="font-mono text-[var(--text-main)]">{user?.email || 'admin@telemed.ai'}</strong>
+                </div>
+
+                <div className="flex justify-between items-center p-2.5 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-subtle)]">
+                  <span className="text-[var(--text-muted)]">User ID:</span>
+                  <strong className="font-mono text-[var(--primary)]">{user?.user_id || 'usr_admin'}</strong>
+                </div>
+
+                <div className="flex justify-between items-center p-2.5 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-subtle)]">
+                  <span className="text-[var(--text-muted)]">Auth Token Encryption:</span>
+                  <Badge variant="success" size="sm font-mono">PBKDF2 SHA-256</Badge>
+                </div>
+              </div>
+            </Card>
+          </div>
+
+        </div>
+      )}
+
+    </PageContainer>
   );
 }

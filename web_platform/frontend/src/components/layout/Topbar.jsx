@@ -48,8 +48,11 @@ export function Topbar({ user, onLogout, onToggleTheme, theme = 'dark', onOpenMo
     if (path === '/consultations') return ['Clinical', 'Doctor Consultations'];
     if (path === '/appointments') return ['Schedule', 'Appointments'];
     if (path === '/care') return ['Care', 'Personalized Recommendations'];
-    if (path.startsWith('/admin')) return ['Admin', path.replace('/admin/', '').toUpperCase() || 'Dashboard'];
+    if (path === '/account' || path === '/profile') return ['Account & Profile', 'Patient Health Profile'];
+    if (path.startsWith('/doctor/profile') || path === '/doctor/account') return ['Doctor Portal', 'Professional Profile Workspace'];
     if (path.startsWith('/doctor')) return ['Doctor Portal', path.replace('/doctor/', '').toUpperCase() || 'Dashboard'];
+    if (path.startsWith('/admin/account')) return ['Admin System', 'Account & System Governance'];
+    if (path.startsWith('/admin')) return ['Admin Overview', path.replace('/admin/', '').toUpperCase() || 'Dashboard'];
     return ['Portal', 'Dashboard'];
   };
 
