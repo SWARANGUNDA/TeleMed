@@ -108,14 +108,34 @@ export default function AppointmentsPage({ user, onNavigate }) {
         description="Book video teleconsultations, explore verified physician directory, view appointment timelines & calendar schedules"
         badge="Teleconsultation Hub"
         actions={
-          <Button
-            variant="primary"
-            size="md"
-            leftIcon={<Plus className="w-4 h-4" />}
-            onClick={() => setShowBookModal(true)}
-          >
-            Book Teleconsultation
-          </Button>
+          role === 'PATIENT' ? (
+            <Button
+              variant="primary"
+              size="md"
+              leftIcon={<Plus className="w-4 h-4" />}
+              onClick={() => setShowBookModal(true)}
+            >
+              Book Teleconsultation
+            </Button>
+          ) : role === 'DOCTOR' ? (
+            <Button
+              variant="primary"
+              size="md"
+              leftIcon={<Stethoscope className="w-4 h-4" />}
+              onClick={() => onNavigate && onNavigate('consultations')}
+            >
+              View Active Consultation Room
+            </Button>
+          ) : (
+            <Button
+              variant="outline"
+              size="md"
+              leftIcon={<UserCheck className="w-4 h-4 text-[var(--primary)]" />}
+              onClick={() => onNavigate && onNavigate('admin-consultations')}
+            >
+              Manage System Consultations
+            </Button>
+          )
         }
       />
 
