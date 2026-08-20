@@ -506,9 +506,9 @@ export default function App() {
           <Route path="/login" element={<LoginPage onLogin={handleLogin} user={currentUser} />} />
           <Route path="/register" element={<RegisterPage onLoginSuccess={handleLoginSuccess} user={currentUser} />} />
 
-            {/* PATIENT ROUTES */}
+            {/* PATIENT & CORE CLINICAL ROUTES */}
             <Route path="/dashboard" element={
-              <ProtectedRoute currentUser={currentUser} authChecking={authChecking} allowedRoles={['PATIENT']}>
+              <ProtectedRoute currentUser={currentUser} authChecking={authChecking} allowedRoles={['PATIENT', 'DOCTOR', 'ADMIN']}>
                 <DashboardPage
                   session={session}
                   predictionData={predictionData}
@@ -522,7 +522,7 @@ export default function App() {
             } />
 
             <Route path="/intake" element={
-              <ProtectedRoute currentUser={currentUser} authChecking={authChecking} allowedRoles={['PATIENT']}>
+              <ProtectedRoute currentUser={currentUser} authChecking={authChecking} allowedRoles={['PATIENT', 'DOCTOR', 'ADMIN']}>
                 <IntakePage
                   session={session}
                   setSession={setSession}
@@ -536,7 +536,7 @@ export default function App() {
             } />
 
             <Route path="/xai" element={
-              <ProtectedRoute currentUser={currentUser} authChecking={authChecking} allowedRoles={['PATIENT']}>
+              <ProtectedRoute currentUser={currentUser} authChecking={authChecking} allowedRoles={['PATIENT', 'DOCTOR', 'ADMIN']}>
                 <XAIPage
                   session={session}
                   predictionData={predictionData}
@@ -549,7 +549,7 @@ export default function App() {
             } />
 
             <Route path="/report" element={
-              <ProtectedRoute currentUser={currentUser} authChecking={authChecking} allowedRoles={['PATIENT']}>
+              <ProtectedRoute currentUser={currentUser} authChecking={authChecking} allowedRoles={['PATIENT', 'DOCTOR', 'ADMIN']}>
                 <ReportPage
                   user={currentUser}
                   session={session}
@@ -566,7 +566,7 @@ export default function App() {
             } />
 
             <Route path="/records" element={
-              <ProtectedRoute currentUser={currentUser} authChecking={authChecking} allowedRoles={['PATIENT']}>
+              <ProtectedRoute currentUser={currentUser} authChecking={authChecking} allowedRoles={['PATIENT', 'DOCTOR', 'ADMIN']}>
                 <HealthRecordsPage
                   currentUser={currentUser}
                   session={session}
@@ -584,7 +584,7 @@ export default function App() {
             } />
 
             <Route path="/consultations" element={
-              <ProtectedRoute currentUser={currentUser} authChecking={authChecking} allowedRoles={['PATIENT', 'DOCTOR']}>
+              <ProtectedRoute currentUser={currentUser} authChecking={authChecking} allowedRoles={['PATIENT', 'DOCTOR', 'ADMIN']}>
                 <ConsultationWorkspacePage
                   user={currentUser}
                   predictionData={predictionData}
@@ -595,25 +595,19 @@ export default function App() {
             } />
 
             <Route path="/appointments" element={
-              <ProtectedRoute currentUser={currentUser} authChecking={authChecking} allowedRoles={['PATIENT', 'DOCTOR']}>
+              <ProtectedRoute currentUser={currentUser} authChecking={authChecking} allowedRoles={['PATIENT', 'DOCTOR', 'ADMIN']}>
                 <AppointmentsPage user={currentUser} onNavigate={handleNavigate} />
               </ProtectedRoute>
             } />
 
             <Route path="/profile" element={
-              <ProtectedRoute currentUser={currentUser} authChecking={authChecking} allowedRoles={['PATIENT']}>
-                <ProfilePage
-                  user={currentUser}
-                  session={session}
-                  predictionData={predictionData}
-                  onNavigate={handleNavigate}
-                  refreshCurrentUser={refreshCurrentUser}
-                />
+              <ProtectedRoute currentUser={currentUser} authChecking={authChecking} allowedRoles={['PATIENT', 'DOCTOR', 'ADMIN']}>
+                <AccountPage user={currentUser} onNavigate={handleNavigate} />
               </ProtectedRoute>
             } />
 
             <Route path="/compare" element={
-              <ProtectedRoute currentUser={currentUser} authChecking={authChecking} allowedRoles={['PATIENT']}>
+              <ProtectedRoute currentUser={currentUser} authChecking={authChecking} allowedRoles={['PATIENT', 'DOCTOR', 'ADMIN']}>
                 <CompareAssessmentsPage
                   user={currentUser}
                   session={session}
@@ -630,19 +624,19 @@ export default function App() {
             } />
 
             <Route path="/messages" element={
-              <ProtectedRoute currentUser={currentUser} authChecking={authChecking} allowedRoles={['PATIENT', 'DOCTOR']}>
+              <ProtectedRoute currentUser={currentUser} authChecking={authChecking} allowedRoles={['PATIENT', 'DOCTOR', 'ADMIN']}>
                 <MessagesPage user={currentUser} />
               </ProtectedRoute>
             } />
 
             <Route path="/copilot" element={
-              <ProtectedRoute currentUser={currentUser} authChecking={authChecking} allowedRoles={['PATIENT']}>
+              <ProtectedRoute currentUser={currentUser} authChecking={authChecking} allowedRoles={['PATIENT', 'DOCTOR', 'ADMIN']}>
                 <HealthCopilotPage user={currentUser} session={session} predictionData={predictionData} xaiData={xaiData} onNavigate={handleNavigate} />
               </ProtectedRoute>
             } />
 
             <Route path="/care" element={
-              <ProtectedRoute currentUser={currentUser} authChecking={authChecking} allowedRoles={['PATIENT']}>
+              <ProtectedRoute currentUser={currentUser} authChecking={authChecking} allowedRoles={['PATIENT', 'DOCTOR', 'ADMIN']}>
                 <CarePage
                   user={currentUser}
                   predictionData={predictionData}
