@@ -309,12 +309,18 @@ export default function NotificationsPage({ user, predictionData }) {
                     size="sm"
                     leftIcon={<ExternalLink className="w-3.5 h-3.5" />}
                     onClick={() => {
-                      const route = selectedNotif.actionRoute;
+                      let route = selectedNotif.actionRoute;
+                      if (user?.role === 'DOCTOR' && route === '/intake') route = '/doctor/dashboard';
+                      if (user?.role === 'ADMIN' && route === '/intake') route = '/admin/dashboard';
                       setSelectedNotif(null);
                       navigate(route);
                     }}
                   >
-                    {selectedNotif.actionLabel || 'Open Workspace'}
+                    {user?.role === 'DOCTOR' && selectedNotif.actionRoute === '/intake'
+                      ? 'Open Doctor Dashboard'
+                      : user?.role === 'ADMIN' && selectedNotif.actionRoute === '/intake'
+                      ? 'Open Admin Overview'
+                      : selectedNotif.actionLabel || 'Open Workspace'}
                   </Button>
                 )}
                 <Button

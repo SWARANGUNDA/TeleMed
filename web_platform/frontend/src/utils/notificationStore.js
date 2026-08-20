@@ -33,7 +33,7 @@ function getInitialNotificationsForUser(userId, role) {
         priority: 'HIGH',
         isRead: false,
         actionRoute: '/doctor/dashboard',
-        actionLabel: 'View Doctor Dashboard'
+        actionLabel: 'Open Doctor Dashboard'
       }
     ];
   }
@@ -50,7 +50,7 @@ function getInitialNotificationsForUser(userId, role) {
         priority: 'HIGH',
         isRead: false,
         actionRoute: '/admin/dashboard',
-        actionLabel: 'View Admin Overview'
+        actionLabel: 'Open Admin Overview'
       }
     ];
   }
@@ -77,11 +77,30 @@ export const notificationStore = {
     if (uid === 'default_user') return [];
     
     const key = `telemed_notifications_${uid}`;
+    const userRole = (getActiveUser()?.role || 'PATIENT').toUpperCase();
+
     try {
       const stored = localStorage.getItem(key);
       if (stored !== null) {
         const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed)) return parsed;
+        if (Array.isArray(parsed)) {
+          // Dynamically sanitize legacy cached notifications for Doctors and Admins
+          const sanitized = parsed.map(n => {
+            if (n.id && n.id.startsWith('NOT-WELCOME-')) {
+              if (userRole === 'DOCTOR' && (n.actionRoute === '/intake' || n.title.includes('Patient'))) {
+                return { ...getInitialNotificationsForUser(uid, 'DOCTOR')[0], isRead: n.isRead };
+              }
+              if (userRole === 'ADMIN' && (n.actionRoute === '/intake' || n.title.includes('Patient'))) {
+                return { ...getInitialNotificationsForUser(uid, 'ADMIN')[0], isRead: n.isRead };
+              }
+            }
+            return n;
+          });
+
+          // Save sanitized back to localStorage
+          localStorage.setItem(key, JSON.stringify(sanitized));
+          return sanitized;
+        }
       }
     } catch (e) {}
     
@@ -92,7 +111,7 @@ export const notificationStore = {
       return [];
     }
 
-    const initial = getInitialNotificationsForUser(uid);
+    const initial = getInitialNotificationsForUser(uid, userRole);
     try {
       localStorage.setItem(key, JSON.stringify(initial));
       localStorage.setItem(welcomedKey, 'true');
