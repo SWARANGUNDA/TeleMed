@@ -150,40 +150,56 @@ export function Topbar({ user, onLogout, onToggleTheme, theme = 'dark', onOpenMo
             onClick={() => setShowProfileMenu(!showProfileMenu)}
             className="flex items-center gap-2.5 p-1.5 rounded-xl hover:bg-[var(--bg-surface-hover)] transition-colors"
           >
-            <Avatar user={user} name={user?.name || user?.full_name || 'User Profile'} size="sm" />
+            <Avatar user={user} name={user?.full_name || user?.name || 'User Profile'} size="sm" />
             <div className="hidden sm:flex flex-col text-left">
-              <span className="text-xs font-bold text-[var(--text-main)] leading-tight">{user?.name || user?.full_name || 'Guest User'}</span>
+              <span className="text-xs font-bold text-[var(--text-main)] leading-tight">
+                {user?.full_name || user?.name || (user?.role === 'DOCTOR' ? 'Dr. Medical Officer' : user?.role === 'ADMIN' ? 'System Admin' : 'Patient Account')}
+              </span>
               <span className="text-[10px] font-mono text-[var(--text-muted)]">{user?.role || 'PATIENT'}</span>
             </div>
           </button>
 
           {showProfileMenu && (
-            <div className="absolute right-0 mt-2 w-56 glass-card p-2 border border-[var(--border-medium)] shadow-2xl rounded-xl bg-[var(--bg-surface)] z-[var(--z-dropdown)] space-y-1">
-              <div className="px-3 py-2 border-b border-[var(--border-subtle)]">
-                <p className="text-xs font-bold text-[var(--text-main)]">{user?.name || 'Guest Patient'}</p>
-                <p className="text-[10px] font-mono text-[var(--text-muted)]">{user?.email || 'patient@telemed.ai'}</p>
+            <div className="absolute right-0 mt-2 w-64 p-3 border border-[var(--border-medium)] shadow-2xl rounded-2xl bg-[var(--bg-primary)] z-[9999] space-y-2 ring-1 ring-black/5">
+              <div className="px-3 py-2 pb-2.5 border-b border-[var(--border-subtle)] space-y-0.5">
+                <p className="text-xs font-extrabold text-[var(--text-main)] tracking-tight">
+                  {user?.full_name || user?.name || (user?.role === 'DOCTOR' ? 'Dr. Medical Officer' : user?.role === 'ADMIN' ? 'System Administrator' : 'Patient Account')}
+                </p>
+                <p className="text-[11px] font-mono text-[var(--text-muted)] truncate">{user?.email || 'patient@telemed.ai'}</p>
+                <div className="pt-1.5 flex items-center gap-1.5">
+                  <span className="px-2 py-0.5 text-[9.5px] font-mono font-bold rounded-full bg-[var(--primary-light)] text-[var(--primary)] border border-[var(--primary)]/20 uppercase">
+                    {user?.role || 'PATIENT'}
+                  </span>
+                  <span className="text-[10px] text-emerald-500 font-mono font-semibold flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> Active Session
+                  </span>
+                </div>
               </div>
-              <button
-                onClick={() => { setShowProfileMenu(false); navigate('/account'); }}
-                className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-[var(--text-main)] hover:bg-[var(--bg-surface-hover)] rounded-lg transition-colors"
-              >
-                <Settings className="w-4 h-4 text-[var(--text-muted)]" />
-                Account Settings
-              </button>
-              <button
-                onClick={() => { setShowProfileMenu(false); navigate('/privacy'); }}
-                className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-[var(--text-main)] hover:bg-[var(--bg-surface-hover)] rounded-lg transition-colors"
-              >
-                <Shield className="w-4 h-4 text-[var(--text-muted)]" />
-                Privacy & Data Security
-              </button>
-              <div className="pt-1 border-t border-[var(--border-subtle)]">
+
+              <div className="space-y-1">
+                <button
+                  onClick={() => { setShowProfileMenu(false); navigate('/account'); }}
+                  className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-[var(--text-main)] hover:bg-[var(--primary-light)] hover:text-[var(--primary)] rounded-xl transition-all"
+                >
+                  <Settings className="w-4 h-4 text-[var(--primary)]" />
+                  Account Settings & Profile
+                </button>
+                <button
+                  onClick={() => { setShowProfileMenu(false); navigate('/privacy'); }}
+                  className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-[var(--text-main)] hover:bg-[var(--primary-light)] hover:text-[var(--primary)] rounded-xl transition-all"
+                >
+                  <Shield className="w-4 h-4 text-[var(--primary)]" />
+                  Privacy & Data Security
+                </button>
+              </div>
+
+              <div className="pt-1.5 border-t border-[var(--border-subtle)]">
                 <button
                   onClick={() => { setShowProfileMenu(false); if (onLogout) onLogout(); }}
-                  className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-[var(--danger)] hover:bg-[var(--danger-light)] rounded-lg transition-colors"
+                  className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-bold text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 rounded-xl transition-all"
                 >
-                  <LogOut className="w-4 h-4" />
-                  Sign Out
+                  <LogOut className="w-4 h-4 text-rose-500" />
+                  Sign Out Account
                 </button>
               </div>
             </div>
