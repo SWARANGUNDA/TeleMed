@@ -178,7 +178,12 @@ export function Topbar({ user, onLogout, onToggleTheme, theme = 'dark', onOpenMo
 
               <div className="space-y-1">
                 <button
-                  onClick={() => { setShowProfileMenu(false); navigate('/account'); }}
+                  onClick={() => {
+                    setShowProfileMenu(false);
+                    if (user?.role === 'DOCTOR') navigate('/doctor/profile');
+                    else if (user?.role === 'ADMIN') navigate('/admin/account');
+                    else navigate('/account');
+                  }}
                   className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-[var(--text-main)] hover:bg-[var(--primary-light)] hover:text-[var(--primary)] rounded-xl transition-all"
                 >
                   <Settings className="w-4 h-4 text-[var(--primary)]" />

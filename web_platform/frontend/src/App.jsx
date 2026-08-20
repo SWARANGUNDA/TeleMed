@@ -651,12 +651,18 @@ export default function App() {
             } />
 
             <Route path="/privacy" element={
-              <ProtectedRoute currentUser={currentUser} authChecking={authChecking} allowedRoles={['PATIENT']}>
+              <ProtectedRoute currentUser={currentUser} authChecking={authChecking} allowedRoles={['PATIENT', 'DOCTOR', 'ADMIN']}>
                 <PatientPrivacyPage user={currentUser} />
               </ProtectedRoute>
             } />
 
             <Route path="/account" element={
+              <ProtectedRoute currentUser={currentUser} authChecking={authChecking} allowedRoles={['PATIENT', 'DOCTOR', 'ADMIN']}>
+                <AccountPage user={currentUser} onNavigate={handleNavigate} />
+              </ProtectedRoute>
+            } />
+
+            <Route path="/profile" element={
               <ProtectedRoute currentUser={currentUser} authChecking={authChecking} allowedRoles={['PATIENT', 'DOCTOR', 'ADMIN']}>
                 <AccountPage user={currentUser} onNavigate={handleNavigate} />
               </ProtectedRoute>
@@ -678,6 +684,18 @@ export default function App() {
             <Route path="/doctor/verification" element={
               <ProtectedRoute currentUser={currentUser} authChecking={authChecking} allowedRoles={['DOCTOR']}>
                 <DoctorVerificationPage currentUser={currentUser} />
+              </ProtectedRoute>
+            } />
+
+            <Route path="/doctor/profile" element={
+              <ProtectedRoute currentUser={currentUser} authChecking={authChecking} allowedRoles={['DOCTOR']}>
+                <AccountPage user={currentUser} onNavigate={handleNavigate} />
+              </ProtectedRoute>
+            } />
+
+            <Route path="/doctor/account" element={
+              <ProtectedRoute currentUser={currentUser} authChecking={authChecking} allowedRoles={['DOCTOR']}>
+                <AccountPage user={currentUser} onNavigate={handleNavigate} />
               </ProtectedRoute>
             } />
 
@@ -716,6 +734,18 @@ export default function App() {
             <Route path="/admin/audit" element={
               <ProtectedRoute currentUser={currentUser} authChecking={authChecking} allowedRoles={['ADMIN']}>
                 <AdminAuditPage />
+              </ProtectedRoute>
+            } />
+
+            <Route path="/admin/account" element={
+              <ProtectedRoute currentUser={currentUser} authChecking={authChecking} allowedRoles={['ADMIN']}>
+                <AccountPage user={currentUser} onNavigate={handleNavigate} />
+              </ProtectedRoute>
+            } />
+
+            <Route path="/admin/profile" element={
+              <ProtectedRoute currentUser={currentUser} authChecking={authChecking} allowedRoles={['ADMIN']}>
+                <AccountPage user={currentUser} onNavigate={handleNavigate} />
               </ProtectedRoute>
             } />
 
