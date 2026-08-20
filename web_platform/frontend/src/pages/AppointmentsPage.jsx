@@ -75,13 +75,36 @@ export default function AppointmentsPage({ user, onNavigate }) {
     setBookingLoading(true);
     try {
       if (bookingData.slotId) {
-        await bookAppointment(bookingData.slotId, bookingData.consultationId, bookingData.reason);
+        await bookAppointment(bookingData.consultationId || null, bookingData.slotId, bookingData.reason);
       }
       await loadData();
     } catch (err) {
-      // Graceful fallback
+      console.error("Booking error:", err);
     } finally {
       setBookingLoading(false);
+    }
+  };
+
+  const handleJoinConsultation = async (apt) => {
+    try {
+      const aptId = apt.appointment_id || apt.id;
+      if (aptId) {
+        await joinAppointment(aptId);
+      }
+    } catch (err) {
+      console.warn("Join consultation note:", err);
+    }
+    if (onNavigate) {
+      onNavigate('consultations');
+    }
+  };
+
+  const handleCancelAppointment = async (aptId, reason = 'Cancelled by user') => {
+    try {
+      await updateAppointmentStatus(aptId, 'CANCELLED', reason);
+      await loadData();
+    } catch (err) {
+      console.error("Failed to cancel appointment:", err);
     }
   };
 
@@ -94,10 +117,29 @@ export default function AppointmentsPage({ user, onNavigate }) {
   });
 
   const todayStr = new Date().toISOString().split('T')[0];
-  const todayAppointments = appointments.filter(a => a.isToday || a.date === todayStr);
-  const upcomingAppointments = appointments.filter(a => a.status === 'UPCOMING' || a.status === 'CONFIRMED');
-  const pastAppointments = appointments.filter(a => a.status === 'COMPLETED');
-  const cancelledAppointments = appointments.filter(a => a.status === 'CANCELLED');
+  const formattedApts = appointments.map(a => ({
+    id: a.appointment_id || a.id,
+    appointment_id: a.appointment_id || a.id,
+    consultationId: a.consultation_id,
+    doctorName: a.doctor_name || a.doctorName || 'Dr. Verified Specialist',
+    doctorAvatar: (a.doctor_name || 'DOC').split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase(),
+    specialty: a.doctor_specialization || a.specialty || 'General Medicine',
+    hospital: 'TeleMed Academic Medical Center',
+    patientName: a.patient_name || a.patientName || 'Patient User',
+    date: (a.slot_start || '').split('T')[0] || a.date || todayStr,
+    time: (a.slot_start || '').split('T')[1]?.slice(0, 5) || a.time || '10:00 AM',
+    duration: '30 mins',
+    type: 'VIDEO',
+    reason: a.notes || a.reason || 'Specialist Consultation',
+    status: a.status || 'CONFIRMED',
+    statusVariant: a.status === 'COMPLETED' ? 'success' : (a.status === 'CANCELLED' ? 'danger' : (a.status === 'IN_CONSULTATION' ? 'primary' : 'warning')),
+    isToday: (a.slot_start || '').startsWith(todayStr)
+  }));
+
+  const todayAppointments = formattedApts.filter(a => a.isToday || a.date === todayStr);
+  const upcomingAppointments = formattedApts.filter(a => a.status === 'UPCOMING' || a.status === 'CONFIRMED' || a.status === 'REQUESTED' || a.status === 'IN_CONSULTATION');
+  const pastAppointments = formattedApts.filter(a => a.status === 'COMPLETED');
+  const cancelledAppointments = formattedApts.filter(a => a.status === 'CANCELLED' || a.status === 'NO_SHOW');
 
   return (
     <PageContainer className="space-y-8 py-6">
@@ -230,11 +272,14 @@ export default function AppointmentsPage({ user, onNavigate }) {
 
                   <div className="pt-2 flex items-center justify-between border-t border-[var(--border-subtle)]">
                     <span className="text-[11px] font-mono text-[var(--text-muted)]">Mode: {apt.type}</span>
-                    <div className="flex gap-2">
-                      <Button variant="outline" size="sm" onClick={() => setSelectedAppointmentDetails(apt)}>
-                        Details & Timeline
+                    <div className="flex items-center gap-2">
+                      <Button variant="ghost" size="sm" onClick={() => handleCancelAppointment(apt.id)} className="!text-red-500 hover:!bg-red-500/10">
+                        Cancel
                       </Button>
-                      <Button variant="primary" size="sm" leftIcon={<Video className="w-3.5 h-3.5" />} onClick={() => setSelectedAppointmentDetails(apt)}>
+                      <Button variant="outline" size="sm" onClick={() => setSelectedAppointmentDetails(apt)}>
+                        Details
+                      </Button>
+                      <Button variant="primary" size="sm" leftIcon={<Video className="w-3.5 h-3.5" />} onClick={() => handleJoinConsultation(apt)}>
                         Join Room
                       </Button>
                     </div>

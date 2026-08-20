@@ -23,13 +23,13 @@ class ConfigureAvailabilityRequest(BaseModel):
 
 
 class BookAppointmentRequest(BaseModel):
-    consultation_id: str = Field(..., description="Active consultation ID")
+    consultation_id: Optional[str] = Field(None, description="Active consultation ID (Optional)")
     slot_id: str = Field(..., description="Available doctor slot ID")
     notes: Optional[str] = Field(None, description="Optional booking notes")
 
 
 class UpdateAppointmentStatusRequest(BaseModel):
-    status: str = Field(..., description="CONFIRMED, COMPLETED, CANCELLED, RESCHEDULED")
+    status: str = Field(..., description="REQUESTED, CONFIRMED, UPCOMING, IN_CONSULTATION, COMPLETED, CANCELLED, NO_SHOW, RESCHEDULED")
     reason: Optional[str] = Field(None, description="Reason for cancellation or reschedule")
     new_slot_id: Optional[str] = Field(None, description="New slot ID if rescheduling")
 
@@ -189,6 +189,28 @@ def update_appointment_status(
         return {
             "status": "SUCCESS",
             "message": f"Appointment status updated to '{req.status}'.",
+            "appointment": apt
+        }
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+
+
+@router.post("/appointments/{appointment_id}/join", status_code=status.HTTP_200_OK)
+def join_consultation_appointment(
+    appointment_id: str,
+    current_user: Dict[str, Any] = Depends(get_current_user)
+):
+    """Transition appointment & consultation to IN_CONSULTATION status when joining session."""
+    try:
+        apt = database.update_appointment_status(
+            user_id=current_user["user_id"],
+            role=current_user["role"],
+            appointment_id=appointment_id,
+            new_status="IN_CONSULTATION"
+        )
+        return {
+            "status": "SUCCESS",
+            "message": "Successfully joined active teleconsultation session.",
             "appointment": apt
         }
     except ValueError as e:

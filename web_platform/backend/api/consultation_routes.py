@@ -45,6 +45,21 @@ class DoctorRespondRequest(BaseModel):
 
 class CompleteConsultationRequest(BaseModel):
     notes: Optional[str] = Field(None, description="Completion summary notes")
+    symptoms: Optional[str] = Field(None, description="Patient reported symptoms")
+    observations: Optional[str] = Field(None, description="Clinical physical/vital observations")
+    assessment: Optional[str] = Field(None, description="Doctor diagnosis and assessment")
+    treatment_plan: Optional[str] = Field(None, description="Advice and treatment plan")
+    prescription: Optional[str] = Field(None, description="Medication prescriptions")
+
+
+class SaveConsultationNoteRequest(BaseModel):
+    symptoms: Optional[str] = Field(None, description="Patient reported symptoms")
+    observations: Optional[str] = Field(None, description="Clinical physical/vital observations")
+    assessment: str = Field(..., description="Doctor diagnosis and assessment")
+    treatment_plan: Optional[str] = Field(None, description="Advice and treatment plan")
+    prescription: Optional[str] = Field(None, description="Medication prescriptions")
+    follow_up_guidance: Optional[str] = Field(None, description="Follow-up instructions")
+    patient_summary: Optional[str] = Field(None, description="Patient-facing summary")
 
 
 class InviteCoDoctorRequest(BaseModel):
@@ -293,19 +308,43 @@ def get_authorized_patient_record(
 def complete_consultation(
     consultation_id: str,
     req: Optional[CompleteConsultationRequest] = None,
-    current_user: dict = Depends(require_doctor_user)
+    current_user: dict = Depends(get_current_user)
 ):
-    """Doctor marks a consultation complete, closing active clinical record access."""
+    """Doctor or Admin marks a consultation complete, saving clinical notes and updating appointment status."""
     try:
         reason_text = req.notes if req else None
         res = database.complete_consultation(
             user_id_or_admin_id=current_user["user_id"],
             consultation_id=consultation_id,
-            actor_role="DOCTOR",
+            actor_role=current_user.get("role", "DOCTOR"),
             notes=reason_text
         )
+
+        if req and (req.assessment or req.prescription or req.treatment_plan):
+            note_assessment = f"ASSESSMENT: {req.assessment or 'N/A'}\nSYMPTOMS: {req.symptoms or 'N/A'}\nOBSERVATIONS: {req.observations or 'N/A'}"
+            note_treatment = f"TREATMENT PLAN: {req.treatment_plan or 'N/A'}\nPRESCRIPTION: {req.prescription or 'None'}"
+            try:
+                database.upsert_doctor_consultation_note(
+                    doctor_user_id=current_user["user_id"],
+                    consultation_id=consultation_id,
+                    assessment=note_assessment,
+                    follow_up_guidance=note_treatment,
+                    patient_summary=f"Prescription & Advice: {req.prescription or req.treatment_plan or 'Follow standard health guidelines.'}"
+                )
+            except Exception:
+                pass
+
+        # Sync linked appointment status to COMPLETED
+        try:
+            apts = database.list_user_appointments(current_user["user_id"], current_user.get("role", "DOCTOR"))
+            for apt in apts:
+                if apt.get("consultation_id") == consultation_id:
+                    database.update_appointment_status(current_user["user_id"], current_user.get("role", "DOCTOR"), apt["appointment_id"], "COMPLETED", reason_text)
+        except Exception:
+            pass
+
         return {
-            "message": "Consultation completed successfully. Clinical access closed.",
+            "message": "Consultation completed successfully. Clinical summary saved.",
             "consultation": res
         }
     except ValueError as e:

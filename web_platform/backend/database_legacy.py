@@ -2221,37 +2221,53 @@ def list_doctor_availability_slots(doctor_id: str, available_only: bool = True) 
         conn.close()
 
 
-def book_appointment(user_id: str, consultation_id: str, slot_id: str, notes: str = "") -> Dict[str, Any]:
+def book_appointment(user_id: str, consultation_id: Optional[str], slot_id: str, notes: str = "") -> Dict[str, Any]:
     """
-    Patient books an appointment slot for an active/assigned consultation.
-    Enforces double-booking prevention and authorization check.
+    Patient books an appointment slot for a selected doctor.
+    Enforces double-booking prevention, doctor verification check, and authorization.
+    Automatically creates/links consultation if consultation_id is missing.
     """
     conn = get_db_connection()
     now = datetime.datetime.now(datetime.timezone.utc).isoformat()
     try:
-        c_row = conn.execute("SELECT consultation_id, patient_id, user_id, assigned_doctor_id, status FROM consultations WHERE consultation_id = ? AND user_id = ?", (consultation_id, user_id)).fetchone()
-        if not c_row:
-            raise ValueError("Consultation not found or unauthorized.")
-
-        if c_row["status"] not in ("ASSIGNED", "ACCEPTED", "ACTIVE"):
-            raise ValueError(f"Appointments can only be booked for active consultations. Current status: '{c_row['status']}'.")
-
-        doctor_id = c_row["assigned_doctor_id"]
-        if not doctor_id:
-            raise ValueError("Consultation does not have an assigned doctor yet.")
-
-        # Fetch slot
-        s_row = conn.execute("SELECT * FROM doctor_availability_slots WHERE slot_id = ? AND doctor_id = ?", (slot_id, doctor_id)).fetchone()
+        # Fetch slot details
+        s_row = conn.execute("SELECT * FROM doctor_availability_slots WHERE slot_id = ?", (slot_id,)).fetchone()
         if not s_row:
-            raise ValueError("Selected availability slot not found for this doctor.")
+            raise ValueError("Selected availability slot not found.")
 
         if s_row["is_booked"] == 1:
             raise ValueError("Selected appointment slot has already been booked. Please choose another time slot.")
 
+        doctor_id = s_row["doctor_id"]
+
+        # Verify doctor is VERIFIED
+        doc_profile = conn.execute("SELECT doctor_id, full_name, user_id, verification_status, specialization FROM doctor_profiles WHERE doctor_id = ?", (doctor_id,)).fetchone()
+        if not doc_profile or doc_profile["verification_status"] != "VERIFIED":
+            raise ValueError("Selected doctor is not active or verified for teleconsultation booking.")
+
         # Double-booking check across active appointments
-        existing = conn.execute("SELECT appointment_id FROM appointments WHERE slot_id = ? AND status IN ('REQUESTED', 'CONFIRMED')", (slot_id,)).fetchone()
+        existing = conn.execute("SELECT appointment_id FROM appointments WHERE slot_id = ? AND status IN ('REQUESTED', 'CONFIRMED', 'UPCOMING', 'IN_CONSULTATION')", (slot_id,)).fetchone()
         if existing:
-            raise ValueError("Appointment slot is unavailable due to an existing booking.")
+            raise ValueError("Appointment slot is unavailable due to an existing active booking.")
+
+        # Fetch patient profile
+        p_row = conn.execute("SELECT patient_id, full_name FROM patient_profiles WHERE user_id = ?", (user_id,)).fetchone()
+        patient_id = p_row["patient_id"] if p_row else f"pat_{secrets.token_hex(6)}"
+
+        # Resolve or auto-create consultation
+        active_cons_id = consultation_id
+        if active_cons_id:
+            c_row = conn.execute("SELECT consultation_id FROM consultations WHERE consultation_id = ? AND user_id = ?", (active_cons_id, user_id)).fetchone()
+            if not c_row:
+                active_cons_id = None
+
+        if not active_cons_id:
+            active_cons_id = f"cons_{secrets.token_hex(6)}"
+            conn.execute("""
+                INSERT INTO consultations (
+                    consultation_id, patient_id, user_id, assigned_doctor_id, specialization, category, reason, urgency, message, status, created_at, updated_at
+                ) VALUES (?, ?, ?, ?, ?, 'Direct Teleconsultation', ?, 'ROUTINE', ?, 'ACCEPTED', ?, ?)
+            """, (active_cons_id, patient_id, user_id, doctor_id, doc_profile["specialization"], notes.strip() or "Teleconsultation Booking", notes.strip() or "Direct doctor appointment scheduled", now, now))
 
         appointment_id = f"apt_{secrets.token_hex(6)}"
         with conn:
@@ -2259,19 +2275,18 @@ def book_appointment(user_id: str, consultation_id: str, slot_id: str, notes: st
                 INSERT INTO appointments (
                     appointment_id, consultation_id, doctor_id, patient_id, patient_user_id, slot_id, slot_start, slot_end, status, notes, created_at, updated_at
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'CONFIRMED', ?, ?, ?)
-            """, (appointment_id, consultation_id, doctor_id, c_row["patient_id"], user_id, slot_id, s_row["slot_start"], s_row["slot_end"], notes.strip() if notes else None, now, now))
+            """, (appointment_id, active_cons_id, doctor_id, patient_id, user_id, slot_id, s_row["slot_start"], s_row["slot_end"], notes.strip() if notes else None, now, now))
 
-            # Mark slot booked
+            # Mark availability slot booked
             conn.execute("UPDATE doctor_availability_slots SET is_booked = 1 WHERE slot_id = ?", (slot_id,))
 
         # Notify doctor
-        doc_u = conn.execute("SELECT user_id FROM doctor_profiles WHERE doctor_id = ?", (doctor_id,)).fetchone()
-        if doc_u:
+        if doc_profile["user_id"]:
             create_notification(
-                user_id=doc_u["user_id"],
+                user_id=doc_profile["user_id"],
                 n_type="APPOINTMENT_BOOKED",
                 title="New Consultation Appointment Booked",
-                message=f"A patient booked an appointment for {s_row['slot_start']}.",
+                message=f"Patient booked an appointment for {s_row['slot_start']}.",
                 link_nav="appointments",
                 conn=conn
             )
@@ -2326,9 +2341,8 @@ def list_user_appointments(user_id: str, role: str, status_filter: Optional[str]
                 return []
             sql += " AND a.doctor_id = ?"
             params.append(doc_row["doctor_id"])
-        # ADMIN can view operational appointment metadata
 
-        if status_filter:
+        if status_filter and status_filter.upper() != "ALL":
             sql += " AND a.status = ?"
             params.append(status_filter.strip().upper())
 
@@ -2347,9 +2361,9 @@ def update_appointment_status(
     reason: Optional[str] = None,
     new_slot_id: Optional[str] = None
 ) -> Dict[str, Any]:
-    """Execute status change for an appointment (CANCELLED, COMPLETED, RESCHEDULED)."""
+    """Execute status change for an appointment (REQUESTED, CONFIRMED, UPCOMING, IN_CONSULTATION, COMPLETED, CANCELLED, NO_SHOW, RESCHEDULED)."""
     status_clean = new_status.strip().upper()
-    valid_statuses = ("CONFIRMED", "COMPLETED", "CANCELLED", "RESCHEDULED")
+    valid_statuses = ("REQUESTED", "CONFIRMED", "UPCOMING", "IN_CONSULTATION", "COMPLETED", "CANCELLED", "NO_SHOW", "RESCHEDULED")
     if status_clean not in valid_statuses:
         raise ValueError(f"Invalid appointment status '{new_status}'. Allowed: {valid_statuses}")
 
@@ -2375,9 +2389,11 @@ def update_appointment_status(
             raise ValueError("Access denied to modify this appointment.")
 
         with conn:
-            if status_clean == "CANCELLED":
-                conn.execute("UPDATE appointments SET status = 'CANCELLED', notes = COALESCE(?, notes), updated_at = ? WHERE appointment_id = ?", (reason, now, appointment_id))
+            if status_clean in ("CANCELLED", "NO_SHOW"):
+                conn.execute("UPDATE appointments SET status = ?, notes = COALESCE(?, notes), updated_at = ? WHERE appointment_id = ?", (status_clean, reason, now, appointment_id))
                 conn.execute("UPDATE doctor_availability_slots SET is_booked = 0 WHERE slot_id = ?", (apt["slot_id"],))
+                if apt["consultation_id"]:
+                    conn.execute("UPDATE consultations SET status = 'CANCELLED', updated_at = ? WHERE consultation_id = ?", (now, apt["consultation_id"]))
 
                 target_user = apt["patient_user_id"] if role == "DOCTOR" else None
                 if role == "PATIENT":
@@ -2387,11 +2403,21 @@ def update_appointment_status(
                     create_notification(
                         user_id=target_user,
                         n_type="APPOINTMENT_CANCELLED",
-                        title="Appointment Cancelled",
-                        message=f"Appointment on {apt['slot_start']} was cancelled. Reason: {reason or 'None provided'}",
+                        title=f"Appointment {status_clean.title()}",
+                        message=f"Appointment on {apt['slot_start']} status updated to {status_clean}. Reason: {reason or 'None provided'}",
                         link_nav="appointments",
                         conn=conn
                     )
+
+            elif status_clean == "IN_CONSULTATION":
+                conn.execute("UPDATE appointments SET status = 'IN_CONSULTATION', updated_at = ? WHERE appointment_id = ?", (now, appointment_id))
+                if apt["consultation_id"]:
+                    conn.execute("UPDATE consultations SET status = 'ACTIVE', updated_at = ? WHERE consultation_id = ?", (now, apt["consultation_id"]))
+
+            elif status_clean == "COMPLETED":
+                conn.execute("UPDATE appointments SET status = 'COMPLETED', updated_at = ? WHERE appointment_id = ?", (now, appointment_id))
+                if apt["consultation_id"]:
+                    conn.execute("UPDATE consultations SET status = 'COMPLETED', updated_at = ?, completed_at = ? WHERE consultation_id = ?", (now, now, apt["consultation_id"]))
 
             elif status_clean == "RESCHEDULED" and new_slot_id:
                 ns_row = conn.execute("SELECT * FROM doctor_availability_slots WHERE slot_id = ? AND doctor_id = ? AND is_booked = 0", (new_slot_id, apt["doctor_id"])).fetchone()

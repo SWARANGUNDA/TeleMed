@@ -1057,6 +1057,18 @@ export async function updateAppointmentStatus(appointmentId, status, reason = ''
   return data;
 }
 
+export async function joinAppointment(appointmentId) {
+  const res = await fetch(`${API_BASE}/appointments/${appointmentId}/join`, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+  });
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(data.message || data.detail || 'Failed to join appointment session');
+  }
+  return data;
+}
+
 // ------------------------------------------------------------------
 // Level 10: System Operations & Health Monitoring API
 // ------------------------------------------------------------------
