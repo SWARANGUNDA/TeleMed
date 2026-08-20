@@ -506,9 +506,9 @@ export default function App() {
           <Route path="/login" element={<LoginPage onLogin={handleLogin} user={currentUser} />} />
           <Route path="/register" element={<RegisterPage onLoginSuccess={handleLoginSuccess} user={currentUser} />} />
 
-            {/* PATIENT & CORE CLINICAL ROUTES */}
+            {/* PATIENT-SPECIFIC ROUTES */}
             <Route path="/dashboard" element={
-              <ProtectedRoute currentUser={currentUser} authChecking={authChecking} allowedRoles={['PATIENT', 'DOCTOR', 'ADMIN']}>
+              <ProtectedRoute currentUser={currentUser} authChecking={authChecking} allowedRoles={['PATIENT']}>
                 <DashboardPage
                   session={session}
                   predictionData={predictionData}
@@ -522,7 +522,7 @@ export default function App() {
             } />
 
             <Route path="/intake" element={
-              <ProtectedRoute currentUser={currentUser} authChecking={authChecking} allowedRoles={['PATIENT', 'DOCTOR', 'ADMIN']}>
+              <ProtectedRoute currentUser={currentUser} authChecking={authChecking} allowedRoles={['PATIENT']}>
                 <IntakePage
                   session={session}
                   setSession={setSession}
@@ -536,7 +536,7 @@ export default function App() {
             } />
 
             <Route path="/xai" element={
-              <ProtectedRoute currentUser={currentUser} authChecking={authChecking} allowedRoles={['PATIENT', 'DOCTOR', 'ADMIN']}>
+              <ProtectedRoute currentUser={currentUser} authChecking={authChecking} allowedRoles={['PATIENT']}>
                 <XAIPage
                   session={session}
                   predictionData={predictionData}
@@ -549,7 +549,7 @@ export default function App() {
             } />
 
             <Route path="/report" element={
-              <ProtectedRoute currentUser={currentUser} authChecking={authChecking} allowedRoles={['PATIENT', 'DOCTOR', 'ADMIN']}>
+              <ProtectedRoute currentUser={currentUser} authChecking={authChecking} allowedRoles={['PATIENT']}>
                 <ReportPage
                   user={currentUser}
                   session={session}
@@ -566,7 +566,7 @@ export default function App() {
             } />
 
             <Route path="/records" element={
-              <ProtectedRoute currentUser={currentUser} authChecking={authChecking} allowedRoles={['PATIENT', 'DOCTOR', 'ADMIN']}>
+              <ProtectedRoute currentUser={currentUser} authChecking={authChecking} allowedRoles={['PATIENT']}>
                 <HealthRecordsPage
                   currentUser={currentUser}
                   session={session}
@@ -583,6 +583,34 @@ export default function App() {
               </ProtectedRoute>
             } />
 
+            <Route path="/compare" element={
+              <ProtectedRoute currentUser={currentUser} authChecking={authChecking} allowedRoles={['PATIENT']}>
+                <CompareAssessmentsPage
+                  user={currentUser}
+                  session={session}
+                  predictionData={predictionData}
+                  onNavigate={handleNavigate}
+                />
+              </ProtectedRoute>
+            } />
+
+            <Route path="/copilot" element={
+              <ProtectedRoute currentUser={currentUser} authChecking={authChecking} allowedRoles={['PATIENT']}>
+                <HealthCopilotPage user={currentUser} session={session} predictionData={predictionData} xaiData={xaiData} onNavigate={handleNavigate} />
+              </ProtectedRoute>
+            } />
+
+            <Route path="/care" element={
+              <ProtectedRoute currentUser={currentUser} authChecking={authChecking} allowedRoles={['PATIENT']}>
+                <CarePage
+                  user={currentUser}
+                  predictionData={predictionData}
+                  onNavigate={handleNavigate}
+                />
+              </ProtectedRoute>
+            } />
+
+            {/* SHARED UTILITY ROUTES ACROSS ALL ROLES */}
             <Route path="/consultations" element={
               <ProtectedRoute currentUser={currentUser} authChecking={authChecking} allowedRoles={['PATIENT', 'DOCTOR', 'ADMIN']}>
                 <ConsultationWorkspacePage
@@ -600,23 +628,6 @@ export default function App() {
               </ProtectedRoute>
             } />
 
-            <Route path="/profile" element={
-              <ProtectedRoute currentUser={currentUser} authChecking={authChecking} allowedRoles={['PATIENT', 'DOCTOR', 'ADMIN']}>
-                <AccountPage user={currentUser} onNavigate={handleNavigate} />
-              </ProtectedRoute>
-            } />
-
-            <Route path="/compare" element={
-              <ProtectedRoute currentUser={currentUser} authChecking={authChecking} allowedRoles={['PATIENT', 'DOCTOR', 'ADMIN']}>
-                <CompareAssessmentsPage
-                  user={currentUser}
-                  session={session}
-                  predictionData={predictionData}
-                  onNavigate={handleNavigate}
-                />
-              </ProtectedRoute>
-            } />
-
             <Route path="/notifications" element={
               <ProtectedRoute currentUser={currentUser} authChecking={authChecking} allowedRoles={['PATIENT', 'DOCTOR', 'ADMIN']}>
                 <NotificationsPage user={currentUser} predictionData={predictionData} />
@@ -626,22 +637,6 @@ export default function App() {
             <Route path="/messages" element={
               <ProtectedRoute currentUser={currentUser} authChecking={authChecking} allowedRoles={['PATIENT', 'DOCTOR', 'ADMIN']}>
                 <MessagesPage user={currentUser} />
-              </ProtectedRoute>
-            } />
-
-            <Route path="/copilot" element={
-              <ProtectedRoute currentUser={currentUser} authChecking={authChecking} allowedRoles={['PATIENT', 'DOCTOR', 'ADMIN']}>
-                <HealthCopilotPage user={currentUser} session={session} predictionData={predictionData} xaiData={xaiData} onNavigate={handleNavigate} />
-              </ProtectedRoute>
-            } />
-
-            <Route path="/care" element={
-              <ProtectedRoute currentUser={currentUser} authChecking={authChecking} allowedRoles={['PATIENT', 'DOCTOR', 'ADMIN']}>
-                <CarePage
-                  user={currentUser}
-                  predictionData={predictionData}
-                  onNavigate={handleNavigate}
-                />
               </ProtectedRoute>
             } />
 

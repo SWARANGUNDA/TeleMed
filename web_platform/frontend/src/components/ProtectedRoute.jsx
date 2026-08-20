@@ -1,6 +1,5 @@
 import React from 'react';
-import { Navigate, useLocation, Link } from 'react-router-dom';
-import { ShieldAlert, ArrowLeft } from 'lucide-react';
+import { Navigate, useLocation } from 'react-router-dom';
 
 export default function ProtectedRoute({ currentUser, authChecking, allowedRoles, children }) {
   const location = useLocation();
@@ -29,24 +28,8 @@ export default function ProtectedRoute({ currentUser, authChecking, allowedRoles
         ? '/doctor/dashboard'
         : '/dashboard';
 
-    return (
-      <div className="min-h-[70vh] flex flex-col items-center justify-center p-6 text-center">
-        <div className="w-16 h-16 bg-rose-100 text-rose-600 rounded-full flex items-center justify-center mb-4 shadow-sm">
-          <ShieldAlert className="w-8 h-8" />
-        </div>
-        <h1 className="text-2xl font-bold text-slate-900 mb-2">403 — Access Denied</h1>
-        <p className="text-slate-600 max-w-md mb-6 text-sm">
-          Your account role (<span className="font-semibold text-slate-800">{currentUser.role}</span>) does not have authorization to view this endpoint or workspace.
-        </p>
-        <Link
-          to={defaultRedirect}
-          className="inline-flex items-center px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium transition-colors shadow-sm"
-        >
-          <ArrowLeft className="w-4 h-4 mr-2" />
-          Return to Your Workspace
-        </Link>
-      </div>
-    );
+    // Seamless auto-redirection to appropriate portal workspace
+    return <Navigate to={defaultRedirect} replace />;
   }
 
   return children;
