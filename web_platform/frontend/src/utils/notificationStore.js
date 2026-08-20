@@ -1,18 +1,60 @@
-// Global Notification Store with strict per-user isolation
+// Global Notification Store with strict per-user isolation and persistent read state
 
-function getActiveUserId() {
+function getActiveUser() {
   try {
     const saved = localStorage.getItem('telemed_user');
     if (saved) {
       const u = JSON.parse(saved);
-      if (u?.user_id) return u.user_id;
-      if (u?.id) return u.id;
+      return u;
     }
   } catch (e) {}
+  return null;
+}
+
+function getActiveUserId() {
+  const u = getActiveUser();
+  if (u?.user_id) return u.user_id;
+  if (u?.id) return u.id;
   return 'default_user';
 }
 
-function getInitialNotificationsForUser(userId) {
+function getInitialNotificationsForUser(userId, role) {
+  const userRole = (role || getActiveUser()?.role || 'PATIENT').toUpperCase();
+  
+  if (userRole === 'DOCTOR') {
+    return [
+      {
+        id: `NOT-WELCOME-DOC-${userId || 'NEW'}`,
+        category: 'Welcome',
+        title: 'Welcome to TeleMed AI Physician Portal',
+        description: 'Your verified doctor workspace is active. Review assigned patient consultations, intake assessments, and clinical guidelines.',
+        details: 'Connected to TeleMed Precision AI v4.0. Physician verification active.',
+        timestamp: 'Just now',
+        priority: 'HIGH',
+        isRead: false,
+        actionRoute: '/doctor/dashboard',
+        actionLabel: 'View Doctor Dashboard'
+      }
+    ];
+  }
+
+  if (userRole === 'ADMIN') {
+    return [
+      {
+        id: `NOT-WELCOME-ADM-${userId || 'NEW'}`,
+        category: 'Welcome',
+        title: 'Welcome to TeleMed AI Admin Console',
+        description: 'System administration portal initialized. Monitor doctor verifications, patient consultation queues, and compliance audit logs.',
+        details: 'Connected to TeleMed Precision AI v4.0. Admin Level 5 Privilege.',
+        timestamp: 'Just now',
+        priority: 'HIGH',
+        isRead: false,
+        actionRoute: '/admin/dashboard',
+        actionLabel: 'View Admin Overview'
+      }
+    ];
+  }
+
   return [
     {
       id: `NOT-WELCOME-${userId || 'NEW'}`,
@@ -32,18 +74,28 @@ function getInitialNotificationsForUser(userId) {
 export const notificationStore = {
   getNotifications(targetUserId) {
     const uid = targetUserId || getActiveUserId();
+    if (uid === 'default_user') return [];
+    
     const key = `telemed_notifications_${uid}`;
     try {
       const stored = localStorage.getItem(key);
-      if (stored) {
+      if (stored !== null) {
         const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed)) return parsed;
       }
     } catch (e) {}
     
+    // Check if user has already been initialized previously
+    const welcomedKey = `telemed_welcomed_${uid}`;
+    if (localStorage.getItem(welcomedKey)) {
+      localStorage.setItem(key, JSON.stringify([]));
+      return [];
+    }
+
     const initial = getInitialNotificationsForUser(uid);
     try {
       localStorage.setItem(key, JSON.stringify(initial));
+      localStorage.setItem(welcomedKey, 'true');
     } catch (e) {}
     return initial;
   },
