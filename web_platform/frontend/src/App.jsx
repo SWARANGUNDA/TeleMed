@@ -354,7 +354,8 @@ export default function App() {
     setPredictionData(null);
     setXaiData(null);
     sessionStorage.clear();
-    localStorage.clear();
+    localStorage.removeItem('telemed_token');
+    localStorage.removeItem('telemed_user');
     navigate('/');
   };
 
