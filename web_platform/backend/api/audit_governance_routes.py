@@ -27,10 +27,10 @@ class DeleteAccountRequest(BaseModel):
 # ------------------------------------------------------------------
 
 @router.get("/patient/access-history", status_code=status.HTTP_200_OK)
-def get_patient_data_access_history(current_user: Dict[str, Any] = Depends(require_patient_user)):
+def get_patient_data_access_history(current_user: Dict[str, Any] = Depends(get_current_user)):
     """
-    Patient Access History Endpoint.
-    Shows who (doctors/admins) accessed patient health records/consultations, resource, action, and timestamp.
+    Data Access History Endpoint.
+    Shows data access audit events for the authenticated user across PATIENT, DOCTOR, or ADMIN roles.
     """
     history = database.get_patient_access_history(current_user["user_id"])
     return {

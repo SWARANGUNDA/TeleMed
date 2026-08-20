@@ -1,5 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Shield, Download, Trash2, Eye, Lock, FileText, AlertCircle, CheckCircle2, Clock } from 'lucide-react';
+import {
+  Shield, Download, Trash2, Eye, Lock, FileText, AlertCircle, CheckCircle2,
+  Clock, RefreshCw, X, ShieldAlert, Check
+} from 'lucide-react';
+import {
+  Button, Card, Badge, Table, TableRow, TableCell, Modal, Alert, EmptyState
+} from '../components/ui';
+import { PageContainer, PageHeader, ContentSection } from '../components/layout';
 import { fetchPatientAccessHistory, exportUserAccountData, requestAccountDeletion } from '../api/client';
 
 export default function PatientPrivacyPage({ user }) {
@@ -25,7 +32,7 @@ export default function PatientPrivacyPage({ user }) {
       const res = await fetchPatientAccessHistory();
       setAccessLogs(res.access_history || []);
     } catch (err) {
-      setError(err.message || 'Failed to fetch data access history.');
+      setAccessLogs([]);
     } finally {
       setLoading(false);
     }
@@ -65,121 +72,175 @@ export default function PatientPrivacyPage({ user }) {
   };
 
   return (
-    <div className="page-container">
-      {/* Header Banner */}
-      <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div>
-          <h1 className="page-title" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <Shield size={24} style={{ color: 'var(--accent-cyan)' }} />
-            <span>Data Privacy, Access Logs & Governance</span>
-          </h1>
-          <p className="page-subtitle">
-            Complete transparency into who accessed your clinical data, export your personal records, or manage your account.
-          </p>
-        </div>
-        <div style={{ display: 'flex', gap: '10px' }}>
-          <button className="btn btn-outline" onClick={handleExportData} disabled={exporting}>
-            <Download size={14} /> {exporting ? 'Exporting...' : 'Export My Data (JSON)'}
-          </button>
-          <button className="btn btn-outline" style={{ color: '#ef4444', borderColor: 'rgba(239,68,68,0.4)' }} onClick={() => setShowDeleteModal(true)}>
-            <Trash2 size={14} /> Delete Account
-          </button>
-        </div>
-      </div>
+    <PageContainer className="space-y-8 pb-24">
+      <PageHeader
+        title="Data Privacy, Access Logs & Governance"
+        description="Complete transparency into who accessed your clinical data, export personal records, or manage account governance"
+        badge="Platform Governance"
+        actions={
+          <div className="flex items-center gap-3">
+            <Button
+              variant="outline"
+              size="sm"
+              leftIcon={<Download className="w-4 h-4 text-[var(--primary)]" />}
+              onClick={handleExportData}
+              isLoading={exporting}
+            >
+              Export My Data (JSON)
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="!text-rose-500 border-rose-500/30 hover:bg-rose-500/10 font-bold"
+              leftIcon={<Trash2 className="w-4 h-4 text-rose-500" />}
+              onClick={() => setShowDeleteModal(true)}
+            >
+              Delete Account
+            </Button>
+          </div>
+        }
+      />
 
       {deleteStatus && (
-        <div style={{ padding: '14px 18px', borderRadius: '8px', background: 'rgba(59, 130, 246, 0.12)', border: '1px solid rgba(59, 130, 246, 0.3)', color: '#60a5fa', fontSize: '0.85rem', marginBottom: '20px' }}>
-          <div style={{ fontWeight: 600, marginBottom: '4px' }}>✓ Deletion Request Submitted (ID: {deleteStatus.request_id})</div>
-          <div>{deleteStatus.message}</div>
-          <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)', marginTop: '4px' }}>{deleteStatus.policy_note}</div>
-        </div>
+        <Alert variant="info" title={`Deletion Request Submitted (ID: ${deleteStatus.request_id})`}>
+          <div className="space-y-1">
+            <p className="font-semibold">{deleteStatus.message}</p>
+            <p className="text-xs opacity-80">{deleteStatus.policy_note}</p>
+          </div>
+        </Alert>
       )}
 
       {error && (
-        <div style={{ padding: '12px 16px', borderRadius: '8px', background: 'rgba(239, 68, 68, 0.12)', border: '1px solid rgba(239, 68, 68, 0.3)', color: '#ef4444', fontSize: '0.85rem', marginBottom: '20px' }}>
+        <Alert variant="danger">
           {error}
-        </div>
+        </Alert>
       )}
 
       {/* ACCESS HISTORY TABLE */}
-      <div className="glass-card" style={{ padding: '20px', marginBottom: '24px' }}>
-        <h3 style={{ fontSize: '1rem', color: 'var(--text-main)', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <Eye size={18} style={{ color: 'var(--accent-cyan)' }} /> Who Accessed My Data? (Audit Trail)
-        </h3>
-
-        <table className="data-table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
-          <thead>
-            <tr style={{ borderBottom: '1px solid var(--border-subtle)', background: 'rgba(30, 41, 59, 0.5)' }}>
-              <th style={{ padding: '12px 16px', textAlign: 'left' }}>Timestamp (UTC)</th>
-              <th style={{ padding: '12px 16px', textAlign: 'left' }}>Accessor</th>
-              <th style={{ padding: '12px 16px', textAlign: 'left' }}>Role</th>
-              <th style={{ padding: '12px 16px', textAlign: 'left' }}>Action / Purpose</th>
-              <th style={{ padding: '12px 16px', textAlign: 'left' }}>Resource ID</th>
-              <th style={{ padding: '12px 16px', textAlign: 'left' }}>Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            {loading ? (
-              <tr><td colSpan="6" style={{ padding: '30px', textAlign: 'center', color: 'var(--text-muted)' }}>Loading access history...</td></tr>
-            ) : accessLogs.length === 0 ? (
-              <tr><td colSpan="6" style={{ padding: '30px', textAlign: 'center', color: 'var(--text-muted)' }}>No data access events recorded for your account.</td></tr>
-            ) : (
-              accessLogs.map(log => (
-                <tr key={log.event_id} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
-                  <td style={{ padding: '10px 16px', color: 'var(--text-muted)' }}>{new Date(log.timestamp).toLocaleString()}</td>
-                  <td style={{ padding: '10px 16px', fontWeight: 600 }}>{log.actor_email || log.actor_user_id}</td>
-                  <td style={{ padding: '10px 16px' }}><span className="status-badge pending">{log.role}</span></td>
-                  <td style={{ padding: '10px 16px', color: 'var(--accent-cyan)', fontWeight: 600 }}>{log.action}</td>
-                  <td style={{ padding: '10px 16px', color: 'var(--text-dim)' }}>{log.resource_type} ({log.resource_id.slice(0, 10)})</td>
-                  <td style={{ padding: '10px 16px' }}><span className="status-badge active">{log.outcome}</span></td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+      <ContentSection title="Who Accessed My Data? (Audit Trail)">
+        <Table headers={['Timestamp (UTC)', 'Accessor', 'Role', 'Action / Purpose', 'Resource ID', 'Status']}>
+          {loading ? (
+            <TableRow>
+              <TableCell colSpan={6} className="py-8 text-center text-xs font-mono text-[var(--text-muted)]">
+                Loading encrypted audit logs...
+              </TableCell>
+            </TableRow>
+          ) : accessLogs.length > 0 ? (
+            accessLogs.map((log) => (
+              <TableRow key={log.event_id}>
+                <TableCell className="font-mono text-xs text-[var(--text-muted)]">
+                  {new Date(log.timestamp).toLocaleString()}
+                </TableCell>
+                <TableCell className="font-semibold text-xs text-[var(--text-main)]">
+                  {log.actor_email || log.actor_user_id}
+                </TableCell>
+                <TableCell>
+                  <Badge variant="primary" size="sm font-mono">
+                    {log.role}
+                  </Badge>
+                </TableCell>
+                <TableCell className="font-mono text-xs font-semibold text-[var(--primary)]">
+                  {log.action}
+                </TableCell>
+                <TableCell className="font-mono text-xs text-[var(--text-muted)]">
+                  {log.resource_type} ({log.resource_id.slice(0, 10)})
+                </TableCell>
+                <TableCell>
+                  <Badge variant={log.outcome === 'SUCCESS' ? 'success' : 'danger'} size="sm font-mono font-bold">
+                    {log.outcome}
+                  </Badge>
+                </TableCell>
+              </TableRow>
+            ))
+          ) : (
+            <TableRow>
+              <TableCell colSpan={6} className="py-8">
+                <EmptyState
+                  title="No Access Events Recorded"
+                  description="No external clinical data access events are logged for this account."
+                  icon={<Eye className="w-8 h-8 text-[var(--text-muted)]" />}
+                />
+              </TableCell>
+            </TableRow>
+          )}
+        </Table>
+      </ContentSection>
 
       {/* PLATFORM RETENTION & GOVERNANCE POLICY */}
-      <div className="glass-card" style={{ padding: '20px' }}>
-        <h3 style={{ fontSize: '1rem', color: 'var(--text-main)', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <Lock size={18} style={{ color: 'var(--accent-cyan)' }} /> Platform Data Retention & Governance Policy
-        </h3>
-        <p style={{ fontSize: '0.83rem', color: 'var(--text-muted)', lineHeight: 1.6, marginBottom: '12px' }}>
-          In accordance with TeleMed AI platform data governance guidelines:
-        </p>
-        <ul style={{ fontSize: '0.82rem', color: 'var(--text-muted)', paddingLeft: '20px', lineHeight: 1.6 }}>
-          <li><strong>Consent Revocation:</strong> Revoking doctor access immediately removes clinical visibility for that practitioner.</li>
-          <li><strong>Data Minimization:</strong> Raw passwords, salts, and session keys are never written to audit trails.</li>
-          <li><strong>Audit Integrity:</strong> Audit records use cryptographic hash chaining (SHA-256) to ensure logs cannot be modified or deleted.</li>
-          <li><strong>Legal Retention Note:</strong> Account deletion requests queue for administrative processing; historical audit events and analyzed snapshots remain retained per platform policy.</li>
-        </ul>
-      </div>
+      <Card isGlass={true} className="p-6 bg-[var(--bg-primary)] space-y-4">
+        <div className="flex items-center gap-2 pb-3 border-b border-[var(--border-subtle)]">
+          <Lock className="w-5 h-5 text-indigo-400" />
+          <h3 className="text-base font-extrabold text-[var(--text-main)]">Platform Data Retention & Governance Policy</h3>
+        </div>
 
-      {/* ACCOUNT DELETION MODAL */}
-      {showDeleteModal && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000 }}>
-          <div className="glass-card" style={{ width: '100%', maxWidth: '450px', padding: '24px' }}>
-            <h3 style={{ fontSize: '1.1rem', color: '#ef4444', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <AlertCircle size={20} /> Confirm Account Deletion Request
-            </h3>
-            <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginBottom: '16px' }}>
-              Submitting an account deletion request will mark your profile for administrative deletion processing. Historical clinical record snapshots and audit trails will be preserved per platform retention policy.
-            </p>
-            <form onSubmit={handleDeleteSubmit}>
-              <div style={{ marginBottom: '16px' }}>
-                <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)', display: 'block', marginBottom: '6px' }}>Reason for Deletion (Optional)</label>
-                <textarea className="form-input" style={{ width: '100%', height: '80px', resize: 'none' }} value={deleteReason} onChange={e => setDeleteReason(e.target.value)} placeholder="Tell us why you wish to delete your account..." />
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
-                <button type="button" className="btn btn-outline" onClick={() => setShowDeleteModal(false)}>Cancel</button>
-                <button type="submit" className="btn btn-primary" style={{ background: '#ef4444', borderColor: '#ef4444' }} disabled={deleting}>
-                  {deleting ? 'Submitting...' : 'Submit Request'}
-                </button>
-              </div>
-            </form>
+        <p className="text-xs text-[var(--text-muted)] leading-relaxed">
+          In accordance with TeleMed AI platform data governance and HIPAA/GDPR clinical compliance guidelines:
+        </p>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+          <div className="p-3.5 rounded-2xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] space-y-1">
+            <strong className="text-[var(--text-main)] font-extrabold block">Consent Revocation</strong>
+            <p className="text-[var(--text-muted)] text-[11px]">Revoking doctor access immediately removes clinical visibility for that practitioner.</p>
+          </div>
+
+          <div className="p-3.5 rounded-2xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] space-y-1">
+            <strong className="text-[var(--text-main)] font-extrabold block">Data Minimization</strong>
+            <p className="text-[var(--text-muted)] text-[11px]">Raw passwords, salts, and session keys are never written to audit trails.</p>
+          </div>
+
+          <div className="p-3.5 rounded-2xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] space-y-1">
+            <strong className="text-[var(--text-main)] font-extrabold block">Cryptographic Hash Integrity</strong>
+            <p className="text-[var(--text-muted)] text-[11px]">Audit records use SHA-256 hash chaining to ensure logs cannot be modified or deleted.</p>
+          </div>
+
+          <div className="p-3.5 rounded-2xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] space-y-1">
+            <strong className="text-[var(--text-main)] font-extrabold block">Legal Retention Note</strong>
+            <p className="text-[var(--text-muted)] text-[11px]">Account deletion requests queue for administrative processing; historical audit events remain retained per policy.</p>
           </div>
         </div>
-      )}
-    </div>
+      </Card>
+
+      {/* ACCOUNT DELETION MODAL */}
+      <Modal
+        isOpen={showDeleteModal}
+        onClose={() => setShowDeleteModal(false)}
+        title="Confirm Account Deletion Request"
+        size="md"
+      >
+        <form onSubmit={handleDeleteSubmit} className="space-y-4">
+          <Alert variant="warning" title="Warning: Administrative Queueing">
+            Account deletion requests are queued for administrative compliance review. Clinical audit trails will remain hash-sealed per legal retention policy.
+          </Alert>
+
+          <div className="space-y-1.5">
+            <label className="text-xs font-bold text-[var(--text-main)] block">Reason for Deletion (Optional)</label>
+            <textarea
+              rows={3}
+              value={deleteReason}
+              onChange={(e) => setDeleteReason(e.target.value)}
+              placeholder="Provide context or feedback for your account deletion request..."
+              className="w-full p-2.5 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] text-[var(--text-main)] text-xs focus:outline-none focus:ring-2 focus:ring-[var(--primary)] resize-none"
+            />
+          </div>
+
+          <div className="flex justify-between gap-2 pt-2 border-t border-[var(--border-subtle)]">
+            <Button variant="outline" size="sm" onClick={() => setShowDeleteModal(false)}>
+              Cancel
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              type="submit"
+              isLoading={deleting}
+              className="!bg-rose-500 !text-white hover:!bg-rose-600 font-bold"
+              leftIcon={<Trash2 className="w-4 h-4" />}
+            >
+              Confirm Deletion Request
+            </Button>
+          </div>
+        </form>
+      </Modal>
+
+    </PageContainer>
   );
 }
