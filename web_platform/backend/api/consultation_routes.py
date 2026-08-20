@@ -82,9 +82,15 @@ def create_consultation(
 
 
 @router.get("/api/v1/consultations", status_code=status.HTTP_200_OK)
-def list_patient_consultations(current_user: dict = Depends(require_patient_user)):
-    """List all consultation requests owned by the authenticated patient."""
-    consultations = database.list_patient_consultations(current_user["user_id"])
+def list_patient_consultations(current_user: dict = Depends(get_current_user)):
+    """List all consultation requests accessible to the authenticated user (Patient, Doctor, or Admin)."""
+    if current_user.get("role") == "DOCTOR":
+        consultations = database.list_doctor_consultations(current_user["user_id"])
+    elif current_user.get("role") == "ADMIN":
+        consultations = database.list_admin_consultations()
+    else:
+        consultations = database.list_patient_consultations(current_user["user_id"])
+        
     return {
         "count": len(consultations),
         "consultations": consultations
@@ -94,10 +100,16 @@ def list_patient_consultations(current_user: dict = Depends(require_patient_user
 @router.get("/api/v1/consultations/{consultation_id}", status_code=status.HTTP_200_OK)
 def get_patient_consultation_detail(
     consultation_id: str,
-    current_user: dict = Depends(require_patient_user)
+    current_user: dict = Depends(get_current_user)
 ):
-    """Fetch detailed snapshot of a patient's consultation request."""
-    detail = database.get_patient_consultation_detail(current_user["user_id"], consultation_id)
+    """Fetch detailed snapshot of a consultation request for Patient, Doctor, or Admin."""
+    if current_user.get("role") == "ADMIN":
+        detail = database.get_admin_consultation_detail(consultation_id)
+    elif current_user.get("role") == "DOCTOR":
+        detail = database.get_doctor_consultation_detail(current_user["user_id"], consultation_id)
+    else:
+        detail = database.get_patient_consultation_detail(current_user["user_id"], consultation_id)
+
     if not detail:
         raise HTTPException(status_code=404, detail="Consultation request not found or access denied.")
     return {"consultation": detail}
