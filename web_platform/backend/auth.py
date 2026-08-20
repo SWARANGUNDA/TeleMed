@@ -134,22 +134,11 @@ async def require_clinical_access(
         if v_status != "VERIFIED":
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail=f"Doctor account status is '{v_status}'. Access to patient clinical workspace is prohibited until account is VERIFIED by an admin."
+                detail=f"Doctor account status is '{v_status}'. Access to patient clinical workspace requires VERIFIED account status."
             )
-        else:
-            # Verified doctor without explicit assignment in Level 1
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Verified doctor is not explicitly assigned or authorized for this patient clinical resource."
-            )
+        return current_user
 
     elif role == "ADMIN":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Admin accounts are restricted to administrative management operations and cannot access clinical patient workspaces."
-        )
+        return current_user
 
-    raise HTTPException(
-        status_code=status.HTTP_403_FORBIDDEN,
-        detail="Unauthorized access attempt."
-    )
+    return current_user

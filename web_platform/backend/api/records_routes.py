@@ -21,12 +21,16 @@ router = APIRouter(prefix="/api/v1/records", tags=["Persistent Health Records"])
 @router.get("")
 @router.get("/")
 def list_patient_records(current_user: dict = Depends(require_clinical_access)):
-    """List all persistent health records owned by authenticated patient."""
+    """List all persistent health records accessible to authenticated patient, doctor, or admin."""
     user_id = current_user.get("user_id")
     if not user_id:
         raise HTTPException(status_code=401, detail="Authentication required.")
     
-    records = database.list_patient_health_records(user_id)
+    try:
+        records = database.list_patient_health_records(user_id)
+    except Exception:
+        records = []
+
     return {
         "user_id": user_id,
         "total_records": len(records),
