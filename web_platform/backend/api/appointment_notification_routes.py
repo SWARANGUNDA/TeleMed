@@ -96,6 +96,52 @@ def configure_doctor_availability(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
+@router.post("/doctor/availability/slot", status_code=status.HTTP_201_CREATED)
+def add_single_doctor_availability_slot(
+    req: AvailabilitySlotItem,
+    current_user: Dict[str, Any] = Depends(require_role(["DOCTOR"]))
+):
+    """Add a single consultation availability slot for the logged-in VERIFIED doctor."""
+    try:
+        slot = database.add_doctor_availability_slot(current_user["user_id"], req.slot_start, req.slot_end)
+        return {
+            "status": "SUCCESS",
+            "message": "Availability slot added successfully.",
+            "slot": slot
+        }
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+
+
+@router.delete("/doctor/availability/{slot_id}", status_code=status.HTTP_200_OK)
+def delete_doctor_availability_slot(
+    slot_id: str,
+    current_user: Dict[str, Any] = Depends(require_role(["DOCTOR"]))
+):
+    """Delete an unbooked availability slot for the logged-in doctor."""
+    success = database.delete_doctor_availability_slot(current_user["user_id"], slot_id)
+    if not success:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Cannot delete slot. Slot may be booked, invalid, or owned by another doctor.")
+    return {"status": "SUCCESS", "message": "Slot deleted successfully."}
+
+
+@router.get("/doctor/my-availability", status_code=status.HTTP_200_OK)
+def get_my_availability_slots(
+    available_only: bool = False,
+    current_user: Dict[str, Any] = Depends(require_role(["DOCTOR"]))
+):
+    """Get all availability slots for the authenticated doctor."""
+    doc_profile = database.get_doctor_profile(current_user["user_id"])
+    if not doc_profile:
+        return {"status": "SUCCESS", "slots": []}
+    slots = database.list_doctor_availability_slots(doc_profile["doctor_id"], available_only=available_only)
+    return {
+        "status": "SUCCESS",
+        "doctor_id": doc_profile["doctor_id"],
+        "slots": slots
+    }
+
+
 @router.get("/doctors", status_code=status.HTTP_200_OK)
 def list_verified_doctors(
     specialization: Optional[str] = None,
@@ -143,13 +189,33 @@ def book_consultation_appointment(
             slot_id=req.slot_id,
             notes=req.notes or ""
         )
+        import asyncio
+        from ..websocket_manager import ws_manager
+        doc_u = database.get_doctor_user_id(apt.get("doctor_id"))
+        user_ids = [current_user["user_id"]]
+        if doc_u:
+            user_ids.append(doc_u)
+        payload = {
+            "event": "APPOINTMENT_CREATED",
+            "type": "APPOINTMENT_CREATED",
+            "appointment": apt,
+            "message": "New patient appointment booked."
+        }
+        try:
+            loop = asyncio.get_running_loop()
+            loop.create_task(ws_manager.broadcast_event_to_users(user_ids, payload))
+        except RuntimeError:
+            pass
+
         return {
             "status": "SUCCESS",
             "message": "Appointment successfully booked.",
             "appointment": apt
         }
     except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+        msg = str(e)
+        status_code = status.HTTP_409_CONFLICT if ("already" in msg.lower() or "conflict" in msg.lower() or "unavailable" in msg.lower()) else status.HTTP_400_BAD_REQUEST
+        raise HTTPException(status_code=status_code, detail=msg)
 
 
 @router.get("/appointments", status_code=status.HTTP_200_OK)
@@ -186,13 +252,33 @@ def update_appointment_status(
             reason=req.reason,
             new_slot_id=req.new_slot_id
         )
+        import asyncio
+        from ..websocket_manager import ws_manager
+        patient_u = apt.get("patient_user_id")
+        doc_u = database.get_doctor_user_id(apt.get("doctor_id"))
+        user_ids = [u for u in (patient_u, doc_u) if u]
+        payload = {
+            "event": f"APPOINTMENT_{req.status.upper()}",
+            "type": "APPOINTMENT_UPDATED",
+            "status": req.status.upper(),
+            "appointment": apt,
+            "message": f"Appointment status updated to '{req.status}'."
+        }
+        try:
+            loop = asyncio.get_running_loop()
+            loop.create_task(ws_manager.broadcast_event_to_users(user_ids, payload))
+        except RuntimeError:
+            pass
+
         return {
             "status": "SUCCESS",
             "message": f"Appointment status updated to '{req.status}'.",
             "appointment": apt
         }
     except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+        msg = str(e)
+        status_code = status.HTTP_409_CONFLICT if ("already" in msg.lower() or "conflict" in msg.lower() or "terminal" in msg.lower()) else status.HTTP_400_BAD_REQUEST
+        raise HTTPException(status_code=status_code, detail=msg)
 
 
 @router.post("/appointments/{appointment_id}/join", status_code=status.HTTP_200_OK)
@@ -208,10 +294,29 @@ def join_consultation_appointment(
             appointment_id=appointment_id,
             new_status="IN_CONSULTATION"
         )
+        import asyncio
+        from ..websocket_manager import ws_manager
+        patient_u = apt.get("patient_user_id")
+        doc_u = database.get_doctor_user_id(apt.get("doctor_id"))
+        user_ids = [u for u in (patient_u, doc_u) if u]
+        payload = {
+            "event": "CONSULTATION_STARTED",
+            "type": "CONSULTATION_STARTED",
+            "appointment": apt,
+            "message": "Teleconsultation session active."
+        }
+        try:
+            loop = asyncio.get_running_loop()
+            loop.create_task(ws_manager.broadcast_event_to_users(user_ids, payload))
+        except RuntimeError:
+            pass
+
         return {
             "status": "SUCCESS",
             "message": "Successfully joined active teleconsultation session.",
             "appointment": apt
         }
     except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+        msg = str(e)
+        status_code = status.HTTP_409_CONFLICT if ("terminal" in msg.lower() or "conflict" in msg.lower()) else status.HTTP_400_BAD_REQUEST
+        raise HTTPException(status_code=status_code, detail=msg)

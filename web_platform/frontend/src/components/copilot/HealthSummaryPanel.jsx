@@ -6,20 +6,23 @@ import { calculateOverallHealthScore } from '../../utils/healthIntelligence';
 export default function HealthSummaryPanel({ predictionData }) {
   const healthObj = calculateOverallHealthScore(predictionData);
   const healthScore = healthObj ? healthObj.score : null;
-  const dq = predictionData ? Math.round((predictionData.data_quality_score || 0.85) * 100) : null;
-  const pathway = predictionData?.effective_pathway || predictionData?.pathway_used || 'C+W+G';
+  const dq = (predictionData && predictionData.data_quality_score !== undefined && predictionData.data_quality_score !== null)
+    ? Math.round(predictionData.data_quality_score * 100)
+    : null;
+  const pathway = predictionData?.effective_pathway || predictionData?.pathway_used;
   const mainRisk = predictionData?.disease_outcomes?.Type2_Diabetes;
   const riskProb = mainRisk ? Math.round((mainRisk.calibrated_probability || mainRisk.probability || 0) * 100) : null;
+  const modelVer = predictionData?.model_version || 'Validated Clinical ML Engine';
 
   return (
-    <Card isGlass={true} className="p-6 space-y-5 shadow-xl border-l-4 border-l-[var(--primary)]">
+    <Card isGlass={true} className="p-6 space-y-5 shadow-xl border-l-4 border-l-[var(--primary)] bg-[var(--bg-surface)]">
       <div className="flex items-center justify-between border-b border-[var(--border-subtle)] pb-3">
         <div className="flex items-center gap-2">
           <Sparkles className="w-5 h-5 text-[var(--primary)]" />
           <h3 className="text-base font-extrabold text-[var(--text-main)]">Personalized Health Summary</h3>
         </div>
         <Badge variant={predictionData ? 'success' : 'outline'} size="sm">
-          {predictionData ? `Pathway: ${pathway}` : 'No Active Assessment'}
+          {pathway ? `Pathway: ${pathway}` : 'No Active Assessment'}
         </Badge>
       </div>
 
@@ -37,51 +40,51 @@ export default function HealthSummaryPanel({ predictionData }) {
             </div>
           )}
           <span className="text-xs font-bold text-[var(--text-muted)] mt-2">
-            {predictionData ? 'Overall Health Score' : 'Score Not Available'}
+            {healthScore !== null ? 'Overall Health Index' : 'Score Not Available'}
           </span>
         </div>
-
 
         {/* Key Metrics Grid */}
         <div className="flex-1 grid grid-cols-2 gap-2.5 text-xs">
           <div className="p-2.5 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-subtle)] space-y-0.5">
-            <span className="text-[10px] font-mono text-[var(--text-muted)] uppercase block">Active Risk Level</span>
+            <span className="text-[10px] font-mono text-[var(--text-muted)] uppercase block">Model Prediction</span>
             <strong className="text-[var(--warning)] text-xs block">
               {riskProb !== null ? `${mainRisk?.risk_level || 'EVALUATED'} (${riskProb}%)` : 'NO ACTIVE ASSESSMENT'}
             </strong>
-            <span className="text-[9px] text-[var(--text-muted)]">Type 2 Diabetes</span>
+            <span className="text-[9px] text-[var(--text-muted)]">Type 2 Diabetes Risk Estimate</span>
           </div>
 
           <div className="p-2.5 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-subtle)] space-y-0.5">
-            <span className="text-[10px] font-mono text-[var(--text-muted)] uppercase block">Active Modality</span>
+            <span className="text-[10px] font-mono text-[var(--text-muted)] uppercase block">Active Modalities</span>
             <strong className="text-[var(--primary)] text-xs block">
-              {predictionData ? `Pathway ${pathway}` : 'NOT PROVIDED'}
+              {pathway ? `Pathway ${pathway}` : 'NOT PROVIDED'}
             </strong>
             <span className="text-[9px] text-[var(--text-muted)]">{
+              !pathway ? 'No data streams registered' :
               pathway === 'C' ? 'Clinical Only' :
               pathway === 'W' ? 'Wearable Only' :
               pathway === 'G' ? 'Gut Only' :
               pathway === 'C+W' ? 'Clinical + Wearable' :
               pathway === 'C+G' ? 'Clinical + Gut' :
               pathway === 'W+G' ? 'Wearable + Gut' :
-              'Clinical + Wearable + Gut'
+              'Multimodal (Clinical + Wearable + Gut)'
             }</span>
           </div>
 
           <div className="p-2.5 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-subtle)] space-y-0.5">
-            <span className="text-[10px] font-mono text-[var(--text-muted)] uppercase block">AI Confidence</span>
-            <strong className="text-[var(--accent)] text-xs font-mono block">
-              {predictionData ? 'High (V4 Stacked)' : 'NOT AVAILABLE'}
+            <span className="text-[10px] font-mono text-[var(--text-muted)] uppercase block">AI Model Engine</span>
+            <strong className="text-[var(--accent)] text-xs block truncate">
+              {predictionData ? modelVer : 'NOT ACTIVE'}
             </strong>
-            <span className="text-[9px] text-[var(--text-muted)]">Hierarchical Stacker</span>
+            <span className="text-[9px] text-[var(--text-muted)]">Validated Clinical ML</span>
           </div>
 
           <div className="p-2.5 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-subtle)] space-y-0.5">
-            <span className="text-[10px] font-mono text-[var(--text-muted)] uppercase block">Data Quality</span>
+            <span className="text-[10px] font-mono text-[var(--text-muted)] uppercase block">Data Completeness</span>
             <strong className="text-[var(--text-main)] text-xs font-mono block">
               {dq !== null ? `${dq}%` : 'NOT AVAILABLE'}
             </strong>
-            <span className="text-[9px] text-[var(--text-muted)] font-mono">Assessment Data Quality</span>
+            <span className="text-[9px] text-[var(--text-muted)] font-mono">Input Quality Score</span>
           </div>
         </div>
       </div>

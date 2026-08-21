@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Modal, Input, TextArea, Button, Badge, Alert } from './ui';
-import { Stethoscope, Calendar, Clock, Video, Phone, MessageSquare, UserCheck, FileText, CheckCircle2, AlertCircle, RefreshCw } from 'lucide-react';
+import { Modal } from './ui/Modal';
+import {
+  Stethoscope, Calendar, Clock, Video, Phone, MessageSquare,
+  UserCheck, FileText, CheckCircle2, AlertCircle, RefreshCw, X, ChevronDown, Check
+} from 'lucide-react';
 import { fetchDoctorAvailability } from '../api/client';
 
 export default function AppointmentBookingModal({
@@ -28,7 +31,7 @@ export default function AppointmentBookingModal({
     if (doctors.length > 0 && !selectedDoctorId) {
       setSelectedDoctorId(doctors[0].id || doctors[0].userId);
     }
-  }, [doctors, isOpen]);
+  }, [doctors, isOpen, selectedDoctorId]);
 
   // Fetch slots whenever selectedDoctorId changes
   useEffect(() => {
@@ -61,7 +64,7 @@ export default function AppointmentBookingModal({
   });
 
   const handleFormSubmit = async (e) => {
-    e.preventDefault();
+    if (e) e.preventDefault();
     setErrorMsg(null);
 
     if (!selectedDoctorId && doctors.length > 0) {
@@ -92,42 +95,83 @@ export default function AppointmentBookingModal({
 
   const formatSlotTime = (slot) => {
     const startStr = slot.slot_start || slot.start_time || slot.time || '';
-    if (!startStr) return 'Slot';
+    if (!startStr) return 'Available Slot';
     const dateObj = new Date(startStr);
     if (isNaN(dateObj)) return startStr;
-    return dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ' @ ' +
-      dateObj.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+    const datePart = dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    const timePart = dateObj.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+    return `${datePart} • ${timePart}`;
   };
+
+  const modalFooter = (
+    <div className="flex items-center justify-end gap-3 w-full">
+      <button
+        type="button"
+        onClick={onClose}
+        className="px-5 py-2.5 text-xs font-bold text-[var(--text-muted)] hover:text-[var(--text-main)] bg-[var(--bg-primary)] hover:bg-[var(--border-subtle)]/40 border border-[var(--border-subtle)] rounded-xl transition-all cursor-pointer"
+      >
+        Cancel
+      </button>
+      <button
+        type="button"
+        onClick={handleFormSubmit}
+        disabled={isLoading}
+        className="px-6 py-2.5 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 active:bg-blue-800 disabled:opacity-50 rounded-xl transition-all shadow-md shadow-blue-500/20 flex items-center gap-2 cursor-pointer"
+      >
+        {isLoading ? <RefreshCw size={14} className="spin" /> : <CheckCircle2 size={15} />}
+        <span>Confirm & Book Appointment</span>
+      </button>
+    </div>
+  );
 
   return (
     <Modal
       isOpen={isOpen}
       onClose={onClose}
       title="Schedule Teleconsultation & Doctor Appointment"
-      className="max-w-2xl border border-[var(--border-medium)] bg-[var(--bg-surface)] text-[var(--text-main)] shadow-2xl"
+      className="max-w-2xl bg-[var(--bg-surface)] text-[var(--text-main)] shadow-2xl border border-[var(--border-subtle)] rounded-3xl"
+      footer={modalFooter}
     >
-      <form onSubmit={handleFormSubmit} className="space-y-6 p-1">
-        {errorMsg && <Alert variant="danger">{errorMsg}</Alert>}
+      <form onSubmit={handleFormSubmit} className="space-y-6">
 
-        {/* 1. Specialty & Doctor Selection */}
+        {/* Error Alert */}
+        {errorMsg && (
+          <div className="p-3.5 rounded-2xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300 text-xs flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <AlertCircle size={16} className="shrink-0" />
+              <span>{errorMsg}</span>
+            </div>
+            <button type="button" onClick={() => setErrorMsg(null)} className="text-rose-500 hover:text-rose-700">
+              <X size={14} />
+            </button>
+          </div>
+        )}
+
+        {/* ── STEP 1: Select Specialty & Physician ─────────────────────── */}
         <div className="space-y-3">
           <div className="flex items-center justify-between">
-            <label className="text-xs font-mono font-bold text-[var(--text-muted)] uppercase tracking-wider">1. Select Specialty & Physician</label>
-            <select
-              value={specialtyFilter}
-              onChange={(e) => setSpecialtyFilter(e.target.value)}
-              className="px-3 py-1.5 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-subtle)] text-xs text-[var(--text-main)] font-semibold focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
-            >
-              {specialties.map(sp => (
-                <option key={sp} value={sp}>{sp}</option>
-              ))}
-            </select>
+            <div className="flex items-center gap-2">
+              <span className="w-5 h-5 rounded-full bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400 font-bold text-[11px] flex items-center justify-center">1</span>
+              <label className="text-xs font-bold text-[var(--text-main)] uppercase tracking-wider">Select Specialty & Physician</label>
+            </div>
+            <div className="relative">
+              <select
+                value={specialtyFilter}
+                onChange={(e) => setSpecialtyFilter(e.target.value)}
+                className="appearance-none pl-3 pr-8 py-1.5 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-subtle)] text-xs text-[var(--text-main)] font-semibold focus:outline-none focus:border-blue-600 cursor-pointer"
+              >
+                {specialties.map(sp => (
+                  <option key={sp} value={sp}>{sp === 'ALL' ? 'All Specialties' : sp}</option>
+                ))}
+              </select>
+              <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[var(--text-muted)] pointer-events-none" />
+            </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-48 overflow-y-auto p-1 scrollbar-thin">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-48 overflow-y-auto pr-1">
             {filteredDoctors.length === 0 ? (
               <div className="col-span-2 text-center p-6 border border-dashed border-[var(--border-subtle)] rounded-2xl text-xs text-[var(--text-muted)] bg-[var(--bg-primary)]">
-                No physicians found for selected specialty.
+                No verified physicians found for the selected specialty filter.
               </div>
             ) : (
               filteredDoctors.map((doc) => {
@@ -137,19 +181,31 @@ export default function AppointmentBookingModal({
                   <div
                     key={docKey}
                     onClick={() => setSelectedDoctorId(docKey)}
-                    className={`p-3.5 rounded-2xl border cursor-pointer transition-all flex items-center gap-3 ${
+                    className={`p-3.5 rounded-2xl border cursor-pointer transition-all flex items-center gap-3 relative ${
                       isSelected
-                        ? 'bg-[var(--primary-light)] border-[var(--primary)] text-[var(--primary)] shadow-md ring-1 ring-[var(--primary)]'
-                        : 'bg-[var(--bg-primary)] border-[var(--border-subtle)] hover:border-[var(--primary)] text-[var(--text-main)]'
+                        ? 'bg-blue-50/70 dark:bg-blue-950/40 border-blue-600 text-[var(--text-main)] shadow-xs ring-2 ring-blue-500/20'
+                        : 'bg-[var(--bg-primary)] border-[var(--border-subtle)] hover:border-blue-300 text-[var(--text-main)]'
                     }`}
                   >
-                    <div className="w-10 h-10 rounded-xl bg-[var(--primary-light)] text-[var(--primary)] font-extrabold flex items-center justify-center text-xs shrink-0 border border-[var(--primary)]/20">
+                    <div className={`w-10 h-10 rounded-xl font-bold flex items-center justify-center text-xs shrink-0 ${
+                      isSelected ? 'bg-blue-600 text-white' : 'bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300'
+                    }`}>
                       {doc.avatar || (doc.name || 'D').split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
                     </div>
-                    <div className="overflow-hidden space-y-0.5">
-                      <h4 className="text-xs font-extrabold truncate text-[var(--text-main)]">{doc.name}</h4>
-                      <p className="text-[10px] text-[var(--text-muted)] truncate">{doc.specialty}{doc.hospital ? ` • ${doc.hospital}` : ''}</p>
+                    <div className="overflow-hidden space-y-0.5 flex-1 pr-4">
+                      <div className="flex items-center gap-1.5">
+                        <h4 className="text-xs font-bold truncate text-[var(--text-main)]">{doc.name}</h4>
+                        <UserCheck size={12} className="text-blue-600 shrink-0" title="Verified Physician" />
+                      </div>
+                      <p className="text-[10px] text-[var(--text-muted)] truncate font-medium">
+                        {doc.specialty} {doc.experience ? `• ${doc.experience}` : ''}
+                      </p>
                     </div>
+                    {isSelected && (
+                      <div className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-blue-600 text-white flex items-center justify-center">
+                        <Check size={10} strokeWidth={3} />
+                      </div>
+                    )}
                   </div>
                 );
               })
@@ -157,22 +213,34 @@ export default function AppointmentBookingModal({
           </div>
         </div>
 
-        {/* 2. Available Slots */}
+        {/* ── STEP 2: Available Time Slots ─────────────────────────────── */}
         <div className="space-y-3">
           <div className="flex items-center justify-between">
-            <label className="text-xs font-mono font-bold text-[var(--text-muted)] uppercase tracking-wider">2. Available Time Slots</label>
-            {loadingSlots && <span className="text-[11px] text-[var(--text-muted)] flex items-center gap-1"><RefreshCw className="w-3 h-3 animate-spin" /> Loading slots...</span>}
+            <div className="flex items-center gap-2">
+              <span className="w-5 h-5 rounded-full bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400 font-bold text-[11px] flex items-center justify-center">2</span>
+              <label className="text-xs font-bold text-[var(--text-main)] uppercase tracking-wider">Available Time Slots</label>
+            </div>
+            {loadingSlots && (
+              <span className="text-[11px] text-[var(--text-muted)] flex items-center gap-1 font-medium">
+                <RefreshCw size={12} className="spin text-blue-600" /> Fetching slots...
+              </span>
+            )}
           </div>
 
-          <div className="p-3 bg-[var(--bg-primary)] border border-[var(--border-subtle)] rounded-2xl">
+          <div className="p-3.5 bg-[var(--bg-primary)] border border-[var(--border-subtle)] rounded-2xl">
             {loadingSlots ? (
-              <div className="py-4 text-center text-xs text-[var(--text-muted)]">Fetching doctor's schedule...</div>
+              <div className="py-6 text-center text-xs text-[var(--text-muted)] flex items-center justify-center gap-2">
+                <RefreshCw size={16} className="spin text-blue-600" />
+                <span>Loading physician's schedule...</span>
+              </div>
             ) : slots.length === 0 ? (
-              <div className="py-4 text-center text-xs text-[var(--text-muted)]">
-                No open availability slots found for this doctor. Select another doctor or check back later.
+              <div className="py-6 text-center text-xs text-[var(--text-muted)] space-y-1">
+                <Calendar size={20} className="mx-auto text-[var(--text-muted)] mb-1" />
+                <p className="font-semibold text-[var(--text-main)]">No Open Availability Slots Found</p>
+                <p className="text-[11px]">Select another doctor or check back later for new openings.</p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-40 overflow-y-auto p-1 scrollbar-thin">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-h-36 overflow-y-auto pr-1">
                 {slots.map((slot) => {
                   const sId = slot.slot_id || slot.id;
                   const isSel = selectedSlotId === sId;
@@ -181,16 +249,17 @@ export default function AppointmentBookingModal({
                       key={sId}
                       type="button"
                       onClick={() => setSelectedSlotId(sId)}
-                      className={`p-2.5 rounded-xl border text-left text-xs font-semibold transition-all ${
+                      className={`p-2.5 rounded-xl border text-left text-xs font-semibold transition-all flex items-center justify-between cursor-pointer ${
                         isSel
-                          ? 'bg-[var(--primary)] text-white border-[var(--primary)] shadow-sm'
-                          : 'bg-[var(--bg-surface)] border-[var(--border-subtle)] text-[var(--text-main)] hover:border-[var(--primary)]'
+                          ? 'bg-blue-600 text-white border-blue-600 shadow-sm font-bold'
+                          : 'bg-[var(--bg-surface)] border-[var(--border-subtle)] text-[var(--text-main)] hover:border-blue-400'
                       }`}
                     >
-                      <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Clock size={14} className={isSel ? 'text-white' : 'text-blue-600'} />
                         <span>{formatSlotTime(slot)}</span>
-                        {slot.status && <Badge variant={slot.status === 'AVAILABLE' ? 'success' : 'warning'} size="sm">{slot.status}</Badge>}
                       </div>
+                      {isSel && <Check size={14} />}
                     </button>
                   );
                 })}
@@ -199,9 +268,12 @@ export default function AppointmentBookingModal({
           </div>
         </div>
 
-        {/* 3. Consultation Mode */}
-        <div className="space-y-2">
-          <label className="text-xs font-mono font-bold text-[var(--text-muted)] uppercase tracking-wider">3. Consultation Mode</label>
+        {/* ── STEP 3: Consultation Mode ───────────────────────────────── */}
+        <div className="space-y-3">
+          <div className="flex items-center gap-2">
+            <span className="w-5 h-5 rounded-full bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400 font-bold text-[11px] flex items-center justify-center">3</span>
+            <label className="text-xs font-bold text-[var(--text-main)] uppercase tracking-wider">Consultation Mode</label>
+          </div>
           <div className="grid grid-cols-3 gap-3">
             {[
               { id: 'CHAT', label: 'Virtual Chat', icon: MessageSquare, active: true },
@@ -216,14 +288,15 @@ export default function AppointmentBookingModal({
                   type="button"
                   disabled={!mode.active}
                   onClick={() => mode.active && setConsultationType(mode.id)}
-                  className={`p-3 rounded-2xl border text-center flex flex-col items-center gap-1.5 transition-all ${
-                    !mode.active ? 'opacity-50 cursor-not-allowed bg-[var(--bg-primary)] border-[var(--border-subtle)] text-[var(--text-dim)]' :
-                    isSel
-                      ? 'bg-[var(--primary-light)] border-[var(--primary)] text-[var(--primary)] font-extrabold shadow-sm ring-1 ring-[var(--primary)]'
-                      : 'bg-[var(--bg-primary)] border-[var(--border-subtle)] text-[var(--text-muted)] hover:text-[var(--text-main)] hover:border-[var(--primary)]/50'
+                  className={`p-3 rounded-2xl border text-center flex flex-col items-center gap-1.5 transition-all cursor-pointer ${
+                    !mode.active
+                      ? 'opacity-40 cursor-not-allowed bg-[var(--bg-primary)] border-[var(--border-subtle)] text-[var(--text-dim)]'
+                      : isSel
+                      ? 'bg-blue-50/80 dark:bg-blue-950/50 border-blue-600 text-blue-600 dark:text-blue-400 font-bold shadow-xs ring-2 ring-blue-500/20'
+                      : 'bg-[var(--bg-primary)] border-[var(--border-subtle)] text-[var(--text-muted)] hover:text-[var(--text-main)] hover:border-blue-300'
                   }`}
                 >
-                  <Icon className="w-5 h-5 text-[var(--primary)]" />
+                  <Icon className={`w-5 h-5 ${isSel ? 'text-blue-600' : 'text-[var(--text-muted)]'}`} />
                   <span className="text-xs font-semibold">{mode.label}</span>
                 </button>
               );
@@ -231,30 +304,23 @@ export default function AppointmentBookingModal({
           </div>
         </div>
 
-        {/* 4. Reason for Consultation */}
-        <div className="space-y-1.5">
-          <label className="text-xs font-mono font-bold text-[var(--text-muted)] uppercase tracking-wider">4. Consultation Reason & Notes</label>
-          <TextArea
+        {/* ── STEP 4: Consultation Reason & Notes ─────────────────────── */}
+        <div className="space-y-2">
+          <div className="flex items-center gap-2">
+            <span className="w-5 h-5 rounded-full bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400 font-bold text-[11px] flex items-center justify-center">4</span>
+            <label className="text-xs font-bold text-[var(--text-main)] uppercase tracking-wider">Consultation Reason & Symptoms</label>
+          </div>
+          <textarea
             rows={3}
             placeholder="Describe your health concerns, symptoms, or reason for doctor review..."
             value={reason}
             onChange={(e) => setReason(e.target.value)}
             required
-            className="bg-[var(--bg-primary)] text-[var(--text-main)] border-[var(--border-subtle)]"
+            className="w-full p-3 text-xs rounded-2xl bg-[var(--bg-primary)] border border-[var(--border-subtle)] text-[var(--text-main)] placeholder-[var(--text-muted)] focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-500/20 transition-all"
           />
         </div>
 
-        {/* Action Buttons */}
-        <div className="pt-4 border-t border-[var(--border-subtle)] flex justify-end gap-3">
-          <Button variant="outline" size="md" type="button" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button variant="primary" size="md" type="submit" isLoading={isLoading} leftIcon={<CheckCircle2 className="w-4 h-4" />}>
-            Confirm & Book Appointment
-          </Button>
-        </div>
       </form>
     </Modal>
   );
 }
-

@@ -37,24 +37,24 @@ export function Sidebar({ isCollapsed, onToggleCollapse, userRole = 'PATIENT', c
     {
       group: "Clinical Insights",
       items: [
-        { label: "Overview", icon: LayoutDashboard, path: "/" },
-        { label: "New Analysis", icon: FilePlus, path: "/intake" },
-        { label: "XAI Driver Analysis", icon: BarChart3, path: "/xai" },
-        { label: "Comprehensive Report", icon: FileText, path: "/report" },
+        { id: "pat-overview", label: "Overview", icon: LayoutDashboard, path: "/" },
+        { id: "pat-intake", label: "New Analysis", icon: FilePlus, path: "/intake" },
+        { id: "pat-xai", label: "XAI Driver Analysis", icon: BarChart3, path: "/xai" },
+        { id: "pat-report", label: "Comprehensive Report", icon: FileText, path: "/report" },
       ]
     },
     {
       group: "Records & Care",
       items: [
-        { label: "AI Health Copilot", icon: Sparkles, path: "/copilot" },
-        { label: "Profile Workspace", icon: UserCheck, path: "/profile" },
-        { label: "Compare & Analytics", icon: BarChart3, path: "/compare" },
-        { label: "Secure Messages", icon: Activity, path: "/messages" },
-        { label: "Notifications", icon: Lock, path: "/notifications" },
-        { label: "Health Records", icon: History, path: "/records" },
-        { label: "Consultations", icon: Stethoscope, path: "/consultations" },
-        { label: "Appointments", icon: Calendar, path: "/appointments" },
-        { label: "Care Recommendations", icon: HeartPulse, path: "/care" },
+        { id: "pat-copilot", label: "AI Health Copilot", icon: Sparkles, path: "/copilot" },
+        { id: "pat-profile", label: "Profile Workspace", icon: UserCheck, path: "/profile" },
+        { id: "pat-compare", label: "Compare & Analytics", icon: BarChart3, path: "/compare" },
+        { id: "pat-messages", label: "Secure Messages", icon: Activity, path: "/messages" },
+        { id: "pat-notifications", label: "Notifications", icon: Lock, path: "/notifications" },
+        { id: "pat-records", label: "Health Records", icon: History, path: "/records" },
+        { id: "pat-consultations", label: "Consultations", icon: Stethoscope, path: "/consultations" },
+        { id: "pat-appointments", label: "Appointments", icon: Calendar, path: "/appointments" },
+        { id: "pat-care", label: "Care Recommendations", icon: HeartPulse, path: "/care" },
       ]
     }
   ];
@@ -63,10 +63,10 @@ export function Sidebar({ isCollapsed, onToggleCollapse, userRole = 'PATIENT', c
     {
       group: "Doctor Portal",
       items: [
-        { label: "Doctor Dashboard", icon: LayoutDashboard, path: "/doctor/dashboard" },
-        { label: "Verified Consultations", icon: Stethoscope, path: "/doctor/consultations" },
-        { label: "Appointments", icon: Calendar, path: "/appointments" },
-        { label: "Credentials Upload", icon: UserCheck, path: "/doctor/verification" },
+        { id: "doc-dashboard", label: "Dashboard", icon: LayoutDashboard, path: "/doctor/dashboard" },
+        { id: "doc-consultations", label: "Consultations", icon: Stethoscope, path: "/doctor/consultations" },
+        { id: "doc-appointments", label: "Appointments", icon: Calendar, path: "/appointments" },
+        { id: "doc-verification", label: "Credentials Upload", icon: UserCheck, path: "/doctor/verification" },
       ]
     }
   ];
@@ -75,12 +75,12 @@ export function Sidebar({ isCollapsed, onToggleCollapse, userRole = 'PATIENT', c
     {
       group: "System Administration",
       items: [
-        { label: "System Overview", icon: LayoutDashboard, path: "/admin" },
-        { label: "Doctor Verification", icon: ShieldCheck, path: "/admin/doctors" },
-        { label: "User Management", icon: Users, path: "/admin/users" },
-        { label: "Consultations Mgmt", icon: Stethoscope, path: "/admin/consultations" },
-        { label: "Audit & Compliance", icon: FileCheck2, path: "/admin/audit" },
-        { label: "System Metrics", icon: Cpu, path: "/admin/system" },
+        { id: "admin-overview", label: "System Overview", icon: LayoutDashboard, path: "/admin" },
+        { id: "admin-doctors", label: "Doctor Verification", icon: ShieldCheck, path: "/admin/doctors" },
+        { id: "admin-users", label: "User Management", icon: Users, path: "/admin/users" },
+        { id: "admin-consultations", label: "Consultations Mgmt", icon: Stethoscope, path: "/admin/consultations" },
+        { id: "admin-audit", label: "Audit & Compliance", icon: FileCheck2, path: "/admin/audit" },
+        { id: "admin-system", label: "System Metrics", icon: Cpu, path: "/admin/system" },
       ]
     }
   ];
@@ -133,7 +133,7 @@ export function Sidebar({ isCollapsed, onToggleCollapse, userRole = 'PATIENT', c
 
                 return (
                   <button
-                    key={item.path}
+                    key={item.id || `${item.path}-${item.label}`}
                     onClick={() => navigate(item.path)}
                     className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 group relative ${
                       isActive

@@ -381,12 +381,55 @@ def send_consultation_message(
             consultation_id=consultation_id,
             content=req.content
         )
+        # Broadcast real-time message to WebSocket room
+        import asyncio
+        from ..websocket_manager import ws_manager
+        payload = {
+            "event": "chat_message",
+            "type": "chat_message",
+            "consultation_id": consultation_id,
+            "sender_id": current_user["user_id"],
+            "sender_name": msg.get("sender_name", "User"),
+            "sender_role": msg.get("sender_role", current_user.get("role", "PATIENT")),
+            "content": msg.get("content", req.content),
+            "timestamp": msg.get("created_at"),
+            "message_id": msg.get("message_id")
+        }
+        try:
+            loop = asyncio.get_running_loop()
+            loop.create_task(ws_manager.broadcast_chat_message(consultation_id, payload))
+        except RuntimeError:
+            pass
+
         return {
             "message": "Message sent successfully.",
             "data": msg
         }
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.get("/api/v1/conversations", status_code=status.HTTP_200_OK)
+def list_user_conversations(current_user: dict = Depends(get_current_user)):
+    """List active consultation conversation threads for current user (Patient or Doctor)."""
+    conversations = database.list_user_conversations(
+        user_id=current_user["user_id"],
+        role=current_user.get("role", "PATIENT")
+    )
+    return {
+        "count": len(conversations),
+        "conversations": conversations
+    }
+
+
+@router.post("/api/v1/consultations/{consultation_id}/messages/read", status_code=status.HTTP_200_OK)
+def mark_consultation_messages_read(
+    consultation_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """Mark unread messages in a consultation thread as read for current user."""
+    database.mark_messages_read(current_user["user_id"], consultation_id)
+    return {"message": "Messages marked as read."}
 
 
 @router.get("/api/v1/consultations/{consultation_id}/messages", status_code=status.HTTP_200_OK)
@@ -399,6 +442,7 @@ def list_consultation_messages(
     Admin role is strictly prohibited from accessing clinical messages.
     """
     try:
+        database.mark_messages_read(current_user["user_id"], consultation_id)
         messages = database.list_consultation_messages(
             user_id=current_user["user_id"],
             consultation_id=consultation_id

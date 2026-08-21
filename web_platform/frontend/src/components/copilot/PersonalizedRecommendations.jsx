@@ -1,104 +1,104 @@
 import React, { useState } from 'react';
-import { Card, Badge, Button } from '../ui';
-import { HeartPulse, Utensils, Activity, Moon, Stethoscope, ShieldCheck, Flame, Dna, ChevronDown, ChevronUp, HelpCircle, CheckCircle2, Sparkles, AlertTriangle } from 'lucide-react';
+import { Card, Badge } from '../ui';
+import { HeartPulse, Utensils, Activity, Stethoscope, Sparkles, ChevronDown, ChevronUp, Dna, CheckCircle2, AlertCircle } from 'lucide-react';
 
 export default function PersonalizedRecommendations({ predictionData }) {
-  const [expandedIdx, setExpandedIdx] = useState(0); // Open first by default!
+  const [expandedIdx, setExpandedIdx] = useState(0);
 
-  // 1. Safely extract clinical, wearable, gut, and prediction outputs
+  if (!predictionData) {
+    return (
+      <Card isGlass={true} className="p-5 text-center space-y-2 border border-[var(--border-subtle)] bg-[var(--bg-surface)]">
+        <Sparkles className="w-6 h-6 text-[var(--text-muted)] mx-auto" />
+        <h4 className="text-xs font-bold text-[var(--text-main)]">No Recommendations Available</h4>
+        <p className="text-[11px] text-[var(--text-muted)]">Run a health assessment to generate personalized evidence recommendations.</p>
+      </Card>
+    );
+  }
+
+  // Extract features strictly from real active prediction data
   const clin = predictionData?.confirmed_features?.clinical || predictionData?.clinical_features || predictionData?.clinical_data || predictionData?.input_data?.clinical || {};
   const wear = predictionData?.confirmed_features?.wearable || predictionData?.wearable_features || predictionData?.wearable_data || predictionData?.input_data?.wearable || {};
-  const gut = predictionData?.confirmed_features?.gut || predictionData?.gut_features || predictionData?.gut_data || predictionData?.input_data?.gut || {};
   const predictions = predictionData?.predictions || predictionData?.disease_outcomes || {};
-
-  // Detect modalities from pathway or predictions
-  const pathway = (predictionData?.effective_pathway || predictionData?.pathway_used || predictionData?.pathway || '').toUpperCase();
-  const expertOutputs = predictionData?.expert_outputs || {};
-
-  const hasClinical = Object.keys(clin).length > 0 || pathway.includes('C') || !!expertOutputs.clinical || true; // Always true for fallback rich guidance!
-  const hasWearable = Object.keys(wear).length > 0 || pathway.includes('W') || !!expertOutputs.wearable;
-  const hasGut = Object.keys(gut).length > 0 || pathway.includes('G') || !!expertOutputs.gut;
 
   const getProb = (key) => {
     const item = predictions[key];
-    if (!item) return 0;
-    return item.calibrated_probability !== undefined ? item.calibrated_probability : (item.probability || 0);
+    if (!item) return null;
+    return item.calibrated_probability !== undefined ? item.calibrated_probability : (item.probability || null);
   };
 
   const t2dRisk = getProb('Type2_Diabetes');
-  const preRisk = getProb('Prediabetes');
-
-  // Biomarkers
-  const glucose = clin.Glucose ?? clin.Fasting_Blood_Glucose ?? clin.Fasting_Glucose ?? 118;
-  const hba1c = clin.HbA1c ?? 6.2;
-  const sysBp = clin.Systolic_BP ?? 124;
-  const diaBp = clin.Diastolic_BP ?? 82;
-  const bmi = clin.BMI ?? 26.4;
-  const steps = wear.Total_Steps ?? wear.Daily_Steps ?? 8500;
-  const rhr = wear.Resting_Heart_Rate ?? 72;
+  const glucose = clin.Glucose ?? clin.Fasting_Blood_Glucose ?? clin.Fasting_Glucose ?? null;
+  const hba1c = clin.HbA1c ?? null;
+  const sysBp = clin.Systolic_BP ?? null;
+  const diaBp = clin.Diastolic_BP ?? null;
+  const steps = wear.Total_Steps ?? wear.Daily_Steps ?? wear.average_daily_steps ?? null;
+  const rhr = wear.Resting_Heart_Rate ?? wear.resting_heart_rate ?? null;
 
   const categories = [];
 
-  // Category 1: Blood Sugar & Nutrition
-  const isHighGlycemic = glucose >= 126 || hba1c >= 6.5 || t2dRisk >= 0.45;
-  const isPreGlycemic = glucose >= 100 || hba1c >= 5.7 || preRisk >= 0.3;
+  // Glycemic Recommendation (Only if glucose/hba1c or t2dRisk is actually present)
+  if (glucose !== null || hba1c !== null || t2dRisk !== null) {
+    const isHigh = (glucose && glucose >= 126) || (hba1c && hba1c >= 6.5) || (t2dRisk && t2dRisk >= 0.45);
+    const isPre = (glucose && glucose >= 100) || (hba1c && hba1c >= 5.7) || (t2dRisk && t2dRisk >= 0.3);
 
-  categories.push({
-    group: 'Blood Sugar & Glycemic Nutrition',
-    icon: Utensils,
-    rationale: `Evidence Rationale: Measured Fasting Glucose (${glucose} mg/dL) & HbA1c (${hba1c}%) indicate mild postprandial glycemic elevation. Target low-glycemic load and GLUT4 muscle activation.`,
-    items: [
-      { icon: '🥗', title: 'Adopt High-Soluble Fiber & Low-GI Foods', detail: 'Incorporate oats, quinoa, lentils, spinach, and wild salmon to prevent postprandial glucose spikes.' },
-      { icon: '🏃', title: '30-Min Post-Meal Walking Protocol', detail: 'Walking 15–30 minutes after dinner activates GLUT4 glucose transporters in skeletal muscle without requiring extra insulin.' },
-      { icon: '💊', title: 'Prescription Guidelines (Metformin 500mg)', detail: 'Take Metformin 500mg once daily after evening meal with water to lower hepatic gluconeogenesis.' }
-    ],
-    badge: isHighGlycemic ? 'NEEDS ATTENTION' : (isPreGlycemic ? 'EVIDENCE PROTOCOL' : 'OPTIMAL'),
-    variant: isHighGlycemic ? 'danger' : (isPreGlycemic ? 'warning' : 'success'),
-  });
+    categories.push({
+      group: 'Glycemic & Dietary Nutrition Guidance',
+      icon: Utensils,
+      rationale: `Evidence Rationale: ${glucose ? `Measured Fasting Glucose (${glucose} mg/dL)` : ''} ${hba1c ? `& HbA1c (${hba1c}%)` : ''} ${t2dRisk !== null ? `(Model Risk Estimate: ${Math.round(t2dRisk * 100)}%)` : ''}. Focus on low-glycemic load foods.`,
+      items: [
+        { icon: '🥗', title: 'High-Fiber & Low-GI Nutrition', detail: 'Incorporate complex carbohydrates, oats, lentils, vegetables, and lean protein to stabilize postprandial glucose.' },
+        { icon: '🏃', title: 'Post-Meal Physical Activity', detail: 'Walking 15–30 minutes after major meals helps activate muscle glucose transporters independently of insulin.' }
+      ],
+      badge: isHigh ? 'NEEDS ATTENTION' : (isPre ? 'EVIDENCE PROTOCOL' : 'OPTIMAL'),
+      variant: isHigh ? 'danger' : (isPre ? 'warning' : 'success'),
+    });
+  }
 
-  // Category 2: Heart & Cardiovascular Health
-  const isBpElevated = sysBp >= 130 || diaBp >= 85;
-  categories.push({
-    group: 'Cardiovascular & Telemetric Corridors',
-    icon: HeartPulse,
-    rationale: `Evidence Rationale: Measured Systolic/Diastolic BP (${sysBp}/${diaBp} mmHg) & Resting Heart Rate (${rhr} bpm) demonstrate cardiovascular stability.`,
-    items: [
-      { icon: '❤️', title: 'Maintain Sodium Control (<2,000 mg/day)', detail: 'Keep dietary sodium below 2.0g per day and increase potassium-rich greens (spinach, avocado).' },
-      { icon: '⌚', title: 'Continuous Heart Rate Telemetry', detail: 'Wearable telemetric tracking confirms baseline RHR of 72 bpm within normal autonomic limits.' }
-    ],
-    badge: isBpElevated ? 'NEEDS ATTENTION' : 'HEALTHY CORRIDOR',
-    variant: isBpElevated ? 'warning' : 'success',
-  });
+  // Cardiovascular Recommendation (Only if BP or RHR is actually present)
+  if (sysBp !== null || diaBp !== null || rhr !== null) {
+    const isBpElevated = (sysBp && sysBp >= 130) || (diaBp && diaBp >= 85);
+    categories.push({
+      group: 'Cardiovascular & Vitals Guidance',
+      icon: HeartPulse,
+      rationale: `Evidence Rationale: ${sysBp && diaBp ? `Measured BP (${sysBp}/${diaBp} mmHg)` : ''} ${rhr ? `Resting Heart Rate (${rhr} bpm)` : ''}.`,
+      items: [
+        { icon: '❤️', title: 'Sodium Control (<2,000 mg/day)', detail: 'Maintain dietary sodium below 2.0g per day and increase potassium-rich leafy vegetables.' },
+        { icon: '⌚', title: 'Heart Rate Monitoring', detail: 'Track resting heart rate trends to confirm autonomic cardiovascular stability.' }
+      ],
+      badge: isBpElevated ? 'NEEDS ATTENTION' : 'HEALTHY CORRIDOR',
+      variant: isBpElevated ? 'warning' : 'success',
+    });
+  }
 
-  // Category 3: Activity & Weight Management
-  categories.push({
-    group: 'Physical Activity & GLUT4 Activation',
-    icon: Activity,
-    rationale: `Evidence Rationale: Wearable total steps (${Math.round(steps)} steps/day) & BMI (${bmi} kg/m²) show consistent aerobic activity.`,
-    items: [
-      { icon: '👟', title: 'Target 8,500 Daily Steps', detail: 'Sustain current daily step count to support insulin sensitivity and peripheral vascular circulation.' },
-      { icon: '🌙', title: '7.5+ Hours Sleep Hygiene', detail: 'Consistent sleep schedules maintain cortisol regulation and nocturnal blood pressure dip.' }
-    ],
-    badge: 'PROGRESSING WELL',
-    variant: 'success',
-  });
+  // Activity Recommendation (Only if steps is actually present)
+  if (steps !== null) {
+    categories.push({
+      group: 'Physical Activity & Telemetry Target',
+      icon: Activity,
+      rationale: `Evidence Rationale: Recorded daily telemetry shows average of ${Math.round(steps)} steps/day.`,
+      items: [
+        { icon: '👟', title: `Daily Activity Goal (${Math.round(steps)} steps)`, detail: 'Sustain active physical movement to support peripheral circulation and insulin sensitivity.' },
+        { icon: '🌙', title: 'Sleep & Recovery Hygiene', detail: 'Maintain 7-8 hours of sleep to support nocturnal autonomic recovery and metabolic balance.' }
+      ],
+      badge: 'PROGRESSING WELL',
+      variant: 'success',
+    });
+  }
+
+  if (categories.length === 0) {
+    return (
+      <Card isGlass={true} className="p-4 text-center space-y-2 border border-[var(--border-subtle)] bg-[var(--bg-surface)]">
+        <Sparkles className="w-5 h-5 text-[var(--text-muted)] mx-auto" />
+        <h4 className="text-xs font-bold text-[var(--text-main)]">Dynamic Insights Evaluated</h4>
+        <p className="text-[11px] text-[var(--text-muted)]">All measured biomarkers are within normal clinical reference ranges.</p>
+      </Card>
+    );
+  }
 
   return (
     <div className="space-y-4">
-      
-      {/* Evidence Guidance Banner */}
-      <div className="p-3.5 rounded-2xl bg-gradient-to-r from-blue-500/10 via-indigo-500/10 to-purple-500/10 border border-blue-500/20 text-xs flex items-center justify-between flex-wrap gap-3">
-        <div className="flex items-center gap-2 text-[var(--text-main)]">
-          <Sparkles className="w-4 h-4 text-[var(--primary)] shrink-0" />
-          <span className="font-medium">
-            Personalized evidence protocols generated from your verified biomarkers & TreeSHAP risk factors.
-          </span>
-        </div>
-        <Badge variant="primary" size="sm" className="font-mono">CLINICALLY VERIFIED</Badge>
-      </div>
-
-      {/* Categories Grid */}
-      <div className="space-y-3.5">
+      {/* Categories List */}
+      <div className="space-y-3">
         {categories.map((cat, idx) => {
           const Icon = cat.icon;
           const isExpanded = expandedIdx === idx;
@@ -108,8 +108,8 @@ export default function PersonalizedRecommendations({ predictionData }) {
               isGlass={true}
               className={`p-4 space-y-3 transition-all border ${
                 isExpanded
-                  ? 'border-[var(--primary)] bg-[var(--bg-surface)] shadow-md'
-                  : 'border-[var(--border-subtle)] bg-[var(--bg-primary)] hover:border-[var(--primary)]/60'
+                  ? 'border-blue-600 bg-[var(--bg-surface)] shadow-xs'
+                  : 'border-[var(--border-subtle)] bg-[var(--bg-primary)] hover:border-blue-300'
               }`}
             >
               <div
@@ -117,13 +117,13 @@ export default function PersonalizedRecommendations({ predictionData }) {
                 onClick={() => setExpandedIdx(isExpanded ? null : idx)}
               >
                 <div className="flex items-center gap-3 min-w-0">
-                  <div className="p-2 rounded-xl bg-[var(--primary-light)] text-[var(--primary)] shrink-0">
-                    <Icon className="w-4.5 h-4.5" />
+                  <div className="p-2 rounded-xl bg-blue-50 dark:bg-blue-950/40 text-blue-600 shrink-0">
+                    <Icon size={16} />
                   </div>
                   <div>
-                    <h4 className="text-xs font-extrabold text-[var(--text-main)]">{cat.group}</h4>
-                    <span className="text-[10px] text-[var(--primary)] font-semibold">
-                      {isExpanded ? 'Click to collapse reasoning' : 'Click to view evidence reasoning'}
+                    <h4 className="text-xs font-bold text-[var(--text-main)]">{cat.group}</h4>
+                    <span className="text-[10px] text-blue-600 font-semibold">
+                      {isExpanded ? 'Collapse reasoning' : 'View rationale'}
                     </span>
                   </div>
                 </div>
@@ -132,26 +132,24 @@ export default function PersonalizedRecommendations({ predictionData }) {
                   <Badge variant={cat.variant} size="sm" className="font-mono text-[9.5px]">
                     {cat.badge}
                   </Badge>
-                  {isExpanded ? <ChevronUp className="w-4 h-4 text-[var(--text-muted)]" /> : <ChevronDown className="w-4 h-4 text-[var(--text-muted)]" />}
+                  {isExpanded ? <ChevronUp size={14} className="text-[var(--text-muted)]" /> : <ChevronDown size={14} className="text-[var(--text-muted)]" />}
                 </div>
               </div>
 
-              {/* Rationale box */}
               {isExpanded && (
-                <div className="p-3 rounded-xl bg-[var(--primary-light)]/40 border border-[var(--primary)]/20 text-[11px] text-[var(--text-main)] font-medium leading-relaxed animate-fade-in flex items-start gap-2">
-                  <Dna className="w-4 h-4 text-[var(--primary)] shrink-0 mt-0.5" />
+                <div className="p-3 rounded-xl bg-blue-50/60 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 text-[11px] text-[var(--text-main)] font-medium leading-relaxed flex items-start gap-2">
+                  <Dna size={14} className="text-blue-600 shrink-0 mt-0.5" />
                   <span>{cat.rationale}</span>
                 </div>
               )}
 
-              {/* Item Actions */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2.5 pt-1">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
                 {cat.items.map((item, i) => (
                   <div
                     key={i}
-                    className="p-3 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-subtle)] hover:border-[var(--primary)]/40 transition-all space-y-1"
+                    className="p-3 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-subtle)] space-y-1"
                   >
-                    <div className="flex items-center gap-1.5 font-extrabold text-xs text-[var(--text-main)]">
+                    <div className="flex items-center gap-1.5 font-bold text-xs text-[var(--text-main)]">
                       <span>{item.icon}</span>
                       <span className="truncate">{item.title}</span>
                     </div>

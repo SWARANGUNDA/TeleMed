@@ -220,9 +220,8 @@ export async function getCurrentUser() {
       return null;
     }
     const data = await res.json();
-    return data.user;
+    return data.user || null;
   } catch (e) {
-    // Network error or proxy unreachable — treat as unauthenticated
     return null;
   }
 }
@@ -1018,6 +1017,43 @@ export async function fetchDoctorAvailability(doctorId) {
   return data.slots || [];
 }
 
+export async function fetchMyDoctorAvailability(availableOnly = false) {
+  const res = await fetch(`${API_BASE}/doctor/my-availability?available_only=${availableOnly ? 'true' : 'false'}`, {
+    method: 'GET',
+    headers: getAuthHeaders(),
+  });
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(data.message || data.detail || 'Failed to fetch doctor availability');
+  }
+  return data.slots || [];
+}
+
+export async function addDoctorAvailabilitySlot(slotStart, slotEnd) {
+  const res = await fetch(`${API_BASE}/doctor/availability/slot`, {
+    method: 'POST',
+    headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
+    body: JSON.stringify({ slot_start: slotStart, slot_end: slotEnd }),
+  });
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(data.message || data.detail || 'Failed to add availability slot');
+  }
+  return data.slot || data;
+}
+
+export async function deleteDoctorAvailabilitySlot(slotId) {
+  const res = await fetch(`${API_BASE}/doctor/availability/${slotId}`, {
+    method: 'DELETE',
+    headers: getAuthHeaders(),
+  });
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(data.message || data.detail || 'Failed to delete availability slot');
+  }
+  return data;
+}
+
 export async function bookAppointment(consultationId, slotId, notes = '') {
   const res = await fetch(`${API_BASE}/appointments`, {
     method: 'POST',
@@ -1162,4 +1198,26 @@ export async function verifyAdminAuditIntegrity() {
     throw new Error(data.message || data.detail || 'Failed to verify ledger integrity');
   }
   return data;
+}
+
+// ------------------------------------------------------------------
+// Secure Messages API Endpoints
+// ------------------------------------------------------------------
+
+export async function fetchUserConversations() {
+  const res = await fetch(`${API_BASE}/conversations`, {
+    method: 'GET',
+    headers: getAuthHeaders(),
+  });
+  if (!res.ok) throw new Error('Failed to load conversations.');
+  return await res.json();
+}
+
+export async function markMessagesAsRead(consultationId) {
+  const res = await fetch(`${API_BASE}/consultations/${consultationId}/messages/read`, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+  });
+  if (!res.ok) return false;
+  return await res.json();
 }

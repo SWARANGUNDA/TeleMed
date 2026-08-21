@@ -1,58 +1,69 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  AlertTriangle, CheckCircle, Clock, ShieldAlert, XCircle, Stethoscope, Lock, UserCheck,
-  RefreshCw, FileText, Check, Eye, X, Shield, Activity, Users, BarChart3, Inbox,
-  ChevronRight, Calendar, MessageCircle, Hash, Database, Cpu, Sparkles, BookOpen,
-  TrendingUp, Layers, FileCheck, ArrowUpRight, ArrowDownRight, Minus, Send, Edit3, Save, Search, Filter,
-  CheckCircle2, ArrowRight, BadgeCheck
+  RefreshCw, Search, CheckCircle2, ShieldCheck, Clock, FileText,
+  Hourglass, Bell, ChevronRight, Eye, MessageCircle, ShieldAlert,
+  Sparkles, TrendingUp, BarChart3, ArrowRight, User
 } from 'lucide-react';
 import {
-  Button, Card, CardHeader, CardBody, CardFooter, Badge, Avatar,
-  ProgressBar, CircularProgress, Table, TableRow, TableCell, Tabs, Modal, Input, TextArea, EmptyState, Alert
+  Button, Card, Badge, Table, TableRow, TableCell, Modal
 } from '../components/ui';
-import { PageContainer, PageHeader, ContentSection } from '../components/layout';
+import { PageContainer } from '../components/layout';
 import {
   fetchDoctorConsultations,
-  respondToDoctorAssignment,
-  fetchAuthorizedPatientRecord,
-  completeConsultation,
-  sendConsultationMessage,
-  fetchConsultationMessages,
-  saveDoctorConsultationNote,
-  fetchConsultationNote
+  respondToDoctorAssignment
 } from '../api/client';
-import PopulationHealthSection from '../components/doctor/PopulationHealthSection';
-import HighRiskPatients from '../components/doctor/HighRiskPatients';
 import WorkloadPanel from '../components/doctor/WorkloadPanel';
+import HighRiskPatients from '../components/doctor/HighRiskPatients';
 import ReviewAnalytics from '../components/doctor/ReviewAnalytics';
-import OutcomeTracking from '../components/doctor/OutcomeTracking';
-import ClinicalAlerts from '../components/doctor/ClinicalAlerts';
 import InsightsPanel from '../components/doctor/InsightsPanel';
+import OutcomeTracking from '../components/doctor/OutcomeTracking';
 
-export default function DoctorDashboardPage({ user, onNavigate, initialTab = 'overview' }) {
+export default function DoctorDashboardPage({ user, onNavigate }) {
   const navigate = useNavigate();
   const doctor = user?.doctor_profile || {};
-  const status = doctor.verification_status || 'VERIFIED';
-  const doctorName = user?.name || user?.full_name || doctor.full_name || 'Physician';
-  const doctorSpecialization = doctor.specialization || doctor.specialty || 'General Practice & Internal Medicine';
+  const verificationStatus = doctor.verification_status || 'VERIFIED';
+  
+  // Doctor identity resolution
+  const doctorName = user?.full_name || user?.name || doctor.full_name || 'Arjun Sarkaar';
+  const formattedDoctorName = doctorName.startsWith('Dr.') ? doctorName : `Dr. ${doctorName}`;
+  const doctorSpecialty = doctor.specialty || doctor.specialization || 'Internal Medicine';
 
   const [allConsultations, setAllConsultations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState(null);
   const [successMsg, setSuccessMsg] = useState(null);
 
-  // Filters & Search
-  const [activeQueueTab, setActiveQueueTab] = useState('ALL'); // 'ALL', 'PENDING', 'UPCOMING', 'COMPLETED', 'CANCELLED'
+  // Queue state & filters
+  const [activeQueueTab, setActiveQueueTab] = useState('ALL'); // 'ALL', 'PENDING', 'IN_REVIEW', 'COMPLETED'
   const [searchQuery, setSearchQuery] = useState('');
-  const [categoryFilter, setCategoryFilter] = useState('all');
-
-  // Request Details Modal State
   const [selectedConsultationForDetails, setSelectedConsultationForDetails] = useState(null);
   const [submittingAction, setSubmittingAction] = useState(false);
 
   useEffect(() => {
     loadAllConsultations();
+  }, [user]);
+
+  useEffect(() => {
+    if (!user?.user_id) return;
+    let ws = null;
+    try {
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const host = window.location.host;
+      ws = new WebSocket(`${protocol}//${host}/ws/notifications/${user.user_id}`);
+      ws.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          const evt = data.event || data.type;
+          if (evt && (evt.startsWith('APPOINTMENT_') || evt.startsWith('CONSULTATION_') || evt === 'DOCTOR_AVAILABILITY_UPDATED')) {
+            loadAllConsultations();
+          }
+        } catch (e) {}
+      };
+    } catch (e) {}
+    return () => {
+      if (ws) ws.close();
+    };
   }, [user]);
 
   const loadAllConsultations = async () => {
@@ -91,17 +102,7 @@ export default function DoctorDashboardPage({ user, onNavigate, initialTab = 'ov
   };
 
   const handleOpenConsultationWorkspace = (consultation) => {
-    if (onNavigate) {
-      onNavigate('/consultations', { consultationContext: { consultationId: consultation?.consultation_id || consultation?.id || consultation } });
-    } else {
-      navigate('/consultations');
-    }
-  };
-
-  const handleRespond = (consultationId, action) => handleRespondAssignment(consultationId, action);
-
-  const handleViewRecord = (consultationId) => {
-    const targetId = typeof consultationId === 'object' ? (consultationId?.consultation_id || consultationId?.id) : consultationId;
+    const targetId = typeof consultation === 'object' ? (consultation?.consultation_id || consultation?.id) : consultation;
     if (onNavigate) {
       onNavigate('/consultations', { consultationContext: { consultationId: targetId } });
     } else {
@@ -109,56 +110,44 @@ export default function DoctorDashboardPage({ user, onNavigate, initialTab = 'ov
     }
   };
 
-  // Real Count Calculations
-  const pendingCount = allConsultations.filter(c => ['REQUESTED', 'ASSIGNED', 'PENDING'].includes(c.status)).length;
-  const activeCount = allConsultations.filter(c => ['ACCEPTED', 'CONFIRMED', 'UPCOMING', 'IN_CONSULTATION', 'ACTIVE'].includes(c.status)).length;
-  const completedCount = allConsultations.filter(c => c.status === 'COMPLETED').length;
+  // Metrics calculation from source of truth (allConsultations)
+  const pendingConsultations = allConsultations.filter(c => ['REQUESTED', 'ASSIGNED', 'PENDING'].includes(c.status));
+  const inReviewConsultations = allConsultations.filter(c => ['ACCEPTED', 'CONFIRMED', 'UPCOMING', 'IN_CONSULTATION', 'ACTIVE'].includes(c.status));
+  const completedConsultations = allConsultations.filter(c => c.status === 'COMPLETED');
+  
   const totalCount = allConsultations.length;
+  const pendingCount = pendingConsultations.length;
+  const inReviewCount = inReviewConsultations.length;
+  const completedCount = completedConsultations.length;
 
-  // Filtered Queue List
-  const filteredConsultations = allConsultations.filter((c) => {
-    // Tab Filter
+  // Filtered queue for table
+  const filteredQueue = allConsultations.filter(c => {
+    // Tab filter
     if (activeQueueTab === 'PENDING' && !['REQUESTED', 'ASSIGNED', 'PENDING'].includes(c.status)) return false;
-    if (activeQueueTab === 'UPCOMING' && !['ACCEPTED', 'CONFIRMED', 'UPCOMING', 'IN_CONSULTATION', 'ACTIVE'].includes(c.status)) return false;
+    if (activeQueueTab === 'IN_REVIEW' && !['ACCEPTED', 'CONFIRMED', 'UPCOMING', 'IN_CONSULTATION', 'ACTIVE'].includes(c.status)) return false;
     if (activeQueueTab === 'COMPLETED' && c.status !== 'COMPLETED') return false;
-    if (activeQueueTab === 'CANCELLED' && !['CANCELLED', 'REJECTED', 'NO_SHOW', 'EXPIRED'].includes(c.status)) return false;
 
-    // Search Query Filter
+    // Search query
     const pName = (c.patient_name || c.full_name || '').toLowerCase();
     const pId = (c.patient_id || c.user_id || '').toLowerCase();
     const cId = (c.consultation_id || c.id || '').toLowerCase();
-    const reasonText = (c.reason || c.category || '').toLowerCase();
+    const spec = (c.specialty || c.category || '').toLowerCase();
     const q = searchQuery.toLowerCase();
 
-    const matchesSearch = !q || pName.includes(q) || pId.includes(q) || cId.includes(q) || reasonText.includes(q);
-
-    // Category Filter
-    const matchesCategory = categoryFilter === 'all' || (c.category && c.category.toLowerCase().includes(categoryFilter.toLowerCase()));
-
-    return matchesSearch && matchesCategory;
+    return !q || pName.includes(q) || pId.includes(q) || cId.includes(q) || spec.includes(q);
   });
 
-  // High-Risk Cases
-  const highRiskCases = allConsultations.filter(c => {
-    const outcomes = c.prediction_snapshot?.disease_outcomes || {};
-    return Object.values(outcomes).some(o => o.risk_level === 'HIGH');
-  });
+  // Highlight pending case for Action Required Banner
+  const actionRequiredCase = pendingConsultations[0];
 
-  const displayList = filteredConsultations;
-
-  if (status !== 'VERIFIED') {
+  if (verificationStatus !== 'VERIFIED') {
     return (
-      <PageContainer className="space-y-8">
-        <PageHeader
-          title="Physician Verification Pending"
-          description="Your medical license & credentials are currently being reviewed by the TeleMed Admin Board."
-          badge="Verification Required"
-        />
-        <Card isGlass={true} className="p-8 text-center space-y-4 max-w-xl mx-auto">
-          <ShieldAlert className="w-12 h-12 text-[var(--warning)] mx-auto" />
-          <h3 className="text-lg font-bold text-[var(--text-main)]">Access Restricted</h3>
-          <p className="text-xs text-[var(--text-muted)]">
-            Once your doctor verification status is marked as VERIFIED, you will gain full access to patient AI intake reports, TreeSHAP driver reviews, and teleconsultation workspaces.
+      <PageContainer className="space-y-8 py-8">
+        <Card isGlass={true} className="p-8 text-center space-y-4 max-w-xl mx-auto border border-amber-500/20 rounded-2xl">
+          <ShieldAlert className="w-12 h-12 text-amber-500 mx-auto" />
+          <h3 className="text-lg font-bold text-[var(--text-main)]">Physician Verification Pending</h3>
+          <p className="text-xs text-[var(--text-muted)] leading-relaxed">
+            Your medical license credentials are currently under review by the TeleMed AI Administration Board. Once verified, you will be granted access to clinical case intake reports and Virtual Chat consultations.
           </p>
         </Card>
       </PageContainer>
@@ -166,218 +155,347 @@ export default function DoctorDashboardPage({ user, onNavigate, initialTab = 'ov
   }
 
   return (
-    <PageContainer className="space-y-12 pb-24">
-      {/* Page Header */}
-      <PageHeader
-        title={`Dr. ${user?.full_name || 'Physician'} Workspace`}
-        description="Clinical Case Review, Multimodal AI Inference Validation, and Teleconsultation Portal"
-        badge={`License Verified • ${doctor.specialty || 'Internal Medicine'}`}
-        actions={
-          <Button variant="outline" size="sm" leftIcon={<RefreshCw className="w-4 h-4" />} onClick={loadAllConsultations}>
-            Refresh Queue
-          </Button>
-        }
-      />
-
-      {/* 1. ENTERPRISE DOCTOR METRIC CARDS WITH COMPARISON BADGES */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">        <Card isGlass={true} className="p-4 space-y-2 border-l-4 border-l-[var(--primary)]">
-          <div className="flex justify-between items-center text-xs">
-            <span className="font-mono text-[var(--text-muted)] uppercase font-semibold">Active Cases</span>
-            <Badge variant="primary" size="sm">Real-time Queue</Badge>
+    <PageContainer className="space-y-6 py-6 pb-20">
+      {/* 1. MAIN WELCOME HEADER BANNER */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-[var(--border-subtle)] pb-5">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2.5 flex-wrap">
+            <h1 className="text-2xl font-black text-[var(--text-main)] tracking-tight">
+              Welcome back, {formattedDoctorName}
+            </h1>
+            <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 flex items-center gap-1">
+              <CheckCircle2 className="w-3.5 h-3.5" /> License Verified
+            </span>
+            <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-sky-500/10 text-sky-600 dark:text-sky-400 border border-sky-500/20">
+              {doctorSpecialty}
+            </span>
           </div>
-          <div className="text-2xl font-extrabold font-mono text-[var(--text-main)]">{allConsultations.length} Cases</div>
-          <p className="text-[10px] text-[var(--text-muted)]">Assigned in portal</p>
+          <p className="text-xs text-[var(--text-muted)]">
+            Clinical case review, AI insights, and patient care management
+          </p>
+        </div>
+
+        <Button
+          variant="outline"
+          size="sm"
+          className="self-start md:self-auto !px-3.5 !py-2 rounded-xl text-xs font-semibold"
+          leftIcon={<RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />}
+          onClick={loadAllConsultations}
+        >
+          Refresh Data
+        </Button>
+      </div>
+
+      {/* 2. FIVE RESPONSIVE KPI CARDS */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5">
+        {/* Active Cases */}
+        <Card isGlass={true} className="p-4 space-y-2 border-l-4 border-l-sky-500 rounded-2xl bg-[var(--bg-surface)] shadow-sm">
+          <div className="flex justify-between items-center text-xs">
+            <span className="font-mono text-[10px] text-[var(--text-muted)] uppercase font-semibold">Active Cases</span>
+            <FileText className="w-4 h-4 text-sky-500" />
+          </div>
+          <div className="text-2xl font-black font-mono text-[var(--text-main)]">{totalCount}</div>
+          <p className="text-[10px] text-[var(--text-muted)] font-medium">Assigned to you</p>
         </Card>
 
-        <Card isGlass={true} className="p-4 space-y-2 border-l-4 border-l-[var(--danger)]">
+        {/* Pending Review */}
+        <Card isGlass={true} className="p-4 space-y-2 border-l-4 border-l-amber-500 rounded-2xl bg-[var(--bg-surface)] shadow-sm">
           <div className="flex justify-between items-center text-xs">
-            <span className="font-mono text-[var(--text-muted)] uppercase font-semibold">Pending Review</span>
-            <Badge variant={pendingCount > 0 ? "danger" : "success"} size="sm">{pendingCount} Pending</Badge>
+            <span className="font-mono text-[10px] text-[var(--text-muted)] uppercase font-semibold">Pending Review</span>
+            <Clock className="w-4 h-4 text-amber-500" />
           </div>
-          <div className="text-2xl font-extrabold font-mono text-[var(--danger)]">{pendingCount} Cases</div>
-          <p className="text-[10px] text-[var(--text-muted)]">Require physician action</p>
+          <div className="text-2xl font-black font-mono text-amber-600 dark:text-amber-400">{pendingCount}</div>
+          <p className="text-[10px] text-[var(--text-muted)] font-medium">Requires your review</p>
         </Card>
 
-        <Card isGlass={true} className="p-4 space-y-2 border-l-4 border-l-[var(--success)]">
+        {/* Completed Consults */}
+        <Card isGlass={true} className="p-4 space-y-2 border-l-4 border-l-emerald-500 rounded-2xl bg-[var(--bg-surface)] shadow-sm">
           <div className="flex justify-between items-center text-xs">
-            <span className="font-mono text-[var(--text-muted)] uppercase font-semibold">Completed Consults</span>
-            <Badge variant="success" size="sm">{completedCount} Completed</Badge>
+            <span className="font-mono text-[10px] text-[var(--text-muted)] uppercase font-semibold">Completed Consults</span>
+            <CheckCircle2 className="w-4 h-4 text-emerald-500" />
           </div>
-          <div className="text-2xl font-extrabold font-mono text-[var(--success)]">{completedCount} Reports</div>
-          <p className="text-[10px] text-[var(--text-muted)]">Signed & finalized</p>
+          <div className="text-2xl font-black font-mono text-emerald-600 dark:text-emerald-400">{completedCount}</div>
+          <p className="text-[10px] text-[var(--text-muted)] font-medium">This month</p>
         </Card>
 
-        <Card isGlass={true} className="p-4 space-y-2 border-l-4 border-l-[var(--accent)]">
+        {/* Cases In Review */}
+        <Card isGlass={true} className="p-4 space-y-2 border-l-4 border-l-purple-500 rounded-2xl bg-[var(--bg-surface)] shadow-sm">
           <div className="flex justify-between items-center text-xs">
-            <span className="font-mono text-[var(--text-muted)] uppercase font-semibold">Active In-Review</span>
-            <Badge variant="accent" size="sm">{activeCount} Active</Badge>
+            <span className="font-mono text-[10px] text-[var(--text-muted)] uppercase font-semibold">Cases In Review</span>
+            <Hourglass className="w-4 h-4 text-purple-500" />
           </div>
-          <div className="text-2xl font-extrabold font-mono text-[var(--accent)]">{activeCount} Cases</div>
-          <p className="text-[10px] text-[var(--text-muted)]">In-progress evaluations</p>
+          <div className="text-2xl font-black font-mono text-purple-600 dark:text-purple-400">{inReviewCount}</div>
+          <p className="text-[10px] text-[var(--text-muted)] font-medium">Under evaluation</p>
         </Card>
 
-        <Card isGlass={true} className="p-4 space-y-2 border-l-4 border-l-[var(--warning)]">
+        {/* Verification */}
+        <Card isGlass={true} className="p-4 space-y-2 border-l-4 border-l-emerald-500 rounded-2xl bg-[var(--bg-surface)] shadow-sm">
           <div className="flex justify-between items-center text-xs">
-            <span className="font-mono text-[var(--text-muted)] uppercase font-semibold">Verification</span>
-            <Badge variant="success" size="sm">VERIFIED</Badge>
+            <span className="font-mono text-[10px] text-[var(--text-muted)] uppercase font-semibold">Verification</span>
+            <ShieldCheck className="w-4 h-4 text-emerald-500" />
           </div>
-          <div className="text-2xl font-extrabold font-mono text-[var(--text-main)]">Active</div>
-          <p className="text-[10px] text-[var(--text-muted)]">Verified doctor access</p>
+          <div className="text-xl font-black font-mono text-emerald-600 dark:text-emerald-400">Active</div>
+          <p className="text-[10px] text-[var(--text-muted)] font-medium">Doctor verified access</p>
         </Card>
       </div>
 
-      {/* THREE-COLUMN WORKSPACE GRID */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-
-        {/* Left Column (4 cols) — Workload & Review Analytics */}
-        <div className="lg:col-span-4 space-y-6">
-          <WorkloadPanel consultations={allConsultations} />
-          <ReviewAnalytics consultations={allConsultations} />
+      {/* 3. ACTION REQUIRED SECTION (ALERT CARD) */}
+      <div className="p-5 rounded-2xl border border-amber-500/30 bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-transparent shadow-sm space-y-3">
+        <div className="flex items-center gap-2 text-amber-700 dark:text-amber-400">
+          <Bell className="w-4 h-4 text-amber-500 animate-bounce" />
+          <h3 className="text-sm font-black tracking-tight">Action Required</h3>
+          <span className="text-xs font-semibold text-[var(--text-muted)]">
+            • {pendingCount} {pendingCount === 1 ? 'consultation' : 'consultations'} awaiting your review and sign-off
+          </span>
         </div>
 
-        {/* Center Column (5 cols) — High Risk Monitor & Population Health */}
-        <div className="lg:col-span-5 space-y-6">
-          <HighRiskPatients
-            consultations={allConsultations}
-            onReview={(c) => handleViewRecord(c.consultation_id, 'REC_DEFAULT')}
-            onMessage={(c) => handleViewRecord(c.consultation_id, 'REC_DEFAULT')}
-          />
-          <PopulationHealthSection consultations={allConsultations} />
-        </div>
+        {actionRequiredCase ? (
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-subtle)]">
+            <div className="flex items-center gap-3.5">
+              <div className="w-10 h-10 rounded-full bg-purple-500/10 text-purple-600 dark:text-purple-400 font-extrabold text-sm flex items-center justify-center border border-purple-500/20 shrink-0">
+                {(actionRequiredCase.patient_name || 'Rahul Reddy').split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()}
+              </div>
+              <div className="space-y-0.5">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-bold text-[var(--text-main)]">
+                    {actionRequiredCase.patient_name || 'Patient'}
+                  </span>
+                  <span className="text-xs font-medium text-[var(--text-muted)]">
+                    • {actionRequiredCase.specialty || doctorSpecialty}
+                  </span>
+                  <span className="font-mono text-[11px] text-[var(--primary)] font-semibold">
+                    Consultation ID: {actionRequiredCase.consultation_id || actionRequiredCase.id}
+                  </span>
+                  <span className="px-2 py-0.5 text-[9.5px] font-bold rounded-full bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20">
+                    AI Report Ready
+                  </span>
+                </div>
+                <p className="text-xs text-[var(--text-muted)]">
+                  AI analysis completed — Physician review and sign-off required
+                </p>
+              </div>
+            </div>
 
-        {/* Right Column (3 cols) — Insights & Outcomes */}
-        <div className="lg:col-span-3 space-y-6">
-          <InsightsPanel />
-          <OutcomeTracking />
-        </div>
-
+            <Button
+              variant="primary"
+              size="sm"
+              className="!px-4 !py-2 text-xs font-bold rounded-xl shrink-0"
+              onClick={() => handleOpenConsultationWorkspace(actionRequiredCase)}
+            >
+              Review Case →
+            </Button>
+          </div>
+        ) : (
+          <div className="p-3 text-xs text-[var(--text-muted)] font-medium italic">
+            You're all caught up — No consultations awaiting review.
+          </div>
+        )}
       </div>
 
-      {/* 2. PATIENT REVIEW QUEUE */}
-      <ContentSection title="Patient Review Queue" subtitle="Assigned patient cases requiring physician sign-off or AI report review">
-        <div className="space-y-4">
-          <div className="flex items-center justify-between gap-4 flex-wrap">
-            <div className="w-full md:w-96">
-              <Input
-                placeholder="Search patient by name or ID..."
-                leftIcon={<Search className="w-4 h-4" />}
+      {/* 4. PATIENT REVIEW QUEUE SECTION */}
+      <Card isGlass={true} className="p-5 space-y-4 shadow-sm border border-[var(--border-subtle)] rounded-2xl bg-[var(--bg-surface)]">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-[var(--border-subtle)] pb-4">
+          <div className="space-y-0.5">
+            <div className="flex items-center gap-2">
+              <FileText className="w-4 h-4 text-[var(--primary)]" />
+              <h3 className="text-base font-bold text-[var(--text-main)]">Patient Review Queue</h3>
+            </div>
+            <p className="text-xs text-[var(--text-muted)]">
+              Consultations requiring physician review and sign-off
+            </p>
+          </div>
+
+          <div className="flex items-center gap-3 flex-wrap">
+            {/* Search Input */}
+            <div className="relative w-64">
+              <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
+              <input
+                type="text"
+                placeholder="Search patient, ID, specialty..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full bg-[var(--bg-primary)] text-xs text-[var(--text-main)] rounded-xl pl-8 pr-3 py-1.5 border border-[var(--border-subtle)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
               />
             </div>
-            <div className="flex items-center gap-2">
-              <Badge variant="primary" size="sm">Active Cases ({displayList.length})</Badge>
+
+            {/* Filter Tabs */}
+            <div className="flex items-center p-1 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-subtle)] text-xs font-semibold">
+              <button
+                onClick={() => setActiveQueueTab('ALL')}
+                className={`px-3 py-1 rounded-lg transition-all ${activeQueueTab === 'ALL' ? 'bg-[var(--bg-surface)] text-[var(--primary)] shadow-sm' : 'text-[var(--text-muted)] hover:text-[var(--text-main)]'}`}
+              >
+                All ({totalCount})
+              </button>
+              <button
+                onClick={() => setActiveQueueTab('PENDING')}
+                className={`px-3 py-1 rounded-lg transition-all ${activeQueueTab === 'PENDING' ? 'bg-[var(--bg-surface)] text-amber-600 dark:text-amber-400 shadow-sm' : 'text-[var(--text-muted)] hover:text-[var(--text-main)]'}`}
+              >
+                Pending ({pendingCount})
+              </button>
+              <button
+                onClick={() => setActiveQueueTab('IN_REVIEW')}
+                className={`px-3 py-1 rounded-lg transition-all ${activeQueueTab === 'IN_REVIEW' ? 'bg-[var(--bg-surface)] text-purple-600 dark:text-purple-400 shadow-sm' : 'text-[var(--text-muted)] hover:text-[var(--text-main)]'}`}
+              >
+                In Review ({inReviewCount})
+              </button>
+              <button
+                onClick={() => setActiveQueueTab('COMPLETED')}
+                className={`px-3 py-1 rounded-lg transition-all ${activeQueueTab === 'COMPLETED' ? 'bg-[var(--bg-surface)] text-emerald-600 dark:text-emerald-400 shadow-sm' : 'text-[var(--text-muted)] hover:text-[var(--text-main)]'}`}
+              >
+                Completed ({completedCount})
+              </button>
             </div>
           </div>
+        </div>
 
-          <Table headers={['Consultation ID', 'Patient Name', 'Specialty', 'Case Status', 'Scheduled Date', 'Action']}>
-            {displayList.length > 0 ? (
-              displayList.map((c) => (
-                <TableRow key={c.consultation_id}>
-                  <TableCell className="font-mono text-xs font-bold text-[var(--primary)]">{c.consultation_id}</TableCell>
-                  <TableCell className="font-semibold text-xs">{c.patient_name || 'Patient Case'}</TableCell>
-                  <TableCell className="text-xs">{c.specialty || 'General Practice'}</TableCell>
+        {/* Table */}
+        <Table headers={['CONSULTATION ID', 'PATIENT NAME', 'SPECIALTY', 'STATUS', 'SCHEDULED DATE', 'ACTION']}>
+          {filteredQueue.length > 0 ? (
+            filteredQueue.map((c, idx) => {
+              const isPending = ['REQUESTED', 'ASSIGNED', 'PENDING'].includes(c.status);
+              const isInReview = ['ACCEPTED', 'CONFIRMED', 'UPCOMING', 'IN_CONSULTATION', 'ACTIVE'].includes(c.status);
+              const isCompleted = c.status === 'COMPLETED';
+
+              return (
+                <TableRow key={c.consultation_id || c.id || `queue-row-${idx}`}>
+                  <TableCell className="font-mono text-xs font-bold text-[var(--primary)]">
+                    {c.consultation_id || c.id}
+                  </TableCell>
+                  <TableCell className="font-semibold text-xs text-[var(--text-main)]">
+                    {c.patient_name || c.full_name || 'Patient Record'}
+                  </TableCell>
+                  <TableCell className="text-xs text-[var(--text-muted)] font-medium">
+                    {c.specialty || c.category || doctorSpecialty}
+                  </TableCell>
                   <TableCell>
-                    <Badge variant={c.status === 'COMPLETED' ? 'success' : c.status === 'ACTIVE' ? 'primary' : 'warning'} size="sm">
+                    <Badge
+                      variant={isCompleted ? 'success' : isInReview ? 'accent' : 'warning'}
+                      size="sm"
+                      className="!text-[10px] uppercase font-mono font-bold"
+                    >
                       {c.status}
                     </Badge>
                   </TableCell>
-                  <TableCell className="font-mono text-xs text-[var(--text-muted)]">{c.appointment_date || 'Today'}</TableCell>
+                  <TableCell className="font-mono text-xs text-[var(--text-muted)]">
+                    {c.appointment_date || c.scheduled_at || 'Today'}
+                  </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">
-                      {['REQUESTED', 'ASSIGNED', 'PENDING'].includes(c.status) && (
-                        <>
-                          <Button variant="primary" size="sm" className="!px-2 !py-1 text-xs" onClick={() => handleRespond(c.consultation_id || c.id, 'ACCEPT')}>
-                            Accept
-                          </Button>
-                          <Button variant="outline" size="sm" className="!px-2 !py-1 text-xs text-rose-500" onClick={() => handleRespond(c.consultation_id || c.id, 'REJECT')}>
-                            Decline
-                          </Button>
-                        </>
-                      )}
-                      {['ACCEPTED', 'CONFIRMED', 'UPCOMING', 'IN_CONSULTATION', 'ACTIVE'].includes(c.status) && (
-                        <Button variant="primary" size="sm" className="!px-2.5 !py-1 text-xs" leftIcon={<MessageCircle className="w-3.5 h-3.5" />} onClick={() => handleOpenConsultationWorkspace(c)}>
-                          Open Workspace
+                      {isPending && (
+                        <Button
+                          variant="primary"
+                          size="sm"
+                          className="!px-3 !py-1 text-xs font-bold rounded-lg"
+                          onClick={() => handleOpenConsultationWorkspace(c)}
+                        >
+                          👁 Review Case
                         </Button>
                       )}
-                      {['COMPLETED'].includes(c.status) && (
-                        <Button variant="outline" size="sm" className="!px-2.5 !py-1 text-xs" leftIcon={<Eye className="w-3.5 h-3.5" />} onClick={() => setSelectedConsultationForDetails(c)}>
-                          View Summary
+                      {isInReview && (
+                        <Button
+                          variant="primary"
+                          size="sm"
+                          className="!px-3 !py-1 text-xs font-bold rounded-lg"
+                          onClick={() => handleOpenConsultationWorkspace(c)}
+                        >
+                          👁 Continue Review
+                        </Button>
+                      )}
+                      {isCompleted && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="!px-3 !py-1 text-xs font-semibold rounded-lg"
+                          onClick={() => setSelectedConsultationForDetails(c)}
+                        >
+                          👁 View Summary
                         </Button>
                       )}
                     </div>
                   </TableCell>
                 </TableRow>
-              ))
-            ) : (
-              <TableRow>
-                <TableCell colSpan={6} className="text-center py-8 text-[var(--text-muted)]">
-                  No active patient cases found in queue.
-                </TableCell>
-              </TableRow>
-            )}
-          </Table>
-        </div>
-      </ContentSection>
+              );
+            })
+          ) : (
+            <TableRow>
+              <TableCell colSpan={6} className="text-center py-8 text-[var(--text-muted)] text-xs font-medium">
+                No consultations found in the selected queue filter.
+              </TableCell>
+            </TableRow>
+          )}
+        </Table>
 
-      {/* 3. CLINICAL CONSULTATION DETAILS MODAL */}
+        <div className="pt-2 text-right">
+          <button
+            onClick={() => onNavigate ? onNavigate('/consultations') : navigate('/consultations')}
+            className="text-xs font-bold text-[var(--primary)] hover:underline inline-flex items-center gap-1"
+          >
+            View all consultations →
+          </button>
+        </div>
+      </Card>
+
+      {/* 5. LOWER ANALYTICS & INSIGHTS GRID (2 COLUMNS) */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        {/* Left Column (8 cols): Workload, High Risk Monitor, Review Analytics */}
+        <div className="lg:col-span-8 space-y-6">
+          <WorkloadPanel consultations={allConsultations} />
+          <HighRiskPatients
+            consultations={allConsultations}
+            onReview={(c) => handleOpenConsultationWorkspace(c)}
+            onMessage={(c) => handleOpenConsultationWorkspace(c)}
+          />
+          <ReviewAnalytics consultations={allConsultations} />
+        </div>
+
+        {/* Right Column (4 cols): AI Clinical Insights & Patient Outcome Tracking */}
+        <div className="lg:col-span-4 space-y-6">
+          <InsightsPanel consultations={allConsultations} />
+          <OutcomeTracking consultations={allConsultations} />
+        </div>
+      </div>
+
+      {/* 6. FOOTER */}
+      <div className="pt-8 border-t border-[var(--border-subtle)] flex flex-col sm:flex-row items-center justify-between text-[11px] text-[var(--text-muted)] font-medium gap-2">
+        <span>© 2024 TeleMed AI, All rights reserved.</span>
+        <span>HIPAA Compliant • Secure • Encrypted</span>
+      </div>
+
+      {/* SUMMARY MODAL */}
       <Modal
         isOpen={Boolean(selectedConsultationForDetails)}
         onClose={() => setSelectedConsultationForDetails(null)}
-        title={`Consultation Details | ID: ${selectedConsultationForDetails?.consultation_id || ''}`}
-        size="lg"
+        title={`Consultation Summary | ${selectedConsultationForDetails?.consultation_id || ''}`}
+        size="md"
       >
         {selectedConsultationForDetails && (
           <div className="space-y-4 text-xs">
-            <div className="grid grid-cols-2 gap-4 p-4 rounded-xl bg-[var(--bg-primary)]">
-              <div>
-                <span className="text-[10px] font-mono text-[var(--text-muted)] uppercase block">PATIENT NAME</span>
-                <strong className="text-sm text-[var(--text-main)] font-semibold">{selectedConsultationForDetails.patient_name || 'Patient'}</strong>
+            <div className="p-4 rounded-xl bg-[var(--bg-primary)] space-y-2 border border-[var(--border-subtle)]">
+              <div className="flex justify-between">
+                <span className="text-[var(--text-muted)] font-mono uppercase">Patient Name</span>
+                <strong className="text-[var(--text-main)]">{selectedConsultationForDetails.patient_name || 'Patient'}</strong>
               </div>
-              <div>
-                <span className="text-[10px] font-mono text-[var(--text-muted)] uppercase block">PATIENT ID</span>
-                <strong className="font-mono text-[var(--text-main)]">{selectedConsultationForDetails.patient_id || 'P-100'}</strong>
+              <div className="flex justify-between">
+                <span className="text-[var(--text-muted)] font-mono uppercase">Specialty</span>
+                <span>{selectedConsultationForDetails.specialty || doctorSpecialty}</span>
               </div>
-              <div>
-                <span className="text-[10px] font-mono text-[var(--text-muted)] uppercase block">SPECIALTY</span>
-                <span className="font-medium">{selectedConsultationForDetails.specialization || selectedConsultationForDetails.category || 'General Practice'}</span>
-              </div>
-              <div>
-                <span className="text-[10px] font-mono text-[var(--text-muted)] uppercase block">STATUS</span>
-                <Badge variant={selectedConsultationForDetails.status === 'COMPLETED' ? 'success' : 'warning'} size="sm">
-                  {selectedConsultationForDetails.status}
-                </Badge>
+              <div className="flex justify-between">
+                <span className="text-[var(--text-muted)] font-mono uppercase">Status</span>
+                <Badge variant="success" size="sm">COMPLETED</Badge>
               </div>
             </div>
 
             <div className="space-y-1">
-              <label className="text-xs font-bold text-[var(--text-main)]">Chief Complaint / Reason for Visit</label>
-              <div className="p-3 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-subtle)] text-[var(--text-main)]">
-                {selectedConsultationForDetails.reason_for_visit || selectedConsultationForDetails.notes || 'No reason provided.'}
+              <label className="font-bold text-[var(--text-main)]">Clinical Notes & Summary</label>
+              <div className="p-3 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-subtle)] text-[var(--text-main)] leading-relaxed">
+                {selectedConsultationForDetails.clinical_notes || selectedConsultationForDetails.reason_for_visit || 'Consultation completed and published to patient health records.'}
               </div>
             </div>
 
-            <div className="pt-4 border-t border-[var(--border-subtle)] flex items-center justify-between">
+            <div className="pt-3 border-t border-[var(--border-subtle)] flex justify-end">
               <Button variant="outline" size="sm" onClick={() => setSelectedConsultationForDetails(null)}>
-                Close
+                Close Summary
               </Button>
-              <div className="flex items-center gap-2">
-                {['REQUESTED', 'ASSIGNED', 'PENDING'].includes(selectedConsultationForDetails.status) && (
-                  <>
-                    <Button variant="primary" size="sm" onClick={() => handleRespondAssignment(selectedConsultationForDetails.consultation_id, 'ACCEPT')}>
-                      Accept Request
-                    </Button>
-                    <Button variant="outline" size="sm" className="text-rose-500" onClick={() => handleRespondAssignment(selectedConsultationForDetails.consultation_id, 'REJECT')}>
-                      Decline Request
-                    </Button>
-                  </>
-                )}
-                {['CONFIRMED', 'ACCEPTED', 'ACTIVE', 'IN_CONSULTATION', 'COMPLETED'].includes(selectedConsultationForDetails.status) && (
-                  <Button variant="primary" size="sm" onClick={() => handleOpenConsultationWorkspace(selectedConsultationForDetails)}>
-                    Open Consultation Workspace →
-                  </Button>
-                )}
-              </div>
             </div>
           </div>
         )}

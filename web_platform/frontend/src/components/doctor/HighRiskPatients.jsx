@@ -1,82 +1,74 @@
 import React from 'react';
-import { Card, Badge, Button, EmptyState } from '../ui';
-import { ShieldAlert, Eye, MessageSquare } from 'lucide-react';
+import { Card, Badge, Button } from '../ui';
+import { ShieldCheck, ShieldAlert, Eye, MessageSquare } from 'lucide-react';
 
 export default function HighRiskPatients({ consultations = [], onReview, onMessage }) {
-  // Filter authorized real consultations from backend database
-  const activeCases = (consultations || []).filter(c => ['ASSIGNED', 'ACCEPTED', 'ACTIVE'].includes(c.status));
+  // Filter assigned cases with high urgency or high risk
+  const highRiskCases = (consultations || []).filter(c => {
+    const isHighUrgency = c.urgency === 'HIGH' || c.urgency === 'URGENT';
+    const outcomes = c.prediction_snapshot?.disease_outcomes || {};
+    const hasHighRiskOutcome = Object.values(outcomes).some(o => o.risk_level === 'HIGH');
+    return (isHighUrgency || hasHighRiskOutcome) && !['COMPLETED', 'CANCELLED'].includes(c.status);
+  });
 
-  if (!activeCases.length) {
+  if (!highRiskCases.length) {
     return (
-      <Card isGlass={true} className="p-6 space-y-4 shadow-xl border-l-4 border-l-[var(--success)]">
-        <div className="flex items-center justify-between border-b border-[var(--border-subtle)] pb-4">
+      <Card isGlass={true} className="p-5 space-y-4 shadow-sm border border-[var(--border-subtle)] rounded-2xl bg-[var(--bg-surface)] flex flex-col justify-between">
+        <div className="flex items-center justify-between border-b border-[var(--border-subtle)] pb-3">
           <div className="flex items-center gap-2">
-            <ShieldAlert className="w-5 h-5 text-[var(--success)]" />
-            <h3 className="text-base font-extrabold text-[var(--text-main)]">High-Risk Patient Monitor</h3>
+            <ShieldCheck className="w-4 h-4 text-emerald-500" />
+            <h3 className="text-sm font-bold text-[var(--text-main)]">High-Risk Patient Monitor</h3>
           </div>
-          <Badge variant="success" size="sm">0 Action Required</Badge>
+          <Badge variant="success" size="sm">● PENDING</Badge>
         </div>
-        <EmptyState
-          icon={<ShieldAlert className="w-8 h-8 text-[var(--text-muted)]" />}
-          title="No High-Risk Patient Cases Pending"
-          description="All assigned patient consultations are currently up to date or completed."
-        />
+
+        <div className="py-8 text-center space-y-2 flex flex-col items-center justify-center">
+          <div className="w-12 h-12 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-500 mb-1">
+            <ShieldCheck className="w-6 h-6" />
+          </div>
+          <h4 className="text-sm font-extrabold text-[var(--text-main)]">No high-risk patients pending</h4>
+          <p className="text-xs text-[var(--text-muted)] max-w-xs">
+            All assigned patients are stable or completed.
+          </p>
+        </div>
       </Card>
     );
   }
 
   return (
-    <Card isGlass={true} className="p-6 space-y-4 shadow-xl border-l-4 border-l-[var(--danger)]">
-      <div className="flex items-center justify-between border-b border-[var(--border-subtle)] pb-4">
+    <Card isGlass={true} className="p-5 space-y-4 shadow-sm border border-rose-500/20 rounded-2xl bg-[var(--bg-surface)]">
+      <div className="flex items-center justify-between border-b border-[var(--border-subtle)] pb-3">
         <div className="flex items-center gap-2">
-          <ShieldAlert className="w-5 h-5 text-[var(--danger)]" />
-          <h3 className="text-base font-extrabold text-[var(--text-main)]">High-Risk Patient Monitor</h3>
+          <ShieldAlert className="w-4 h-4 text-rose-500" />
+          <h3 className="text-sm font-bold text-[var(--text-main)]">High-Risk Patient Monitor</h3>
         </div>
-        <Badge variant="danger" size="sm">{activeCases.length} Require Review</Badge>
+        <Badge variant="danger" size="sm">{highRiskCases.length} ACTION REQUIRED</Badge>
       </div>
 
       <div className="overflow-x-auto">
         <table className="w-full text-left text-xs border-collapse">
           <thead>
             <tr className="border-b border-[var(--border-subtle)] text-[var(--text-muted)] font-mono text-[10px] uppercase">
-              <th className="py-2.5 px-3">Patient Name</th>
-              <th className="py-2.5 px-3">Consultation ID</th>
-              <th className="py-2.5 px-3">Requested Specialty</th>
-              <th className="py-2.5 px-3">Urgency</th>
-              <th className="py-2.5 px-3">Requested At</th>
-              <th className="py-2.5 px-3">Status</th>
-              <th className="py-2.5 px-3 text-right">Actions</th>
+              <th className="py-2 px-2">Patient</th>
+              <th className="py-2 px-2">ID</th>
+              <th className="py-2 px-2">Specialty</th>
+              <th className="py-2 px-2">Urgency</th>
+              <th className="py-2 px-2 text-right">Action</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-[var(--border-subtle)]">
-            {activeCases.map((c) => (
+            {highRiskCases.map((c) => (
               <tr key={c.consultation_id} className="hover:bg-[var(--bg-primary)] transition-colors">
-                <td className="py-3 px-3">
-                  <strong className="text-sm font-bold text-[var(--text-main)] block">{c.patient_name || 'Patient'}</strong>
-                  <span className="text-[10px] font-mono text-[var(--text-muted)]">{c.patient_id}</span>
+                <td className="py-2.5 px-2 font-bold text-[var(--text-main)]">{c.patient_name || 'Patient'}</td>
+                <td className="py-2.5 px-2 font-mono text-[11px] text-[var(--primary)]">{c.consultation_id}</td>
+                <td className="py-2.5 px-2 text-[var(--text-muted)]">{c.specialty || c.category || 'General'}</td>
+                <td className="py-2.5 px-2">
+                  <Badge variant="danger" size="sm">{c.urgency || 'HIGH'}</Badge>
                 </td>
-                <td className="py-3 px-3 font-mono font-semibold text-[var(--text-main)]">{c.consultation_id}</td>
-                <td className="py-3 px-3 font-medium text-[var(--text-main)]">{c.specialization || c.category}</td>
-                <td className="py-3 px-3">
-                  <Badge variant={c.urgency === 'HIGH' || c.urgency === 'SOON' ? 'danger' : 'warning'} size="sm">
-                    {c.urgency || 'ROUTINE'}
-                  </Badge>
-                </td>
-                <td className="py-3 px-3 font-mono text-[var(--text-muted)]">
-                  {c.created_at ? new Date(c.created_at).toLocaleDateString() : 'Today'}
-                </td>
-                <td className="py-3 px-3">
-                  <Badge variant={c.status === 'ACTIVE' ? 'success' : 'warning'} size="sm">{c.status}</Badge>
-                </td>
-                <td className="py-3 px-3 text-right">
-                  <div className="flex items-center justify-end gap-1.5">
-                    <Button variant="primary" size="sm" leftIcon={<Eye className="w-3.5 h-3.5" />} onClick={() => onReview ? onReview(c) : null}>
-                      Review Case
-                    </Button>
-                    <Button variant="outline" size="sm" leftIcon={<MessageSquare className="w-3.5 h-3.5" />} onClick={() => onMessage ? onMessage(c) : null}>
-                      Message
-                    </Button>
-                  </div>
+                <td className="py-2.5 px-2 text-right">
+                  <Button variant="primary" size="sm" className="!px-2 !py-1 text-xs" onClick={() => onReview ? onReview(c) : null}>
+                    Review
+                  </Button>
                 </td>
               </tr>
             ))}

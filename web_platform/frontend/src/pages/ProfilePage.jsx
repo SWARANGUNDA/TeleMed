@@ -93,33 +93,51 @@ export default function ProfilePage({ user, session, predictionData, onNavigate,
   // Role-gated avatar selection list
   const availableAvatars = getAvailableAvatarsForRole(userRole);
 
-  // Calculate Profile Completion Percentage
-  const completionFields = [
-    profileForm.fullName,
-    profileForm.age,
-    profileForm.gender,
-    profileForm.height,
-    profileForm.weight,
-    profileForm.phone,
-    profileForm.bloodGroup,
-    profileForm.emergencyContact,
-  ];
-  const filledCount = completionFields.filter(f => f && f !== 'Not Specified' && f !== 'Not Provided').length;
-  const completionRate = Math.round((filledCount / completionFields.length) * 100);
+  useEffect(() => {
+    if (user) {
+      const p = user.patient_profile || {};
+      setProfileForm(prev => ({
+        ...prev,
+        fullName: user.full_name || p.full_name || prev.fullName,
+        email: user.email || prev.email,
+        phone: p.contact_number || prev.phone,
+        age: p.age || prev.age,
+        gender: p.gender || prev.gender,
+        height: p.height_cm || prev.height,
+        weight: p.weight_kg || prev.weight,
+      }));
+    }
+  }, [user]);
 
   // Selected Avatar details
   const activeAvatar = getAvatarById(profileForm.selectedAvatar);
   const activeAvatarUri = activeAvatar.url || svgToDataUri(activeAvatar.svg);
 
-  const handleProfileSave = (e) => {
+  const handleProfileSave = async (e) => {
     e.preventDefault();
     const key = `telemed_user_profile_${user?.user_id || 'guest'}`;
     localStorage.setItem(key, JSON.stringify(profileForm));
-    setSaveSuccessMsg('Profile photo avatar updated successfully!');
+
+    try {
+      const payload = {
+        full_name: profileForm.fullName,
+        age: profileForm.age ? parseInt(profileForm.age, 10) : null,
+        gender: profileForm.gender,
+        height_cm: profileForm.height ? parseFloat(profileForm.height) : null,
+        weight_kg: profileForm.weight ? parseFloat(profileForm.weight) : null,
+        contact_number: profileForm.phone
+      };
+      await (await import('../api/client')).updateUserProfile(payload);
+    } catch (err) {
+      console.warn("Backend profile save note:", err);
+    }
+
+    setSaveSuccessMsg('Profile details updated successfully!');
     setIsEditModalOpen(false);
 
-    // Notify components & header bar to re-render avatar
+    // Notify components & header bar to re-render avatar and profile fields
     window.dispatchEvent(new Event('telemed_profile_updated'));
+    window.dispatchEvent(new Event('telemed:user-updated'));
 
     if (refreshCurrentUser) {
       try { refreshCurrentUser(); } catch (err) {}

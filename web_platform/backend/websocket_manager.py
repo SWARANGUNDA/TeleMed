@@ -76,6 +76,12 @@ class ConnectionManager:
                     except Exception as e:
                         logger.warning(f"Error broadcasting chat message in room {consultation_id}: {e}")
 
+    async def broadcast_event_to_users(self, user_ids: List[str], payload: Dict[str, Any]):
+        """Broadcast real-time push event to multiple target user IDs simultaneously."""
+        for u_id in set(user_ids):
+            if u_id:
+                await self.send_user_notification(u_id, payload)
+
     def get_online_users(self) -> List[str]:
         """Returns list of currently online user IDs with active WebSocket connections."""
         return list(self.active_user_connections.keys())

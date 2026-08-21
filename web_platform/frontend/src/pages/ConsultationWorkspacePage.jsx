@@ -6,7 +6,7 @@ import {
   MessageCircle, Edit3, Lock, Shield, Video, Calendar, Sparkles, Brain,
   Activity, Watch, Dna, FileCheck, ArrowRight, Save, Check, Paperclip, ChevronRight,
   Pill, Download, Printer, UserCheck, Star, MessageSquare, ExternalLink, Maximize2,
-  ArrowLeft, BadgeCheck, ChevronDown, Minimize2, BarChart3, Heart, Footprints
+  ArrowLeft, BadgeCheck, ChevronDown, Minimize2, BarChart3, Heart, Footprints, CheckCheck
 } from 'lucide-react';
 import {
   Button, Card, Badge, Modal, Input, TextArea, EmptyState, Alert
@@ -19,6 +19,7 @@ import {
   sendConsultationMessage,
   fetchConsultationMessages,
   saveDoctorConsultationNote,
+  fetchConsultationNote,
   completeConsultation
 } from '../api/client';
 
@@ -122,30 +123,35 @@ export default function ConsultationWorkspacePage({ user, consultationContext })
   const [selectedConsultation, setSelectedConsultation] = useState(null);
   const [patientNewMessage, setPatientNewMessage] = useState('');
   const [messageSending, setMessageSending] = useState(false);
+  const [connectionStatus, setConnectionStatus] = useState('connecting'); // 'connected' | 'connecting' | 'disconnected'
+  const [isOtherTyping, setIsOtherTyping] = useState(false);
+
+  const socketRef = useRef(null);
+  const typingTimerRef = useRef(null);
 
   // Clinical Notes State (Doctor Only)
   const [activeNotesTab, setActiveNotesTab] = useState('clinical_notes');
   const [clinicalNotes, setClinicalNotes] = useState({
-    chiefComplaints: 'Post meal fatigue, occasional headache.',
-    examination: 'BP normal. Heart sounds normal. No edema.',
-    historyOfPresentIllness: 'Symptoms ongoing since 2 weeks.',
-    assessmentDiagnosis: 'Metabolic glycemic risk under control.',
-    prescription: 'Metformin 500mg once daily after breakfast.',
-    treatmentPlan: 'Low-glycemic dietary protocol, 30 min daily walking.'
+    chiefComplaints: '',
+    examination: '',
+    historyOfPresentIllness: '',
+    assessmentDiagnosis: '',
+    prescription: '',
+    treatmentPlan: ''
   });
 
   // Dynamic Identity Resolution from Backend Context (Single Source of Truth)
   const patientFullName = user?.name || user?.full_name || user?.patient_profile?.full_name || 'Patient';
   const patientId = user?.user_id || 'usr_patient';
 
-  const activeDoctorName = selectedConsultation?.assigned_doctor_name || selectedConsultation?.doctor_name || selectedConsultation?.doctor_profile?.full_name || 'Dr. Rajesh Sharma, MD';
-  const activeDoctorSpecialty = selectedConsultation?.specialization || selectedConsultation?.doctor_specialization || 'Cardiovascular & Metabolic Specialist';
-  const activeDoctorHospital = selectedConsultation?.hospital_affiliation || 'Fortis Health Institute';
-  const activeDoctorAvatar = activeDoctorName.split(' ').filter(Boolean).map(n => n[0]).join('').slice(0, 2).toUpperCase();
+  const activeDoctorName = selectedConsultation?.assigned_doctor_name || selectedConsultation?.doctor_name || selectedConsultation?.doctor_profile?.full_name || (selectedConsultation?.assigned_doctor_id ? 'Assigned Doctor' : 'Doctor Pending Assignment');
+  const activeDoctorSpecialty = selectedConsultation?.specialization || selectedConsultation?.doctor_specialization || 'Medical Specialist';
+  const activeDoctorHospital = selectedConsultation?.hospital_affiliation || 'Verified TeleMed Clinic';
+  const activeDoctorAvatar = activeDoctorName.split(' ').filter(Boolean).map(n => n[0]).join('').slice(0, 2).toUpperCase() || 'DR';
 
   const activePatientName = selectedConsultation?.patient_name || patientFullName;
   const activePatientId = selectedConsultation?.patient_id || selectedConsultation?.user_id || patientId;
-  const activePatientAvatar = activePatientName.split(' ').filter(Boolean).map(n => n[0]).join('').slice(0, 2).toUpperCase();
+  const activePatientAvatar = activePatientName.split(' ').filter(Boolean).map(n => n[0]).join('').slice(0, 2).toUpperCase() || 'PT';
 
   // Messages State
   const [messagesThread, setMessagesThread] = useState([]);
@@ -163,39 +169,96 @@ export default function ConsultationWorkspacePage({ user, consultationContext })
     }
   }, [consultationContext]);
 
+  // Load existing clinical notes when consultation changes
+  useEffect(() => {
+    const cId = selectedConsultation?.consultation_id || selectedConsultation?.id;
+    if (!cId) return;
+
+    fetchConsultationNote(cId)
+      .then(note => {
+        if (note) {
+          setClinicalNotes({
+            chiefComplaints: note.symptoms || note.chiefComplaints || '',
+            examination: note.observations || note.examination || '',
+            historyOfPresentIllness: note.history || '',
+            assessmentDiagnosis: note.assessment || note.assessmentDiagnosis || '',
+            prescription: note.prescription || '',
+            treatmentPlan: note.follow_up_guidance || note.patient_summary || note.treatmentPlan || ''
+          });
+        }
+      })
+      .catch(() => {});
+  }, [selectedConsultation]);
+
   // Load chat messages and subscribe to WebSocket/Polling
   useEffect(() => {
     const cId = selectedConsultation?.consultation_id || selectedConsultation?.id;
     if (!cId) return;
 
     loadMessages(cId);
+    setConnectionStatus('connecting');
 
     // WebSocket Real-Time Chat Sync
     let ws = null;
+    let pingInterval = null;
+
     try {
       const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
       const host = window.location.host;
       const wsUrl = `${protocol}//${host}/ws/chat/${cId}`;
       ws = new WebSocket(wsUrl);
+      socketRef.current = ws;
+
+      ws.onopen = () => {
+        setConnectionStatus('connected');
+        // Heartbeat keep-alive ping every 15s
+        pingInterval = setInterval(() => {
+          if (ws.readyState === WebSocket.OPEN) {
+            ws.send('ping');
+          }
+        }, 15000);
+      };
 
       ws.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data);
-          if (data.event === 'chat_message' || data.event === 'NEW_MESSAGE') {
+          const evt = data.event || data.type;
+
+          if (evt === 'typing_start') {
+            if (data.sender_id && data.sender_id !== user?.user_id) {
+              setIsOtherTyping(true);
+            }
+          } else if (evt === 'typing_stop') {
+            if (data.sender_id && data.sender_id !== user?.user_id) {
+              setIsOtherTyping(false);
+            }
+          } else if (evt === 'chat_message' || evt === 'NEW_MESSAGE') {
+            setIsOtherTyping(false);
             loadMessages(cId, true);
           }
         } catch (e) {}
       };
+
+      ws.onerror = () => {
+        setConnectionStatus('disconnected');
+      };
+
+      ws.onclose = () => {
+        setConnectionStatus('disconnected');
+      };
     } catch (e) {
       console.warn("WebSocket initialization warning:", e);
+      setConnectionStatus('disconnected');
     }
 
-    // 4-second fallback HTTP polling
-    const pollInterval = setInterval(() => loadMessages(cId, true), 4000);
+    // 3-second fallback HTTP polling for absolute message reliability
+    const pollInterval = setInterval(() => loadMessages(cId, true), 3000);
 
     return () => {
       if (ws) ws.close();
+      if (pingInterval) clearInterval(pingInterval);
       clearInterval(pollInterval);
+      socketRef.current = null;
     };
   }, [selectedConsultation]);
 
@@ -239,7 +302,26 @@ export default function ConsultationWorkspacePage({ user, consultationContext })
       setConsultations(consList);
       setHealthRecords(userRecs);
 
-      if (consList.length > 0 && !selectedConsultation) {
+      // Check saved session context or props context for target consultation selection
+      let targetId = consultationContext?.consultationId || consultationContext?.consultation_id;
+      if (!targetId) {
+        try {
+          const saved = sessionStorage.getItem('telemed_consultation_context');
+          if (saved) {
+            const parsed = JSON.parse(saved);
+            targetId = parsed.consultationId || parsed.consultation_id;
+          }
+        } catch (e) {}
+      }
+
+      if (targetId) {
+        const found = consList.find(c => (c.consultation_id === targetId || c.id === targetId));
+        if (found) {
+          setSelectedConsultation(found);
+        } else if (consList.length > 0) {
+          setSelectedConsultation(consList[0]);
+        }
+      } else if (consList.length > 0 && !selectedConsultation) {
         setSelectedConsultation(consList[0]);
       }
     } catch (err) {
@@ -252,7 +334,34 @@ export default function ConsultationWorkspacePage({ user, consultationContext })
   const chatEndRef = useRef(null);
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messagesThread]);
+  }, [messagesThread, isOtherTyping]);
+
+  const handleInputChange = (e) => {
+    const text = e.target.value;
+    setPatientNewMessage(text);
+
+    // Send typing signal via WebSocket
+    if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
+      socketRef.current.send(JSON.stringify({
+        event: 'typing_start',
+        sender_id: user?.user_id,
+        sender_name: isPatient ? activePatientName : activeDoctorName,
+        sender_role: role
+      }));
+    }
+
+    if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
+    typingTimerRef.current = setTimeout(() => {
+      if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
+        socketRef.current.send(JSON.stringify({
+          event: 'typing_stop',
+          sender_id: user?.user_id,
+          sender_name: isPatient ? activePatientName : activeDoctorName,
+          sender_role: role
+        }));
+      }
+    }, 1500);
+  };
 
   const handleSendMessage = async (e) => {
     if (e) e.preventDefault();
@@ -265,8 +374,32 @@ export default function ConsultationWorkspacePage({ user, consultationContext })
       return;
     }
 
-    const queryText = patientNewMessage;
+    const queryText = patientNewMessage.trim();
     setPatientNewMessage('');
+
+    // Stop typing signal
+    if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
+    if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
+      socketRef.current.send(JSON.stringify({
+        event: 'typing_stop',
+        sender_id: user?.user_id,
+        sender_name: isPatient ? activePatientName : activeDoctorName,
+        sender_role: role
+      }));
+    }
+
+    // Optimistic UI Message Addition
+    const tempId = `temp_${Date.now()}`;
+    const nowTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const optimisticMsg = {
+      id: tempId,
+      sender: isPatient ? activePatientName : activeDoctorName,
+      role: isPatient ? 'PATIENT' : 'DOCTOR',
+      time: nowTime,
+      text: queryText,
+      isPending: true
+    };
+    setMessagesThread(prev => [...prev, optimisticMsg]);
     setMessageSending(true);
 
     try {
@@ -276,6 +409,7 @@ export default function ConsultationWorkspacePage({ user, consultationContext })
       }
     } catch (err) {
       setErrorMsg(err.message || 'Failed to send message.');
+      setMessagesThread(prev => prev.filter(m => m.id !== tempId));
     } finally {
       setMessageSending(false);
     }
@@ -484,58 +618,122 @@ export default function ConsultationWorkspacePage({ user, consultationContext })
 
         {/* ── CENTER PANEL: Secure Virtual Chat + Clinical Notes (5 cols) ── */}
         <div className="lg:col-span-5 space-y-4">
-          <div className="bg-[var(--bg-surface)] rounded-2xl border border-[var(--border-subtle)] shadow-sm overflow-hidden">
-            <div className="px-4 py-3 border-b border-[var(--border-subtle)] flex items-center justify-between">
+          <div className="bg-[var(--bg-surface)] rounded-2xl border border-[var(--border-subtle)] shadow-sm overflow-hidden flex flex-col">
+            
+            {/* Header with Connection Pill & Encryption Badge */}
+            <div className="px-4 py-3 border-b border-[var(--border-subtle)] flex items-center justify-between bg-[var(--bg-surface)]">
               <div className="flex items-center gap-2">
                 <Lock className="w-4 h-4 text-[var(--primary)]" />
                 <h3 className="text-xs font-bold text-[var(--text-main)] uppercase tracking-wider">Secure Virtual Chat</h3>
               </div>
-              <span className="text-[11px] text-[var(--text-muted)]">Room: {selectedConsultation?.consultation_id || 'Active'}</span>
+              <div className="flex items-center gap-2">
+                {connectionStatus === 'connected' ? (
+                  <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-[10px] font-medium text-emerald-400">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                    Live WS
+                  </span>
+                ) : connectionStatus === 'connecting' ? (
+                  <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-[10px] font-medium text-amber-400">
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-ping" />
+                    Connecting...
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-slate-500/10 border border-slate-500/20 text-[10px] font-medium text-slate-400">
+                    <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
+                    Polling Active
+                  </span>
+                )}
+                <span className="text-[10px] font-mono text-[var(--text-muted)] hidden sm:inline">
+                  ID: {selectedConsultation?.consultation_id ? selectedConsultation.consultation_id.slice(0, 10) : 'Active'}
+                </span>
+              </div>
             </div>
 
-            {/* Messages Thread */}
-            <div className="h-80 overflow-y-auto px-4 py-3 space-y-4 scrollbar-thin">
+            {/* Messages Thread (WhatsApp Style) */}
+            <div className="h-88 min-h-[340px] max-h-[420px] overflow-y-auto px-4 py-3 space-y-3 bg-[var(--bg-primary)]/40 scrollbar-thin">
               {messagesThread.length === 0 ? (
-                <div className="py-12 text-center text-xs text-[var(--text-muted)]">
-                  No messages yet. Send a message to start your virtual consultation.
+                <div className="py-16 text-center text-xs text-[var(--text-muted)] space-y-2">
+                  <div className="w-10 h-10 rounded-full bg-[var(--bg-surface)] border border-[var(--border-subtle)] flex items-center justify-center mx-auto text-[var(--primary)]">
+                    <MessageSquare className="w-5 h-5" />
+                  </div>
+                  <p className="font-semibold text-[var(--text-main)]">End-to-End Encrypted Consultation Session</p>
+                  <p className="text-[11px] max-w-xs mx-auto">Messages are stored securely in clinical health records. Send your first message to begin.</p>
                 </div>
               ) : (
                 messagesThread.map((msg, i) => {
-                  const isSenderMe = msg.role === role || (isPatient && msg.role === 'PATIENT') || (isDoctor && msg.role === 'DOCTOR');
+                  const isSenderMe = (role === 'PATIENT' && msg.role === 'PATIENT') || (role === 'DOCTOR' && msg.role === 'DOCTOR') || (msg.sender === (isPatient ? activePatientName : activeDoctorName));
+                  const isPatientRole = msg.role === 'PATIENT';
+                  
                   return (
-                    <div key={msg.id || i} className={`flex gap-2.5 ${isSenderMe ? 'flex-row-reverse' : ''} animate-slide-up`}>
-                      <div className={`w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold text-white shrink-0 mt-1 ${
-                        msg.role === 'PATIENT' ? 'bg-blue-500' : 'bg-emerald-600'
+                    <div key={msg.id || i} className={`flex gap-2.5 ${isSenderMe ? 'flex-row-reverse' : 'flex-row'} animate-slide-up`}>
+                      <div className={`w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-black text-white shrink-0 mt-0.5 shadow-sm ${
+                        isPatientRole ? 'bg-blue-600 border border-blue-400' : 'bg-emerald-600 border border-emerald-400'
                       }`}>
-                        {msg.sender.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
+                        {isPatientRole ? activePatientAvatar : activeDoctorAvatar}
                       </div>
-                      <div className={`max-w-[80%] ${isSenderMe ? 'items-end' : 'items-start'} flex flex-col`}>
-                        <span className="text-[10px] text-[var(--text-muted)] mb-0.5">{msg.sender}</span>
-                        <div className={`px-3.5 py-2.5 rounded-2xl text-xs leading-relaxed ${
+                      
+                      <div className={`max-w-[78%] ${isSenderMe ? 'items-end' : 'items-start'} flex flex-col`}>
+                        <span className="text-[9.5px] font-medium text-[var(--text-muted)] mb-0.5 px-1">
+                          {msg.sender} • <span className="font-mono">{isPatientRole ? 'PATIENT' : 'DOCTOR'}</span>
+                        </span>
+                        
+                        <div className={`px-3.5 py-2.5 rounded-2xl text-xs leading-relaxed shadow-sm transition-all ${
                           isSenderMe
-                            ? 'bg-[var(--primary)] text-white rounded-br-md shadow-sm'
-                            : 'bg-[var(--bg-primary)] text-[var(--text-main)] border border-[var(--border-subtle)] rounded-bl-md'
+                            ? (isPatientRole 
+                                ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-tr-none' 
+                                : 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white rounded-tr-none')
+                            : 'bg-[var(--bg-surface)] text-[var(--text-main)] border border-[var(--border-medium)] rounded-tl-none'
                         }`}>
-                          {msg.text}
+                          <p className="whitespace-pre-wrap break-words">{msg.text}</p>
                         </div>
-                        <span className="text-[9px] text-[var(--text-dim)] mt-1">{msg.time}</span>
+                        
+                        <div className={`flex items-center gap-1 text-[9px] text-[var(--text-muted)] mt-1 px-1 ${isSenderMe ? 'justify-end' : 'justify-start'}`}>
+                          <span>{msg.time}</span>
+                          {isSenderMe && (
+                            <CheckCheck className={`w-3 h-3 ${msg.isPending ? 'text-slate-400' : 'text-blue-400'}`} />
+                          )}
+                        </div>
                       </div>
                     </div>
                   );
                 })
               )}
+
+              {/* Typing Indicator Bubble */}
+              {isOtherTyping && (
+                <div className="flex gap-2.5 items-end animate-fade-in py-1">
+                  <div className="w-7 h-7 rounded-full bg-emerald-600 border border-emerald-400 flex items-center justify-center text-[10px] font-black text-white shrink-0">
+                    {isPatient ? activeDoctorAvatar : activePatientAvatar}
+                  </div>
+                  <div className="px-3.5 py-2 rounded-2xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] text-[11px] text-[var(--text-muted)] flex items-center gap-2 rounded-bl-none shadow-sm">
+                    <span className="font-medium">{isPatient ? activeDoctorName : activePatientName} is typing</span>
+                    <span className="flex gap-1 items-center">
+                      <span className="w-1.5 h-1.5 rounded-full bg-[var(--primary)] animate-bounce" style={{ animationDelay: '0ms' }} />
+                      <span className="w-1.5 h-1.5 rounded-full bg-[var(--primary)] animate-bounce" style={{ animationDelay: '150ms' }} />
+                      <span className="w-1.5 h-1.5 rounded-full bg-[var(--primary)] animate-bounce" style={{ animationDelay: '300ms' }} />
+                    </span>
+                  </div>
+                </div>
+              )}
+
               <div ref={chatEndRef} />
             </div>
 
-            {/* Input Form */}
-            <form onSubmit={handleSendMessage} className="p-3 border-t border-[var(--border-subtle)] flex gap-2">
+            {/* Input Form — Strict Text Only */}
+            <form onSubmit={handleSendMessage} className="p-3 border-t border-[var(--border-subtle)] flex gap-2 bg-[var(--bg-surface)]">
               <input
                 type="text"
                 value={patientNewMessage}
                 disabled={isConsultationCompleted || messageSending}
-                onChange={(e) => setPatientNewMessage(e.target.value)}
+                onChange={handleInputChange}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    handleSendMessage();
+                  }
+                }}
                 placeholder={isConsultationCompleted ? "Consultation completed. Messaging is closed." : "Type your clinical message..."}
-                className="flex-1 px-4 py-2.5 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-subtle)] text-xs text-[var(--text-main)] placeholder:text-[var(--text-dim)] focus:outline-none focus:border-[var(--primary)] disabled:opacity-60"
+                className="flex-1 px-4 py-2.5 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-subtle)] text-xs text-[var(--text-main)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--primary)] disabled:opacity-60 transition-all"
               />
               <Button
                 type="submit"

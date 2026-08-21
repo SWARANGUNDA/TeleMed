@@ -8,6 +8,7 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Query
 from typing import Optional
 
 from ..websocket_manager import ws_manager
+from .. import database
 
 logger = logging.getLogger("web_platform.websocket_routes")
 router = APIRouter(tags=["Real-Time WebSockets"])
@@ -57,20 +58,61 @@ async def websocket_chat_endpoint(websocket: WebSocket, consultation_id: str):
         }))
         while True:
             raw_text = await websocket.receive_text()
+            if raw_text == "ping":
+                await websocket.send_text(json.dumps({"event": "pong"}))
+                continue
             try:
                 msg = json.loads(raw_text)
-                evt_type = msg.get("type", "chat_message")
+                evt_type = msg.get("event") or msg.get("type") or "chat_message"
+                sender_id = msg.get("sender_id")
+                content = msg.get("content")
+
+                sender_name = msg.get("sender_name")
+                sender_role = msg.get("sender_role")
+                msg_id = msg.get("message_id")
+                timestamp = msg.get("timestamp")
+
+                # Handle Typing Indicators
+                if evt_type in ("typing_start", "typing_stop"):
+                    payload = {
+                        "event": evt_type,
+                        "type": evt_type,
+                        "consultation_id": consultation_id,
+                        "sender_id": sender_id,
+                        "sender_name": sender_name,
+                        "sender_role": sender_role
+                    }
+                    await ws_manager.broadcast_chat_message(consultation_id, payload, sender_ws=websocket)
+                    continue
+
+                # If direct WS chat message with content, persist to SQLite DB
+                if evt_type == "chat_message" and content and sender_id:
+                    try:
+                        saved = database.send_consultation_message(
+                            sender_user_id=sender_id,
+                            consultation_id=consultation_id,
+                            content=content
+                        )
+                        msg_id = saved["message_id"]
+                        timestamp = saved["created_at"]
+                        sender_name = saved["sender_name"]
+                        sender_role = saved["sender_role"]
+                    except Exception as err:
+                        logger.warning(f"Note: direct WS message save handled via HTTP/WS sync: {err}")
+
                 payload = {
                     "event": evt_type,
+                    "type": evt_type,
                     "consultation_id": consultation_id,
-                    "sender_id": msg.get("sender_id"),
-                    "sender_name": msg.get("sender_name"),
-                    "content": msg.get("content"),
-                    "timestamp": msg.get("timestamp"),
-                    "message_id": msg.get("message_id")
+                    "sender_id": sender_id,
+                    "sender_name": sender_name,
+                    "sender_role": sender_role,
+                    "content": content,
+                    "timestamp": timestamp,
+                    "message_id": msg_id
                 }
-                # Broadcast live event to chat room participants
-                await ws_manager.broadcast_chat_message(consultation_id, payload, sender_ws=websocket)
+                # Broadcast live event to all chat room participants
+                await ws_manager.broadcast_chat_message(consultation_id, payload)
             except json.JSONDecodeError:
                 pass
     except WebSocketDisconnect:

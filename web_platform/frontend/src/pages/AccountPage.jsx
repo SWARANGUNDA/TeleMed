@@ -85,27 +85,21 @@ export default function AccountPage({ user, onProfileUpdated }) {
       if (role === 'PATIENT') {
         payload = {
           full_name: fullName,
-          patient_profile: {
-            full_name: fullName,
-            age: age ? parseInt(age, 10) : None,
-            gender,
-            height_cm: heightCm ? parseFloat(heightCm) : null,
-            weight_kg: weightKg ? parseFloat(weightKg) : null,
-            contact_number: contactNumber
-          }
+          age: age ? parseInt(age, 10) : null,
+          gender: gender,
+          height_cm: heightCm ? parseFloat(heightCm) : null,
+          weight_kg: weightKg ? parseFloat(weightKg) : null,
+          contact_number: contactNumber
         };
       } else if (role === 'DOCTOR') {
         payload = {
           full_name: docFullName,
-          doctor_profile: {
-            full_name: docFullName,
-            specialization: docSpecialization,
-            qualification: docQualification,
-            registration_council: docCouncil,
-            experience_years: docExperience ? parseInt(docExperience, 10) : 0,
-            contact_number: docContact,
-            hospital_affiliation: docHospital
-          }
+          specialization: docSpecialization,
+          qualification: docQualification,
+          registration_council: docCouncil,
+          experience_years: docExperience ? parseInt(docExperience, 10) : 0,
+          contact_number: docContact,
+          hospital_affiliation: docHospital
         };
       } else {
         payload = { full_name: fullName };
@@ -114,6 +108,8 @@ export default function AccountPage({ user, onProfileUpdated }) {
       const res = await updateUserProfile(payload);
       setSaveSuccess(true);
       setDocEditing(false);
+      window.dispatchEvent(new Event('telemed_profile_updated'));
+      window.dispatchEvent(new Event('telemed:user-updated'));
       if (onProfileUpdated && res.user) {
         onProfileUpdated(res.user);
       }
