@@ -1,13 +1,14 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { PageHeader, PageContainer } from '../components/layout';
-import { Card, Badge, Button, EmptyState, Modal } from '../components/ui';
+import { PageContainer } from '../components/layout';
+import { Badge, Button, Modal } from '../components/ui';
 import {
   MessageSquare, Send, Search, CheckCheck, UserCheck, ShieldCheck,
   FileText, Clock, RefreshCw, Sparkles, User, Bot, Calendar,
   Activity, ExternalLink, Archive, AlertCircle, Lock, Phone, Video,
   Paperclip, Filter, Plus, UploadCloud, Trash2, CheckCircle2,
-  Stethoscope, FileSpreadsheet, MoreVertical, Info, X
+  Stethoscope, FileSpreadsheet, MoreVertical, Info, X, Zap, ChevronRight,
+  Shield, HeartPulse, HelpCircle, CornerDownLeft
 } from 'lucide-react';
 import {
   fetchUserConversations,
@@ -25,18 +26,18 @@ export default function MessagesPage({ user }) {
   const patientFullName = user?.full_name || user?.name || user?.patient_profile?.full_name || (user?.email ? user.email.split('@')[0].replace('.', ' ').replace('_', ' ') : 'Patient');
   const patientFirstName = patientFullName.split(' ')[0] || 'Patient';
 
-  // AI Assistant Thread definition (Distinct from human physician consultations)
+  // AI Assistant Thread definition
   const aiThread = {
     id: 'ai_assistant',
     consultation_id: null,
     title: 'TeleMed AI Assistant',
     doctorName: 'TeleMed AI Assistant',
-    specialty: 'AI Decision Support',
+    specialty: 'AI Decision Support & Clinical RAG',
     hospital: 'TeleMed AI Engine v4.0',
     isOnline: true,
     role: 'AI_ASSISTANT',
     badge: 'AI DECISION SUPPORT',
-    lastMessage: 'AI decision support guidance is available.',
+    lastMessage: 'Ready to analyze your multimodal health metrics and evidence.',
     lastMessageTime: 'Just now',
     unreadCount: 0,
     status: 'ACTIVE',
@@ -57,7 +58,7 @@ export default function MessagesPage({ user }) {
         sender_role: 'AI_ASSISTANT',
         sender_name: 'TeleMed AI Assistant',
         badge: 'AI DECISION SUPPORT',
-        content: `Hello ${patientFirstName}. I am your TeleMed AI Assistant. I synthesize clinical evidence from your lab parameters, wearables, and health assessments. Note: AI guidance is informational and does not replace professional medical advice from your physician.`,
+        content: `Hello ${patientFirstName}! I am your TeleMed AI Assistant. I synthesize clinical evidence from your lab parameters, wearables, and health assessments. Feel free to ask about your health records, predictions, or lifestyle recommendations.\n\nNote: AI guidance is for decision support and does not replace professional medical advice from your physician.`,
         created_at: new Date().toISOString(),
         status: 'sent'
       }
@@ -88,20 +89,25 @@ export default function MessagesPage({ user }) {
     scrollToBottom();
   }, [messagesHistory, selectedConversationId, isAiThinking, scrollToBottom]);
 
-  // Load Real User Conversations from Backend API
   const loadConversations = useCallback(async () => {
     setLoadingConversations(true);
     setErrorMsg(null);
     try {
       const res = await fetchUserConversations();
-      const dbThreads = (res && Array.isArray(res.conversations)) ? res.conversations : [];
+      const rawThreads = (res && Array.isArray(res.conversations)) ? res.conversations : [];
+
+      const seenIds = new Set([aiThread.id]);
+      const dbThreads = [];
+      for (const t of rawThreads) {
+        const tid = t.id || t.consultation_id;
+        if (tid && !seenIds.has(tid)) {
+          seenIds.add(tid);
+          dbThreads.push(t);
+        }
+      }
       
       const allThreads = [aiThread, ...dbThreads];
       setConversations(allThreads);
-
-      if (dbThreads.length > 0 && selectedConversationId === 'ai_assistant') {
-        setSelectedConversationId(dbThreads[0].id);
-      }
     } catch (err) {
       console.warn("Conversations load notice:", err);
     } finally {
@@ -145,92 +151,18 @@ export default function MessagesPage({ user }) {
     }
   }, [selectedConversationId, loadActiveMessages]);
 
-  // WebSocket Listener for Real-Time Messages
-  useEffect(() => {
-    if (!userId || userId === 'guest') return;
-
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const host = window.location.hostname === 'localhost' ? 'localhost:8000' : window.location.host;
-    const wsUrl = `${protocol}//${host}/ws/notifications/${userId}`;
-
-    let socket = null;
-    let isMounted = true;
-
-    try {
-      socket = new WebSocket(wsUrl);
-      socket.onmessage = (event) => {
-        if (!isMounted) return;
-        try {
-          const payload = JSON.parse(event.data);
-          if (payload.type === 'chat_message' || payload.event === 'chat_message') {
-            const { consultation_id, sender_id, sender_name, sender_role, content, timestamp, message_id } = payload;
-            
-            if (consultation_id) {
-              const newMsg = {
-                message_id: message_id || `msg_${Date.now()}`,
-                consultation_id,
-                sender_user_id: sender_id,
-                sender_role: sender_role || 'DOCTOR',
-                sender_name: sender_name || 'Physician',
-                content: content,
-                created_at: timestamp || new Date().toISOString(),
-                status: 'sent'
-              };
-
-              setMessagesHistory(prev => {
-                const currentList = prev[consultation_id] || [];
-                if (currentList.some(m => m.message_id === newMsg.message_id)) return prev;
-                return {
-                  ...prev,
-                  [consultation_id]: [...currentList, newMsg]
-                };
-              });
-
-              setConversations(prev => prev.map(c => {
-                if (c.id === consultation_id) {
-                  const isSelected = selectedConversationId === consultation_id;
-                  return {
-                    ...c,
-                    lastMessage: content,
-                    lastMessageTime: 'Just now',
-                    unreadCount: isSelected ? 0 : (c.unreadCount || 0) + 1
-                  };
-                }
-                return c;
-              }));
-
-              if (selectedConversationId === consultation_id) {
-                markMessagesAsRead(consultation_id).catch(() => {});
-              }
-            }
-          }
-        } catch (e) {}
-      };
-      socket.onerror = () => {};
-    } catch (e) {}
-
-    return () => {
-      isMounted = false;
-      if (socket && socket.readyState === WebSocket.OPEN) {
-        socket.close();
-      }
-    };
-  }, [userId, selectedConversationId]);
-
-  // Handle Sending Message
+  // Send Message Logic
   const handleSendMessage = async (e) => {
     if (e) e.preventDefault();
     const text = messageInput.trim();
     if (!text || sending || isAiThinking) return;
 
+    const nowIso = new Date().toISOString();
     setMessageInput('');
     setErrorMsg(null);
 
-    const isAi = selectedConversationId === 'ai_assistant';
-    const nowIso = new Date().toISOString();
-
-    if (isAi) {
-      // AI Assistant Conversation Path
+    if (selectedConversationId === 'ai_assistant') {
+      // AI Assistant Path
       const userMsg = {
         message_id: `user_msg_${Date.now()}`,
         sender_user_id: userId,
@@ -249,7 +181,7 @@ export default function MessagesPage({ user }) {
       setIsAiThinking(true);
       try {
         const ragRes = await askRAGQuestion(text);
-        const aiReplyText = ragRes?.answer || ragRes?.response || ragRes?.message || "Thank you for providing details. Based on clinical evidence-based protocol, please verify your symptoms with your attending physician for diagnostic confirmation.";
+        const aiReplyText = ragRes?.answer || ragRes?.response || ragRes?.message || "Based on clinical evidence-based protocol, please verify your symptoms with your attending physician for diagnostic confirmation.";
 
         const aiReplyMsg = {
           message_id: `ai_msg_${Date.now()}`,
@@ -335,6 +267,11 @@ export default function MessagesPage({ user }) {
     setMessageInput(text);
   };
 
+  // Quick Prompt Preset Fill
+  const handleQuickPrompt = (promptText) => {
+    setMessageInput(promptText);
+  };
+
   // Keyboard shortcut: Enter to send, Shift+Enter newline
   const handleKeyDown = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -350,7 +287,6 @@ export default function MessagesPage({ user }) {
     setShowArchiveConfirm(false);
     setShowMenuDropdown(false);
     
-    // Select first remaining conversation
     const remaining = conversations.filter(c => c.id !== selectedConversationId && !archivedIds.has(c.id));
     if (remaining.length > 0) {
       setSelectedConversationId(remaining[0].id);
@@ -397,74 +333,89 @@ export default function MessagesPage({ user }) {
     );
   });
 
-  const doctorThreadsCount = conversations.filter(c => !c.isAi && !archivedIds.has(c.id)).length;
   const activeConv = conversations.find(c => c.id === selectedConversationId) || aiThread;
   const currentMessages = messagesHistory[selectedConversationId] || [];
 
   return (
-    <PageContainer className="max-w-[1440px] mx-auto px-4 py-3 space-y-3">
+    <PageContainer className="max-w-[1480px] mx-auto px-4 py-4 space-y-4">
       
-      {/* ── TOP PAGE HEADER ─────────────────────────────────────────────────── */}
-      <div className="flex items-center justify-between border-b border-slate-200/80 pb-3 mb-1">
-        <div>
-          <h1 className="text-xl font-bold text-slate-900 tracking-tight">Clinical Communication</h1>
-          <p className="text-xs text-slate-500 mt-0.5">Communicate securely with your healthcare team and manage consultation-related messages.</p>
+      {/* ── TOP MODERN HEADER BAR ────────────────────────────────────────────── */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 p-4 bg-gradient-to-r from-slate-900 via-slate-800 to-indigo-950 text-white rounded-2xl shadow-xl border border-slate-700/50">
+        <div className="flex items-center space-x-3.5">
+          <div className="w-11 h-11 rounded-xl bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center shadow-lg shadow-cyan-500/20 text-white flex-shrink-0">
+            <MessageSquare className="w-5 h-5" />
+          </div>
+          <div>
+            <div className="flex items-center space-x-2">
+              <h1 className="text-xl font-extrabold tracking-tight text-white">Clinical Communication Hub</h1>
+              <span className="bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                Live Session
+              </span>
+            </div>
+            <p className="text-xs text-slate-300 mt-0.5">Encrypted multi-channel communication with certified physicians and Generative AI Assistant.</p>
+          </div>
         </div>
 
-        <button
-          onClick={() => setShowSecurityModal(true)}
-          className="flex items-center space-x-1.5 bg-emerald-50 text-emerald-700 border border-emerald-200/80 px-3 py-1.5 rounded-lg text-xs font-semibold hover:bg-emerald-100/60 transition-colors cursor-pointer"
-        >
-          <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-          <span>Secure Clinical Session</span>
-        </button>
+        <div className="flex items-center space-x-2.5">
+          <button
+            onClick={() => setShowSecurityModal(true)}
+            className="flex items-center space-x-2 bg-white/10 hover:bg-white/15 text-slate-200 border border-white/15 px-3.5 py-2 rounded-xl text-xs font-semibold backdrop-blur-md transition-all cursor-pointer shadow-sm"
+          >
+            <ShieldCheck className="w-4 h-4 text-emerald-400" />
+            <span>HIPAA Encrypted</span>
+          </button>
+        </div>
       </div>
 
       {errorMsg && (
-        <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 rounded-xl text-xs flex items-center justify-between">
-          <div className="flex items-center space-x-2">
+        <div className="p-3.5 bg-rose-50 border border-rose-200 text-rose-800 rounded-xl text-xs flex items-center justify-between shadow-sm animate-fade-in">
+          <div className="flex items-center space-x-2.5">
             <AlertCircle className="w-4 h-4 text-rose-600 flex-shrink-0" />
-            <span>{errorMsg}</span>
+            <span className="font-medium">{errorMsg}</span>
           </div>
-          <button onClick={() => setErrorMsg(null)} className="font-bold underline cursor-pointer">Dismiss</button>
+          <button onClick={() => setErrorMsg(null)} className="font-bold text-rose-700 hover:text-rose-900 underline cursor-pointer text-xs">Dismiss</button>
         </div>
       )}
 
-      {/* ── 3-COLUMN CLINICAL WORKSPACE GRID (HEIGHT CONSTRAINED TO VIEWPORT) ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start h-[calc(100vh-140px)] min-h-[580px] max-h-[820px] overflow-hidden">
+      {/* ── 3-COLUMN CLINICAL WORKSPACE GRID ─────────────────────────────────── */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start h-[calc(100vh-170px)] min-h-[620px] max-h-[860px]">
 
         {/* ── LEFT COLUMN: Care Communications (3 cols) ─────────────────────── */}
-        <div className="lg:col-span-3 bg-white border border-slate-200/80 rounded-2xl p-3.5 space-y-3 shadow-2xs flex flex-col h-full overflow-hidden">
+        <div className="lg:col-span-3 bg-white border border-slate-200/90 rounded-2xl p-4 space-y-3.5 shadow-lg shadow-slate-100/60 flex flex-col h-full overflow-hidden">
           
           <div className="flex items-center justify-between">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
-              <Stethoscope className="w-3.5 h-3.5 text-blue-600" />
-              <span>Care Communications</span>
-            </h3>
+            <div className="flex items-center space-x-2">
+              <div className="w-7 h-7 rounded-lg bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-600">
+                <Stethoscope className="w-4 h-4" />
+              </div>
+              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700">Care Channels</h3>
+            </div>
+
             <button
               onClick={loadConversations}
-              className="p-1 text-slate-400 hover:text-slate-600 transition-colors"
+              className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
               title="Refresh Communications"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${loadingConversations ? 'animate-spin' : ''}`} />
             </button>
           </div>
 
-          {/* Compact Filter Tabs */}
-          <div className="flex space-x-1 p-1 bg-slate-100/70 border border-slate-200/60 rounded-lg text-[11px] font-medium">
+          {/* Segmented Filter Tabs */}
+          <div className="grid grid-cols-4 gap-1 p-1 bg-slate-100/80 border border-slate-200/60 rounded-xl text-[11px] font-semibold text-slate-600">
             {[
               { id: 'all', label: 'All' },
               { id: 'doctors', label: 'Doctors' },
-              { id: 'ai', label: 'AI Assistant' },
-              { id: 'archived', label: 'Archived' }
+              { id: 'ai', label: 'AI Bot' },
+              { id: 'archived', label: 'Saved' }
             ].map(tab => (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex-1 py-1 px-1 rounded text-center transition-all cursor-pointer ${
+                className={`py-1.5 px-1 rounded-lg text-center transition-all cursor-pointer truncate ${
                   activeTab === tab.id
-                    ? 'bg-white text-blue-600 font-bold shadow-2xs'
-                    : 'text-slate-500 hover:text-slate-900'
+                    ? 'bg-white text-blue-600 font-bold shadow-sm border border-slate-200/60'
+                    : 'hover:text-slate-900'
                 }`}
               >
                 {tab.label}
@@ -472,51 +423,61 @@ export default function MessagesPage({ user }) {
             ))}
           </div>
 
-          {/* Compact Search Input */}
+          {/* Search Box */}
           <div className="relative">
-            <Search className="w-3.5 h-3.5 absolute left-2.5 top-2 text-slate-400" />
+            <Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-slate-400" />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search care team..."
-              className="w-full pl-7 pr-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-500 text-slate-800 placeholder-slate-400"
+              placeholder="Search care team & channels..."
+              className="w-full pl-8 pr-3 py-2 text-xs bg-slate-50/80 border border-slate-200/90 rounded-xl focus:outline-none focus:border-blue-500 focus:bg-white text-slate-800 placeholder-slate-400 transition-all"
             />
+            {searchQuery && (
+              <button onClick={() => setSearchQuery('')} className="absolute right-2.5 top-2.5 text-slate-400 hover:text-slate-600">
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
           </div>
 
           {/* Care Communications List */}
-          <div className="flex-1 overflow-y-auto space-y-1.5 pr-1 custom-scrollbar">
+          <div className="flex-1 overflow-y-auto space-y-2 pr-1 custom-scrollbar">
             {loadingConversations ? (
               <div className="py-12 text-center text-xs text-slate-400 space-y-2">
-                <RefreshCw className="w-4 h-4 animate-spin mx-auto text-blue-600" />
-                <p>Loading care communications...</p>
+                <RefreshCw className="w-5 h-5 animate-spin mx-auto text-blue-600" />
+                <p>Syncing care channels...</p>
               </div>
             ) : filteredConversations.length === 0 ? (
-              <div className="py-8 text-center space-y-2 px-2 border border-dashed border-slate-200 rounded-xl bg-slate-50/50 my-auto">
-                <p className="text-xs font-bold text-slate-700">No active doctor conversations</p>
-                <p className="text-[11px] text-slate-500">Your conversations will appear here after booking a consultation with a specialist.</p>
+              <div className="py-10 text-center space-y-2.5 px-3 border border-dashed border-slate-200/80 rounded-2xl bg-slate-50/50 my-auto">
+                <div className="w-10 h-10 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center mx-auto">
+                  <MessageSquare className="w-5 h-5" />
+                </div>
+                <p className="text-xs font-bold text-slate-700">No active conversations</p>
+                <p className="text-[11px] text-slate-500 leading-relaxed">Book a consultation with a specialist to initiate direct physician care communications.</p>
               </div>
             ) : (
-              filteredConversations.map(conv => {
+              filteredConversations.map((conv, idx) => {
                 const isSelected = selectedConversationId === conv.id;
                 const isAi = conv.isAi;
 
                 return (
                   <div
-                    key={conv.id}
+                    key={`${conv.id || 'conv'}_${idx}`}
                     onClick={() => setSelectedConversationId(conv.id)}
-                    className={`p-2.5 rounded-xl cursor-pointer transition-all border ${
+                    className={`p-3 rounded-2xl cursor-pointer transition-all border ${
                       isSelected
-                        ? 'bg-blue-50/80 border-blue-500/80 shadow-2xs'
-                        : 'bg-white border-slate-100 hover:border-slate-200 hover:bg-slate-50/60'
+                        ? 'bg-gradient-to-r from-blue-50/90 to-indigo-50/80 border-blue-500/80 shadow-md shadow-blue-500/5 ring-1 ring-blue-500/20'
+                        : 'bg-white border-slate-200/70 hover:border-slate-300 hover:bg-slate-50/80'
                     }`}
                   >
-                    <div className="flex items-start space-x-2.5">
-                      {/* Compact Icon */}
-                      <div className={`w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold flex-shrink-0 ${
-                        isAi ? 'bg-purple-100 text-purple-600 border border-purple-200' : 'bg-blue-100 text-blue-600 border border-blue-200'
+                    <div className="flex items-start space-x-3">
+                      {/* Avatar Icon */}
+                      <div className={`w-9 h-9 rounded-xl flex items-center justify-center text-xs font-bold flex-shrink-0 shadow-sm ${
+                        isAi 
+                          ? 'bg-gradient-to-tr from-purple-600 to-indigo-600 text-white shadow-purple-500/20' 
+                          : 'bg-gradient-to-tr from-blue-600 to-cyan-600 text-white shadow-blue-500/20'
                       }`}>
-                        {isAi ? <Sparkles className="w-3.5 h-3.5" /> : <UserCheck className="w-3.5 h-3.5" />}
+                        {isAi ? <Sparkles className="w-4 h-4" /> : <UserCheck className="w-4 h-4" />}
                       </div>
 
                       <div className="flex-1 min-w-0">
@@ -524,12 +485,12 @@ export default function MessagesPage({ user }) {
                           <h4 className="text-xs font-bold text-slate-900 truncate">
                             {conv.doctorName || conv.title}
                           </h4>
-                          <span className="text-[10px] text-slate-400 flex-shrink-0">
+                          <span className="text-[10px] text-slate-400 flex-shrink-0 font-medium">
                             {conv.lastMessageTime}
                           </span>
                         </div>
 
-                        <p className="text-[11px] text-slate-500 truncate mb-1">
+                        <p className="text-[11px] font-semibold text-slate-500 truncate mb-1">
                           {conv.specialty}
                         </p>
 
@@ -538,7 +499,7 @@ export default function MessagesPage({ user }) {
                             {conv.lastMessage}
                           </p>
                           {conv.unreadCount > 0 && (
-                            <span className="w-2 h-2 rounded-full bg-blue-600 flex-shrink-0" />
+                            <span className="w-2.5 h-2.5 rounded-full bg-blue-600 flex-shrink-0 ring-2 ring-blue-100" />
                           )}
                         </div>
                       </div>
@@ -550,38 +511,40 @@ export default function MessagesPage({ user }) {
           </div>
 
           <div className="pt-2 border-t border-slate-100">
-            <Button
-              variant="outline"
-              size="sm"
-              className="w-full text-xs justify-center font-medium border-slate-200 text-slate-700 hover:bg-slate-50"
+            <button
+              className="w-full py-2.5 px-3 rounded-xl border border-blue-200 bg-blue-50/60 hover:bg-blue-100/80 text-blue-700 font-bold text-xs flex items-center justify-center space-x-2 transition-all cursor-pointer shadow-xs"
               onClick={() => navigate('/appointments')}
             >
-              <Calendar className="w-3.5 h-3.5 mr-1.5 text-blue-600" />
-              <span>Contact Care Team</span>
-            </Button>
+              <Calendar className="w-4 h-4 text-blue-600" />
+              <span>Book Doctor Consultation</span>
+            </button>
           </div>
         </div>
 
         {/* ── CENTER COLUMN: Clinical Communication Workspace (6 cols) ──────── */}
-        <div className="lg:col-span-6 bg-white border border-slate-200/80 rounded-2xl flex flex-col h-full overflow-hidden shadow-2xs relative">
+        <div className="lg:col-span-6 bg-white border border-slate-200/90 rounded-2xl flex flex-col h-full overflow-hidden shadow-lg shadow-slate-100/60 relative">
           
           {/* Active Header */}
-          <div className="p-3 px-4 border-b border-slate-100 flex items-center justify-between bg-white flex-shrink-0">
-            <div className="flex items-center space-x-3 min-w-0">
-              <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold flex-shrink-0 ${
-                activeConv.isAi ? 'bg-purple-100 text-purple-600 border border-purple-200' : 'bg-blue-100 text-blue-600 border border-blue-200'
+          <div className="p-3.5 px-5 border-b border-slate-100 flex items-center justify-between bg-white flex-shrink-0 shadow-2xs">
+            <div className="flex items-center space-x-3.5 min-w-0">
+              <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-xs font-bold flex-shrink-0 shadow-md ${
+                activeConv.isAi ? 'bg-gradient-to-tr from-purple-600 to-indigo-600 text-white' : 'bg-gradient-to-tr from-blue-600 to-cyan-600 text-white'
               }`}>
-                {activeConv.isAi ? <Sparkles className="w-4 h-4" /> : <UserCheck className="w-4 h-4" />}
+                {activeConv.isAi ? <Sparkles className="w-5 h-5" /> : <UserCheck className="w-5 h-5" />}
               </div>
 
               <div className="min-w-0">
-                <div className="flex items-center space-x-2">
-                  <h3 className="text-sm font-bold text-slate-900 truncate">
+                <div className="flex items-center space-x-2.5">
+                  <h3 className="text-sm font-extrabold text-slate-900 truncate">
                     {activeConv.doctorName || activeConv.title}
                   </h3>
-                  <Badge variant={activeConv.isAi ? 'purple' : 'success'} className="text-[10px] py-0 px-2 flex-shrink-0">
-                    {activeConv.isAi ? 'AI Health Assistant' : 'Verified Physician'}
-                  </Badge>
+                  <span className={`text-[10px] font-extrabold px-2.5 py-0.5 rounded-full uppercase tracking-wider ${
+                    activeConv.isAi 
+                      ? 'bg-purple-100 text-purple-700 border border-purple-200' 
+                      : 'bg-emerald-100 text-emerald-700 border border-emerald-200'
+                  }`}>
+                    {activeConv.isAi ? 'AI Assistant Engine' : 'Verified Physician'}
+                  </span>
 
                   {activeConv.isAi && (
                     <button
@@ -589,7 +552,7 @@ export default function MessagesPage({ user }) {
                       className="text-slate-400 hover:text-purple-600 transition-colors"
                       title="AI Engine Info"
                     >
-                      <Info className="w-3.5 h-3.5" />
+                      <Info className="w-4 h-4" />
                     </button>
                   )}
                 </div>
@@ -603,35 +566,33 @@ export default function MessagesPage({ user }) {
             {/* Header Right Actions */}
             <div className="flex items-center space-x-2 flex-shrink-0">
               {!activeConv.isAi && activeConv.consultation_id && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="text-xs py-1 px-2.5 border-slate-200 text-slate-700 hover:bg-slate-50"
+                <button
+                  className="text-xs font-bold py-1.5 px-3 border border-slate-200 bg-slate-50 hover:bg-slate-100 rounded-xl text-slate-700 flex items-center space-x-1.5 transition-all cursor-pointer"
                   onClick={() => navigate('/consultations')}
                 >
-                  <FileText className="w-3.5 h-3.5 mr-1 text-blue-600" />
-                  <span>View Consultation</span>
-                </Button>
+                  <FileText className="w-3.5 h-3.5 text-blue-600" />
+                  <span>Consultation Details</span>
+                </button>
               )}
 
-              {/* Overflow Header Menu */}
+              {/* Overflow Menu */}
               <div className="relative">
                 <button
                   onClick={() => setShowMenuDropdown(!showMenuDropdown)}
-                  className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
+                  className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer"
                   title="More Options"
                 >
                   <MoreVertical className="w-4 h-4" />
                 </button>
 
                 {showMenuDropdown && (
-                  <div className="absolute right-0 top-8 w-44 bg-white border border-slate-200 rounded-xl shadow-lg z-20 py-1 text-xs">
+                  <div className="absolute right-0 top-10 w-44 bg-white border border-slate-200 rounded-xl shadow-xl z-20 py-1 text-xs">
                     <button
                       onClick={() => {
                         setShowArchiveConfirm(true);
                         setShowMenuDropdown(false);
                       }}
-                      className="w-full text-left px-3 py-2 text-rose-600 hover:bg-rose-50 flex items-center space-x-2"
+                      className="w-full text-left px-3.5 py-2 text-rose-600 hover:bg-rose-50 flex items-center space-x-2 font-medium"
                     >
                       <Archive className="w-3.5 h-3.5" />
                       <span>Archive Thread</span>
@@ -642,42 +603,48 @@ export default function MessagesPage({ user }) {
             </div>
           </div>
 
-          {/* AI Disclosure Banner (Subtle & Concise) */}
+          {/* AI Disclosure Banner */}
           {activeConv.isAi && (
-            <div className="px-4 py-1.5 bg-purple-50/70 border-b border-purple-100 flex items-center space-x-2 text-[11px] text-purple-800 flex-shrink-0">
-              <Sparkles className="w-3.5 h-3.5 flex-shrink-0 text-purple-600" />
-              <span>AI-generated guidance is informational and does not replace professional medical advice.</span>
+            <div className="px-5 py-2 bg-gradient-to-r from-purple-50 to-indigo-50 border-b border-purple-100 flex items-center justify-between text-xs text-purple-900 flex-shrink-0">
+              <div className="flex items-center space-x-2">
+                <Sparkles className="w-4 h-4 text-purple-600 flex-shrink-0" />
+                <span className="font-medium text-[11px]">AI-generated decision support synthesized from RAG engine & clinical guidelines.</span>
+              </div>
+              <span className="text-[10px] font-bold text-purple-700 bg-purple-200/60 px-2 py-0.5 rounded-md flex-shrink-0">v4.0 UNIFIED</span>
             </div>
           )}
 
           {/* Clinical Communication Timeline Feed */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar bg-slate-50/30">
+          <div className="flex-1 overflow-y-auto p-5 space-y-4 custom-scrollbar bg-slate-50/40">
             
             {/* System Activity Timeline Marker */}
-            <div className="text-center my-1">
-              <span className="text-[10px] text-slate-400 font-medium bg-white border border-slate-200 px-2.5 py-0.5 rounded-full">
+            <div className="text-center my-2">
+              <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider bg-white border border-slate-200/80 px-3 py-1 rounded-full shadow-2xs">
                 Timeline Activity • {formatDate(currentMessages[0]?.created_at)}
               </span>
             </div>
 
             {/* Real Consultation Event Marker */}
             {!activeConv.isAi && activeConv.appointment_date && (
-              <div className="p-2.5 bg-blue-50/80 border border-blue-100 rounded-xl text-xs flex items-center space-x-2 text-blue-900">
-                <CheckCircle2 className="w-4 h-4 text-blue-600 flex-shrink-0" />
-                <span><strong>Appointment Confirmed:</strong> Scheduled for {activeConv.appointment_date} {activeConv.appointment_time || ''}</span>
+              <div className="p-3 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200/80 rounded-2xl text-xs flex items-center space-x-3 text-blue-900 shadow-sm">
+                <CheckCircle2 className="w-5 h-5 text-blue-600 flex-shrink-0" />
+                <div>
+                  <p className="font-bold">Appointment Confirmed with {activeConv.doctorName}</p>
+                  <p className="text-[11px] text-blue-700">Scheduled slot: {activeConv.appointment_date} {activeConv.appointment_time || ''}</p>
+                </div>
               </div>
             )}
 
             {loadingMessages ? (
-              <div className="py-12 text-center text-xs text-slate-400 space-y-2">
-                <RefreshCw className="w-4 h-4 animate-spin mx-auto text-blue-600" />
+              <div className="py-16 text-center text-xs text-slate-400 space-y-2">
+                <RefreshCw className="w-5 h-5 animate-spin mx-auto text-blue-600" />
                 <p>Retrieving timeline entries...</p>
               </div>
             ) : currentMessages.length === 0 ? (
-              <div className="py-12 text-center text-xs text-slate-400 space-y-1">
-                <Stethoscope className="w-6 h-6 mx-auto text-slate-300" />
-                <p className="font-bold text-slate-700">Communication Timeline Active</p>
-                <p>Send a message below to transmit an entry to your care team.</p>
+              <div className="py-16 text-center text-xs text-slate-400 space-y-2">
+                <Stethoscope className="w-8 h-8 mx-auto text-slate-300" />
+                <p className="font-bold text-slate-700 text-sm">Communication Timeline Active</p>
+                <p className="text-slate-500">Send a message below to transmit an entry to your care team.</p>
               </div>
             ) : (
               currentMessages.map((msg, index) => {
@@ -687,76 +654,99 @@ export default function MessagesPage({ user }) {
                 return (
                   <div
                     key={msg.message_id || index}
-                    className={`p-3 rounded-xl border text-xs space-y-1 transition-all ${
-                      isMe
-                        ? 'bg-blue-50/50 border-blue-200/70 text-slate-900'
-                        : isAi
-                        ? 'bg-purple-50/40 border-purple-200/60 text-purple-950'
-                        : 'bg-white border-slate-200/80 text-slate-900 shadow-2xs'
-                    }`}
+                    className={`flex flex-col ${isMe ? 'items-end' : 'items-start'} space-y-1`}
                   >
-                    {/* Entry Header */}
-                    <div className="flex items-center justify-between border-b border-black/5 pb-1 text-[11px]">
-                      <div className="flex items-center space-x-2">
-                        <span className="font-bold text-slate-800">
-                          {isMe ? patientFullName : msg.sender_name || activeConv.doctorName}
-                        </span>
-                        <Badge variant={isMe ? 'secondary' : isAi ? 'purple' : 'success'} className="text-[9px] py-0 px-1">
-                          {isMe ? 'PATIENT' : isAi ? 'AI ASSISTANT' : 'PHYSICIAN'}
-                        </Badge>
-                      </div>
+                    {/* Sender Label */}
+                    <div className="flex items-center space-x-2 px-1">
+                      <span className="text-[10px] font-bold text-slate-500">
+                        {isMe ? 'You' : msg.sender_name || activeConv.doctorName}
+                      </span>
                       <span className="text-[10px] text-slate-400">
                         {formatTime(msg.created_at)}
                       </span>
                     </div>
 
-                    {/* Entry Content */}
-                    <p className="whitespace-pre-wrap leading-relaxed pt-0.5">
-                      {msg.content}
-                    </p>
+                    {/* Chat Bubble Container */}
+                    <div
+                      className={`max-w-[85%] p-4 rounded-2xl text-xs space-y-1.5 shadow-sm transition-all ${
+                        isMe
+                          ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-br-none shadow-blue-500/10'
+                          : isAi
+                          ? 'bg-gradient-to-br from-purple-50/90 to-indigo-50/70 border border-purple-200/80 text-purple-950 rounded-bl-none shadow-purple-500/5'
+                          : 'bg-white border border-slate-200/90 text-slate-900 rounded-bl-none shadow-slate-100'
+                      }`}
+                    >
+                      <p className="whitespace-pre-wrap leading-relaxed">
+                        {msg.content}
+                      </p>
 
-                    {/* Footer Status for Patient Messages */}
-                    {isMe && (
-                      <div className="flex justify-end pt-0.5 text-[10px] text-slate-400 items-center gap-1">
-                        {msg.status === 'sending' ? (
-                          <span>Transmitting...</span>
-                        ) : msg.status === 'failed' ? (
-                          <button
-                            onClick={() => handleRetryMessage(msg)}
-                            className="text-rose-600 font-bold underline flex items-center gap-1 cursor-pointer"
-                          >
-                            <AlertCircle className="w-3 h-3" /> Retry Transmission
-                          </button>
-                        ) : (
-                          <span className="flex items-center gap-1 text-emerald-600 font-medium">
-                            <CheckCheck className="w-3 h-3" /> Transmitted
-                          </span>
-                        )}
-                      </div>
-                    )}
+                      {/* Footer Status for Patient Messages */}
+                      {isMe && (
+                        <div className="flex justify-end pt-1 text-[10px] text-blue-100 items-center gap-1">
+                          {msg.status === 'sending' ? (
+                            <span>Transmitting...</span>
+                          ) : msg.status === 'failed' ? (
+                            <button
+                              onClick={() => handleRetryMessage(msg)}
+                              className="text-rose-200 hover:text-white font-bold underline flex items-center gap-1 cursor-pointer"
+                            >
+                              <AlertCircle className="w-3 h-3" /> Retry Transmission
+                            </button>
+                          ) : (
+                            <span className="flex items-center gap-1 font-semibold text-blue-100">
+                              <CheckCheck className="w-3.5 h-3.5" /> Transmitted
+                            </span>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 );
               })
             )}
 
+            {/* AI Thinking Animation */}
             {isAiThinking && (
-              <div className="p-3 bg-purple-50 border border-purple-200 rounded-xl text-xs text-purple-800 flex items-center space-x-2">
-                <RefreshCw className="w-3.5 h-3.5 animate-spin flex-shrink-0 text-purple-600" />
-                <span>TeleMed AI Assistant is analyzing clinical evidence...</span>
+              <div className="flex items-center space-x-2.5 p-3.5 bg-purple-50/90 border border-purple-200 rounded-2xl text-xs text-purple-900 max-w-[80%] animate-pulse">
+                <Sparkles className="w-4 h-4 text-purple-600 animate-spin" />
+                <span className="font-semibold">TeleMed AI Assistant is synthesizing clinical evidence...</span>
               </div>
             )}
 
             <div ref={chatEndRef} />
           </div>
 
-          {/* Fixed Bottom Message Composer */}
-          <form onSubmit={handleSendMessage} className="p-2.5 border-t border-slate-100 bg-white flex flex-col space-y-1.5 flex-shrink-0">
-            <div className="flex items-center space-x-2">
+          {/* Quick Prompt Presets for AI Chat */}
+          {activeConv.isAi && (
+            <div className="px-4 py-2 bg-slate-50/80 border-t border-slate-100 flex items-center space-x-2 overflow-x-auto no-scrollbar flex-shrink-0">
+              <span className="text-[10px] font-extrabold uppercase text-purple-600 flex-shrink-0 flex items-center gap-1">
+                <Zap className="w-3 h-3" /> Quick Ask:
+              </span>
+              {[
+                "What do my latest lab results mean?",
+                "Suggest dietary fiber recommendations.",
+                "How to improve my sleep score?"
+              ].map((prompt, idx) => (
+                <button
+                  key={idx}
+                  type="button"
+                  onClick={() => handleQuickPrompt(prompt)}
+                  className="px-2.5 py-1 bg-white hover:bg-purple-50 border border-slate-200 hover:border-purple-300 rounded-full text-[11px] text-slate-700 hover:text-purple-700 whitespace-nowrap transition-all cursor-pointer shadow-2xs font-medium"
+                >
+                  {prompt}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Bottom Message Composer */}
+          <form onSubmit={handleSendMessage} className="p-3.5 border-t border-slate-100 bg-white flex flex-col space-y-2 flex-shrink-0">
+            <div className="flex items-center space-x-2.5">
               <button
                 type="button"
                 onClick={() => navigate('/intake')}
-                className="p-1.5 text-slate-400 hover:text-slate-600 border border-slate-200 rounded-lg transition-colors cursor-pointer"
-                title="Upload Document"
+                className="p-2.5 text-slate-400 hover:text-blue-600 bg-slate-50 hover:bg-blue-50 border border-slate-200 rounded-xl transition-all cursor-pointer"
+                title="Attach Health Record or Document"
               >
                 <Paperclip className="w-4 h-4" />
               </button>
@@ -765,60 +755,67 @@ export default function MessagesPage({ user }) {
                 value={messageInput}
                 onChange={(e) => setMessageInput(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder="Write a secure message to your healthcare team..."
+                placeholder={activeConv.isAi ? "Ask AI Assistant about lab parameters, risk scores, or health recommendations..." : "Write a secure message to your healthcare team..."}
                 rows={1}
-                className="flex-1 px-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-500 text-slate-800 placeholder-slate-400 resize-none custom-scrollbar"
+                className="flex-1 px-4 py-2.5 text-xs bg-slate-50/80 border border-slate-200 rounded-xl focus:outline-none focus:border-blue-500 focus:bg-white text-slate-900 placeholder-slate-400 resize-none custom-scrollbar"
               />
 
-              <Button
+              <button
                 type="submit"
-                variant="primary"
-                size="sm"
                 disabled={!messageInput.trim() || sending || isAiThinking}
-                className="h-8 px-3.5 rounded-lg flex items-center space-x-1.5 flex-shrink-0 text-xs font-semibold"
+                className={`h-10 px-4 rounded-xl flex items-center justify-center space-x-1.5 text-xs font-bold text-white transition-all shadow-md cursor-pointer ${
+                  !messageInput.trim() || sending || isAiThinking
+                    ? 'bg-slate-300 cursor-not-allowed shadow-none'
+                    : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-blue-500/20 hover:scale-[1.02]'
+                }`}
               >
                 {sending || isAiThinking ? (
-                  <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                  <RefreshCw className="w-4 h-4 animate-spin" />
                 ) : (
                   <>
                     <span>Send</span>
-                    <Send className="w-3 h-3" />
+                    <Send className="w-3.5 h-3.5" />
                   </>
                 )}
-              </Button>
+              </button>
             </div>
 
-            <div className="text-[10px] text-slate-400 text-center flex items-center justify-center space-x-1">
+            <div className="text-[10px] text-slate-400 text-center flex items-center justify-center space-x-1.5 pt-0.5">
               <Lock className="w-3 h-3 text-emerald-600" />
-              <span>Transmitted via encrypted telehealth session</span>
+              <span className="font-medium">256-bit Encrypted Telehealth Communication Session</span>
             </div>
           </form>
         </div>
 
         {/* ── RIGHT COLUMN: Context & Care Actions (3 cols) ────────────────── */}
-        <div className="lg:col-span-3 space-y-3 h-full overflow-y-auto custom-scrollbar">
+        <div className="lg:col-span-3 space-y-4 h-full overflow-y-auto custom-scrollbar">
           
-          {/* Care Context / Consultation Context Card */}
-          <div className="bg-white border border-slate-200/80 rounded-2xl p-3.5 space-y-2.5 shadow-2xs">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
-              <Activity className="w-3.5 h-3.5 text-blue-600" />
-              <span>{activeConv.isAi ? 'Care Context' : 'Consultation Context'}</span>
-            </h3>
+          {/* Care Context Card */}
+          <div className="bg-white border border-slate-200/90 rounded-2xl p-4 space-y-3 shadow-lg shadow-slate-100/60">
+            <div className="flex items-center space-x-2">
+              <div className="w-7 h-7 rounded-lg bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600">
+                <Activity className="w-4 h-4" />
+              </div>
+              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700">
+                {activeConv.isAi ? 'Care Context' : 'Consultation Details'}
+              </h3>
+            </div>
 
-            <div className="p-2.5 bg-slate-50/70 border border-slate-100 rounded-xl space-y-2 text-xs">
+            <div className="p-3 bg-gradient-to-br from-slate-50 to-indigo-50/30 border border-slate-200/70 rounded-xl space-y-2 text-xs">
               {activeConv.isAi ? (
                 <>
                   <div className="flex justify-between">
-                    <span className="text-slate-400">Session Type:</span>
-                    <span className="font-semibold text-slate-800">AI Assistant Session</span>
+                    <span className="text-slate-500">Session Type:</span>
+                    <span className="font-bold text-slate-800">AI Assistant Session</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-slate-400">Engine:</span>
-                    <span className="font-semibold text-purple-700">TeleMed AI v4.0</span>
+                    <span className="text-slate-500">RAG Engine:</span>
+                    <span className="font-bold text-purple-700">TeleMed AI v4.0</span>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-400">Status:</span>
-                    <span className="inline-block bg-emerald-100 text-emerald-700 text-[10px] font-bold px-2 py-0.5 rounded-full">
+                  <div className="flex justify-between items-center">
+                    <span className="text-slate-500">Status:</span>
+                    <span className="bg-emerald-100 text-emerald-700 text-[10px] font-extrabold px-2.5 py-0.5 rounded-full flex items-center gap-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
                       Active
                     </span>
                   </div>
@@ -826,26 +823,26 @@ export default function MessagesPage({ user }) {
               ) : (
                 <>
                   <div className="flex justify-between">
-                    <span className="text-slate-400">Specialist:</span>
-                    <span className="font-semibold text-slate-800 truncate max-w-[130px]">{activeConv.doctorName}</span>
+                    <span className="text-slate-500">Specialist:</span>
+                    <span className="font-bold text-slate-800 truncate max-w-[130px]">{activeConv.doctorName}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-slate-400">Specialty:</span>
-                    <span className="font-semibold text-slate-800">{activeConv.specialty}</span>
+                    <span className="text-slate-500">Specialty:</span>
+                    <span className="font-bold text-slate-800">{activeConv.specialty}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-slate-400">Consultation ID:</span>
+                    <span className="text-slate-500">ID:</span>
                     <span className="font-mono font-bold text-blue-600">{activeConv.consultation_id}</span>
                   </div>
                   {activeConv.appointment_date && (
                     <div className="flex justify-between">
-                      <span className="text-slate-400">Slot:</span>
-                      <span className="font-semibold text-slate-800">{activeConv.appointment_date}</span>
+                      <span className="text-slate-500">Slot:</span>
+                      <span className="font-bold text-slate-800">{activeConv.appointment_date}</span>
                     </div>
                   )}
                   <div className="flex justify-between items-center">
-                    <span className="text-slate-400">Status:</span>
-                    <span className="bg-emerald-100 text-emerald-700 text-[10px] font-bold px-2 py-0.5 rounded-full">
+                    <span className="text-slate-500">Status:</span>
+                    <span className="bg-emerald-100 text-emerald-700 text-[10px] font-extrabold px-2 py-0.5 rounded-full">
                       {activeConv.status || 'Active'}
                     </span>
                   </div>
@@ -854,59 +851,58 @@ export default function MessagesPage({ user }) {
             </div>
 
             {!activeConv.isAi && activeConv.consultation_id && (
-              <Button
-                variant="outline"
-                size="sm"
-                className="w-full text-xs justify-center border-slate-200 text-slate-700 hover:bg-slate-50"
+              <button
+                className="w-full py-2 px-3 border border-slate-200 bg-slate-50 hover:bg-slate-100 rounded-xl text-slate-700 font-bold text-xs flex items-center justify-center space-x-1.5 transition-all cursor-pointer"
                 onClick={() => navigate('/consultations')}
               >
-                <ExternalLink className="w-3.5 h-3.5 mr-1.5 text-blue-600" />
-                <span>View Consultation Details</span>
-              </Button>
+                <ExternalLink className="w-3.5 h-3.5 text-blue-600" />
+                <span>View Full Consultation</span>
+              </button>
             )}
           </div>
 
-          {/* Prioritized 3-4 Actions Card */}
-          <div className="bg-white border border-slate-200/80 rounded-2xl p-3.5 space-y-2.5 shadow-2xs">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
-              <Sparkles className="w-3.5 h-3.5 text-blue-600" />
-              <span>Care Actions</span>
-            </h3>
+          {/* Care Actions Hub */}
+          <div className="bg-white border border-slate-200/90 rounded-2xl p-4 space-y-3 shadow-lg shadow-slate-100/60">
+            <div className="flex items-center space-x-2">
+              <div className="w-7 h-7 rounded-lg bg-purple-50 border border-purple-100 flex items-center justify-center text-purple-600">
+                <Sparkles className="w-4 h-4" />
+              </div>
+              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700">Quick Care Actions</h3>
+            </div>
 
-            <div className="space-y-1.5">
+            <div className="space-y-2">
               <button
                 onClick={() => navigate('/records')}
-                className="w-full p-2 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl text-xs font-medium text-slate-700 flex items-center space-x-2.5 transition-colors cursor-pointer"
+                className="w-full p-2.5 bg-slate-50 hover:bg-blue-50/70 border border-slate-200 hover:border-blue-300 rounded-xl text-xs font-bold text-slate-700 hover:text-blue-700 flex items-center justify-between transition-all cursor-pointer shadow-2xs group"
               >
-                <FileText className="w-3.5 h-3.5 text-blue-600" />
-                <span>View Health Records</span>
+                <div className="flex items-center space-x-2.5">
+                  <FileText className="w-4 h-4 text-blue-600" />
+                  <span>View Health Records</span>
+                </div>
+                <ChevronRight className="w-4 h-4 text-slate-400 group-hover:translate-x-0.5 transition-transform" />
               </button>
 
               <button
-                onClick={() => navigate('/reports')}
-                className="w-full p-2 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl text-xs font-medium text-slate-700 flex items-center space-x-2.5 transition-colors cursor-pointer"
+                onClick={() => navigate('/report')}
+                className="w-full p-2.5 bg-slate-50 hover:bg-emerald-50/70 border border-slate-200 hover:border-emerald-300 rounded-xl text-xs font-bold text-slate-700 hover:text-emerald-700 flex items-center justify-between transition-all cursor-pointer shadow-2xs group"
               >
-                <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" />
-                <span>View Latest Report</span>
+                <div className="flex items-center space-x-2.5">
+                  <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
+                  <span>View AI Health Report</span>
+                </div>
+                <ChevronRight className="w-4 h-4 text-slate-400 group-hover:translate-x-0.5 transition-transform" />
               </button>
 
-              {activeConv.isAi ? (
-                <button
-                  onClick={() => navigate('/copilot')}
-                  className="w-full p-2 bg-purple-50 hover:bg-purple-100 border border-purple-200 rounded-xl text-xs font-medium text-purple-700 flex items-center space-x-2.5 transition-colors cursor-pointer"
-                >
-                  <Sparkles className="w-3.5 h-3.5 text-purple-600" />
+              <button
+                onClick={() => navigate('/copilot')}
+                className="w-full p-2.5 bg-purple-50/80 hover:bg-purple-100 border border-purple-200 hover:border-purple-300 rounded-xl text-xs font-bold text-purple-800 flex items-center justify-between transition-all cursor-pointer shadow-2xs group"
+              >
+                <div className="flex items-center space-x-2.5">
+                  <Sparkles className="w-4 h-4 text-purple-600" />
                   <span>Open AI Health Copilot</span>
-                </button>
-              ) : (
-                <button
-                  onClick={() => navigate('/appointments')}
-                  className="w-full p-2 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl text-xs font-medium text-slate-700 flex items-center space-x-2.5 transition-colors cursor-pointer"
-                >
-                  <Calendar className="w-3.5 h-3.5 text-amber-600" />
-                  <span>Schedule Follow-up</span>
-                </button>
-              )}
+                </div>
+                <ChevronRight className="w-4 h-4 text-purple-400 group-hover:translate-x-0.5 transition-transform" />
+              </button>
             </div>
           </div>
 
@@ -921,14 +917,14 @@ export default function MessagesPage({ user }) {
           onClose={() => setShowSecurityModal(false)}
           title="Security & Clinical Protocol"
         >
-          <div className="space-y-3 text-xs text-slate-600">
-            <p>Your clinical communication session is protected under active patient-doctor authentication controls:</p>
-            <ul className="list-disc pl-4 space-y-1 text-slate-700 font-medium">
+          <div className="space-y-3.5 text-xs text-slate-600 p-1">
+            <p className="font-medium text-slate-800">Your clinical communication session is protected under active patient-doctor authentication controls:</p>
+            <ul className="list-disc pl-5 space-y-1.5 text-slate-700 font-medium">
               <li>Role-authorized session verification for licensed physicians & patient.</li>
-              <li>Encrypted transport layer for all live messages and data streams.</li>
-              <li>Read-only authorization guards on medical records.</li>
+              <li>256-bit transport layer security for live messages and health telemetry data streams.</li>
+              <li>Read-only authorization guards on medical records and diagnostic files.</li>
             </ul>
-            <div className="pt-2 text-right">
+            <div className="pt-3 text-right">
               <Button size="sm" variant="primary" onClick={() => setShowSecurityModal(false)}>Close</Button>
             </div>
           </div>
@@ -942,12 +938,15 @@ export default function MessagesPage({ user }) {
           onClose={() => setShowAiInfoModal(false)}
           title="TeleMed AI Assistant Engine Details"
         >
-          <div className="space-y-3 text-xs text-slate-600">
+          <div className="space-y-3.5 text-xs text-slate-600 p-1">
             <p><strong>Architecture:</strong> Multimodal RAG Engine v4.0</p>
             <p><strong>Evidence Sources:</strong> Integrated Clinical Biomarkers, Continuous Glucose Monitors, Apple/Fitbit Wearables, Ayumetrix Gut Microbiome Sequencing, and Peer-Reviewed Literature.</p>
-            <p className="p-2 bg-purple-50 border border-purple-100 text-purple-800 rounded-lg">
-              AI outputs provide evidence-based decision support. All clinical actions must be reviewed by your attending physician.
-            </p>
+            <div className="p-3 bg-purple-50 border border-purple-200 text-purple-900 rounded-xl space-y-1">
+              <p className="font-bold flex items-center gap-1.5">
+                <Sparkles className="w-4 h-4 text-purple-600" /> Clinical Decision Support Notice
+              </p>
+              <p className="text-[11px] leading-relaxed">AI outputs provide evidence-based decision support. All clinical actions must be reviewed by your attending physician.</p>
+            </div>
             <div className="pt-2 text-right">
               <Button size="sm" variant="primary" onClick={() => setShowAiInfoModal(false)}>Close</Button>
             </div>
@@ -960,11 +959,11 @@ export default function MessagesPage({ user }) {
         <Modal
           isOpen={showArchiveConfirm}
           onClose={() => setShowArchiveConfirm(false)}
-          title="Confirm Archive"
+          title="Confirm Thread Archive"
         >
-          <div className="space-y-3 text-xs text-slate-600">
-            <p>Are you sure you want to archive this communication thread? It can be retrieved anytime under the Archived tab.</p>
-            <div className="flex justify-end space-x-2 pt-2">
+          <div className="space-y-3.5 text-xs text-slate-600 p-1">
+            <p>Are you sure you want to archive this communication thread? It can be retrieved anytime under the Saved tab.</p>
+            <div className="flex justify-end space-x-2 pt-3">
               <Button size="sm" variant="outline" onClick={() => setShowArchiveConfirm(false)}>Cancel</Button>
               <Button size="sm" variant="primary" className="bg-rose-600 hover:bg-rose-700 text-white" onClick={confirmArchive}>Archive</Button>
             </div>
