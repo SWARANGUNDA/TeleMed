@@ -210,8 +210,8 @@ export default function AdminConsultationManagementPage() {
       <ContentSection title={`Active Consultation Queue (${consultations.length})`}>
         <Table headers={['Patient Summary', 'Requested Specialization', 'Category & Urgency', 'Assigned Doctor', 'Status', 'Admin Controls']}>
           {consultations.length > 0 ? (
-            consultations.map((c) => (
-              <TableRow key={c.consultation_id}>
+            consultations.map((c, idx) => (
+              <TableRow key={`${c.consultation_id || 'cons'}_${idx}`}>
                 <TableCell>
                   <strong className="text-xs font-semibold text-[var(--text-main)] block">{c.patient_name || c.full_name || 'Aravind Bhatiya'}</strong>
                   <span className="font-mono text-[11px] text-[var(--text-muted)]">{c.patient_email || c.email || 'patient@telemed.ai'}</span>
