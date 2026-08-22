@@ -1,6 +1,6 @@
 """
 main.py — Main FastAPI Application Entry Point for Telemedicine Web Platform.
-Level 11: Security-hardened with rate limiting middleware, security headers, and safe exception handling.
+Level 11: Security-hardened with rate limiting middleware, security headers, and safe exception handling. (Reloaded)
 """
 
 import math
@@ -63,7 +63,7 @@ def startup_event():
     create_tables()
     # Seed demo users if they don't exist
     try:
-        from .database import _seed_demo_users
+        from .database_legacy import _seed_demo_users
         _seed_demo_users()
     except Exception as e:
         logger.warning("Demo user seeding skipped: %s", e)
