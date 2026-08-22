@@ -105,7 +105,7 @@ class TestAuthAndRBAC(unittest.TestCase):
             "password": "DoctorPass123!",
             "full_name": "Dr. John Smith",
             "specialization": "Endocrinology",
-            "registration_number": "MED-889977",
+            "registration_number": f"MED-{uuid.uuid4().hex[:6]}",
             "experience_years": 10,
             "hospital_affiliation": "General Hospital"
         })
@@ -136,7 +136,7 @@ class TestAuthAndRBAC(unittest.TestCase):
         email = f"doc_pending_{uuid.uuid4().hex[:8]}@telemed.ai"
         reg_res = self.client.post("/api/v1/auth/register/doctor", json={
             "email": email, "password": "DoctorPass123!", "full_name": "Dr. Pending",
-            "specialization": "Cardiology", "registration_number": "REG-1122"
+            "specialization": "Cardiology", "registration_number": f"REG-{uuid.uuid4().hex[:6]}"
         })
         doc_token = reg_res.json()["token"]
 
@@ -153,7 +153,7 @@ class TestAuthAndRBAC(unittest.TestCase):
         email = f"doc_verified_{uuid.uuid4().hex[:8]}@telemed.ai"
         reg_res = self.client.post("/api/v1/auth/register/doctor", json={
             "email": email, "password": "DoctorPass123!", "full_name": "Dr. Verified",
-            "specialization": "Internal Medicine", "registration_number": "REG-3344"
+            "specialization": "Internal Medicine", "registration_number": f"REG-{uuid.uuid4().hex[:6]}"
         })
         doc_user = reg_res.json()["user"]
         doc_token = reg_res.json()["token"]
