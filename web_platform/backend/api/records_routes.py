@@ -12,7 +12,7 @@ import datetime
 from fastapi import APIRouter, HTTPException, Depends
 from fastapi.responses import JSONResponse
 
-from ..auth import require_clinical_access
+from ..auth import require_clinical_access, get_current_user
 from .. import database
 
 router = APIRouter(prefix="/api/v1/records", tags=["Persistent Health Records"])
@@ -20,7 +20,7 @@ router = APIRouter(prefix="/api/v1/records", tags=["Persistent Health Records"])
 
 @router.get("")
 @router.get("/")
-def list_patient_records(current_user: dict = Depends(require_clinical_access)):
+def list_patient_records(current_user: dict = Depends(get_current_user)):
     """List all persistent health records accessible to authenticated patient, doctor, or admin."""
     user_id = current_user.get("user_id")
     if not user_id:
