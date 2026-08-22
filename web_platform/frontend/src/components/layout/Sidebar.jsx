@@ -37,7 +37,7 @@ export function Sidebar({ isCollapsed, onToggleCollapse, userRole = 'PATIENT', c
     {
       group: "Clinical Insights",
       items: [
-        { id: "pat-overview", label: "Overview", icon: LayoutDashboard, path: "/" },
+        { id: "pat-overview", label: "Overview", icon: LayoutDashboard, path: "/dashboard" },
         { id: "pat-intake", label: "New Analysis", icon: FilePlus, path: "/intake" },
         { id: "pat-xai", label: "XAI Driver Analysis", icon: BarChart3, path: "/xai" },
         { id: "pat-report", label: "Comprehensive Report", icon: FileText, path: "/report" },
@@ -65,7 +65,7 @@ export function Sidebar({ isCollapsed, onToggleCollapse, userRole = 'PATIENT', c
       items: [
         { id: "doc-dashboard", label: "Dashboard", icon: LayoutDashboard, path: "/doctor/dashboard" },
         { id: "doc-consultations", label: "Consultations", icon: Stethoscope, path: "/doctor/consultations" },
-        { id: "doc-appointments", label: "Appointments", icon: Calendar, path: "/appointments" },
+        { id: "doc-appointments", label: "Appointments", icon: Calendar, path: "/doctor/appointments" },
         { id: "doc-verification", label: "Credentials Upload", icon: UserCheck, path: "/doctor/verification" },
       ]
     }
