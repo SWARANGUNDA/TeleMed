@@ -407,11 +407,13 @@ export async function askRAGQuestion(sessionId, question) {
   return data;
 }
 
+const V3_API_BASE = API_BASE.replace(/\/api\/v1$/, '/api/v3');
+
 export async function fetchSuggestedQuestions(sessionId, predictResponse = null) {
   try {
     let res;
     if (predictResponse) {
-      res = await fetch('/api/v3/suggested-questions', {
+      res = await fetch(`${V3_API_BASE}/suggested-questions`, {
         method: 'POST',
         headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify({ patient_id: sessionId || 'P_TEST_001', predict_response: predictResponse }),
@@ -440,8 +442,6 @@ export async function fetchSuggestedQuestions(sessionId, predictResponse = null)
     ]
   };
 }
-
-const V3_API_BASE = API_BASE.replace(/\/api\/v1$/, '/api/v3');
 
 export async function predictV3(payload) {
   const res = await fetch(`${V3_API_BASE}/predict`, {
@@ -1027,6 +1027,19 @@ export async function fetchMyDoctorAvailability(availableOnly = false) {
     throw new Error(data.message || data.detail || 'Failed to fetch doctor availability');
   }
   return data.slots || [];
+}
+
+export async function updateDoctorProfile(payload) {
+  const res = await fetch(`${API_BASE}/auth/profile`, {
+    method: 'PUT',
+    headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
+    body: JSON.stringify(payload),
+  });
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(data.message || data.detail || 'Failed to update doctor profile');
+  }
+  return data.user || data.profile || data;
 }
 
 export async function addDoctorAvailabilitySlot(slotStart, slotEnd) {
