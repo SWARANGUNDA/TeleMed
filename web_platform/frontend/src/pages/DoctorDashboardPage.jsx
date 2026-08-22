@@ -38,7 +38,7 @@ export default function DoctorDashboardPage({ user, onNavigate }) {
   const [activeQueueTab, setActiveQueueTab] = useState('ALL'); // 'ALL', 'PENDING', 'IN_REVIEW', 'COMPLETED'
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedConsultationForDetails, setSelectedConsultationForDetails] = useState(null);
-  const [submittingAction, setSubmittingAction] = useState(false);
+  const [showDetailedAnalyticsModal, setShowDetailedAnalyticsModal] = useState(false);
 
   useEffect(() => {
     loadAllConsultations();
@@ -49,7 +49,8 @@ export default function DoctorDashboardPage({ user, onNavigate }) {
     let ws = null;
     try {
       const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      const host = window.location.host;
+      const isDev = ['localhost', '127.0.0.1'].includes(window.location.hostname) && ['5173', '5174', '5175', '5176'].includes(window.location.port);
+      const host = isDev ? `${window.location.hostname}:8000` : window.location.host;
       ws = new WebSocket(`${protocol}//${host}/ws/notifications/${user.user_id}`);
       ws.onmessage = (event) => {
         try {
@@ -60,9 +61,16 @@ export default function DoctorDashboardPage({ user, onNavigate }) {
           }
         } catch (e) {}
       };
+      ws.onerror = () => {};
     } catch (e) {}
     return () => {
-      if (ws) ws.close();
+      if (ws) {
+        if (ws.readyState === WebSocket.CONNECTING) {
+          ws.onopen = () => ws.close();
+        } else if (ws.readyState === WebSocket.OPEN) {
+          ws.close();
+        }
+      }
     };
   }, [user]);
 
@@ -104,9 +112,9 @@ export default function DoctorDashboardPage({ user, onNavigate }) {
   const handleOpenConsultationWorkspace = (consultation) => {
     const targetId = typeof consultation === 'object' ? (consultation?.consultation_id || consultation?.id) : consultation;
     if (onNavigate) {
-      onNavigate('/consultations', { consultationContext: { consultationId: targetId } });
+      onNavigate('/doctor/consultations', { consultationContext: { consultationId: targetId } });
     } else {
-      navigate('/consultations');
+      navigate('/doctor/consultations');
     }
   };
 
@@ -427,7 +435,7 @@ export default function DoctorDashboardPage({ user, onNavigate }) {
 
         <div className="pt-2 text-right">
           <button
-            onClick={() => onNavigate ? onNavigate('/consultations') : navigate('/consultations')}
+            onClick={() => onNavigate ? onNavigate('/doctor/consultations') : navigate('/doctor/consultations')}
             className="text-xs font-bold text-[var(--primary)] hover:underline inline-flex items-center gap-1"
           >
             View all consultations →
@@ -451,7 +459,10 @@ export default function DoctorDashboardPage({ user, onNavigate }) {
         {/* Right Column (4 cols): AI Clinical Insights & Patient Outcome Tracking */}
         <div className="lg:col-span-4 space-y-6">
           <InsightsPanel consultations={allConsultations} />
-          <OutcomeTracking consultations={allConsultations} />
+          <OutcomeTracking
+            consultations={allConsultations}
+            onOpenAnalytics={() => setShowDetailedAnalyticsModal(true)}
+          />
         </div>
       </div>
 
@@ -499,6 +510,87 @@ export default function DoctorDashboardPage({ user, onNavigate }) {
             </div>
           </div>
         )}
+      </Modal>
+
+      {/* DETAILED CLINICAL ANALYTICS MODAL */}
+      <Modal
+        isOpen={showDetailedAnalyticsModal}
+        onClose={() => setShowDetailedAnalyticsModal(false)}
+        title="Detailed Clinical Analytics & Cohort Metrics"
+        size="lg"
+      >
+        <div className="space-y-5 text-xs p-1">
+          <div className="p-4 bg-gradient-to-r from-slate-900 to-indigo-950 text-white rounded-2xl flex items-center justify-between shadow-md">
+            <div>
+              <h4 className="text-sm font-extrabold text-white">Real-Time Clinical Performance Overview</h4>
+              <p className="text-xs text-slate-300 mt-0.5">Calculated directly from {allConsultations.length} live assigned patient cases.</p>
+            </div>
+            <div className="text-right">
+              <span className="text-2xl font-black text-emerald-400">
+                {allConsultations.length > 0 ? Math.round((completedCount / allConsultations.length) * 100) : 0}%
+              </span>
+              <span className="text-[10px] text-slate-400 block font-semibold">Sign-Off Rate</span>
+            </div>
+          </div>
+
+          {/* Status Breakdown Grid */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div className="p-3 rounded-xl bg-blue-50 border border-blue-200 text-blue-900 space-y-1">
+              <span className="text-[10px] font-bold uppercase text-blue-600 block">Total Cohort</span>
+              <span className="text-xl font-extrabold text-blue-950 block">{totalCount} Patients</span>
+            </div>
+            <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 space-y-1">
+              <span className="text-[10px] font-bold uppercase text-amber-600 block">Pending Review</span>
+              <span className="text-xl font-extrabold text-amber-950 block">{pendingCount} Cases</span>
+            </div>
+            <div className="p-3 rounded-xl bg-indigo-50 border border-indigo-200 text-indigo-900 space-y-1">
+              <span className="text-[10px] font-bold uppercase text-indigo-600 block">Active In-Review</span>
+              <span className="text-xl font-extrabold text-indigo-950 block">{inReviewCount} Cases</span>
+            </div>
+            <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-900 space-y-1">
+              <span className="text-[10px] font-bold uppercase text-emerald-600 block">Signed Off</span>
+              <span className="text-xl font-extrabold text-emerald-950 block">{completedCount} Cases</span>
+            </div>
+          </div>
+
+          {/* Specialty Distribution */}
+          <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-3">
+            <h4 className="text-xs font-extrabold text-slate-800 uppercase tracking-wider">Specialty & Category Breakdown</h4>
+            
+            {allConsultations.length === 0 ? (
+              <p className="text-xs text-slate-400 italic">No consultations available for distribution analysis.</p>
+            ) : (
+              <div className="space-y-2">
+                {Object.entries(
+                  allConsultations.reduce((acc, c) => {
+                    const spec = c.specialization || c.specialty || c.category || 'General Medicine';
+                    acc[spec] = (acc[spec] || 0) + 1;
+                    return acc;
+                  }, {})
+                ).map(([spec, count]) => {
+                  const pct = Math.round((count / allConsultations.length) * 100);
+                  return (
+                    <div key={spec} className="space-y-1">
+                      <div className="flex justify-between font-bold text-slate-800 text-xs">
+                        <span>{spec}</span>
+                        <span className="font-mono text-slate-500">{count} Cases ({pct}%)</span>
+                      </div>
+                      <div className="w-full h-2 bg-slate-200 rounded-full overflow-hidden">
+                        <div className="h-full bg-blue-600 rounded-full" style={{ width: `${pct}%` }} />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          <div className="pt-2 text-right">
+            <Button variant="primary" size="sm" onClick={() => setShowDetailedAnalyticsModal(false)}>
+              Close Detailed Analytics
+            </Button>
+          </div>
+        </div>
       </Modal>
     </PageContainer>
   );
