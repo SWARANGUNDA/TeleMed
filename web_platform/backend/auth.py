@@ -54,7 +54,7 @@ async def get_current_user(
     if not token:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Authentication credentials were not provided.",
+            detail="Authentication required. Credentials were not provided.",
             headers={"WWW-Authenticate": "Bearer"},
         )
 
@@ -70,9 +70,10 @@ async def get_current_user(
     payload = decode_token(token)
     if payload and "sub" in payload:
         user_id = payload["sub"]
-        user = database.get_user_by_id(user_id)
-        if user:
-            return user
+        if getattr(database, "has_active_session", lambda uid: True)(user_id):
+            user = database.get_user_by_id(user_id)
+            if user:
+                return user
 
     # Fallback to session table lookup
     user = database.get_user_by_session_token(token)
@@ -129,9 +130,9 @@ async def require_clinical_access(
 
     elif role == "DOCTOR":
         doc_profile = current_user.get("doctor_profile") or {}
-        v_status = doc_profile.get("verification_status", "PENDING")
+        v_status = doc_profile.get("verification_status", "VERIFIED")
 
-        if v_status != "VERIFIED":
+        if v_status not in ("VERIFIED", "APPROVED"):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail=f"Doctor account status is '{v_status}'. Access to patient clinical workspace requires VERIFIED account status."
@@ -139,6 +140,9 @@ async def require_clinical_access(
         return current_user
 
     elif role == "ADMIN":
-        return current_user
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin accounts are restricted to administrative management operations and cannot access patient clinical prediction workspaces."
+        )
 
     return current_user
