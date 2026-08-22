@@ -319,15 +319,27 @@ def logout(
         token = telemed_auth_token.strip()
 
     if token:
-        user = database.get_user_by_session_token(token)
-        if user:
-            database.log_audit_event(
-                actor_user_id=user["user_id"],
-                role=user["role"],
-                action="AUTH_LOGOUT",
-                resource_type="USER_AUTH",
-                resource_id=user["user_id"]
-            )
+        user_id = None
+        payload = decode_token(token)
+        if payload and "sub" in payload:
+            user_id = payload["sub"]
+        else:
+            user = database.get_user_by_session_token(token)
+            if user:
+                user_id = user["user_id"]
+        
+        if user_id:
+            user = database.get_user_by_id(user_id)
+            if user:
+                database.log_audit_event(
+                    actor_user_id=user["user_id"],
+                    role=user["role"],
+                    action="AUTH_LOGOUT",
+                    resource_type="USER_AUTH",
+                    resource_id=user["user_id"]
+                )
+            if hasattr(database, "delete_user_auth_sessions"):
+                database.delete_user_auth_sessions(user_id)
         database.delete_auth_session(token)
 
     response.delete_cookie(key="telemed_auth_token", path="/")
