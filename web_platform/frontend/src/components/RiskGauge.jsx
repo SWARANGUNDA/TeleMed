@@ -3,15 +3,17 @@ import { ResponsiveContainer, RadialBarChart, RadialBar, PolarAngleAxis } from '
 import { Info } from 'lucide-react';
 
 export default function RiskGauge({ diseaseName = '', probability = 0, threshold = 0.3, prediction = 0, showHeader = false }) {
-  const probPct = (probability * 100).toFixed(1);
-  const cutoffPct = (threshold * 100).toFixed(0);
+  const safeProb = Number(probability) || 0;
+  const safeThresh = Number(threshold) || 0.3;
+  const probPct = (safeProb * 100).toFixed(1);
+  const cutoffPct = (safeThresh * 100).toFixed(0);
   const isPositive = prediction === 1 || prediction === true;
   const displayName = diseaseName ? String(diseaseName).replace(/_/g, ' ') : '';
 
   const data = [
     {
       name: displayName,
-      value: Math.min(Math.max(probability * 100, 2), 100), // ensure visual arc for tiny/zero values
+      value: Math.min(Math.max(safeProb * 100, 2), 100), // ensure visual arc for tiny/zero values
       fill: isPositive ? '#f43f5e' : '#10b981'
     }
   ];
