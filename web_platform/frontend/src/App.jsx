@@ -70,6 +70,8 @@ export function getNavFromPath(path, role) {
       return { activeNav: 'records', activeSubNav: 'reports_history' };
     case '/consultations':
       return { activeNav: 'consultations', activeSubNav: '' };
+    case '/doctor/appointments':
+    case '/admin/appointments':
     case '/appointments':
       return { activeNav: 'appointments', activeSubNav: '' };
     case '/care':
@@ -667,7 +669,12 @@ export default function App() {
 
             <Route path="/doctor/consultations" element={
               <ProtectedRoute currentUser={currentUser} authChecking={authChecking} allowedRoles={['DOCTOR']}>
-                <DoctorDashboardPage user={currentUser} onNavigate={handleNavigate} initialTab="ACTIVE" />
+                <ConsultationWorkspacePage
+                  user={currentUser}
+                  predictionData={predictionData}
+                  initialContext={consultationContext}
+                  onNavigate={handleNavigate}
+                />
               </ProtectedRoute>
             } />
 
@@ -680,6 +687,12 @@ export default function App() {
             <Route path="/doctor/profile" element={
               <ProtectedRoute currentUser={currentUser} authChecking={authChecking} allowedRoles={['DOCTOR']}>
                 <AccountPage user={currentUser} onNavigate={handleNavigate} />
+              </ProtectedRoute>
+            } />
+
+            <Route path="/doctor/appointments" element={
+              <ProtectedRoute currentUser={currentUser} authChecking={authChecking} allowedRoles={['DOCTOR']}>
+                <AppointmentsPage user={currentUser} onNavigate={handleNavigate} />
               </ProtectedRoute>
             } />
 
@@ -712,6 +725,12 @@ export default function App() {
             <Route path="/admin/consultations" element={
               <ProtectedRoute currentUser={currentUser} authChecking={authChecking} allowedRoles={['ADMIN']}>
                 <AdminConsultationManagementPage />
+              </ProtectedRoute>
+            } />
+
+            <Route path="/admin/appointments" element={
+              <ProtectedRoute currentUser={currentUser} authChecking={authChecking} allowedRoles={['ADMIN']}>
+                <AppointmentsPage user={currentUser} onNavigate={handleNavigate} />
               </ProtectedRoute>
             } />
 
