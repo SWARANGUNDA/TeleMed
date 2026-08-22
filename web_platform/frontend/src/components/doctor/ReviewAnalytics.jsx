@@ -1,16 +1,21 @@
 import React from 'react';
 import { Card, Badge } from '../ui';
-import { BarChart3, ChevronDown } from 'lucide-react';
+import { BarChart3 } from 'lucide-react';
 
 export default function ReviewAnalytics({ consultations = [] }) {
-  const completed = consultations.filter(c => c.status === 'COMPLETED').length;
   const total = consultations.length;
+  const completed = consultations.filter(c => c.status === 'COMPLETED').length;
+  const pending = consultations.filter(c => ['REQUESTED', 'ASSIGNED', 'PENDING'].includes(c.status)).length;
+  const active = consultations.filter(c => ['ACCEPTED', 'CONFIRMED', 'UPCOMING', 'IN_CONSULTATION', 'ACTIVE'].includes(c.status)).length;
+
+  const signOffPct = total > 0 ? Math.round((completed / total) * 100) : 0;
+  const activePct = total > 0 ? Math.round((active / total) * 100) : 0;
 
   const stats = [
-    { label: 'Avg. Review Time', value: '2h 15m', sub: 'From request to sign-off' },
-    { label: 'AI Concordance Rate', value: completed > 0 ? '92%' : 'Unavailable', sub: completed > 0 ? 'Physician alignment' : 'Requires clinical audit logs' },
-    { label: 'Total Reviews', value: String(completed), sub: 'Signed off this month' },
-    { label: 'Sign-Off Rate', value: total > 0 ? `${Math.round((completed / Math.max(total, 1)) * 100)}%` : '100%', sub: 'Completed evaluations' },
+    { label: 'Total Assigned', value: String(total), sub: 'Assigned patient cohort' },
+    { label: 'Completed Reviews', value: String(completed), sub: 'Signed off evaluations' },
+    { label: 'Active Queue', value: String(active), sub: `${activePct}% active in-progress` },
+    { label: 'Sign-Off Rate', value: `${signOffPct}%`, sub: 'Case resolution rate' },
   ];
 
   return (
@@ -20,10 +25,9 @@ export default function ReviewAnalytics({ consultations = [] }) {
           <BarChart3 className="w-4 h-4 text-[var(--primary)]" />
           <h3 className="text-sm font-bold text-[var(--text-main)]">Review Performance</h3>
         </div>
-        <div className="flex items-center gap-1 px-2 py-1 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-primary)] text-[11px] font-medium text-[var(--text-muted)] cursor-pointer hover:text-[var(--text-main)]">
-          <span>This Month</span>
-          <ChevronDown className="w-3 h-3" />
-        </div>
+        <Badge variant="success" size="sm">
+          Live Cohort Sync
+        </Badge>
       </div>
 
       <div className="grid grid-cols-2 gap-3 text-xs">
