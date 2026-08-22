@@ -8,9 +8,12 @@ try:
     from ..database_legacy import *
 except (ImportError, ValueError):
     try:
-        from database_legacy import *
-    except Exception:
-        pass
+        from ..backend.database_legacy import *
+    except (ImportError, ValueError):
+        try:
+            from database_legacy import *
+        except Exception:
+            pass
 
 
 
