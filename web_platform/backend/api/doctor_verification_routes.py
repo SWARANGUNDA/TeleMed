@@ -246,3 +246,18 @@ def submit_for_review(request: Request):
             "verification_status": "UNDER_REVIEW",
             "application": {"verification_status": "UNDER_REVIEW"}
         }
+
+
+@router.put("/profile")
+def update_doctor_profile(
+    payload: dict,
+    request: Request
+):
+    """Update doctor profile details in backend database."""
+    user_id = getattr(request.state, "user_id", None) or "usr_doctor"
+    updated = database.update_doctor_profile(user_id, payload)
+    return {
+        "message": "Doctor profile updated successfully.",
+        "profile": updated or payload
+    }
+
