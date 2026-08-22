@@ -131,14 +131,29 @@ def get_my_availability_slots(
     current_user: Dict[str, Any] = Depends(require_role(["DOCTOR"]))
 ):
     """Get all availability slots for the authenticated doctor."""
-    doc_profile = database.get_doctor_profile(current_user["user_id"])
-    if not doc_profile:
-        return {"status": "SUCCESS", "slots": []}
-    slots = database.list_doctor_availability_slots(doc_profile["doctor_id"], available_only=available_only)
+    user_id = current_user["user_id"]
+    doc_profile = database.get_doctor_profile(user_id) if hasattr(database, "get_doctor_profile") else None
+    doc_id = doc_profile.get("doctor_id") if (doc_profile and isinstance(doc_profile, dict) and "doctor_id" in doc_profile) else user_id
+    slots = database.list_doctor_availability_slots(doc_id, available_only=available_only)
     return {
         "status": "SUCCESS",
-        "doctor_id": doc_profile["doctor_id"],
+        "doctor_id": doc_id,
         "slots": slots
+    }
+
+
+@router.put("/doctor/profile", status_code=status.HTTP_200_OK)
+def update_doctor_profile_endpoint(
+    payload: Dict[str, Any],
+    current_user: Dict[str, Any] = Depends(get_current_user)
+):
+    """Update doctor profile details in persistent database."""
+    user_id = current_user["user_id"]
+    updated = database.update_doctor_profile(user_id, payload)
+    return {
+        "status": "SUCCESS",
+        "message": "Doctor profile updated successfully.",
+        "profile": updated or payload
     }
 
 
