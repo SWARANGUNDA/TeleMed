@@ -7,6 +7,8 @@ const API_BASE = (typeof window !== 'undefined' && ['5173', '5174', '5175', '517
   ? 'http://localhost:8000/api/v1'
   : '/api/v1';
 
+let _inMemoryAccessToken = '';
+
 export function getCsrfToken() {
   try {
     if (typeof document === 'undefined') return '';
@@ -18,14 +20,11 @@ export function getCsrfToken() {
 }
 
 export function getAuthToken() {
-  try {
-    return localStorage.getItem('telemed_auth_token') || sessionStorage.getItem('telemed_auth_token') || '';
-  } catch (e) {
-    return '';
-  }
+  return _inMemoryAccessToken || (typeof sessionStorage !== 'undefined' ? sessionStorage.getItem('telemed_auth_token') || '' : '');
 }
 
 export function setAuthToken(token) {
+  _inMemoryAccessToken = token || '';
   try {
     if (token) {
       sessionStorage.setItem('telemed_auth_token', token);
@@ -55,7 +54,7 @@ function getAuthHeaders(customHeaders = {}) {
 
 /**
  * Handle API responses consistently:
- * - 401: Session expired → clear token, redirect to login
+ * - 401: Session expired → attempt silent refresh, if failed redirect to login
  * - 403: Forbidden → throw descriptive error
  * - 429: Rate limited → throw with retry info
  * - 500: Internal error → throw safe message
@@ -114,34 +113,41 @@ export function withSubmitGuard(key, fn) {
 // Authentication API Endpoints (/api/v1/auth/*)
 // ------------------------------------------------------------------
 
-export async function loginUser(email, password) {
+export async function refreshToken() {
+  try {
+    const res = await fetch(`${API_BASE}/auth/refresh`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (data.access_token || data.token) {
+      setAuthToken(data.access_token || data.token);
+    }
+    return data;
+  } catch (e) {
+    return null;
+  }
+}
+
+export async function loginUser(email, password, portalRole = null) {
+  const payload = { email, password };
+  if (portalRole) payload.portal_role = portalRole;
+
   const res = await fetch(`${API_BASE}/auth/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email, password }),
+    body: JSON.stringify(payload),
+    credentials: 'include',
   });
   const data = await res.json();
   if (!res.ok) {
-    if (res.status === 401) {
-      throw new Error(data.message || 'Invalid email or password.');
-    } else if (res.status === 403) {
-      throw new Error(data.message || 'Account not verified. Please contact support.');
-    } else if (res.status === 404) {
-      throw new Error('User not found. Please check your email address.');
-    } else if (res.status === 422) {
-      const detail = data.detail;
-      if (Array.isArray(detail)) {
-        throw new Error(detail.map(d => d.msg || JSON.stringify(d)).join('; '));
-      }
-      throw new Error(data.message || 'Invalid request. Please check your input.');
-    } else if (res.status === 429) {
-      throw new Error('Too many login attempts. Please try again later.');
-    } else {
-      throw new Error(data.message || 'Unexpected server error. Please try again later.');
-    }
+    const detailMsg = data.detail || data.message || 'Invalid email address or password.';
+    throw new Error(detailMsg);
   }
-  if (data.token) {
-    setAuthToken(data.token);
+  if (data.access_token || data.token) {
+    setAuthToken(data.access_token || data.token);
   }
   return data;
 }
@@ -151,23 +157,15 @@ export async function registerPatient(payload) {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
+    credentials: 'include',
   });
   const data = await res.json();
   if (!res.ok) {
-    if (res.status === 400) {
-      throw new Error(data.message || 'An account with this email already exists.');
-    } else if (res.status === 422) {
-      const detail = data.detail;
-      if (Array.isArray(detail)) {
-        throw new Error(detail.map(d => d.msg || JSON.stringify(d)).join('; '));
-      }
-      throw new Error(data.message || 'Invalid registration data. Please check your input.');
-    } else {
-      throw new Error(data.message || 'Registration failed. Please try again later.');
-    }
+    const detailMsg = data.detail || data.message || 'An account with this email address already exists.';
+    throw new Error(detailMsg);
   }
-  if (data.token) {
-    setAuthToken(data.token);
+  if (data.access_token || data.token) {
+    setAuthToken(data.access_token || data.token);
   }
   return data;
 }
@@ -177,23 +175,15 @@ export async function registerDoctor(payload) {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
+    credentials: 'include',
   });
   const data = await res.json();
   if (!res.ok) {
-    if (res.status === 400) {
-      throw new Error(data.message || 'An account with this email already exists.');
-    } else if (res.status === 422) {
-      const detail = data.detail;
-      if (Array.isArray(detail)) {
-        throw new Error(detail.map(d => d.msg || JSON.stringify(d)).join('; '));
-      }
-      throw new Error(data.message || 'Invalid registration data. Please check your input.');
-    } else {
-      throw new Error(data.message || 'Registration failed. Please try again later.');
-    }
+    const detailMsg = data.detail || data.message || 'An account with this email address already exists.';
+    throw new Error(detailMsg);
   }
-  if (data.token) {
-    setAuthToken(data.token);
+  if (data.access_token || data.token) {
+    setAuthToken(data.access_token || data.token);
   }
   return data;
 }
@@ -203,6 +193,7 @@ export async function logoutUser() {
     await fetch(`${API_BASE}/auth/logout`, {
       method: 'POST',
       headers: getAuthHeaders(),
+      credentials: 'include',
     });
   } catch (e) {}
   setAuthToken(null);
@@ -210,12 +201,30 @@ export async function logoutUser() {
 
 export async function getCurrentUser() {
   try {
-    const token = getAuthToken();
-    if (!token) return null;
+    let token = getAuthToken();
+    if (!token) {
+      const refreshRes = await refreshToken();
+      if (!refreshRes) return null;
+      token = getAuthToken();
+    }
     const res = await fetch(`${API_BASE}/auth/me`, {
       headers: getAuthHeaders(),
+      credentials: 'include',
     });
     if (!res.ok) {
+      if (res.status === 401) {
+        const refreshRes = await refreshToken();
+        if (refreshRes) {
+          const retryRes = await fetch(`${API_BASE}/auth/me`, {
+            headers: getAuthHeaders(),
+            credentials: 'include',
+          });
+          if (retryRes.ok) {
+            const retryData = await retryRes.json();
+            return retryData.user || null;
+          }
+        }
+      }
       setAuthToken(null);
       return null;
     }
@@ -231,6 +240,7 @@ export async function updateUserProfile(payload) {
     method: 'PUT',
     headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify(payload),
+    credentials: 'include',
   });
   const data = await res.json();
   if (!res.ok) {
