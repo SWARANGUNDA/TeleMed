@@ -640,7 +640,7 @@ export default function IntakePage({
       {/* Page Header & Stepper */}
       <PageHeader
         title="Intake & Data Ingestion Workspace"
-        description="IMDIE v3.3 Multimodal File Detection, Hybrid PDF OCR, Canonical Alias Mapping & Quality Scorer"
+        description="IMDIE v4.0 Multimodal File Detection, Hybrid PDF OCR, Canonical Alias Mapping & Quality Scorer"
         badge="Phase 1 Engine Active"
       />
 

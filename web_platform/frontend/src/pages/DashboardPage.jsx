@@ -443,7 +443,7 @@ export default function DashboardPage({
       </ContentSection>
 
       {/* 3. FIVE DISEASE RISK CARDS GRID (Thin Colored Top Border, Equal Height, Hover Elevation Only) */}
-      <ContentSection title="Multi-Disease Risk Predictions" subtitle="Ensemble predictions powered by Clinical v3, Wearables v3 (15D), and Gut v3 Models">
+      <ContentSection title="Multi-Disease Risk Predictions" subtitle="Ensemble predictions powered by Clinical v4, Wearables v4 (15D), and Gut v4 Unified Models">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
           {diseasesList.map((disease) => {
             const data = outcomes[disease.key] || {};

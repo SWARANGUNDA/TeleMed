@@ -56,7 +56,7 @@ export default function AdminSystemPage() {
               </div>
               <Badge variant="success" size="sm">READY</Badge>
             </div>
-            <p className="text-xs text-[var(--text-muted)]">Clinical v3, Wearable v3, Gut v3 Models Frozen & Calibrated</p>
+            <p className="text-xs text-[var(--text-muted)]">Clinical v4, Wearable v4, Gut v4 Models Frozen & Calibrated</p>
           </Card>
 
           <Card isGlass={true} className="p-5 space-y-3 border-l-4 border-l-[var(--success)]">
@@ -100,24 +100,24 @@ export default function AdminSystemPage() {
           <div className="space-y-3 text-xs">
             <div className="p-3.5 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-subtle)] flex items-center justify-between">
               <div>
-                <strong className="text-[var(--text-main)] block">Clinical Expert Model v3.0</strong>
-                <span className="font-mono text-[10px] text-[var(--text-muted)]">Artifact: clinical_expert_v3.joblib • 22 Canonical Features</span>
+                <strong className="text-[var(--text-main)] block">Clinical Expert Model v4.0 Unified</strong>
+                <span className="font-mono text-[10px] text-[var(--text-muted)]">Artifact: clinical_v4_expert_payload.joblib • 18 Canonical Features</span>
               </div>
               <Badge variant="success" size="sm">Calibrated</Badge>
             </div>
 
             <div className="p-3.5 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-subtle)] flex items-center justify-between">
               <div>
-                <strong className="text-[var(--text-main)] block">Wearable Telemetry Expert v3.0</strong>
-                <span className="font-mono text-[10px] text-[var(--text-muted)]">Artifact: wearable_expert_v3.joblib • 15D Sensor Metrics</span>
+                <strong className="text-[var(--text-main)] block">Wearable Telemetry Expert v4.0 Unified</strong>
+                <span className="font-mono text-[10px] text-[var(--text-muted)]">Artifact: wearable_v4_expert_payload.joblib • 15 Sensor & CGM Metrics</span>
               </div>
               <Badge variant="secondary" size="sm">Calibrated</Badge>
             </div>
 
             <div className="p-3.5 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-subtle)] flex items-center justify-between">
               <div>
-                <strong className="text-[var(--text-main)] block">Gut Microbiome Taxa Expert v3.0</strong>
-                <span className="font-mono text-[10px] text-[var(--text-muted)]">Artifact: gut_expert_v3.joblib • 20 Microbial Taxa</span>
+                <strong className="text-[var(--text-main)] block">Gut Microbiome Taxa Expert v4.0 Unified</strong>
+                <span className="font-mono text-[10px] text-[var(--text-muted)]">Artifact: gut_v4_expert_payload.joblib • 40 Microbial Taxa</span>
               </div>
               <Badge variant="accent" size="sm">Calibrated</Badge>
             </div>

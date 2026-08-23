@@ -22,7 +22,7 @@ export default function AnalysisJourneyView({
   const stagesOrder = [
     { key: 'intake', label: 'Intake Validated', desc: 'Canonical feature mapping & physiological boundary validation', icon: Activity },
     { key: 'dq', label: 'Data Quality Assessment', desc: dqScore !== null ? `Calculated DQ Score: ${Number(dqScore).toFixed(1)}%` : 'Evaluating completeness, freshness & sensor noise', icon: ShieldCheck },
-    { key: 'clinical', label: 'Clinical Expert Engine', desc: hasClinical ? 'Evaluating CatBoost/LightGBM Clinical Expert v3' : 'Not Supplied', icon: Activity, unsupplied: !hasClinical },
+    { key: 'clinical', label: 'Clinical Expert Engine', desc: hasClinical ? 'Evaluating CatBoost/LightGBM Clinical Expert v4' : 'Not Supplied', icon: Activity, unsupplied: !hasClinical },
     { key: 'wearable', label: 'Wearable Telemetry Expert', desc: hasWearable ? 'Evaluating 15D sensor streams & circadian metrics' : 'Not Supplied (Modality Restricted)', icon: Watch, unsupplied: !hasWearable },
     { key: 'gut', label: 'Gut Microbiome Expert', desc: hasGut ? 'Evaluating 20 Taxa relative abundance profile' : 'Not Supplied (Modality Restricted)', icon: Dna, unsupplied: !hasGut },
     { key: 'fusion', label: 'Effective Fusion Pathway', desc: `Routed to Pathway ${pathway} based on active modalities`, icon: Layers },

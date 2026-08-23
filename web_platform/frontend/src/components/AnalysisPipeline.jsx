@@ -188,18 +188,18 @@ export function AnalysisPipeline({
 
             <div className="space-y-3">
               <div className="p-3 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-subtle)] flex items-center justify-between">
-                <span className="text-xs font-semibold text-[var(--text-main)]">Clinical Expert v3</span>
-                <Badge variant="primary" size="sm">{featureCounts.clinical || 22} Features</Badge>
+                <span className="text-xs font-semibold text-[var(--text-main)]">Clinical Expert v4</span>
+                <Badge variant="primary" size="sm">{featureCounts.clinical || 18} Features</Badge>
               </div>
 
               <div className="p-3 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-subtle)] flex items-center justify-between">
-                <span className="text-xs font-semibold text-[var(--text-main)]">Wearable Expert v3</span>
+                <span className="text-xs font-semibold text-[var(--text-main)]">Wearable Expert v4</span>
                 <Badge variant="secondary" size="sm">{featureCounts.wearable || 15} Metrics</Badge>
               </div>
 
               <div className="p-3 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-subtle)] flex items-center justify-between">
-                <span className="text-xs font-semibold text-[var(--text-main)]">Gut Expert v3</span>
-                <Badge variant="accent" size="sm">{featureCounts.gut || 20} Taxa</Badge>
+                <span className="text-xs font-semibold text-[var(--text-main)]">Gut Expert v4</span>
+                <Badge variant="accent" size="sm">{featureCounts.gut || 40} Taxa</Badge>
               </div>
 
               <div className="p-3 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-subtle)] flex items-center justify-between">

@@ -283,7 +283,7 @@ export default function HealthRecordsPage({ currentUser }) {
                             {new Date(record.created_at).toLocaleString()}
                           </Badge>
                           <Badge variant="primary" size="sm">
-                            Pipeline {record.pipeline_version || 'v3.3'}
+                            Pipeline {record.pipeline_version || 'v4.0'}
                           </Badge>
                           <Badge variant="secondary" size="sm">
                             Pathway {record.effective_pathway || record.pathway_used || 'C'}
@@ -651,7 +651,7 @@ export default function HealthRecordsPage({ currentUser }) {
                   Created: <strong>{new Date(selectedDetailRecord.created_at).toLocaleString()}</strong>
                 </p>
                 <p className="text-[11px] font-mono text-[var(--text-muted)] mt-0.5">
-                  Pipeline Version: <strong>{selectedDetailRecord.pipeline_version || 'v3.3'}</strong> • Status: <strong>{selectedDetailRecord.status}</strong>
+                  Pipeline Version: <strong>{selectedDetailRecord.pipeline_version || 'v4.0'}</strong> • Status: <strong>{selectedDetailRecord.status}</strong>
                 </p>
               </div>
               <Badge variant="primary" size="sm">
