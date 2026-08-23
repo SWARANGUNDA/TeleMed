@@ -42,6 +42,7 @@ const HealthCopilotPage = lazy(() => import('./pages/HealthCopilotPage'));
 const HomePage = lazy(() => import('./pages/HomePage'));
 const AboutPage = lazy(() => import('./pages/AboutPage'));
 const FeaturesPage = lazy(() => import('./pages/FeaturesPage'));
+const HowItWorksPage = lazy(() => import('./pages/HowItWorksPage'));
 const ResearchPage = lazy(() => import('./pages/ResearchPage'));
 const ContactPage = lazy(() => import('./pages/ContactPage'));
 const LoginPage = lazy(() => import('./pages/LoginPage'));
@@ -486,7 +487,7 @@ export default function App() {
     );
   }
 
-  const isPublicRoute = ['/', '/about', '/features', '/research', '/contact', '/login', '/register'].includes(location.pathname);
+  const isPublicRoute = ['/', '/about', '/features', '/how-it-works', '/research', '/contact', '/login', '/register'].includes(location.pathname);
 
   const defaultRoleDashboard =
     currentUser?.role === 'ADMIN'
@@ -503,6 +504,7 @@ export default function App() {
           <Route path="/" element={<HomePage user={currentUser} onOpenAuth={(mode) => navigate(mode === 'register' ? '/register' : '/login')} />} />
           <Route path="/about" element={<AboutPage user={currentUser} onOpenAuth={(mode) => navigate(mode === 'register' ? '/register' : '/login')} />} />
           <Route path="/features" element={<FeaturesPage user={currentUser} onOpenAuth={(mode) => navigate(mode === 'register' ? '/register' : '/login')} />} />
+          <Route path="/how-it-works" element={<HowItWorksPage user={currentUser} onOpenAuth={(mode) => navigate(mode === 'register' ? '/register' : '/login')} />} />
           <Route path="/research" element={<ResearchPage user={currentUser} onOpenAuth={(mode) => navigate(mode === 'register' ? '/register' : '/login')} />} />
           <Route path="/contact" element={<ContactPage user={currentUser} onOpenAuth={(mode) => navigate(mode === 'register' ? '/register' : '/login')} />} />
           <Route path="/login" element={<LoginPage onLogin={handleLogin} user={currentUser} />} />
