@@ -22,10 +22,10 @@ export default function Research() {
               <div className="p-2.5 rounded-xl bg-[var(--primary-light)] text-[var(--primary)]">
                 <Activity className="w-5 h-5" />
               </div>
-              <h3 className="text-lg font-bold text-[var(--text-main)]">Clinical Expert v3</h3>
+              <h3 className="text-lg font-bold text-[var(--text-main)]">Clinical Expert v4</h3>
             </div>
             <p className="text-sm text-[var(--text-muted)] leading-relaxed">
-              Trained on 22 canonical clinical biomarkers (blood chemistry, glycemic panels, liver/renal markers). Calibrated with Platt scaling to produce reliable probabilistic risk scores for metabolic disorders.
+              Trained on 18 canonical clinical biomarkers (blood chemistry, glycemic panels, liver/renal markers). Calibrated with Platt scaling to produce reliable probabilistic risk scores for metabolic disorders.
             </p>
           </Card>
 
@@ -34,10 +34,10 @@ export default function Research() {
               <div className="p-2.5 rounded-xl bg-[var(--secondary-light)] text-[var(--secondary)]">
                 <Watch className="w-5 h-5" />
               </div>
-              <h3 className="text-lg font-bold text-[var(--text-main)]">Wearable Telemetry v3</h3>
+              <h3 className="text-lg font-bold text-[var(--text-main)]">Wearable Telemetry v4</h3>
             </div>
             <p className="text-sm text-[var(--text-muted)] leading-relaxed">
-              Processes 15-dimensional wearable sensor time-series data. Captures autonomic nervous system dynamics via HRV RMSSD, resting pulse, and continuous circadian sleep fragmentation index.
+              Processes 15 continuous sensor and CGM time-series metrics. Captures autonomic nervous system dynamics via HRV RMSSD, resting pulse, and continuous circadian sleep fragmentation index.
             </p>
           </Card>
 
@@ -46,10 +46,10 @@ export default function Research() {
               <div className="p-2.5 rounded-xl bg-[var(--accent-light)] text-[var(--accent)]">
                 <Dna className="w-5 h-5" />
               </div>
-              <h3 className="text-lg font-bold text-[var(--text-main)]">Gut Microbiome v3</h3>
+              <h3 className="text-lg font-bold text-[var(--text-main)]">Gut Microbiome v4</h3>
             </div>
             <p className="text-sm text-[var(--text-muted)] leading-relaxed">
-              Evaluates 20 microbial taxa abundances and alpha diversity indices. Identifies metabolic dysbiosis patterns linked to systemic low-grade inflammation and insulin resistance.
+              Evaluates 40 bacterial taxa abundances and 9 derived ecological/functional indices. Identifies metabolic dysbiosis patterns linked to systemic low-grade inflammation and insulin resistance.
             </p>
           </Card>
         </div>
