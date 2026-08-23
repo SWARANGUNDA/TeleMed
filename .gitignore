@@ -38,3 +38,8 @@ test_videos/
 *.mp4
 *.avi
 *.mov
+
+# Databases & Local App Config
+*.db
+.gemini/
+
