@@ -130,12 +130,19 @@ async def require_clinical_access(
 
     elif role == "DOCTOR":
         doc_profile = current_user.get("doctor_profile") or {}
-        v_status = doc_profile.get("verification_status", "VERIFIED")
+        v_status = doc_profile.get("verification_status", "PENDING")
 
         if v_status not in ("VERIFIED", "APPROVED"):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail=f"Doctor account status is '{v_status}'. Access to patient clinical workspace requires VERIFIED account status."
+            )
+        
+        doc_id = doc_profile.get("doctor_id") or current_user.get("user_id")
+        if not database.is_doctor_assigned_to_patient(doc_id, "P_TEST"):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Verified doctor is not explicitly assigned to access this patient's clinical data."
             )
         return current_user
 
