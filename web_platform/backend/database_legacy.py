@@ -325,19 +325,6 @@ def authenticate_user(email: str, password: str) -> Optional[Dict[str, Any]]:
             return None
         if verify_password(password, u.password_hash, u.salt):
             return get_user_by_id(u.user_id)
-        # Allow standard demo passwords for seamless testing
-        demo_passwords = {
-            "Password123!", "password123", "password", "patient123", "admin123", "doctor123",
-            getattr(config, "DEMO_ADMIN_PASSWORD", "TmAdmin#2026!SecDev"),
-            getattr(config, "DEMO_DOCTOR_PASSWORD", "DocSec#2026!MedPortal"),
-            getattr(config, "DEMO_PATIENT_PASSWORD", "PatSec#2026!HealthApp")
-        }
-        if password in demo_passwords:
-            pwd_h, salt = hash_password(password)
-            u.password_hash = pwd_h
-            u.salt = salt
-            session.commit()
-            return get_user_by_id(u.user_id)
         return None
     finally:
         session.close()
