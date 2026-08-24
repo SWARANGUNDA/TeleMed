@@ -439,6 +439,7 @@ def logout(
 
 
 @router.get("/me", status_code=status.HTTP_200_OK)
+@router.get("/profile", status_code=status.HTTP_200_OK)
 def get_current_user_profile(current_user: Dict[str, Any] = Depends(get_current_user)):
     """Fetch profile and active session details for current authenticated user."""
     return {"user": current_user}
@@ -449,11 +450,8 @@ def update_profile(
     body: Dict[str, Any],
     current_user: Dict[str, Any] = Depends(get_current_user)
 ):
-    """Update demographic/contact profile fields for authenticated patient or doctor with strict backend field whitelisting."""
+    """Update demographic/contact profile fields for authenticated patient, doctor, or admin."""
     role = current_user.get("role")
-    if role not in ("PATIENT", "DOCTOR"):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only patient and doctor profiles can be updated via this endpoint.")
-
     safe_body = filter_profile_update(body)
     if not safe_body:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No valid updatable fields provided.")
@@ -461,11 +459,13 @@ def update_profile(
     try:
         if role == "DOCTOR":
             updated_user = database.update_doctor_profile(current_user["user_id"], safe_body)
+        elif role == "ADMIN":
+            updated_user = database.update_admin_profile(current_user["user_id"], safe_body)
         else:
             updated_user = database.update_patient_profile(current_user["user_id"], safe_body)
         return {
             "message": "Profile updated successfully.",
-            "user": updated_user
+            "user": updated_user or current_user
         }
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))

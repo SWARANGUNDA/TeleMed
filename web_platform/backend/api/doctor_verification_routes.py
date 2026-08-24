@@ -213,15 +213,26 @@ def delete_my_credential(
 
 
 @router.get("/verification-status")
-def get_verification_status(current_user: dict = Depends(require_doctor_user)):
+def get_verification_status(current_user: dict = Depends(get_current_user)):
     """Fetch complete application verification checklist, status, credentials, and audit history."""
+    if current_user.get("role") != "DOCTOR":
+        return {
+            "status": "SUCCESS",
+            "verification_status": "NOT_APPLICABLE",
+            "application": None
+        }
+
     detail = database.get_doctor_application_detail(current_user["user_id"])
     if not detail:
-        raise HTTPException(status_code=404, detail="Doctor application profile not found.")
+        return {
+            "status": "SUCCESS",
+            "verification_status": "NOT_SUBMITTED",
+            "application": None
+        }
 
     return {
         "status": "SUCCESS",
-        "verification_status": detail["verification_status"],
+        "verification_status": detail.get("verification_status", "PENDING"),
         "application": detail
     }
 
