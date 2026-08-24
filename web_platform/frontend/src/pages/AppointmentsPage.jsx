@@ -410,7 +410,7 @@ export default function AppointmentsPage({ user, onNavigate }) {
     } catch (err) {
       console.error("Booking error:", err);
       setError(err.message || 'Failed to book appointment.');
-    } fontally: {
+    } finally {
       setBookingLoading(false);
     }
   };
@@ -667,7 +667,7 @@ export default function AppointmentsPage({ user, onNavigate }) {
   };
 
   return (
-    <div className="max-w-[1480px] mx-auto px-4 py-4 space-y-4">
+    <div className="max-w-[1560px] mx-auto px-4 sm:px-6 py-6 space-y-6">
       
       {/* Toast Notification */}
       {toastMsg && (
@@ -691,7 +691,11 @@ export default function AppointmentsPage({ user, onNavigate }) {
                 {isDoctor ? 'Doctor Workspace' : 'Patient Telehealth'}
               </span>
             </div>
-            <p className="text-xs text-slate-300 mt-0.5">Manage consultation slots, view patient bookings, and launch live telehealth sessions.</p>
+            <p className="text-xs text-slate-300 mt-0.5">
+              {isDoctor
+                ? 'Manage consultation availability slots, view patient bookings, and launch live telehealth sessions.'
+                : 'Schedule appointments with accredited specialists, view upcoming teleconsultation visits, and review past visits.'}
+            </p>
           </div>
         </div>
 
@@ -736,59 +740,59 @@ export default function AppointmentsPage({ user, onNavigate }) {
 
       {/* ── 5 KPI SUMMARY CARDS ────────────────────────────────────────────── */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-        <div className="bg-white border border-slate-200/90 rounded-2xl p-4 shadow-sm hover:shadow-md transition-all">
+        <div className="bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-2xl p-4 shadow-sm hover:shadow-md transition-all">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Upcoming</span>
-            <div className="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)]">Upcoming</span>
+            <div className="w-8 h-8 rounded-xl bg-[var(--primary-light)] text-[var(--primary)] flex items-center justify-center">
               <Calendar className="w-4 h-4" />
             </div>
           </div>
-          <p className="text-2xl font-extrabold text-slate-900 mt-2">{String(kpiCounts.upcomingCount).padStart(2, '0')}</p>
-          <p className="text-[10px] text-slate-400 mt-0.5">Next 7 days</p>
+          <p className="text-2xl font-extrabold text-[var(--text-main)] mt-2">{String(kpiCounts.upcomingCount).padStart(2, '0')}</p>
+          <p className="text-[10px] text-[var(--text-dim)] mt-0.5">Next 7 days</p>
         </div>
 
-        <div className="bg-white border border-slate-200/90 rounded-2xl p-4 shadow-sm hover:shadow-md transition-all">
+        <div className="bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-2xl p-4 shadow-sm hover:shadow-md transition-all">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Today</span>
-            <div className="w-8 h-8 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)]">Today</span>
+            <div className="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center">
               <Clock className="w-4 h-4" />
             </div>
           </div>
-          <p className="text-2xl font-extrabold text-amber-600 mt-2">{String(kpiCounts.todayCount).padStart(2, '0')}</p>
-          <p className="text-[10px] text-slate-400 mt-0.5">Scheduled today</p>
+          <p className="text-2xl font-extrabold text-amber-400 mt-2">{String(kpiCounts.todayCount).padStart(2, '0')}</p>
+          <p className="text-[10px] text-[var(--text-dim)] mt-0.5">Scheduled today</p>
         </div>
 
-        <div className="bg-white border border-slate-200/90 rounded-2xl p-4 shadow-sm hover:shadow-md transition-all">
+        <div className="bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-2xl p-4 shadow-sm hover:shadow-md transition-all">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Completed</span>
-            <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)]">Completed</span>
+            <div className="w-8 h-8 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
               <CheckCircle2 className="w-4 h-4" />
             </div>
           </div>
-          <p className="text-2xl font-extrabold text-emerald-600 mt-2">{String(kpiCounts.completedCount).padStart(2, '0')}</p>
-          <p className="text-[10px] text-slate-400 mt-0.5">Total completed</p>
+          <p className="text-2xl font-extrabold text-emerald-400 mt-2">{String(kpiCounts.completedCount).padStart(2, '0')}</p>
+          <p className="text-[10px] text-[var(--text-dim)] mt-0.5">Total completed</p>
         </div>
 
-        <div className="bg-white border border-slate-200/90 rounded-2xl p-4 shadow-sm hover:shadow-md transition-all">
+        <div className="bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-2xl p-4 shadow-sm hover:shadow-md transition-all">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Cancelled</span>
-            <div className="w-8 h-8 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)]">Cancelled</span>
+            <div className="w-8 h-8 rounded-xl bg-rose-500/20 text-rose-400 flex items-center justify-center">
               <XCircle className="w-4 h-4" />
             </div>
           </div>
-          <p className="text-2xl font-extrabold text-rose-600 mt-2">{String(kpiCounts.cancelledCount).padStart(2, '0')}</p>
-          <p className="text-[10px] text-slate-400 mt-0.5">Cancelled / No show</p>
+          <p className="text-2xl font-extrabold text-rose-400 mt-2">{String(kpiCounts.cancelledCount).padStart(2, '0')}</p>
+          <p className="text-[10px] text-[var(--text-dim)] mt-0.5">Cancelled / No show</p>
         </div>
 
-        <div className="bg-white border border-slate-200/90 rounded-2xl p-4 shadow-sm hover:shadow-md transition-all col-span-2 sm:col-span-1">
+        <div className="bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-2xl p-4 shadow-sm hover:shadow-md transition-all col-span-2 sm:col-span-1">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Total Patients</span>
-            <div className="w-8 h-8 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)]">{isDoctor ? 'Total Patients' : 'Consulted Doctors'}</span>
+            <div className="w-8 h-8 rounded-xl bg-purple-500/20 text-purple-400 flex items-center justify-center">
               <User className="w-4 h-4" />
             </div>
           </div>
-          <p className="text-2xl font-extrabold text-purple-600 mt-2">{String(kpiCounts.totalPatientsCount).padStart(2, '0')}</p>
-          <p className="text-[10px] text-slate-400 mt-0.5">Recorded patients</p>
+          <p className="text-2xl font-extrabold text-purple-400 mt-2">{String(kpiCounts.totalPatientsCount).padStart(2, '0')}</p>
+          <p className="text-[10px] text-[var(--text-dim)] mt-0.5">{isDoctor ? 'Recorded patients' : 'Assigned specialists'}</p>
         </div>
       </div>
 
@@ -833,32 +837,32 @@ export default function AppointmentsPage({ user, onNavigate }) {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
           
           {/* Main Table List (8 cols) */}
-          <div className="lg:col-span-8 bg-white border border-slate-200/90 rounded-2xl shadow-lg shadow-slate-100/60 overflow-hidden flex flex-col">
+          <div className="lg:col-span-8 bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-2xl shadow-lg overflow-hidden flex flex-col">
             
             {/* Search & Sort Controls Bar */}
-            <div className="p-4 border-b border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-3 bg-slate-50/50">
+            <div className="p-4 border-b border-[var(--border-subtle)] flex flex-col sm:flex-row items-center justify-between gap-3 bg-[var(--bg-primary)]">
               <div className="relative w-full sm:w-72">
-                <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
+                <Search className="w-4 h-4 absolute left-3 top-2.5 text-[var(--text-dim)]" />
                 <input
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Search patient, ID, or doctor..."
-                  className="w-full pl-9 pr-3 py-2 text-xs bg-white border border-slate-200 rounded-xl focus:outline-none focus:border-blue-500 text-slate-800 placeholder-slate-400 transition-all"
+                  className="w-full pl-9 pr-3 py-2 text-xs bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-xl focus:outline-none focus:border-[var(--primary)] text-[var(--text-main)] placeholder:text-[var(--text-dim)] transition-all"
                 />
                 {searchQuery && (
-                  <button onClick={() => setSearchQuery('')} className="absolute right-2.5 top-2.5 text-slate-400 hover:text-slate-600">
+                  <button onClick={() => setSearchQuery('')} className="absolute right-2.5 top-2.5 text-[var(--text-muted)] hover:text-[var(--text-main)]">
                     <X className="w-3.5 h-3.5" />
                   </button>
                 )}
               </div>
 
-              <div className="flex items-center space-x-2 text-xs text-slate-500 font-semibold w-full sm:w-auto justify-end">
+              <div className="flex items-center space-x-2 text-xs text-[var(--text-muted)] font-semibold w-full sm:w-auto justify-end">
                 <span>Sort by:</span>
                 <select
                   value={sortBy}
                   onChange={(e) => setSortBy(e.target.value)}
-                  className="px-3 py-1.5 bg-white border border-slate-200 rounded-xl text-slate-800 font-bold text-xs focus:outline-none cursor-pointer"
+                  className="px-3 py-1.5 bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-xl text-[var(--text-main)] font-bold text-xs focus:outline-none cursor-pointer"
                 >
                   <option value="date">Date & Time</option>
                   <option value="patient">Patient Name</option>
@@ -1024,40 +1028,40 @@ export default function AppointmentsPage({ user, onNavigate }) {
           <div className="lg:col-span-4 space-y-4">
             
             {/* Widget 1: Today's Overview */}
-            <div className="bg-white border border-slate-200/90 rounded-2xl p-4 space-y-3 shadow-lg shadow-slate-100/60">
+            <div className="bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-2xl p-4 space-y-3 shadow-lg">
               <div className="flex items-center space-x-2">
-                <div className="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
+                <div className="w-8 h-8 rounded-xl bg-[var(--primary-light)] text-[var(--primary)] flex items-center justify-center">
                   <Clock className="w-4 h-4" />
                 </div>
-                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700">Today's Throughput</h3>
+                <h3 className="text-xs font-bold uppercase tracking-wider text-[var(--text-muted)]">Today's Throughput</h3>
               </div>
 
               <div className="grid grid-cols-2 gap-2.5 pt-1">
-                <div className="p-3 bg-slate-50 border border-slate-200/70 rounded-xl">
-                  <span className="text-[10px] text-slate-500 font-semibold block">Scheduled Today</span>
-                  <span className="text-xl font-extrabold text-slate-900">{todaySummary.scheduled}</span>
+                <div className="p-3 bg-[var(--bg-primary)] border border-[var(--border-subtle)] rounded-xl">
+                  <span className="text-[10px] text-[var(--text-muted)] font-semibold block">Scheduled Today</span>
+                  <span className="text-xl font-extrabold text-[var(--text-main)]">{todaySummary.scheduled}</span>
                 </div>
-                <div className="p-3 bg-slate-50 border border-slate-200/70 rounded-xl">
-                  <span className="text-[10px] text-slate-500 font-semibold block">Completed</span>
-                  <span className="text-xl font-extrabold text-emerald-600">{todaySummary.completedToday}</span>
+                <div className="p-3 bg-[var(--bg-primary)] border border-[var(--border-subtle)] rounded-xl">
+                  <span className="text-[10px] text-[var(--text-muted)] font-semibold block">Completed</span>
+                  <span className="text-xl font-extrabold text-emerald-400">{todaySummary.completedToday}</span>
                 </div>
-                <div className="p-3 bg-slate-50 border border-slate-200/70 rounded-xl">
-                  <span className="text-[10px] text-slate-500 font-semibold block">In Progress</span>
-                  <span className="text-xl font-extrabold text-amber-600">{todaySummary.inProgressNow}</span>
+                <div className="p-3 bg-[var(--bg-primary)] border border-[var(--border-subtle)] rounded-xl">
+                  <span className="text-[10px] text-[var(--text-muted)] font-semibold block">In Progress</span>
+                  <span className="text-xl font-extrabold text-amber-400">{todaySummary.inProgressNow}</span>
                 </div>
-                <div className="p-3 bg-slate-50 border border-slate-200/70 rounded-xl">
-                  <span className="text-[10px] text-slate-500 font-semibold block">Upcoming</span>
-                  <span className="text-xl font-extrabold text-blue-600">{todaySummary.pendingReview}</span>
+                <div className="p-3 bg-[var(--bg-primary)] border border-[var(--border-subtle)] rounded-xl">
+                  <span className="text-[10px] text-[var(--text-muted)] font-semibold block">Upcoming</span>
+                  <span className="text-xl font-extrabold text-[var(--primary)]">{todaySummary.pendingReview}</span>
                 </div>
               </div>
             </div>
 
             {/* Widget 2: Mini Month Calendar Picker */}
-            <div className="bg-white border border-slate-200/90 rounded-2xl p-4 space-y-3 shadow-lg shadow-slate-100/60">
+            <div className="bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-2xl p-4 space-y-3 shadow-lg">
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-2">
-                  <Calendar className="w-4 h-4 text-blue-600" />
-                  <h3 className="text-xs font-bold text-slate-900">{MONTH_NAMES[calMonth]} {calYear}</h3>
+                  <Calendar className="w-4 h-4 text-[var(--primary)]" />
+                  <h3 className="text-xs font-bold text-[var(--text-main)]">{MONTH_NAMES[calMonth]} {calYear}</h3>
                 </div>
                 <div className="flex items-center space-x-1">
                   <button
@@ -1065,7 +1069,7 @@ export default function AppointmentsPage({ user, onNavigate }) {
                       if (calMonth === 0) { setCalMonth(11); setCalYear(y => y - 1); }
                       else setCalMonth(m => m - 1);
                     }}
-                    className="p-1 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg cursor-pointer"
+                    className="p-1 text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--bg-surface-hover)] rounded-lg cursor-pointer"
                   >
                     <ChevronLeft size={16} />
                   </button>
@@ -1074,14 +1078,14 @@ export default function AppointmentsPage({ user, onNavigate }) {
                       if (calMonth === 11) { setCalMonth(0); setCalYear(y => y + 1); }
                       else setCalMonth(m => m + 1);
                     }}
-                    className="p-1 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg cursor-pointer"
+                    className="p-1 text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--bg-surface-hover)] rounded-lg cursor-pointer"
                   >
                     <ChevronRight size={16} />
                   </button>
                 </div>
               </div>
 
-              <div className="grid grid-cols-7 gap-1 text-center text-[10px] font-bold text-slate-400">
+              <div className="grid grid-cols-7 gap-1 text-center text-[10px] font-bold text-[var(--text-dim)]">
                 {DAY_SHORT.map(d => <span key={d}>{d}</span>)}
               </div>
 
@@ -1132,21 +1136,21 @@ export default function AppointmentsPage({ user, onNavigate }) {
 
       {/* 2. DOCTOR AVAILABILITY MANAGEMENT TAB */}
       {activeTab === 'availability' && isDoctor && (
-        <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-lg shadow-slate-100/60 space-y-5">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
+        <div className="bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-2xl p-5 shadow-lg space-y-5">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[var(--border-subtle)] pb-4">
             <div>
               <div className="flex items-center space-x-2">
-                <h2 className="text-base font-extrabold text-slate-900">Doctor Consultation Availability Slots</h2>
-                <span className="bg-blue-100 text-blue-800 text-[11px] font-extrabold px-2.5 py-0.5 rounded-full">
+                <h2 className="text-base font-extrabold text-[var(--text-main)]">Doctor Consultation Availability Slots</h2>
+                <span className="bg-[var(--primary-light)] text-[var(--primary)] text-[11px] font-extrabold px-2.5 py-0.5 rounded-full">
                   {availabilitySlots.length} Total Slots
                 </span>
               </div>
-              <p className="text-xs text-slate-500 mt-0.5">Configure time windows where patients can book teleconsultations with you.</p>
+              <p className="text-xs text-[var(--text-muted)] mt-0.5">Configure time windows where patients can book teleconsultations with you.</p>
             </div>
 
             <div className="flex items-center space-x-3">
               {/* Filter Pills */}
-              <div className="flex items-center p-1 bg-slate-100 rounded-xl text-xs font-semibold">
+              <div className="flex items-center p-1 bg-[var(--bg-primary)] border border-[var(--border-subtle)] rounded-xl text-xs font-semibold">
                 {[
                   { id: 'all', label: 'All Slots' },
                   { id: 'available', label: 'Available' },
@@ -1156,7 +1160,7 @@ export default function AppointmentsPage({ user, onNavigate }) {
                     key={f.id}
                     onClick={() => setSlotFilter(f.id)}
                     className={`px-3 py-1 rounded-lg transition-all cursor-pointer ${
-                      slotFilter === f.id ? 'bg-white text-blue-600 shadow-xs font-bold' : 'text-slate-600'
+                      slotFilter === f.id ? 'bg-[var(--primary)] text-white shadow-xs font-bold' : 'text-[var(--text-muted)] hover:text-[var(--text-main)]'
                     }`}
                   >
                     {f.label}
