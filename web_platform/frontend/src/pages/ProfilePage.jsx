@@ -22,6 +22,11 @@ export default function ProfilePage({ user, session, predictionData, onNavigate,
 
   useEffect(() => {
     async function loadRecords() {
+      if (!user || user.role !== 'PATIENT') {
+        setRealRecords([]);
+        setRecordsLoading(false);
+        return;
+      }
       setRecordsLoading(true);
       try {
         const res = await (await import('../api/client')).fetchPatientRecords();

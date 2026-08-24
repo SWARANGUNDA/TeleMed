@@ -149,7 +149,7 @@ export default function App() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const { themeMode, setThemeMode } = useTheme();
+  const { activeTheme, toggleTheme } = useTheme();
   const [currentUser, setCurrentUser] = useState(null);
   const [authChecking, setAuthChecking] = useState(true);
   const [isDemoActive, setIsDemoActive] = useState(true);
@@ -775,8 +775,8 @@ export default function App() {
     <Layout
       user={currentUser}
       onLogout={handleLogout}
-      onToggleTheme={() => setThemeMode(themeMode === 'dark' ? 'light' : 'dark')}
-      theme={themeMode}
+      onToggleTheme={toggleTheme}
+      theme={activeTheme}
     >
 
 
