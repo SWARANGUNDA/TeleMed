@@ -16,7 +16,7 @@ export default function AccountPage({ user, onProfileUpdated }) {
   const patientProfile = user?.patient_profile || {};
   const [fullName, setFullName] = useState(user?.full_name || patientProfile.full_name || '');
   const [age, setAge] = useState(patientProfile.age || '');
-  const [gender, setGender] = useState(patientProfile.gender || 'Female');
+  const [gender, setGender] = useState(patientProfile.gender || '');
   const [heightCm, setHeightCm] = useState(patientProfile.height_cm || '');
   const [weightKg, setWeightKg] = useState(patientProfile.weight_kg || '');
   const [contactNumber, setContactNumber] = useState(patientProfile.contact_number || '');
@@ -43,7 +43,7 @@ export default function AccountPage({ user, onProfileUpdated }) {
         const p = user.patient_profile || {};
         setFullName(user.full_name || p.full_name || '');
         setAge(p.age || '');
-        setGender(p.gender || 'Female');
+        setGender(p.gender || '');
         setHeightCm(p.height_cm || '');
         setWeightKg(p.weight_kg || '');
         setContactNumber(p.contact_number || '');
@@ -106,6 +106,13 @@ export default function AccountPage({ user, onProfileUpdated }) {
       }
 
       const res = await updateUserProfile(payload);
+      const profileKey = `telemed_user_profile_${user?.user_id || 'guest'}`;
+      try {
+        const existing = localStorage.getItem(profileKey);
+        const parsed = existing ? JSON.parse(existing) : {};
+        localStorage.setItem(profileKey, JSON.stringify({ ...parsed, isUpdated: true }));
+      } catch (e) {}
+
       setSaveSuccess(true);
       setDocEditing(false);
       window.dispatchEvent(new Event('telemed_profile_updated'));
@@ -121,7 +128,7 @@ export default function AccountPage({ user, onProfileUpdated }) {
     }
   };
 
-  const displayFullName = role === 'PATIENT' ? (fullName || 'Patient Account') : role === 'DOCTOR' ? (docFullName || 'Dr. Arjun Sarkaar') : (fullName || 'System Administrator');
+  const displayFullName = role === 'PATIENT' ? (fullName || 'Patient Account') : role === 'DOCTOR' ? (docFullName || 'Dr. Medical Officer') : (fullName || 'System Administrator');
 
   return (
     <PageContainer className="space-y-8 pb-24">
@@ -135,6 +142,7 @@ export default function AccountPage({ user, onProfileUpdated }) {
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="flex items-center gap-4 md:gap-6">
             <Avatar
+              user={user}
               name={displayFullName}
               size="lg"
               className="ring-4 ring-blue-500/40 shadow-xl shadow-blue-500/30 text-xl font-black bg-gradient-to-br from-blue-500 to-indigo-600 text-white"
@@ -147,24 +155,7 @@ export default function AccountPage({ user, onProfileUpdated }) {
                 <span className="px-2.5 py-0.5 text-xs font-mono font-bold rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 uppercase">
                   {role === 'ADMIN' ? 'SYSTEM ADMINISTRATOR' : role === 'DOCTOR' ? 'VERIFIED PHYSICIAN' : 'PATIENT PROFILE'}
                 </span>
-                {role === 'DOCTOR' && (
-                  <span className="px-2.5 py-0.5 text-xs font-mono font-bold rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
-                    {doctorProfile.verification_status || 'VERIFIED'}
-                  </span>
-                )}
               </div>
-              <p className="text-xs md:text-sm text-slate-200 font-mono flex items-center gap-2 flex-wrap">
-                <span>{user?.email || 'user@telemed.ai'}</span>
-                <span className="text-slate-400">•</span>
-                <span>ID: <strong className="text-cyan-300 font-bold">{user?.user_id || 'usr_101'}</strong></span>
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-3 shrink-0">
-            <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 text-xs font-mono font-bold shadow-inner">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-              ACTIVE SESSION
             </div>
           </div>
         </div>
@@ -172,7 +163,7 @@ export default function AccountPage({ user, onProfileUpdated }) {
 
       {saveSuccess && (
         <Alert variant="success">
-          Profile details updated successfully and synchronized across the platform.
+          Profile information updated successfully!
         </Alert>
       )}
 
@@ -224,8 +215,9 @@ export default function AccountPage({ user, onProfileUpdated }) {
                     onChange={(e) => setGender(e.target.value)}
                     className="w-full p-2.5 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] text-[var(--text-main)] text-xs focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
                   >
-                    <option value="Female">Female</option>
+                    <option value="">Select Gender</option>
                     <option value="Male">Male</option>
+                    <option value="Female">Female</option>
                     <option value="Other">Other</option>
                   </select>
                 </div>
@@ -261,7 +253,7 @@ export default function AccountPage({ user, onProfileUpdated }) {
                   type="text"
                   value={contactNumber}
                   onChange={(e) => setContactNumber(e.target.value)}
-                  placeholder="+1 (555) 234-5678"
+                  placeholder="+91 98765 43210"
                 />
               </div>
 

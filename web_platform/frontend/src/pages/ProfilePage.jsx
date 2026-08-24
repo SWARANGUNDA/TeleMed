@@ -76,12 +76,12 @@ export default function ProfilePage({ user, session, predictionData, onNavigate,
       fullName: initialName,
       patientId: user?.user_id || prof.patient_id || 'usr_patient',
       email: user?.email || '',
-      phone: prof.contact_number || '+1 (555) 000-0000',
+      phone: prof.contact_number || '',
       dob: prof.dob || '1995-01-01',
-      age: prof.age || clinFeats.Age || 30,
-      gender: prof.gender || clinFeats.Gender || 'Male',
-      height: prof.height_cm || clinFeats.Height || 170,
-      weight: prof.weight_kg || clinFeats.Weight || 70,
+      age: prof.age || clinFeats.Age || '',
+      gender: prof.gender || clinFeats.Gender || '',
+      height: prof.height_cm || clinFeats.Height || '',
+      weight: prof.weight_kg || clinFeats.Weight || '',
       bloodGroup: prof.blood_group || 'O+',
       emergencyContact: prof.emergency_contact || 'None reported',
       selectedAvatar: defaultAvatarId,
@@ -102,7 +102,7 @@ export default function ProfilePage({ user, session, predictionData, onNavigate,
         email: user.email || prev.email,
         phone: p.contact_number || prev.phone,
         age: p.age || prev.age,
-        gender: p.gender || prev.gender,
+        gender: p.gender || prev.gender || '',
         height: p.height_cm || prev.height,
         weight: p.weight_kg || prev.weight,
       }));
@@ -116,7 +116,7 @@ export default function ProfilePage({ user, session, predictionData, onNavigate,
   const handleProfileSave = async (e) => {
     e.preventDefault();
     const key = `telemed_user_profile_${user?.user_id || 'guest'}`;
-    localStorage.setItem(key, JSON.stringify(profileForm));
+    localStorage.setItem(key, JSON.stringify({ ...profileForm, isUpdated: true }));
 
     try {
       const payload = {
@@ -267,9 +267,13 @@ export default function ProfilePage({ user, session, predictionData, onNavigate,
           <Card isGlass={true} className="p-6 space-y-6 shadow-2xl rounded-3xl border border-[var(--border-medium)] bg-gradient-to-b from-[var(--bg-surface)] to-[var(--bg-primary)]">
             <div className="text-center space-y-3">
               <div className="relative w-32 h-32 mx-auto">
-                <div className={`w-32 h-32 rounded-full overflow-hidden shadow-2xl border-4 border-white/20 ring-4 ${activeAvatar.ring} transition-transform hover:scale-105 duration-300 bg-slate-900`}>
-                  <img src={activeAvatarUri} alt={profileForm.fullName} className="w-full h-full object-cover" />
-                </div>
+                <Avatar
+                  user={user}
+                  avatarId={profileForm.selectedAvatar}
+                  name={profileForm.fullName}
+                  size="xl"
+                  className="w-32 h-32 text-3xl font-black shadow-2xl border-4 border-white/20 ring-4 ring-blue-500/40"
+                />
                 <div className="absolute -bottom-1 -right-1 p-2 rounded-full bg-emerald-500 text-white border-2 border-[var(--bg-surface)] shadow-lg" title="Verified Active Profile">
                   <CheckCircle2 className="w-4 h-4" />
                 </div>
@@ -698,6 +702,7 @@ export default function ProfilePage({ user, session, predictionData, onNavigate,
                     onChange={(e) => setProfileForm({ ...profileForm, gender: e.target.value })}
                     className="w-full px-3 py-2 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] text-xs text-[var(--text-main)] font-semibold"
                   >
+                    <option value="">Select Gender</option>
                     <option value="Male">Male</option>
                     <option value="Female">Female</option>
                     <option value="Other">Other</option>
@@ -739,6 +744,7 @@ export default function ProfilePage({ user, session, predictionData, onNavigate,
                   label="Phone Number"
                   value={profileForm.phone}
                   onChange={(e) => setProfileForm({ ...profileForm, phone: e.target.value })}
+                  placeholder="+91 98765 43210"
                 />
               </div>
 

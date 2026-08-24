@@ -222,7 +222,7 @@ export default function AdminUsersPage() {
                         <>
                           <div className="grid grid-cols-2 gap-2">
                             <div><span className="text-[10px] text-[var(--text-muted)] font-mono uppercase block">Age / Gender</span><strong>{selectedUser.patient_profile.age || 32} Yrs / {selectedUser.patient_profile.gender || 'Male'}</strong></div>
-                            <div><span className="text-[10px] text-[var(--text-muted)] font-mono uppercase block">Contact #</span><strong>{selectedUser.patient_profile.contact_number || '+1 (555) 234-8901'}</strong></div>
+                            <div><span className="text-[10px] text-[var(--text-muted)] font-mono uppercase block">Contact #</span><strong>{selectedUser.patient_profile.contact_number || '+91 98765 43210'}</strong></div>
                           </div>
 
                           <div className="grid grid-cols-2 gap-2">

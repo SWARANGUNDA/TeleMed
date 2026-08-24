@@ -3360,7 +3360,7 @@ def _seed_demo_users() -> None:
             "gender": "Female",
             "height_cm": 165.0,
             "weight_kg": 62.0,
-            "contact_number": "+1-555-0192"
+            "contact_number": "+91-98765-0192"
         },
         {
             "email": "doctor@telemed.ai",
@@ -3370,9 +3370,9 @@ def _seed_demo_users() -> None:
             "specialization": "Cardiology & Internal Medicine",
             "qualification": "MBBS, MD Cardiology",
             "registration_number": "MED-REG-882194",
-            "registration_council": "American Board of Internal Medicine",
+            "registration_council": "Medical Council of India",
             "experience_years": 12,
-            "contact_number": "+1-555-0188",
+            "contact_number": "+91-98765-0188",
             "hospital_affiliation": "TeleMed Central Hospital",
             "verification_status": "VERIFIED"
         },
@@ -3391,7 +3391,7 @@ def _seed_demo_users() -> None:
             "gender": "Male",
             "height_cm": 172.0,
             "weight_kg": 78.0,
-            "contact_number": "+1-555-0199"
+            "contact_number": "+91-98765-0199"
         }
     ]
 

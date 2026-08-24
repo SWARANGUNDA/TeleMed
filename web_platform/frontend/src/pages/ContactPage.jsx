@@ -76,7 +76,7 @@ export default function ContactPage({ user, onOpenAuth }) {
                 </div>
                 <div>
                   <h4 className="text-sm font-extrabold text-slate-900">Phone</h4>
-                  <p className="text-sm text-slate-600 font-medium">+1 (555) 123-4567</p>
+                  <p className="text-sm text-slate-600 font-medium">+91 98765 43210</p>
                 </div>
               </div>
 

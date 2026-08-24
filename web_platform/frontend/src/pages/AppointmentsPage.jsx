@@ -1685,7 +1685,7 @@ export default function AppointmentsPage({ user, onNavigate }) {
 
               <div className="p-3.5 rounded-xl bg-blue-50 border border-blue-200 text-blue-900 space-y-1">
                 <span className="font-bold block">Support Hotline (24/7)</span>
-                <span className="text-sm font-extrabold block">+1 (800) 555-TELEMED</span>
+                <span className="text-sm font-extrabold block">+91 (1800) 123-4567</span>
               </div>
 
               <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
