@@ -151,11 +151,27 @@ export function getAvailableAvatarsForRole(role = 'PATIENT') {
   return AVATAR_CATALOG.filter(a => a.category === 'PATIENT');
 }
 
+// Helper to check if user has updated their profile/avatar preferences
+export function hasUserUpdatedProfile(user) {
+  if (!user) return false;
+  if (user.avatar) return true;
+  const userId = user.user_id || 'guest';
+  try {
+    const saved = localStorage.getItem(`telemed_user_profile_${userId}`);
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      if (parsed.isUpdated || parsed.selectedAvatar) return true;
+    }
+  } catch (e) {}
+  return false;
+}
+
 // Helper to get active user's avatar image URL or SVG Data URI
 export function getActiveUserAvatar(user) {
   let savedId = null;
+  const userId = user?.user_id || 'guest';
   try {
-    const saved = localStorage.getItem('telemed_user_profile');
+    const saved = localStorage.getItem(`telemed_user_profile_${userId}`) || localStorage.getItem('telemed_user_profile');
     if (saved) {
       const parsed = JSON.parse(saved);
       savedId = parsed.selectedAvatar;

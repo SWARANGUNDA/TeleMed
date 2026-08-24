@@ -1,5 +1,5 @@
 import React from 'react';
-import { getActiveUserAvatar, getAvatarById, svgToDataUri } from '../../utils/avatarCatalog';
+import { getActiveUserAvatar, getAvatarById, svgToDataUri, hasUserUpdatedProfile } from '../../utils/avatarCatalog';
 
 export function Avatar({ src, avatarId, user, alt = 'Avatar', name = '', size = 'md', className = '' }) {
   const sizeStyles = {
@@ -9,18 +9,6 @@ export function Avatar({ src, avatarId, user, alt = 'Avatar', name = '', size = 
     xl: "w-28 h-28 text-xl"
   };
 
-  let imageSrc = src;
-
-  if (!imageSrc && avatarId) {
-    const av = getAvatarById(avatarId);
-    if (av) imageSrc = av.url || svgToDataUri(av.svg);
-  }
-
-  if (!imageSrc) {
-    const active = getActiveUserAvatar(user);
-    if (active) imageSrc = active.srcUrl || active.url || svgToDataUri(active.svg);
-  }
-
   const getInitials = (n) => {
     if (!n) return 'U';
     const parts = n.trim().split(' ');
@@ -28,23 +16,41 @@ export function Avatar({ src, avatarId, user, alt = 'Avatar', name = '', size = 
     return n.substring(0, 2).toUpperCase();
   };
 
+  // Determine if profile/avatar has been explicitly updated by user
+  let isProfileUpdated = false;
+  if (user?.avatar) isProfileUpdated = true;
+  if (avatarId) isProfileUpdated = true;
+  if (src) isProfileUpdated = true;
+  if (user && hasUserUpdatedProfile(user)) isProfileUpdated = true;
+
+  let imageSrc = src;
+  if (isProfileUpdated) {
+    if (!imageSrc && avatarId) {
+      const av = getAvatarById(avatarId);
+      if (av) imageSrc = av.url || svgToDataUri(av.svg);
+    }
+
+    if (!imageSrc) {
+      const active = getActiveUserAvatar(user);
+      if (active) imageSrc = active.srcUrl || active.url || svgToDataUri(active.svg);
+    }
+  }
+
+  const displayName = name || user?.full_name || user?.name || user?.email || 'User';
+
   return (
-    <div className={`relative inline-flex items-center justify-center rounded-full bg-slate-900 shadow-md overflow-hidden shrink-0 ring-2 ring-white/20 ${sizeStyles[size] || sizeStyles.md} ${className}`}>
-      {imageSrc ? (
+    <div className={`relative inline-flex items-center justify-center rounded-full bg-gradient-to-tr from-slate-800 via-indigo-900 to-blue-900 shadow-md overflow-hidden shrink-0 ring-2 ring-white/20 ${sizeStyles[size] || sizeStyles.md} ${className}`}>
+      {imageSrc && isProfileUpdated ? (
         <img
           src={imageSrc}
           alt={alt}
           className="w-full h-full object-cover select-none transition-transform hover:scale-105"
           onError={(e) => {
-            // Fallback if image fails to load
-            if (avatarId || user) {
-              const av = getAvatarById(avatarId || 'male');
-              e.target.src = svgToDataUri(av.svg);
-            }
+            e.target.style.display = 'none';
           }}
         />
       ) : (
-        <span className="font-bold text-white">{getInitials(name)}</span>
+        <span className="font-extrabold text-white tracking-wider font-sans select-none">{getInitials(displayName)}</span>
       )}
     </div>
   );
