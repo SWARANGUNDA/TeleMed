@@ -113,17 +113,23 @@ export function withSubmitGuard(key, fn) {
 // Authentication API Endpoints (/api/v1/auth/*)
 // ------------------------------------------------------------------
 
-export async function refreshToken() {
+export async function refreshToken(tokenParam = null) {
   try {
+    const token = tokenParam || (typeof sessionStorage !== 'undefined' ? sessionStorage.getItem('telemed_refresh_token') || '' : '');
+    const bodyPayload = token ? JSON.stringify({ refresh_token: token }) : undefined;
     const res = await fetch(`${API_BASE}/auth/refresh`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      body: bodyPayload,
       credentials: 'include',
     });
     if (!res.ok) return null;
     const data = await res.json();
     if (data.access_token || data.token) {
       setAuthToken(data.access_token || data.token);
+    }
+    if (data.refresh_token && typeof sessionStorage !== 'undefined') {
+      sessionStorage.setItem('telemed_refresh_token', data.refresh_token);
     }
     return data;
   } catch (e) {
@@ -202,7 +208,11 @@ export async function logoutUser() {
 export async function getCurrentUser() {
   try {
     let token = getAuthToken();
+    const storedRefresh = typeof sessionStorage !== 'undefined' ? sessionStorage.getItem('telemed_refresh_token') || '' : '';
     if (!token) {
+      if (!storedRefresh && typeof document !== 'undefined' && !document.cookie.includes('telemed_refresh_token')) {
+        return null;
+      }
       const refreshRes = await refreshToken();
       if (!refreshRes) return null;
       token = getAuthToken();
