@@ -19,7 +19,7 @@ ADMIN_BOOTSTRAP_KEY: str = os.getenv("TELEMED_ADMIN_BOOTSTRAP_KEY", "DEV_SAFE_DE
 
 # Development Demo & Seeded Credentials Configuration
 DEMO_ADMIN_EMAIL: str = os.getenv("TELEMED_DEMO_ADMIN_EMAIL", "admin@telemed.ai")
-DEMO_ADMIN_PASSWORD: str = os.getenv("TELEMED_DEMO_ADMIN_PASSWORD", "TmAdmin#2026!SecDev")
+DEMO_ADMIN_PASSWORD: str = os.getenv("TELEMED_DEMO_ADMIN_PASSWORD", "Password123!")
 
 DEMO_DOCTOR_EMAIL: str = os.getenv("TELEMED_DEMO_DOCTOR_EMAIL", "doctor@telemed.ai")
 DEMO_DOCTOR_PASSWORD: str = os.getenv("TELEMED_DEMO_DOCTOR_PASSWORD", "DocSec#2026!MedPortal")
