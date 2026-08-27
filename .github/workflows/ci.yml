@@ -63,5 +63,7 @@ jobs:
 
       - name: Validate Docker Compose Configuration
         run: |
+          mkdir -p web_platform/frontend/dist
+          cp web_platform/backend/.env.example web_platform/backend/.env 2>/dev/null || touch web_platform/backend/.env
           docker compose -f docker-compose.yml config
           docker compose -f docker-compose.prod.yml config

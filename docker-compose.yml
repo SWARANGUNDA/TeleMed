@@ -53,10 +53,16 @@ services:
       - ./fusion_engine:/app/fusion_engine
       - ./medical_rag_engine:/app/medical_rag_engine
     env_file:
-      - ./web_platform/backend/.env
+      - path: ./web_platform/backend/.env
+        required: false
     environment:
       DATABASE_URL: postgresql://postgres:postgres@postgres:5432/telemed_db
       REDIS_URL: redis://redis:6379/0
+      SECRET_KEY: ${SECRET_KEY:-telemed_enterprise_secret_key_production_2026_super_secure}
+      JWT_SECRET: ${JWT_SECRET:-telemed_jwt_super_secret_key_phase_6_prod_2026}
+      JWT_ALGORITHM: ${JWT_ALGORITHM:-HS256}
+      ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES:-1440}
+      REFRESH_TOKEN_EXPIRE_DAYS: ${REFRESH_TOKEN_EXPIRE_DAYS:-7}
     depends_on:
       postgres:
         condition: service_healthy
