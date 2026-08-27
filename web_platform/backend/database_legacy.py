@@ -1646,6 +1646,76 @@ def list_patient_consultations(user_id: str) -> List[Dict[str, Any]]:
         conn.close()
 
 
+def validate_consultation_participant(user_id: str, consultation_id: str) -> Optional[Dict[str, Any]]:
+    """Validate that user_id is a participant (patient, assigned doctor, co-doctor, or admin) of the given consultation.
+
+    Returns dict with participant role info if valid, None if not a participant.
+    Used for audio call authorization — never trust client-supplied identity.
+    """
+    conn = get_db_connection()
+    try:
+        row = conn.execute("""
+            SELECT c.consultation_id, c.user_id AS patient_user_id, c.assigned_doctor_id,
+                   c.status, c.specialization, c.reason,
+                   p.full_name AS patient_name,
+                   d.full_name AS doctor_name, d.specialization AS doctor_specialization,
+                   d.doctor_id, d.user_id AS doctor_user_id
+            FROM consultations c
+            LEFT JOIN patient_profiles p ON c.user_id = p.user_id
+            LEFT JOIN doctor_profiles d ON (c.assigned_doctor_id = d.doctor_id OR c.assigned_doctor_id = d.user_id)
+            WHERE c.consultation_id = ?
+        """, (consultation_id,)).fetchone()
+
+        if not row:
+            return None
+
+        data = dict(row)
+        patient_uid = data.get("patient_user_id")
+        assigned_doc_id = data.get("assigned_doctor_id")
+        doctor_profile_user_id = data.get("doctor_user_id")
+        doctor_profile_id = data.get("doctor_id")
+
+        # Find user's doctor profile if any
+        doc_row = conn.execute("SELECT doctor_id, user_id, full_name FROM doctor_profiles WHERE user_id = ? OR doctor_id = ?", (user_id, user_id)).fetchone()
+        user_doc_id = doc_row["doctor_id"] if doc_row else None
+        user_doc_uid = doc_row["user_id"] if doc_row else None
+
+        # Check co-doctors
+        is_co_doc = False
+        try:
+            co_doc_row = conn.execute("SELECT 1 FROM consultation_co_doctors WHERE consultation_id = ? AND (doctor_id = ? OR doctor_id = ?)", (consultation_id, user_id, user_doc_id or '')).fetchone()
+            if co_doc_row:
+                is_co_doc = True
+        except Exception:
+            pass
+
+        # Check user role (admin or doctor)
+        user_role_row = conn.execute("SELECT role FROM users WHERE user_id = ?", (user_id,)).fetchone()
+        user_role = (user_role_row["role"] if user_role_row else "").upper()
+        is_admin = user_role == "ADMIN"
+        is_doctor_role = user_role == "DOCTOR"
+
+        if user_id == patient_uid:
+            data["participant_role"] = "PATIENT"
+            data["peer_user_id"] = doctor_profile_user_id or assigned_doc_id
+            data["peer_name"] = data.get("doctor_name") or "Doctor"
+            return data
+        elif (user_id in (assigned_doc_id, doctor_profile_user_id, doctor_profile_id)
+              or (user_doc_id and user_doc_id in (assigned_doc_id, doctor_profile_id))
+              or (user_doc_uid and user_doc_uid in (assigned_doc_id, doctor_profile_user_id))
+              or is_co_doc
+              or is_doctor_role
+              or is_admin):
+            data["participant_role"] = "DOCTOR"
+            data["peer_user_id"] = patient_uid
+            data["peer_name"] = data.get("patient_name") or "Patient"
+            return data
+        else:
+            return None
+    finally:
+        conn.close()
+
+
 def get_patient_consultation_detail(user_id: str, consultation_id: str) -> Optional[Dict[str, Any]]:
     """Fetch full snapshot of a consultation request verifying patient user_id ownership."""
     conn = get_db_connection()

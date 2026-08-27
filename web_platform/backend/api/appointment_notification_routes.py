@@ -194,12 +194,18 @@ def list_doctor_availability(
 @router.post("/appointments", status_code=status.HTTP_201_CREATED)
 def book_consultation_appointment(
     req: BookAppointmentRequest,
-    current_user: Dict[str, Any] = Depends(require_role(["PATIENT"]))
+    current_user: Dict[str, Any] = Depends(require_role(["PATIENT", "DOCTOR", "ADMIN"]))
 ):
-    """Patient books a consultation appointment slot."""
+    """Patient or Doctor books a consultation appointment slot."""
     try:
+        booking_user_id = current_user["user_id"]
+        if current_user.get("role") in ("DOCTOR", "ADMIN") and req.consultation_id:
+            c = database.get_consultation_by_id(req.consultation_id)
+            if c and c.get("user_id"):
+                booking_user_id = c["user_id"]
+
         apt = database.book_appointment(
-            user_id=current_user["user_id"],
+            user_id=booking_user_id,
             consultation_id=req.consultation_id,
             slot_id=req.slot_id,
             notes=req.notes or ""
