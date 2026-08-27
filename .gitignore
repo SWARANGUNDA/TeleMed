@@ -42,4 +42,5 @@ test_videos/
 # Databases & Local App Config
 *.db
 .gemini/
+scratch/
 
