@@ -376,8 +376,8 @@ export default function AppointmentBookingModal({
               <div className="grid grid-cols-3 gap-2.5">
                 {[
                   { id: 'CHAT', label: 'Virtual Text Chat', icon: MessageSquare, active: true },
-                  { id: 'AUDIO', label: 'Audio Call (Soon)', icon: Phone, active: false },
-                  { id: 'VIDEO', label: 'Video Call (Soon)', icon: Video, active: false },
+                  { id: 'AUDIO', label: 'Live Audio Call', icon: Phone, active: true },
+                  { id: 'VIDEO', label: 'HD Video Call', icon: Video, active: true },
                 ].map((mode) => {
                   const Icon = mode.icon;
                   const isSel = consultationType === mode.id;
