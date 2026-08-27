@@ -182,11 +182,11 @@ SECURITY_HEADERS = {
     "X-Frame-Options": "SAMEORIGIN",
     "X-XSS-Protection": "1; mode=block",
     "Referrer-Policy": "strict-origin-when-cross-origin",
-    "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
+    "Permissions-Policy": "camera=(self), microphone=(self), geolocation=()",
     "Cache-Control": "no-store, no-cache, must-revalidate",
     "Pragma": "no-cache",
     "Strict-Transport-Security": "max-age=31536000; includeSubDomains; preload",
-    "Content-Security-Policy": "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; connect-src 'self' http://localhost:* http://127.0.0.1:* ws: wss: https:; frame-ancestors 'self' http://localhost:* http://127.0.0.1:*; frame-src 'self' data: blob: http://localhost:* http://127.0.0.1:*;",
+    "Content-Security-Policy": "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; media-src 'self' blob: data:; connect-src 'self' http://localhost:* http://127.0.0.1:* ws: wss: https:; frame-ancestors 'self' http://localhost:* http://127.0.0.1:*; frame-src 'self' data: blob: http://localhost:* http://127.0.0.1:*;",
 }
 
 
