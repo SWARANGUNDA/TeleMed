@@ -1,4 +1,4 @@
-import React, { useState, useEffect, lazy, Suspense } from 'react';
+import React, { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom';
 import { AlertCircle, RefreshCw } from 'lucide-react';
 import { Layout } from './components/layout/Layout';
@@ -351,6 +351,12 @@ export default function App() {
   };
 
   const handleLogout = async () => {
+    // Critical: Clean up any active audio call before logout
+    // This stops microphone tracks, closes RTCPeerConnection, closes signaling WebSocket
+    if (window.__telemedAudioCallCleanup) {
+      try { window.__telemedAudioCallCleanup(); } catch (e) { /* ignore */ }
+      window.__telemedAudioCallCleanup = null;
+    }
     await logoutUser();
     setCurrentUser(null);
     setSession(null);

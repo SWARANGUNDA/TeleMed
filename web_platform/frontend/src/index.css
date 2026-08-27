@@ -322,3 +322,59 @@ body {
     scroll-behavior: auto !important;
   }
 }
+
+/* ═════════════════════════════════════════════════════════════════════════
+   VOIP AUDIO CALLING WINDOW ANIMATIONS & VISUALIZER
+   ═════════════════════════════════════════════════════════════════════════ */
+@keyframes soundWaveBar {
+  0%, 100% {
+    height: 6px;
+    opacity: 0.4;
+  }
+  50% {
+    height: 32px;
+    opacity: 1;
+  }
+}
+
+@keyframes callPulseRing {
+  0% {
+    transform: scale(0.9);
+    opacity: 0.7;
+  }
+  50% {
+    transform: scale(1.35);
+    opacity: 0.25;
+  }
+  100% {
+    transform: scale(1.7);
+    opacity: 0;
+  }
+}
+
+@keyframes callAuraFloat {
+  0%, 100% {
+    transform: translateY(0px) scale(1);
+    opacity: 0.5;
+  }
+  50% {
+    transform: translateY(-8px) scale(1.08);
+    opacity: 0.8;
+  }
+}
+
+.call-pulse-ring-1 {
+  animation: callPulseRing 2.8s cubic-bezier(0.2, 0.8, 0.4, 1) infinite;
+}
+
+.call-pulse-ring-2 {
+  animation: callPulseRing 2.8s cubic-bezier(0.2, 0.8, 0.4, 1) infinite 0.9s;
+}
+
+.call-pulse-ring-3 {
+  animation: callPulseRing 2.8s cubic-bezier(0.2, 0.8, 0.4, 1) infinite 1.8s;
+}
+
+.call-aura-glow {
+  animation: callAuraFloat 4s ease-in-out infinite;
+}
