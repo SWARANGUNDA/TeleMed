@@ -44,7 +44,7 @@ To provide full clarity and reproducibility across all test suites:
    - tests/unit/test_mapper_coverage.py (Biomarker Normalization & Mapping)
    - tests/unit/test_pdf_report_extraction.py (Multi-Omic PDF Extraction)
    -------------------------------------------------------------------
-   RESULT: 85 / 85 PASSED (100% Pass Rate) in 25.132s (0 Failures, 0 Errors)
+   RESULT: 97 / 97 PASSED (100% Pass Rate) in 27.886s (0 Failures, 0 Errors)
 ======================================================================
 2. TOTAL REPOSITORY TEST DISCOVERY (All Directories):
    - tests/security    : 50 / 50 PASSED (100%) in 10.963s
