@@ -115,23 +115,23 @@ class TestContaminationRemediationE2E(unittest.TestCase):
         prefix_b = secrets.token_hex(4)
 
         # Create Patient A
-        token_a = self.client.post("/api/v1/auth/register/patient", json={
+        reg_a = self.client.post("/api/v1/auth/register/patient", json={
             "email": f"pat_a_{prefix_a}@telemed.ai",
             "password": "Pass123!Secure",
             "full_name": "Patient A"
-        }).json()["token"]
+        }).json()
+        token_a = reg_a["token"]
         headers_a = {"Authorization": f"Bearer {token_a}"}
 
         # Create Patient B
-        token_b = self.client.post("/api/v1/auth/register/patient", json={
+        reg_b = self.client.post("/api/v1/auth/register/patient", json={
             "email": f"pat_b_{prefix_b}@telemed.ai",
             "password": "Pass123!Secure",
             "full_name": "Patient B"
-        }).json()["token"]
+        }).json()
+        token_b = reg_b["token"]
         headers_b = {"Authorization": f"Bearer {token_b}"}
-
-        # Patient B creates a health record
-        user_b_id = self.client.get("/api/v1/auth/me", headers=headers_b).json()["user_id"]
+        user_b_id = reg_b["user"]["user_id"]
         rec_b = database.upsert_health_record(
             user_id=user_b_id,
             source_session_id=f"sess_b_{prefix_b}",
