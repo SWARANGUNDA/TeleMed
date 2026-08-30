@@ -47,5 +47,5 @@ runtime/backups/*
 # Databases & Local App Config
 *.db
 .gemini/
-scratch/
+/scratch/
 
