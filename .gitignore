@@ -8,6 +8,7 @@ env/
 # Build Outputs
 dist/
 build/
+app/frontend/dist/
 *.egg-info/
 .eggs/
 
@@ -30,11 +31,15 @@ Thumbs.db
 .env.development
 .env.production
 
-# Temp uploads
-web_platform/backend/temp_uploads/
+# Runtime Directories
+runtime/uploads/*
+runtime/temp/*
+runtime/logs/*
+runtime/generated/*
+runtime/backups/*
+!runtime/**/.gitkeep
 
 # Large media files & test recordings
-test_videos/
 *.mp4
 *.avi
 *.mov

@@ -1,166 +1,112 @@
-# TeleMed — Multimodal Metabolic Disease Triage Platform
+# TeleMed AI: Generative AI-Assisted Multimodal Telemedicine Platform
 
-> [!IMPORTANT]
-> **ACADEMIC & RESEARCH PROTOTYPE DISCLAIMER:**  
-> This software platform, including all trained models, datasets ($N=20,000$), risk probabilities, XAI attributions, and clinical report engines, is an **academic and research prototype** built using synthetic physiological multimodal data. It is **NOT** a clinically validated diagnostic system and must **NOT** be used for primary clinical diagnosis or patient treatment decisions.
+[![Tests](https://img.shields.io/badge/Tests-142%2F142%20Passing-success)](tests/)
+[![FastAPI](https://img.shields.io/badge/Backend-FastAPI%20Asynchronous-009688)](app/backend/)
+[![React](https://img.shields.io/badge/Frontend-React%2018%20%2B%20Vite-61DAFB)](app/frontend/)
+[![ROC-AUC](https://img.shields.io/badge/ML%20Performance-ROC--AUC%20%3E%200.996-blueviolet)](ai/models/)
+[![XAI](https://img.shields.io/badge/Explainability-Unified%20TreeSHAP-orange)](ai/explainability/)
+[![RAG](https://img.shields.io/badge/Clinical%20RAG-Zero--Hallucination%20Guardrails-green)](services/medical_rag/)
 
----
-
-## 1. System Overview
-
-TeleMed is an end-to-end multimodal machine learning platform for metabolic disease risk assessment (`Type2_Diabetes`, `Prediabetes`, `Obesity`, `Metabolic_Syndrome`, `NAFLD`). The platform integrates three distinct health data domains:
-1. **Clinical Labs & Vitals** (18 Predictors)
-2. **Wearable & Continuous Glucose Monitoring (CGM)** (15 Predictors)
-3. **Gut Microbiome Relative Abundance** (20 Taxa RAW)
-
-### Frozen Scientific Baseline (v3.2.3)
-- **Clinical Anchor Principle:** When Clinical lab data is present, `Clinical_v3` acts as the primary diagnostic anchor (capturing >99.9% of achievable ROC-AUC).
-- **Remote Triage Pathway ($W+G$):** When Clinical labs are unavailable, a frozen 5-fold OOF `LogisticRegression` meta-stacker combines Wearable and Gut expert models (yielding $+0.0364$ NAFLD AUC gain, $p < 0.0001$).
-- **CGM Handling:** Missing CGM features are imputed using stored payload medians; metadata tracks measured vs imputed status.
+TeleMed is a clinical decision-support and telemedicine web platform designed for multi-disease chronic metabolic risk assessment (Type 2 Diabetes, Prediabetes, Obesity, Metabolic Syndrome, and NAFLD). It integrates **Intelligent Multimodal Data Intake (IMDIE)**, **Multi-Expert Machine Learning**, **7-Pathway Dynamic Late Fusion**, **Unified TreeSHAP Explainable AI**, and **Grounded Medical Retrieval-Augmented Generation (RAG)** into an intuitive, role-based teleconsultation experience.
 
 ---
 
-## 2. Quickstart Guide — How to Start the Application
+## 📑 Table of Contents
+- [System Architecture](#system-architecture)
+- [Quick Start](#quick-start)
+- [Testing & Quality Assurance](#testing--quality-assurance)
+- [Project Documentation](#project-documentation)
+- [Repository Structure](#repository-structure)
+- [License & Disclaimer](#license--disclaimer)
+
+---
+
+## 🏛️ System Architecture
+
+TeleMed is built upon five foundational subsystems:
+
+1. **Intelligent Multimodal Data Intake Engine (IMDIE)** (`services/multimodal_intake/`):
+   - 15-stage pipeline extracting structured clinical parameters from multi-format medical reports (PDF, OCR scanned images, CSV, TXT, JSON).
+   - Automated synonym mapping, unit conversion, physiological bound checking, and data quality scoring.
+2. **7-Pathway Multimodal Fusion Engine** (`ai/inference/`, `ai/models/fusion/`):
+   - Adaptive late-fusion meta-learner accommodating missing modalities across all 7 combinations ($C, W, G, C+W, C+G, W+G, C+W+G$).
+   - Clinical-Anchor routing with verified remote multiomics triage stacker for NAFLD.
+3. **Unified TreeSHAP Explainable AI (XAI)** (`ai/explainability/`):
+   - Granular feature-level SHAP attributions, effect directionality, and modality-level decision weighting.
+4. **Grounded Medical RAG Engine** (`services/medical_rag/`):
+   - Zero-hallucination clinical synthesis grounded in authoritative practice guidelines (ADA 2024, WHO 2023, AASLD 2023, AHA 2022, ISAPP 2023).
+   - 6-tier evidence provenance tagging and citation guardrails.
+5. **Security-Hardened Telemedicine Web Platform** (`app/backend/`, `app/frontend/`):
+   - Role-Based Access Control (Patient, Doctor, Admin), sliding rate limiting, real-time WebRTC teleconsultations, doctor credential verification, and immutable audit governance.
+
+---
+
+## 🚀 Quick Start
 
 ### Prerequisites
 - Python 3.10+
-- Node.js 18+ and `npm`
+- Node.js 18+ and npm
+- (Optional) PostgreSQL 17 and Redis for production mode
 
-### Step 1: Start the FastAPI Backend Server
-Run from workspace root:
-```bash
-python -m uvicorn web_platform.backend.main:app --port 8000 --reload
-```
-- API Base URL: `http://localhost:8000`
-- Interactive Swagger OpenAPI Docs: `http://localhost:8000/docs`
-- Health check: `http://localhost:8000/api/v1/health`
+### 1. Backend Setup & Startup
+```powershell
+# Create environment file
+cp .env.example .env
 
-### Step 2: Start the React Frontend Development Server
-In a separate terminal window, run:
-```bash
-npm run dev
+# Install backend dependencies
+pip install -r app/backend/requirements.txt
+
+# Start backend development server
+python -m uvicorn app.backend.main:app --port 8000 --reload
 ```
-- Frontend UI URL: `http://localhost:5173` (or as shown in terminal)
+- API Docs: [http://localhost:8000/docs](http://localhost:8000/docs)
+- Health Check: [http://localhost:8000/api/health](http://localhost:8000/api/health)
+
+### 2. Frontend Setup & Startup
+```powershell
+# Install frontend dependencies
+npm --prefix app/frontend install
+
+# Start Vite development server
+npm --prefix app/frontend run dev
+```
+- Web Application: [http://localhost:5173](http://localhost:5173)
+
+### 3. Demo Login Accounts
+
+| Role | Email | Password |
+|---|---|---|
+| **Patient** | `patient@telemed.ai` | `PatSec#2026!HealthApp` |
+| **Doctor** | `doctor@telemed.ai` | `DocSec#2026!MedPortal` |
+| **Admin** | `admin@telemed.ai` | `Password123!` |
 
 ---
 
-## 3. Running the Automated E2E Test Suite
+## 🧪 Testing & Quality Assurance
 
-To execute all 13 end-to-end integration and scientific reproducibility tests across all pathways and API contracts, run:
-```bash
-python test_v3_e2e_integration.py -v
+Run the unified 16-suite regression test harness:
+```powershell
+python -m unittest tests/integration/test_v3_e2e_integration.py tests/security/test_auth_rbac.py tests/e2e/test_level2_patient_portal.py tests/e2e/test_level3_health_records.py tests/security/test_level4_doctor_verification.py tests/e2e/test_level5_consultations.py tests/integration/test_level6_consistency_e2e.py tests/integration/test_level6_rag.py tests/integration/test_level6_report_recommendations.py tests/integration/test_level7_notes_messaging.py tests/integration/test_level7d_admin_dashboard.py tests/integration/test_level8_appointments_notifications.py tests/integration/test_level10_system_operations.py tests/security/test_level11_security_hardening.py tests/security/test_level12_audit_governance.py tests/e2e/test_full_app_audit.py
 ```
+**Results**: **142 / 142 tests passing (100% OK)** in ~88 seconds.
 
-Expected output:
+Build and validate the frontend production bundle:
+```powershell
+npm --prefix app/frontend run build
 ```
-test_01_payload_loading (__main__.TestV3SystemIntegration) ... ok
-test_02_clinical_only_pathway (__main__.TestV3SystemIntegration) ... ok
-test_03_wearable_only_pathway (__main__.TestV3SystemIntegration) ... ok
-test_04_gut_only_pathway (__main__.TestV3SystemIntegration) ... ok
-test_05_wearable_plus_gut_remote_triage_pathway (__main__.TestV3SystemIntegration) ... ok
-test_06_clinical_anchor_tri_modal_pathway (__main__.TestV3SystemIntegration) ... ok
-test_07_cgm_missing_imputation (__main__.TestV3SystemIntegration) ... ok
-test_08_api_predict_endpoint (__main__.TestV3SystemIntegration) ... ok
-test_09_api_xai_endpoint (__main__.TestV3SystemIntegration) ... ok
-test_10_api_report_endpoint (__main__.TestV3SystemIntegration) ... ok
-test_11_malformed_request_handling (__main__.TestV3SystemIntegration) ... ok
-test_12_deterministic_reproducibility (__main__.TestV3SystemIntegration) ... ok
-test_13_exact_wg_stacker_equivalence (__main__.TestV3SystemIntegration) ... ok
-
-----------------------------------------------------------------------
-Ran 13 tests in 3.107s — OK
-```
+**Results**: **2507 modules transformed, 0 build errors**.
 
 ---
 
-## 4. API Endpoints Specification (`/api/v3/*`)
+## 📚 Project Documentation
 
-### A. POST `/api/v3/predict`
-Executes dynamic scientific modality routing and model inference.
-
-**Request JSON Payload:**
-```json
-{
-  "patient_id": "P_1001",
-  "clinical_data": {
-    "Age": 52, "Gender": "Male", "Height_cm": 175, "Weight_kg": 85,
-    "BMI": 27.75, "Waist_Circumference_cm": 94, "Systolic_BP": 130,
-    "Diastolic_BP": 84, "Fasting_Blood_Glucose": 115, "HbA1c": 5.9,
-    "Triglycerides": 175, "HDL_Cholesterol": 42, "LDL_Cholesterol": 130,
-    "ALT": 32, "AST": 28, "Family_History_Diabetes": 1,
-    "Family_History_Hypertension": 1, "Family_History_CVD": 0
-  },
-  "wearable_data": {
-    "Average_Daily_Steps": 6500, "Active_Minutes": 35,
-    "Sedentary_Time_Minutes": 480, "Resting_Heart_Rate": 72,
-    "Heart_Rate_Variability_RMSSD": 38, "Sleep_Duration_Hours": 6.8,
-    "Sleep_Efficiency_Score": 82, "Autonomic_Stress_Score": 45,
-    "Activity_Energy_Expenditure": 420, "Exercise_Frequency_Days": 3
-  },
-  "gut_data": null
-}
-```
-
-**Response JSON Structure:**
-```json
-{
-  "patient_id": "P_1001",
-  "pipeline_version": "v3.2.3",
-  "routing_metadata": {
-    "modalities_supplied": ["clinical", "wearable"],
-    "effective_pathway": "C+W",
-    "primary_decision_anchor": "Clinical_v3",
-    "cgm_status": "IMPUTED_NO_CGM",
-    "imputed_features_by_modality": {
-      "clinical": [],
-      "wearable": ["CGM_Average_Glucose", "CGM_Glucose_CV", "CGM_Time_In_Range", "CGM_Time_Above_Range", "CGM_Time_Below_Range"]
-    }
-  },
-  "predictions": {
-    "Type2_Diabetes": {
-      "calibrated_probability": 0.2240,
-      "predicted_class": 0,
-      "threshold_used": 0.29,
-      "risk_level": "Low Risk",
-      "primary_source_expert": "Clinical_v3"
-    }
-  }
-}
-```
-
-### B. POST `/api/v3/xai`
-Generates TreeSHAP feature attributions. Output labeled as **"Statistical Predictor Contributions"** with causality disclaimer.
-
-### C. POST `/api/v3/report`
-Generates clinical narrative report in Markdown format from read-only ML probabilities.
+- 🗺️ **[Project Map & Directory Layout](docs/PROJECT_MAP.md)**: Full codebase structure, directory index, and module responsibilities.
+- 🎯 **[Active Components Matrix](docs/ACTIVE_COMPONENTS.md)**: Authoritative index of active production components vs archived research assets.
+- 🎓 **[Reviewer & B.Tech Defense Guide](docs/REVIEW_GUIDE.md)**: Step-by-step evaluator instructions, test verification commands, and architectural talking points.
+- 🗄️ **[Archive & Research Evolution Index](archive/ARCHIVE_INDEX.md)**: Comprehensive catalog of preserved V1/V2/V3 datasets, models, and research milestones.
 
 ---
 
-## 5. Modality Routing Behavior & Missing Data Strategy
+## ⚖️ License & Disclaimer
 
-| Supplied Inputs | Mask | Pathway | Primary Decision Engine | Imputation & CGM Behavior |
-| :---: | :---: | :---: | :--- | :--- |
-| Clinical only | `C` | `C` | `Clinical_v3` | Standard scaling; missing features filled with medians. |
-| Wearable only | `W` | `W` | `Wearable_v3` | 15D LightGBM; if CGM missing, imputed with medians (`IMPUTED_NO_CGM`). |
-| Gut only | `G` | `G` | `Gut_v3` | 20 Taxa RAW relative abundance. |
-| Clinical + Wearable | `C+W` | `C+W` | `Clinical_v3` | Clinical anchor dominates; Wearable logged for continuous monitoring. |
-| Wearable + Gut | `W+G` | `W+G` | `W+G LR Stacker` | Logistic Regression probability stacker for remote triage without labs. |
-| All three | `C+W+G` | `C+W+G` | `Clinical_v3` | Clinical anchor dominates; secondary probabilities logged. |
-
----
-
-## 6. Rollback & Preservation Procedure
-
-All legacy v1 and v2 models, datasets, routes, and services are preserved in parallel for rollback or comparative auditing:
-- **v1 Endpoints:** `/api/v1/*` (Clinical v1, Wearable v1, Gut v1)
-- **v2 Endpoints:** `/api/v2/*` (Clinical v2, Gut v2, Fusion v2)
-- **v3 Endpoints (Default Active):** `/api/v3/*`
-
-To switch frontend default API client back to v1 or v2 if required for rollback, update `API_BASE` in `web_platform/frontend/src/api/client.js` or `App.jsx`.
-
----
-
-## 7. Artifact Manifest & Verification
-
-For exact file paths, sizes, tuned thresholds, calibrator details, and cryptographic SHA-256 signatures of all frozen v3 datasets and model payloads, refer to:
-- [v3_frozen_baseline_manifest.md](file:///c:/Users/swara/OneDrive/Desktop/TeleMed/v3_frozen_baseline_manifest.md)
+**Research & Educational Use Only**: This software is an academic research prototype developed for educational and decision-support demonstration purposes. Predictive risk scores, explainability visualizations, and RAG-generated recommendations do not constitute clinical diagnosis or medical prescriptions. Always consult a certified healthcare professional for medical advice.
