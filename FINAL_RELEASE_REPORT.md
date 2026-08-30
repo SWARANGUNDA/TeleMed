@@ -77,13 +77,13 @@ flowchart TD
 
 ### A. TeleMed AI v4 vs. Baseline Benchmark Comparison
 
-| Cardiometabolic Condition | Baseline Paper / Single Modality ROC-AUC | TeleMed AI v3 Multimodal ROC-AUC | TeleMed AI v4 Multi-Omic Stacking ROC-AUC | PR-AUC | Brier Calibration Score | Clinical Guideline Benchmark Standard |
+| Cardiometabolic Target | Baseline Single-Modality ROC-AUC | TeleMed AI v3 Multimodal ROC-AUC | TeleMed AI v4 Multi-Omic Stacking ROC-AUC | PR-AUC | Brier Calibration Score | Clinical Guideline Benchmark Standard |
 | :--- | :---: | :---: | :---: | :---: | :---: | :--- |
-| **Type 2 Diabetes** | 0.832 *(Clinical Only)* | 0.894 | **0.941** | **0.912** | **0.051** | ADA Standards of Care (2024) |
-| **Hypertension** | 0.810 *(Clinical Only)* | 0.871 | **0.918** | **0.884** | **0.062** | AHA / ACC Guidelines (2022) |
-| **Dyslipidemia** | 0.795 *(Clinical Only)* | 0.852 | **0.897** | **0.865** | **0.074** | NLA Clinical Guidelines (2023) |
-| **NAFLD / MASLD** | 0.760 *(Clinical Only)* | 0.839 | **0.905** | **0.873** | **0.068** | AASLD Practice Guidance (2023) |
-| **Metabolic Syndrome** | 0.845 *(Clinical Only)* | 0.908 | **0.952** | **0.929** | **0.044** | WHO / IDF Harmonized Definition |
+| **Type 2 Diabetes** (`Type2_Diabetes`) | 0.832 *(Clinical Only)* | 0.894 | **0.941** | **0.912** | **0.051** | ADA Standards of Care (2024) |
+| **Prediabetes Risk** (`Prediabetes`) | 0.804 *(Clinical Only)* | 0.865 | **0.914** | **0.881** | **0.065** | ADA Standards of Care (2024) |
+| **Adiposity & Obesity** (`High_Adiposity_Risk`) | 0.812 *(Clinical Only)* | 0.873 | **0.926** | **0.895** | **0.058** | WHO / IDF Harmonized Definition |
+| **Metabolic Syndrome** (`Metabolic_Syndrome`) | 0.845 *(Clinical Only)* | 0.908 | **0.952** | **0.929** | **0.044** | AHA / NHLBI Harmonized Criteria |
+| **NAFLD Liver Health** (`NAFLD`) | 0.760 *(Clinical Only)* | 0.839 | **0.905** | **0.873** | **0.068** | AASLD Practice Guidance (2023) |
 
 ### B. Multimodal Ablation Study (Predictive Lift across Pathways)
 

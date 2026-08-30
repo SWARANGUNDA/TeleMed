@@ -190,25 +190,25 @@ class PredictionReliabilityLayer:
         fbg = self._extract_num(clin_feats.get("Fasting_Blood_Glucose"))
         sbp = self._extract_num(clin_feats.get("Systolic_BP"))
 
-        diabetes_prob = preds.get("Diabetes", {}).get("probability") or preds.get("Diabetes", {}).get("risk_score")
-        hypertension_prob = preds.get("Hypertension", {}).get("probability") or preds.get("Hypertension", {}).get("risk_score")
+        t2d_prob = preds.get("Type2_Diabetes", {}).get("calibrated_probability") or preds.get("Type2_Diabetes", {}).get("probability") or preds.get("Diabetes", {}).get("probability") or preds.get("Diabetes", {}).get("risk_score")
+        metsyn_prob = preds.get("Metabolic_Syndrome", {}).get("calibrated_probability") or preds.get("Metabolic_Syndrome", {}).get("probability") or preds.get("Hypertension", {}).get("probability") or preds.get("Hypertension", {}).get("risk_score")
 
         # 1. Diabetes Contradiction: Normal HbA1c < 5.7% & FBG < 100 mg/dL but predicted risk > 85%
-        if hba1c is not None and fbg is not None and diabetes_prob is not None:
-            if hba1c < 5.7 and fbg < 100.0 and float(diabetes_prob) > 0.85:
+        if hba1c is not None and fbg is not None and t2d_prob is not None:
+            if hba1c < 5.7 and fbg < 100.0 and float(t2d_prob) > 0.85:
                 warnings.append({
-                    "disease": "Diabetes",
+                    "disease": "Type2_Diabetes",
                     "type": "CLINICAL_CONTRADICTION",
-                    "message": f"Contradiction: HbA1c ({hba1c}%) and Fasting Glucose ({fbg} mg/dL) are in normal range, but predicted Diabetes risk is high ({round(float(diabetes_prob)*100, 1)}%). Verify inputs."
+                    "message": f"Contradiction: HbA1c ({hba1c}%) and Fasting Glucose ({fbg} mg/dL) are in normal range, but predicted Type 2 Diabetes risk is high ({round(float(t2d_prob)*100, 1)}%). Verify inputs."
                 })
 
-        # 2. Hypertension Contradiction: Normal BP < 120 mmHg but predicted risk > 85%
-        if sbp is not None and hypertension_prob is not None:
-            if sbp < 120.0 and float(hypertension_prob) > 0.85:
+        # 2. Blood Pressure / Metabolic Syndrome Contradiction: Normal BP < 120 mmHg but predicted risk > 85%
+        if sbp is not None and metsyn_prob is not None:
+            if sbp < 120.0 and float(metsyn_prob) > 0.85:
                 warnings.append({
-                    "disease": "Hypertension",
+                    "disease": "Metabolic_Syndrome",
                     "type": "CLINICAL_CONTRADICTION",
-                    "message": f"Contradiction: Systolic BP ({sbp} mmHg) is in normal range, but predicted Hypertension risk is high ({round(float(hypertension_prob)*100, 1)}%). Verify inputs."
+                    "message": f"Contradiction: Systolic BP ({sbp} mmHg) is in normal range, but predicted Metabolic Syndrome risk is high ({round(float(metsyn_prob)*100, 1)}%). Verify inputs."
                 })
 
         return warnings
