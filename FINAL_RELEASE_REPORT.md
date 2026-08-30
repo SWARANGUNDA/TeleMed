@@ -22,7 +22,7 @@ The TeleMed AI v4 platform has undergone a comprehensive, live multi-portal brow
 | **7** | **Two-User Isolation & IDOR Protection** | <span style="color:#10b981;font-weight:bold">PASS</span> | Cross-user record queries and consultation access attempts return `403 Forbidden` / `404 Not Found`. Session storage and local cache are cleanly isolated. |
 | **8** | **Production Docker Stack & DB Persistence** | <span style="color:#10b981;font-weight:bold">PASS</span> | PostgreSQL 17.10 (20 tables), Redis 7.0 (caching/broker), and Nginx 1.25 (TLS/HTTPS) verified live. Data persists across container restarts. |
 | **9** | **Frozen Model & Dataset Hash Invariance** | <span style="color:#10b981;font-weight:bold">PASS</span> | SHA256 checksums of all 5 frozen V4 model artifacts and sample datasets verified invariant. |
-| **10** | **Automated Test Harness Pass Rate** | <span style="color:#10b981;font-weight:bold">PASS</span> | 46/46 security, RBAC, appointment, and contamination tests passed in `5.378s` (100% pass rate). |
+| **10** | **Automated Test Harness Pass Rate** | <span style="color:#10b981;font-weight:bold">PASS</span> | 172/172 automated test methods (215 test cases) passed in `28.341s` (100% full repository discovery pass rate). |
 
 ---
 

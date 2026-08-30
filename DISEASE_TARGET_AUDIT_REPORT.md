@@ -85,6 +85,16 @@ All 5 frozen `.joblib` model binary files were directly inspected:
 
 ---
 
-## 5. Final Audit Conclusion
+## 5. Automated Regression Test Suite Verification
+
+- **Full Suite Discovery Command:** `python -m unittest discover -s tests -p "test_*.py"`
+- **Total Automated Test Methods:** `172` (spanning `215` test cases)
+- **Execution Time:** `28.341s`
+- **Result:** <span style="color:#10b981;font-weight:bold">172/172 PASSED (100% PASS RATE, 0 FAILURES, 0 ERRORS)</span>
+- **Model & Dataset Integrity:** All 5 frozen V4 models and sample datasets verified with identical SHA256 hashes before and after execution.
+
+---
+
+## 6. Final Audit Conclusion
 
 The repository exhibits **100% target consistency** across all models, routers, backend endpoints, and frontend user interfaces. No unsupported disease appears in the UI as a model prediction, risk score, or benchmark. All 5 frozen model binaries and dataset samples remain completely invariant and untampered.
