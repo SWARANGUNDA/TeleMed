@@ -131,12 +131,15 @@ class TestContaminationRemediationE2E(unittest.TestCase):
         headers_b = {"Authorization": f"Bearer {token_b}"}
 
         # Patient B creates a health record
-        rec_b = database.create_patient_health_record(
-            user_id=self.client.get("/api/v1/auth/me", headers=headers_b).json()["user_id"],
+        user_b_id = self.client.get("/api/v1/auth/me", headers=headers_b).json()["user_id"]
+        rec_b = database.upsert_health_record(
+            user_id=user_b_id,
+            source_session_id=f"sess_b_{prefix_b}",
             effective_pathway="C",
+            data_quality_score=0.95,
+            active_modalities=["clinical"],
             confirmed_features={"clinical": {"Fasting_Blood_Glucose": 110, "HbA1c": 5.9}},
-            prediction_snapshot={"disease_outcomes": {"Type2_Diabetes": {"risk_level": "MODERATE"}}},
-            data_quality_scores={"overall_quality_score": 95}
+            prediction_snapshot={"disease_outcomes": {"Type2_Diabetes": {"risk_level": "MODERATE"}}}
         )
         rec_b_id = rec_b["record_id"]
 
