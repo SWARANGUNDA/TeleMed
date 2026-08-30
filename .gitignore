@@ -48,4 +48,6 @@ runtime/backups/*
 *.db
 .gemini/
 /scratch/
+scratch/
+app/backend/uploads/
 

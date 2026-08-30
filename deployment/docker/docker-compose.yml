@@ -13,7 +13,7 @@ services:
       - "5432:5432"
     volumes:
       - telemed_postgres_data:/var/lib/postgresql/data
-      - ./docker/postgres/initdb:/docker-entrypoint-initdb.d
+      - ../postgres/initdb:/docker-entrypoint-initdb.d
     networks:
       - telemed-network
     healthcheck:
@@ -40,21 +40,16 @@ services:
 
   backend:
     build:
-      context: .
-      dockerfile: ./web_platform/backend/Dockerfile
+      context: ../..
+      dockerfile: app/backend/Dockerfile
     container_name: telemed-backend
     restart: always
     ports:
       - "8000:8000"
     volumes:
-      - ./web_platform/backend:/app/web_platform/backend
-      - ./services.multimodal_intake:/app/services.multimodal_intake
-      - ./expert_models:/app/expert_models
-      - ./fusion_engine:/app/fusion_engine
-      - ./services.medical_rag:/app/services.medical_rag
-    env_file:
-      - path: ./web_platform/backend/.env
-        required: false
+      - ../../app/backend:/app/app/backend
+      - ../../ai:/app/ai
+      - ../../services:/app/services
     environment:
       DATABASE_URL: postgresql://postgres:postgres@postgres:5432/telemed_db
       REDIS_URL: redis://redis:6379/0
@@ -73,17 +68,15 @@ services:
 
   celery-worker:
     build:
-      context: .
-      dockerfile: ./web_platform/backend/Dockerfile
+      context: ../..
+      dockerfile: app/backend/Dockerfile
     container_name: telemed-celery-worker
     command: celery -A app.backend.celery_app worker --loglevel=info
     restart: always
     volumes:
-      - ./web_platform/backend:/app/web_platform/backend
-      - ./services.multimodal_intake:/app/services.multimodal_intake
-      - ./expert_models:/app/expert_models
-      - ./fusion_engine:/app/fusion_engine
-      - ./services.medical_rag:/app/services.medical_rag
+      - ../../app/backend:/app/app/backend
+      - ../../ai:/app/ai
+      - ../../services:/app/services
     environment:
       DATABASE_URL: postgresql://postgres:postgres@postgres:5432/telemed_db
       REDIS_URL: redis://redis:6379/0
