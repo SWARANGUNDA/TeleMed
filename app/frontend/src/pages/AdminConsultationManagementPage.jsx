@@ -213,8 +213,8 @@ export default function AdminConsultationManagementPage() {
             consultations.map((c, idx) => (
               <TableRow key={`${c.consultation_id || 'cons'}_${idx}`}>
                 <TableCell>
-                  <strong className="text-xs font-semibold text-[var(--text-main)] block">{c.patient_name || c.full_name || 'Aravind Bhatiya'}</strong>
-                  <span className="font-mono text-[11px] text-[var(--text-muted)]">{c.patient_email || c.email || 'patient@telemed.ai'}</span>
+                  <strong className="text-xs font-semibold text-[var(--text-main)] block">{c.patient_name || c.full_name || 'Patient'}</strong>
+                  <span className="font-mono text-[11px] text-[var(--text-muted)]">{c.patient_email || c.email || '—'}</span>
                 </TableCell>
                 <TableCell className="font-semibold text-xs text-[var(--primary)]">
                   {c.requested_specialization || c.specialization || 'General Medicine'}

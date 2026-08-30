@@ -145,55 +145,55 @@ export default function AdminDashboardPage({ onNavigate }) {
             <Card isGlass={true} className="p-4 space-y-2 border-l-4 border-l-[var(--primary)]">
               <div className="flex justify-between items-center text-xs">
                 <span className="font-mono text-[var(--text-muted)] uppercase font-semibold">Total Users</span>
-                <Badge variant="primary" size="sm">+14% MoM</Badge>
+                <Badge variant="primary" size="sm">Registered</Badge>
               </div>
-              <div className="text-xl font-extrabold font-mono text-[var(--text-main)]">{totalUserCount}</div>
+              <div className="text-xl font-extrabold font-mono text-[var(--text-main)]">{stats?.total_users ?? totalUserCount}</div>
               <p className="text-[10px] text-[var(--text-muted)]">Registered accounts</p>
             </Card>
 
             <Card isGlass={true} className="p-4 space-y-2 border-l-4 border-l-[var(--secondary)]">
               <div className="flex justify-between items-center text-xs">
                 <span className="font-mono text-[var(--text-muted)] uppercase font-semibold">Active Doctors</span>
-                <Badge variant="secondary" size="sm">{activeDocCount} Active</Badge>
+                <Badge variant="secondary" size="sm">{stats?.verified_doctors ?? activeDocCount} Verified</Badge>
               </div>
-              <div className="text-xl font-extrabold font-mono text-[var(--secondary)]">{activeDocCount}</div>
+              <div className="text-xl font-extrabold font-mono text-[var(--secondary)]">{stats?.verified_doctors ?? activeDocCount}</div>
               <p className="text-[10px] text-[var(--text-muted)]">Verified physicians</p>
             </Card>
 
             <Card isGlass={true} className="p-4 space-y-2 border-l-4 border-l-[var(--accent)]">
               <div className="flex justify-between items-center text-xs">
                 <span className="font-mono text-[var(--text-muted)] uppercase font-semibold">Active Patients</span>
-                <Badge variant="accent" size="sm">+18.4% MoM</Badge>
+                <Badge variant="accent" size="sm">{stats?.total_patients ?? 0} Enrolled</Badge>
               </div>
-              <div className="text-xl font-extrabold font-mono text-[var(--accent)]">{stats?.total_patients || 20}</div>
+              <div className="text-xl font-extrabold font-mono text-[var(--accent)]">{stats?.total_patients ?? 0}</div>
               <p className="text-[10px] text-[var(--text-muted)] font-mono">Patient workspace</p>
             </Card>
 
             <Card isGlass={true} className="p-4 space-y-2 border-l-4 border-l-[var(--success)]">
               <div className="flex justify-between items-center text-xs">
-                <span className="font-mono text-[var(--text-muted)] uppercase font-semibold">Daily Assessments</span>
-                <Badge variant="success" size="sm">+12 Today</Badge>
+                <span className="font-mono text-[var(--text-muted)] uppercase font-semibold">Total Consultations</span>
+                <Badge variant="success" size="sm">Queue</Badge>
               </div>
-              <div className="text-xl font-extrabold font-mono text-[var(--success)]">142</div>
-              <p className="text-[10px] text-[var(--text-muted)]">Evaluations run</p>
+              <div className="text-xl font-extrabold font-mono text-[var(--success)]">{stats?.requested_consultations ?? stats?.active_consultations ?? 0}</div>
+              <p className="text-[10px] text-[var(--text-muted)]">Active or requested</p>
             </Card>
 
             <Card isGlass={true} className="p-4 space-y-2 border-l-4 border-l-emerald-500">
               <div className="flex justify-between items-center text-xs">
-                <span className="font-mono text-[var(--text-muted)] uppercase font-semibold">System Uptime</span>
-                <Badge variant="success" size="sm">99.98%</Badge>
+                <span className="font-mono text-[var(--text-muted)] uppercase font-semibold">System Status</span>
+                <Badge variant="success" size="sm">Online</Badge>
               </div>
-              <div className="text-xl font-extrabold font-mono text-emerald-400">99.98%</div>
-              <p className="text-[10px] text-[var(--text-muted)]">High availability</p>
+              <div className="text-xl font-extrabold font-mono text-emerald-400">Operational</div>
+              <p className="text-[10px] text-[var(--text-muted)]">All services ready</p>
             </Card>
 
             <Card isGlass={true} className="p-4 space-y-2 border-l-4 border-l-purple-500">
               <div className="flex justify-between items-center text-xs">
-                <span className="font-mono text-[var(--text-muted)] uppercase font-semibold">Avg Pipeline Latency</span>
-                <Badge variant="secondary" size="sm">-0.4ms</Badge>
+                <span className="font-mono text-[var(--text-muted)] uppercase font-semibold">Pending Approvals</span>
+                <Badge variant="warning" size="sm">{doctorVerificationQueue.length} Pending</Badge>
               </div>
-              <div className="text-xl font-extrabold font-mono text-purple-400">4.2 ms</div>
-              <p className="text-[10px] text-[var(--text-muted)]">Stacker execution</p>
+              <div className="text-xl font-extrabold font-mono text-purple-400">{doctorVerificationQueue.length}</div>
+              <p className="text-[10px] text-[var(--text-muted)]">Doctor verifications</p>
             </Card>
           </div>
 
@@ -209,7 +209,7 @@ export default function AdminDashboardPage({ onNavigate }) {
             {/* Center Column (5 cols) — Platform Analytics & User Analytics */}
             <div className="lg:col-span-5 space-y-6">
               <PlatformAnalytics />
-              <UserAnalytics stats={stats} totalPatients={stats?.total_patients || 20} totalDoctors={activeDocCount} />
+              <UserAnalytics stats={stats} totalPatients={stats?.total_patients || 0} totalDoctors={activeDocCount} />
               <CompliancePanel />
             </div>
 
@@ -226,26 +226,26 @@ export default function AdminDashboardPage({ onNavigate }) {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               <Card isGlass={true} className="p-5 space-y-2">
                 <span className="text-xs font-mono text-[var(--text-muted)]">Average Data Quality</span>
-                <div className="text-xl font-extrabold font-mono text-[var(--success)]">85.2%</div>
-                <ProgressBar value={85.2} max={100} variant="success" />
+                <div className="text-xl font-extrabold font-mono text-[var(--success)]">{stats?.avg_quality ? `${stats.avg_quality}%` : '—'}</div>
+                <ProgressBar value={stats?.avg_quality || 0} max={100} variant="success" />
               </Card>
 
               <Card isGlass={true} className="p-5 space-y-2">
                 <span className="text-xs font-mono text-[var(--text-muted)]">Pipeline Latency</span>
-                <div className="text-xl font-extrabold font-mono text-[var(--primary)]">33.4 ms</div>
-                <ProgressBar value={92} max={100} variant="primary" />
+                <div className="text-xl font-extrabold font-mono text-[var(--primary)]">{stats?.avg_latency ? `${stats.avg_latency} ms` : '—'}</div>
+                <ProgressBar value={stats?.avg_latency ? Math.min(100, stats.avg_latency) : 0} max={100} variant="primary" />
               </Card>
 
               <Card isGlass={true} className="p-5 space-y-2">
                 <span className="text-xs font-mono text-[var(--text-muted)]">OCR Extraction Success</span>
-                <div className="text-xl font-extrabold font-mono text-[var(--secondary)]">98.5%</div>
-                <ProgressBar value={98.5} max={100} variant="secondary" />
+                <div className="text-xl font-extrabold font-mono text-[var(--secondary)]">{stats?.ocr_accuracy ? `${stats.ocr_accuracy}%` : '—'}</div>
+                <ProgressBar value={stats?.ocr_accuracy || 0} max={100} variant="secondary" />
               </Card>
 
               <Card isGlass={true} className="p-5 space-y-2">
-                <span className="text-xs font-mono text-[var(--text-muted)]">RAG ChromaDB Uptime</span>
-                <div className="text-xl font-extrabold font-mono text-[var(--accent)]">99.98%</div>
-                <ProgressBar value={99.98} max={100} variant="accent" />
+                <span className="text-xs font-mono text-[var(--text-muted)]">RAG Vector DB Status</span>
+                <div className="text-xl font-extrabold font-mono text-[var(--accent)]">{stats?.rag_status || 'Operational'}</div>
+                <ProgressBar value={100} max={100} variant="accent" />
               </Card>
             </div>
           </ContentSection>

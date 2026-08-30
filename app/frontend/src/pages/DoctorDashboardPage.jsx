@@ -25,9 +25,9 @@ export default function DoctorDashboardPage({ user, onNavigate }) {
   const verificationStatus = doctor.verification_status || 'VERIFIED';
   
   // Doctor identity resolution
-  const doctorName = user?.full_name || user?.name || doctor.full_name || 'Arjun Sarkaar';
+  const doctorName = user?.full_name || user?.name || doctor.full_name || 'Physician';
   const formattedDoctorName = doctorName.startsWith('Dr.') ? doctorName : `Dr. ${doctorName}`;
-  const doctorSpecialty = doctor.specialty || doctor.specialization || 'Internal Medicine';
+  const doctorSpecialty = doctor.specialty || doctor.specialization || 'General Practice & Medicine';
 
   const [allConsultations, setAllConsultations] = useState([]);
   const [loading, setLoading] = useState(true);

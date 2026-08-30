@@ -146,7 +146,7 @@ export function Topbar({ user, onLogout, onToggleTheme, theme = 'dark', onOpenMo
                 <p className="text-xs font-extrabold text-[var(--text-main)] tracking-tight">
                   {user?.full_name || user?.name || (user?.role === 'DOCTOR' ? 'Dr. Medical Officer' : user?.role === 'ADMIN' ? 'System Administrator' : 'Patient Account')}
                 </p>
-                <p className="text-[11px] font-mono text-[var(--text-muted)] truncate">{user?.email || 'patient@telemed.ai'}</p>
+                <p className="text-[11px] font-mono text-[var(--text-muted)] truncate">{user?.email || ''}</p>
                 <div className="pt-1.5 flex items-center gap-1.5">
                   <span className="px-2 py-0.5 text-[9.5px] font-mono font-bold rounded-full bg-[var(--primary-light)] text-[var(--primary)] border border-[var(--primary)]/20 uppercase">
                     {user?.role || 'PATIENT'}

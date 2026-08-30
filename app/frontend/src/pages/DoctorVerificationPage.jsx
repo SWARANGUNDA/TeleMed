@@ -41,13 +41,13 @@ export default function DoctorVerificationPage({ currentUser }) {
     } catch (e) {}
 
     return {
-      fullName: currentUser?.full_name || currentUser?.name || doctorProf.full_name || 'Dr. Arjun Sarkar',
-      email: currentUser?.email || 'doctor@telemed.ai',
-      specialization: doctorProf.specialty || currentUser?.specialty || 'Cardiology & Internal Medicine',
-      registrationNumber: doctorProf.license_number || `REG-${doctorUserId.slice(-6).toUpperCase()}`,
-      medicalCouncil: doctorProf.medical_council || 'State Medical Registration Council',
-      experienceYears: doctorProf.experience_years || 12,
-      hospitalAffiliation: doctorProf.hospital_affiliation || 'Verified TeleMed Clinic'
+      fullName: currentUser?.full_name || currentUser?.name || doctorProf.full_name || 'Dr. Physician',
+      email: currentUser?.email || '',
+      specialization: doctorProf.specialty || doctorProf.specialization || currentUser?.specialty || 'General Medicine',
+      registrationNumber: doctorProf.license_number || doctorProf.registration_number || (doctorUserId ? `REG-${doctorUserId.slice(-6).toUpperCase()}` : ''),
+      medicalCouncil: doctorProf.medical_council || 'Medical Council of India / State Council',
+      experienceYears: doctorProf.experience_years || 5,
+      hospitalAffiliation: doctorProf.hospital_affiliation || 'TeleMed Verified Health Network'
     };
   });
 

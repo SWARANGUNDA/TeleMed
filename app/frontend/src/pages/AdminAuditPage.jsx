@@ -181,13 +181,13 @@ export default function AdminAuditPage() {
             logs.map((log) => (
               <TableRow key={log.event_id || log.id}>
                 <TableCell className="font-mono text-xs font-bold text-[var(--primary)]">
-                  {log.event_id || log.id || 'EVT-9001'}
+                  {log.event_id || log.id || 'EVT-LOG'}
                 </TableCell>
                 <TableCell className="font-semibold text-xs text-[var(--text-main)]">
                   {log.action}
                 </TableCell>
                 <TableCell className="font-mono text-xs text-[var(--text-muted)]">
-                  {log.actor_user_id || log.admin || 'admin@telemed.ai'}
+                  {log.actor_user_id || log.admin || 'System Actor'}
                 </TableCell>
                 <TableCell className="text-xs font-mono text-[var(--text-main)]">
                   {log.resource_type || log.target || 'DOCTOR_PROFILE'}

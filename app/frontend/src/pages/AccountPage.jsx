@@ -291,12 +291,12 @@ export default function AccountPage({ user, onProfileUpdated }) {
               <div className="pt-2 space-y-3 text-xs">
                 <div className="flex justify-between items-center p-2.5 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-subtle)]">
                   <span className="text-[var(--text-muted)]">Account Email:</span>
-                  <strong className="font-mono text-[var(--text-main)]">{user?.email || 'patient@telemed.ai'}</strong>
+                  <strong className="font-mono text-[var(--text-main)]">{user?.email || '—'}</strong>
                 </div>
 
                 <div className="flex justify-between items-center p-2.5 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-subtle)]">
                   <span className="text-[var(--text-muted)]">Patient ID:</span>
-                  <strong className="font-mono text-[var(--primary)]">{user?.user_id || 'usr_patient'}</strong>
+                  <strong className="font-mono text-[var(--primary)]">{user?.user_id || '—'}</strong>
                 </div>
 
                 <div className="flex justify-between items-center p-2.5 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-subtle)]">
@@ -510,12 +510,12 @@ export default function AccountPage({ user, onProfileUpdated }) {
               <div className="space-y-3 text-xs">
                 <div className="flex justify-between items-center p-2.5 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-subtle)]">
                   <span className="text-[var(--text-muted)]">Admin Email:</span>
-                  <strong className="font-mono text-[var(--text-main)]">{user?.email || 'admin@telemed.ai'}</strong>
+                  <strong className="font-mono text-[var(--text-main)]">{user?.email || '—'}</strong>
                 </div>
 
                 <div className="flex justify-between items-center p-2.5 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-subtle)]">
                   <span className="text-[var(--text-muted)]">User ID:</span>
-                  <strong className="font-mono text-[var(--primary)]">{user?.user_id || 'usr_admin'}</strong>
+                  <strong className="font-mono text-[var(--primary)]">{user?.user_id || '—'}</strong>
                 </div>
 
                 <div className="flex justify-between items-center p-2.5 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-subtle)]">

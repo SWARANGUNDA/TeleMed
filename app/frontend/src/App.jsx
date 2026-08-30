@@ -425,11 +425,15 @@ export default function App() {
         }
       }
 
+      const rawClin = payloadData?.clinical_data || payloadData?.clinical || confirmed.clinical;
+      const rawWear = payloadData?.wearable_data || payloadData?.wearable || confirmed.wearable;
+      const rawGut = payloadData?.gut_data || payloadData?.gut || confirmed.gut;
+
       const v3Payload = {
-        patient_id: payloadData?.patient_id || sid || 'P_USER_001',
-        clinical_data: payloadData?.clinical_data || payloadData?.clinical || confirmed.clinical || null,
-        wearable_data: payloadData?.wearable_data || payloadData?.wearable || confirmed.wearable || null,
-        gut_data: payloadData?.gut_data || payloadData?.gut || confirmed.gut || null,
+        patient_id: payloadData?.patient_id || sid || currentUser?.user_id || 'P_USER_001',
+        clinical_data: (rawClin && typeof rawClin === 'object' && Object.keys(rawClin).length > 0) ? rawClin : null,
+        wearable_data: (rawWear && typeof rawWear === 'object' && Object.keys(rawWear).length > 0) ? rawWear : null,
+        gut_data: (rawGut && typeof rawGut === 'object' && Object.keys(rawGut).length > 0) ? rawGut : null,
       };
 
       const pred = await predictV3(v3Payload);

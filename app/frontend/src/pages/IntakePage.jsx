@@ -49,7 +49,7 @@ export default function IntakePage({
   const [currentPage, setCurrentPage] = useState(1);
   const [isShowingAllTaxa, setIsShowingAllTaxa] = useState(false);
   const [otherTaxa, setOtherTaxa] = useState(4.5);
-  const [patientId, setPatientId] = useState('P000301');
+  const [patientId, setPatientId] = useState('');
 
   const fileInputRef = useRef(null);
 
@@ -263,40 +263,37 @@ export default function IntakePage({
         const hasExtractedWearable = Object.keys(normWearable).some(k => normWearable[k] !== '' && normWearable[k] !== null && normWearable[k] !== undefined);
         const hasExtractedGut = Object.keys(normGut).some(k => normGut[k] !== '' && normGut[k] !== null && normGut[k] !== undefined);
 
-        // P0 FIX: Merge from empty schema, NOT from prev — prevents Assessment A values leaking into B.
-        // Merge Clinical
-        if (hasExtractedClinical || Object.keys(normClinical).length > 0) {
-          setFormClinical(() => {
-            const next = { ...emptyClinical };
+        // Reset each modality to clean schema, only populating extracted values if present
+        setFormClinical(() => {
+          const next = { ...emptyClinical };
+          if (hasExtractedClinical || Object.keys(normClinical).length > 0) {
             Object.entries(normClinical).forEach(([k, extVal]) => {
               if (extVal !== '' && extVal !== null && extVal !== undefined) next[k] = extVal;
             });
-            return next;
-          });
-        }
+          }
+          return next;
+        });
 
-        // Merge Wearable
-        if (hasExtractedWearable) {
-          if (Object.keys(normWearable).some(k => k.startsWith('Average_Glucose') || k.startsWith('Glucose_Variability') || k.startsWith('Time_In_Range') || k.startsWith('Time_Above_Range') || k.startsWith('CGM_'))) setEnableCGM(true);
-          setFormWearable(() => {
-            const next = { ...emptyWearable };
+        setFormWearable(() => {
+          const next = { ...emptyWearable };
+          if (hasExtractedWearable) {
+            if (Object.keys(normWearable).some(k => k.startsWith('Average_Glucose') || k.startsWith('Glucose_Variability') || k.startsWith('Time_In_Range') || k.startsWith('Time_Above_Range') || k.startsWith('CGM_'))) setEnableCGM(true);
             Object.entries(normWearable).forEach(([k, extVal]) => {
               if (extVal !== '' && extVal !== null && extVal !== undefined) next[k] = extVal;
             });
-            return next;
-          });
-        }
+          }
+          return next;
+        });
 
-        // Merge Gut
-        if (hasExtractedGut) {
-          setFormGut(() => {
-            const next = { ...emptyGut };
+        setFormGut(() => {
+          const next = { ...emptyGut };
+          if (hasExtractedGut) {
             Object.entries(normGut).forEach(([k, extVal]) => {
               if (extVal !== '' && extVal !== null && extVal !== undefined) next[k] = extVal;
             });
-            return next;
-          });
-        }
+          }
+          return next;
+        });
 
         const hasQueuedClinical = selectedFiles.some(f => detectFileModality(f) === 'clinical');
         const hasQueuedWearable = selectedFiles.some(f => detectFileModality(f) === 'wearable/cgm');
@@ -506,14 +503,15 @@ export default function IntakePage({
         const htMeters = h / 100;
         cleanClinicalData.BMI = parseFloat((w / (htMeters * htMeters)).toFixed(1));
       }
-      cleanClinicalData.Patient_ID = patientId || 'P000301';
+      if (patientId) {
+        cleanClinicalData.Patient_ID = patientId;
+      }
     }
 
-
     const confirmedPayload = {
-      clinical: cleanClinicalData,
-      wearable: cleanDict(formWearable),
-      gut: finalGutPayload
+      clinical: enableClinical ? cleanClinicalData : null,
+      wearable: enableWearable ? cleanDict(formWearable) : null,
+      gut: enableGut ? finalGutPayload : null
     };
 
     if (!confirmedPayload.clinical && !confirmedPayload.wearable && !confirmedPayload.gut) {
