@@ -3,15 +3,15 @@
   "rewrites": [
     {
       "source": "/api/v1/:path*",
-      "destination": "https://telemed-ai-backend.onrender.com/api/v1/:path*"
+      "destination": "https://telemed-3koh.onrender.com/api/v1/:path*"
     },
     {
       "source": "/api/v3/:path*",
-      "destination": "https://telemed-ai-backend.onrender.com/api/v3/:path*"
+      "destination": "https://telemed-3koh.onrender.com/api/v3/:path*"
     },
     {
       "source": "/api/:path*",
-      "destination": "https://telemed-ai-backend.onrender.com/api/:path*"
+      "destination": "https://telemed-3koh.onrender.com/api/:path*"
     },
     {
       "source": "/(.*)",
