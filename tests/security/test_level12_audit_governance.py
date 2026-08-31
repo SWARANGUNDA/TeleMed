@@ -32,6 +32,16 @@ class TestLevel12AuditGovernance(unittest.TestCase):
         database.DB_PATH = self.tmp_db.name
         database.init_db()
 
+        # Isolate audit log table for cryptographic chain test
+        session = database.SessionLocal()
+        try:
+            session.query(database.pg_models.AuditEvent).delete()
+            session.commit()
+        except Exception:
+            session.rollback()
+        finally:
+            session.close()
+
         prefix = secrets.token_hex(4)
         self.patient_token, self.pat_user = self._register_patient(f"pat12_{prefix}@test.com", "Pass1234!")
         self.admin_token, self.admin_user = self._register_user(f"admin12_{prefix}@test.com", "Pass1234!", "ADMIN")
