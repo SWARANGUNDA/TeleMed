@@ -40,15 +40,21 @@ if db_url.startswith("postgresql"):
         connect_args = {"check_same_thread": False}
 
 
-if db_url.startswith("sqlite"):
-    connect_args = {"check_same_thread": False}
+engine_kwargs = {
+    "echo": False,
+    "pool_pre_ping": True,
+    "connect_args": connect_args
+}
 
-engine = create_engine(
-    db_url,
-    echo=False,
-    pool_pre_ping=True,
-    connect_args=connect_args
-)
+if db_url.startswith("postgresql"):
+    engine_kwargs.update({
+        "pool_size": 20,
+        "max_overflow": 10,
+        "pool_timeout": 30,
+        "pool_recycle": 1800
+    })
+
+engine = create_engine(db_url, **engine_kwargs)
 
 # Session factory
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
