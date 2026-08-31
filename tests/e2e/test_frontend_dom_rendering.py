@@ -12,10 +12,6 @@ from fastapi.testclient import TestClient
 from app.backend.main import app
 from app.backend.auth import require_clinical_access
 
-# Register & authenticate test client
-app.dependency_overrides[require_clinical_access] = lambda: {"user_id": "usr_dom_test", "role": "PATIENT"}
-client = TestClient(app)
-
 PDF_DIR = Path("TeleMed_5_Patient_Sets_15_PDFs")
 
 CANONICAL_ALIASES = {
@@ -57,13 +53,22 @@ def frontend_normalize_dict(extracted_dict):
 
 class TestFrontendDOMRendering(unittest.TestCase):
 
+    @classmethod
+    def setUpClass(cls):
+        app.dependency_overrides[require_clinical_access] = lambda: {"user_id": "usr_dom_test", "role": "PATIENT"}
+        cls.client = TestClient(app)
+
+    @classmethod
+    def tearDownClass(cls):
+        app.dependency_overrides.pop(require_clinical_access, None)
+
     def test_01_p_test_101_wearable_dom_rendering(self):
         """Verify P_TEST_101 Wearable PDF extracted features populate React state & DOM inputs."""
         wear_file = PDF_DIR / "P_TEST_101_wearable.pdf"
         with open(wear_file, "rb") as f:
             bytes_w = f.read()
 
-        resp = client.post("/api/v1/intake/upload", files={"files": (wear_file.name, bytes_w, "application/pdf")})
+        resp = self.client.post("/api/v1/intake/upload", files={"files": (wear_file.name, bytes_w, "application/pdf")})
         self.assertEqual(resp.status_code, 200)
 
         raw_wearable = resp.json()["extracted_features"]["wearable"]
@@ -96,7 +101,7 @@ class TestFrontendDOMRendering(unittest.TestCase):
         with open(gut_file, "rb") as f:
             bytes_g = f.read()
 
-        resp = client.post("/api/v1/intake/upload", files={"files": (gut_file.name, bytes_g, "application/pdf")})
+        resp = self.client.post("/api/v1/intake/upload", files={"files": (gut_file.name, bytes_g, "application/pdf")})
         self.assertEqual(resp.status_code, 200)
 
         raw_gut = resp.json()["extracted_features"]["gut"]

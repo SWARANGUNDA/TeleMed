@@ -11,10 +11,14 @@ Does NOT modify or retrain any artifact.
 """
 
 import logging
+import warnings
 from pathlib import Path
 import numpy as np
 import pandas as pd
 import joblib
+
+# Suppress benign sklearn feature name warnings on array input during inference
+warnings.filterwarnings("ignore", message=".*X does not have valid feature names.*", category=UserWarning)
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s]: %(message)s")
 logger = logging.getLogger("v3_inference_engine")
@@ -159,12 +163,12 @@ class V3InferenceEngine:
                     feature_vals.append(med_val)
                     imputed_features.append(f)
 
-        X_raw = np.array(feature_vals, dtype=float).reshape(1, -1)
+        df_raw = pd.DataFrame([feature_vals], columns=features)
         
         if isinstance(scalers, dict):
-            X_scaled_dict = {d: scalers[d].transform(X_raw) for d in DISEASES}
+            X_scaled_dict = {d: scalers[d].transform(df_raw) for d in DISEASES}
         else:
-            X_scaled_single = scalers.transform(X_raw)
+            X_scaled_single = scalers.transform(df_raw)
             X_scaled_dict = {d: X_scaled_single for d in DISEASES}
 
         raw_probs = {}
@@ -176,8 +180,9 @@ class V3InferenceEngine:
             clf = models[d] if isinstance(models, dict) else models[i]
             t_opt = thresholds[d] if isinstance(thresholds, dict) else 0.5
             X_sc = X_scaled_dict[d]
+            df_sc = pd.DataFrame(X_sc, columns=features)
 
-            raw_p = float(clf.predict_proba(X_sc)[0, 1])
+            raw_p = float(clf.predict_proba(df_sc)[0, 1])
             if calibrators:
                 iso = calibrators[d] if isinstance(calibrators, dict) else calibrators[i]
                 cal_p = float(iso.transform([raw_p])[0]) if iso is not None else raw_p
@@ -336,13 +341,13 @@ class V3InferenceEngine:
                     feature_vals.append(med_val)
                     imputed_features.append(f)
 
-        X_raw = np.array(feature_vals, dtype=float).reshape(1, -1)
+        df_raw = pd.DataFrame([feature_vals], columns=features)
         
         # Transform using scalers (dict or single transformer)
         if isinstance(scalers, dict):
-            X_scaled_dict = {d: scalers[d].transform(X_raw) for d in DISEASES}
+            X_scaled_dict = {d: scalers[d].transform(df_raw) for d in DISEASES}
         else:
-            X_scaled_single = scalers.transform(X_raw)
+            X_scaled_single = scalers.transform(df_raw)
             X_scaled_dict = {d: X_scaled_single for d in DISEASES}
 
         raw_probs = {}
@@ -354,8 +359,9 @@ class V3InferenceEngine:
             clf = models[d] if isinstance(models, dict) else models[i]
             t_opt = thresholds[d] if isinstance(thresholds, dict) else 0.5
             X_sc = X_scaled_dict[d]
+            df_sc = pd.DataFrame(X_sc, columns=features)
 
-            raw_p = float(clf.predict_proba(X_sc)[0, 1])
+            raw_p = float(clf.predict_proba(df_sc)[0, 1])
             if calibrators and d in calibrators and calibrators[d] is not None:
                 cal_p = float(calibrators[d].transform([raw_p])[0])
             else:

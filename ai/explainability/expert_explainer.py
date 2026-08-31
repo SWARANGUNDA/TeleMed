@@ -12,10 +12,14 @@ It does NOT prove causal biological effects.
 """
 
 import logging
+import warnings
 from typing import Any, Dict, List
 import numpy as np
 import pandas as pd
 import shap
+
+# Suppress benign sklearn feature name warnings on array input during SHAP inference
+warnings.filterwarnings("ignore", message=".*X does not have valid feature names.*", category=UserWarning)
 
 from ai.config import expert_config as config
 
@@ -55,9 +59,10 @@ class ExpertExplainer:
         """
         global_importance = {}
 
+        X_df = pd.DataFrame(X_sample, columns=self.feature_names) if isinstance(X_sample, np.ndarray) and len(self.feature_names) == X_sample.shape[1] else X_sample
         for disease, explainer in self.explainers.items():
             try:
-                shap_vals = explainer.shap_values(X_sample)
+                shap_vals = explainer.shap_values(X_df)
                 # Handle binary classifier output lists [shap_neg, shap_pos]
                 if isinstance(shap_vals, list):
                     shap_vals = shap_vals[1]
@@ -93,11 +98,13 @@ class ExpertExplainer:
         if patient_features_array.ndim == 1:
             patient_features_array = patient_features_array.reshape(1, -1)
 
+        patient_df = pd.DataFrame(patient_features_array, columns=self.feature_names) if isinstance(patient_features_array, np.ndarray) and len(self.feature_names) == patient_features_array.shape[1] else patient_features_array
+
         local_explanations = {}
 
         for disease, explainer in self.explainers.items():
             try:
-                shap_vals = explainer.shap_values(patient_features_array)
+                shap_vals = explainer.shap_values(patient_df)
                 if isinstance(shap_vals, list):
                     shap_vals = shap_vals[1]
 

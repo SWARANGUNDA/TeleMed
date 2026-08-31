@@ -8,9 +8,14 @@ Sanitizes NaN values for JSON compliance.
 
 import math
 import logging
+import warnings
 from pathlib import Path
 from typing import Any, Dict, Optional
 import numpy as np
+import pandas as pd
+
+# Suppress benign sklearn feature name warnings on array input during SHAP inference
+warnings.filterwarnings("ignore", message=".*X does not have valid feature names.*", category=UserWarning)
 
 from ai.explainability.unified_xai_engine import UnifiedXAIEngine
 
@@ -101,7 +106,12 @@ def generate_v3_xai_attribution(v3_engine: Any, validated_intake: Dict[str, Any]
             return float(default)
 
     # Safe SHAP values computation supporting TreeExplainer, Explainer & Linear models
-    def compute_shap_values(clf, X_scaled):
+    def compute_shap_values(clf, X_scaled, features=None):
+        if features is not None and isinstance(X_scaled, np.ndarray):
+            X_df = pd.DataFrame(X_scaled, columns=features)
+        else:
+            X_df = X_scaled
+
         # 1. Direct exact SHAP calculation for Linear/Logistic Regression models
         if hasattr(clf, "coef_"):
             coefs = getattr(clf, "coef_")
@@ -115,11 +125,11 @@ def generate_v3_xai_attribution(v3_engine: Any, validated_intake: Dict[str, Any]
         # 2. Tree / Ensemble Models (XGBoost, CatBoost, RandomForest, ExtraTrees)
         try:
             explainer = shap.TreeExplainer(clf)
-            sv = explainer.shap_values(X_scaled)
+            sv = explainer.shap_values(X_df)
             exp_val = getattr(explainer, "expected_value", 0.0)
         except Exception:
-            explainer = shap.Explainer(clf, X_scaled)
-            sv_res = explainer(X_scaled)
+            explainer = shap.Explainer(clf, X_df)
+            sv_res = explainer(X_df)
             sv = sv_res.values if hasattr(sv_res, 'values') else sv_res
             exp_val = getattr(explainer, "base_values", 0.0)
 
@@ -147,7 +157,7 @@ def generate_v3_xai_attribution(v3_engine: Any, validated_intake: Dict[str, Any]
         imputed_set = set(c_res.get("imputed_features", []))
         raw_dict = validated_intake.get("clinical_data") or {}
 
-        sv, c_exp_val = compute_shap_values(clf, X_scaled)
+        sv, c_exp_val = compute_shap_values(clf, X_scaled, features=features)
         sv_vals = sv[0] if len(sv.shape) > 1 else sv
 
 
@@ -205,7 +215,7 @@ def generate_v3_xai_attribution(v3_engine: Any, validated_intake: Dict[str, Any]
         imputed_set = set(w_res.get("imputed_features", []))
         raw_dict = validated_intake.get("wearable_data") or {}
 
-        sv, w_exp_val = compute_shap_values(clf, X_scaled)
+        sv, w_exp_val = compute_shap_values(clf, X_scaled, features=features)
         sv_vals = sv[0] if len(sv.shape) > 1 else sv
 
         drivers = []
@@ -263,7 +273,7 @@ def generate_v3_xai_attribution(v3_engine: Any, validated_intake: Dict[str, Any]
         imputed_set = set(g_res.get("imputed_features", []))
         raw_dict = validated_intake.get("gut_data") or {}
 
-        sv, g_exp_val = compute_shap_values(clf, X_scaled)
+        sv, g_exp_val = compute_shap_values(clf, X_scaled, features=features)
         sv_vals = sv[0] if len(sv.shape) > 1 else sv
 
 

@@ -17,8 +17,6 @@ from app.backend.auth import require_clinical_access
 from services.multimodal_intake.extractor import extract_from_file_or_data
 from services.multimodal_intake.engine import MultimodalIntakeEngine
 
-# Override auth dependency for automated test client
-app.dependency_overrides[require_clinical_access] = lambda: {"user_id": "usr_test_e2e", "role": "PATIENT"}
 client = TestClient(app)
 
 
@@ -46,6 +44,15 @@ def build_vector_pdf_bytes(text_lines):
 
 
 class TestMultimodalIntakeExtractionE2E(unittest.TestCase):
+
+    @classmethod
+    def setUpClass(cls):
+        app.dependency_overrides[require_clinical_access] = lambda: {"user_id": "usr_test_e2e", "role": "PATIENT"}
+        cls.client = TestClient(app)
+
+    @classmethod
+    def tearDownClass(cls):
+        app.dependency_overrides.pop(require_clinical_access, None)
 
     def setUp(self):
         # Create synthetic native vector PDFs for test
