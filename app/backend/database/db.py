@@ -18,13 +18,16 @@ logger = logging.getLogger("telemed.database")
 Base = declarative_base()
 
 db_url = settings.DATABASE_URL
+if db_url.startswith("postgres://"):
+    db_url = db_url.replace("postgres://", "postgresql://", 1)
+
 connect_args = {}
 
 # Test PostgreSQL connectivity if configured; fallback to local SQLite if unreachable
 if db_url.startswith("postgresql"):
     try:
-        pg_fast_url = db_url.replace("localhost", "127.0.0.1")
-        test_engine = create_engine(pg_fast_url, connect_args={"connect_timeout": 1})
+        pg_fast_url = db_url.replace("localhost", "127.0.0.1") if "localhost" in db_url else db_url
+        test_engine = create_engine(pg_fast_url, connect_args={"connect_timeout": 10})
         with test_engine.connect() as conn:
             conn.execute(text("SELECT 1"))
         test_engine.dispose()

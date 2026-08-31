@@ -76,7 +76,10 @@ RESEARCH_DISCLAIMER: str = (
 )
 
 # CORS Origins
-CORS_ORIGINS: List[str] = [
+raw_cors = os.getenv("CORS_ORIGINS", "")
+custom_cors = [orig.strip() for orig in raw_cors.split(",") if orig.strip()] if raw_cors else []
+
+CORS_ORIGINS: List[str] = list(set([
     "http://localhost:5173",
     "http://127.0.0.1:5173",
     "http://localhost:3000",
@@ -87,7 +90,7 @@ CORS_ORIGINS: List[str] = [
     "http://127.0.0.1:5174",
     "http://localhost:4173",
     "http://127.0.0.1:4173",
-]
+] + custom_cors))
 
 # Session State Constants (Strict Order)
 class SessionState:
