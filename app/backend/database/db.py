@@ -40,16 +40,20 @@ if db_url.startswith("postgresql"):
         connect_args = {"check_same_thread": False}
 
 
+from sqlalchemy.pool import NullPool
+
 engine_kwargs = {
     "echo": False,
     "pool_pre_ping": True,
     "connect_args": connect_args
 }
 
-if db_url.startswith("postgresql"):
+if db_url.startswith("sqlite"):
+    engine_kwargs["poolclass"] = NullPool
+elif db_url.startswith("postgresql"):
     engine_kwargs.update({
-        "pool_size": 20,
-        "max_overflow": 10,
+        "pool_size": 30,
+        "max_overflow": 20,
         "pool_timeout": 30,
         "pool_recycle": 1800
     })
