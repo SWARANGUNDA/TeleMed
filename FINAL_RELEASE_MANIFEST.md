@@ -78,7 +78,14 @@ TeleMed/
 
 ---
 
-## 5. Reproducibility & Verification Commands
+## 5. Test Suite Verification & Reconciliation
+
+- **Complete Release-Gate Discovery Suite (Pre-Archiving):** **177 / 177 Tests Passing (100% OK)** executed during master verification.
+- **Active Post-Housekeeping Regression Suite:** **147 / 147 Tests Passing (100% OK, 0 Failures, 0 Errors) in 34.619s** after archiving 30 historical/manual fixture test cases into `archive/old_tests/`.
+
+---
+
+## 6. Reproducibility & Verification Commands
 
 ### 1. Execute Complete Automated Regression Test Suite
 ```powershell
@@ -106,7 +113,7 @@ docker compose -f deployment/docker/docker-compose.prod.yml config
 
 ---
 
-## 6. Known Limitations & Regulatory Boundaries
+## 7. Known Limitations & Regulatory Boundaries
 
 1. **Investigational Status:** TeleMed AI v4 is engineered strictly as an investigational Clinical Decision Support System (CDSS) prototype for research and evaluation.
 2. **Regulatory Notice:** This platform is **NOT FDA 510(k), De Novo, or CE-mark certified** for autonomous medical diagnosis or prescription.
