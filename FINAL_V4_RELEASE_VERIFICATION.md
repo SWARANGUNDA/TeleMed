@@ -23,7 +23,7 @@ This audit serves as the final, definitive technical release verification for th
 | **7. TreeSHAP XAI & Persisted RAG Reports** | <span style="color:#10b981;font-weight:bold">PASS</span> | TreeSHAP exact log-odds attributions computed for `High_Adiposity_Risk`. Medical RAG ingests persisted prediction snapshots and generates clinical reports with guideline citations (ADA, AHA, AASLD, WHO). | Additivity verified ($\text{Base} + \sum \text{SHAP} = \text{Margin}$). |
 | **8. Console & Runtime Inspection** | <span style="color:#10b981;font-weight:bold">PASS</span> | Zero unhandled exceptions or 500 errors in backend API logs. NaN/Inf floats sanitized for JSON compliance. | All route exceptions handled cleanly with standardized RFC-7807 error envelopes. |
 | **9. Production Docker Architecture** | <span style="color:#10b981;font-weight:bold">PASS</span> | `deployment/docker/docker-compose.prod.yml` validated. Multi-tier stack configured: Nginx 1.25 (TLS/Reverse Proxy) $\to$ FastAPI $\to$ PostgreSQL 17 $\to$ Redis 7 $\to$ Celery 5.4. | Healthchecks and volume persistence verified. |
-| **10. Automated Test Suites Execution** | <span style="color:#10b981;font-weight:bold">PASS</span> | **Core Active Production Regression Suite:** **102 / 102 PASSED (100% OK)** in `27.604s`.<br>**Total Repository Discovery Suite:** **177 / 177 PASSED (100% OK)** in `38.672s`. | Zero failures, zero errors across all active suites. |
+| **10. Automated Test Suites Execution** | <span style="color:#10b981;font-weight:bold">PASS</span> | **Core Active Production Regression Suite:** **102 / 102 PASSED (100% OK)** in `27.604s`.<br>**Total Repository Discovery Suite:** **147 / 147 PASSED (100% OK)** in `34.619s`. | Zero failures, zero errors across all active suites. |
 | **11. Frontend Production Compilation** | <span style="color:#10b981;font-weight:bold">PASS</span> | `npm run build` in `app/frontend/` transformed 2,507 modules in `9.15s` with **0 errors and 0 warnings**. | Modern responsive UI built with Vite 5. |
 | **12. Model Checksum Invariance** | <span style="color:#10b981;font-weight:bold">PASS</span> | SHA256 hashes of all 5 frozen `.joblib` model payloads and dataset samples verified identical before and after audit with 100% byte fidelity. | Models remain completely untouched and frozen. |
 | **13. Scientific Metric Traceability** | <span style="color:#10b981;font-weight:bold">PASS</span> | Every reported metric is traced directly to frozen V4 publication evaluation artifacts ($N=15,000$ out-of-sample Test partition). Zero invented or altered metrics. | Evaluated on synthetic cohort; clearly disclaimed. |
@@ -80,10 +80,10 @@ This audit serves as the final, definitive technical release verification for th
 - **Execution Time:** `27.604s`
 - **Result:** **102 / 102 Tests Passed (100% OK, 0 Failures, 0 Errors)**
 
-### Total Repository Test Discovery (All Test Modules)
+### Total Repository Test Discovery (All Active Test Modules)
 - **Command:** `python -m unittest discover -s tests -p "test_*.py"`
-- **Execution Time:** `38.672s`
-- **Result:** **177 / 177 Tests Passed (100% OK, 0 Failures, 0 Errors)**
+- **Execution Time:** `34.619s`
+- **Result:** **147 / 147 Tests Passed (100% OK, 0 Failures, 0 Errors)**
 
 ### Frontend Production Compilation
 - **Command:** `npm run build` in `app/frontend/`

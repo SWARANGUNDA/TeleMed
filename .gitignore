@@ -46,8 +46,13 @@ runtime/backups/*
 
 # Databases & Local App Config
 *.db
+*.sqlite
+*.sqlite3
 .gemini/
 /scratch/
 scratch/
 app/backend/uploads/
+.coverage
+htmlcov/
+*.timestamp*
 
