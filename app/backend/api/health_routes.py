@@ -1,11 +1,6 @@
 """
-health_routes.py — FastAPI Health Check & Frozen Artifact Status Endpoint.
+health_routes.py — FastAPI Health Check & Subsystem Readiness Endpoints.
 """
-
-from fastapi import APIRouter
-from typing import Dict, Any
-
-router = APIRouter(prefix="/api/v1", tags=["Health & Status"])
 
 import shutil
 import sys
@@ -17,7 +12,10 @@ from .. import config
 
 router = APIRouter(prefix="", tags=["Health & Observability"])
 
+
+@router.get("/")
 @router.get("/health")
+@router.get("/api/health")
 @router.get("/api/v1/health")
 def get_system_health() -> Dict[str, Any]:
     """Return comprehensive system health status, DB connectivity, and subsystem readiness."""
