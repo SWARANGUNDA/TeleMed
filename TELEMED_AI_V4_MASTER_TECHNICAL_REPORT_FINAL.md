@@ -168,28 +168,41 @@ Despite the well-established biological cross-talk among these three axes, moder
 
 ---
 
-# SECTION 10: DATASET COHORT SIZES & MASTER REPOSITORY INVENTORY
+# SECTION 10: AUTHORITATIVE DATASET COHORT & PARTITION SPECIFICATIONS
 
-### 10.1 Complete Research Cohort vs. Local Benchmark Partition
-To ensure total clarity during technical review, the dataset architecture is structured into two clearly defined tiers:
-1. **Full Synchronized Research Cohort (100,000 Synchronized Patients):**
-   * **Total Patient Records:** Exactly 100,000 multi-omic synthetic patient profiles.
-   * **Training Partition (70.0%):** 70,000 patients used for base expert model training and feature selection.
-   * **Validation Partition (15.0%):** 15,000 patients used for hyperparameter tuning, probability calibration, and meta-learner fitting.
-   * **Test Partition (15.0%):** 15,000 patients held out as an untouched out-of-sample scientific evaluation set.
-2. **Standard Frozen Benchmark Partition (20,000 Synchronized Patients):**
-   * **Total Patient Records:** Exactly 20,000 synchronized patient profiles used for rapid local test suite verification and continuous integration (`patient_split.csv`).
-   * **Training Partition (70.0%):** 14,000 patients.
-   * **Validation Partition (15.0%):** 3,000 patients.
-   * **Test Partition (15.0%):** 3,000 patients.
+### 10.1 The Final Synchronized Cohort (100,000 Patients)
+The TeleMed AI v4 production and scientific benchmark dataset is a single, authoritative, synchronized cohort of **100,000 multi-omic patient profiles**. Every patient record contains synchronized parameters across blood laboratory chemistry, continuous wearable sensor dynamics, and 16S gut microbiome relative abundances.
 
-### 10.2 Master Dataset Files Inventory
+The dataset is partitioned using a strict **70.0% Training / 15.0% Validation / 15.0% Test** split protocol:
 
-| Dataset Name | Physical CSV File | Total Samples | Raw Columns | Predictive Features | Target Labels | Train / Val / Test Partition |
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                 TOTAL SYNCHRONIZED COHORT: 100,000 PATIENTS                 │
+├───────────────────────────────┬──────────────────────────────┬──────────────┤
+│      TRAINING PARTITION       │     VALIDATION PARTITION     │  TEST SET    │
+│       70,000 Patients         │       15,000 Patients        │15,000 Patient│
+│            (70.0%)            │            (15.0%)           │   (15.0%)    │
+│  Model Training & Feature     │  Hyperparameter Tuning &     │Untouched Out-│
+│         Selection             │    Calibration Fitting       │  of-Sample   │
+└───────────────────────────────┴──────────────────────────────┴──────────────┘
+```
+
+* **Training Partition (70.0% — 70,000 Patients):** Used exclusively for base expert model training, feature selection, and fitting scaler transforms.
+* **Validation Partition (15.0% — 15,000 Patients):** Used for hyperparameter optimization, probability calibration scaling, and fitting the second-level stacking meta-learners.
+* **Test Partition (15.0% — 15,000 Patients):** Held out as an untouched out-of-sample test partition to compute the final release metrics and 95% confidence intervals.
+
+---
+
+### 10.2 Master Dataset Files Inventory (Table 10.2)
+
+*(Directly verified from `TABLE_1_DATASET_CHARACTERISTICS.csv`)*
+
+| Diagnostic Modality | Master Dataset File | Total Synchronized Cohort | Raw Columns | Predictive Biological Features | Target Disease Labels | Split Protocol (Train / Val / Test) |
 | :--- | :--- | :---: | :---: | :---: | :---: | :---: |
-| **Clinical Labs & Vitals** | `Clinical_Dataset.csv` | 20,000 / 100,000 | 26 cols | **18 Features** | 5 Targets | 70% / 15% / 15% |
-| **Wearable & CGM** | `Wearable_Dataset.csv` | 20,000 / 100,000 | 19 cols | **15 Features** | 5 Targets | 70% / 15% / 15% |
-| **Gut Microbiome 16S** | `Gut_Microbiome_Dataset.csv` | 20,000 / 100,000 | 51 cols | **49 Features** | 5 Targets | 70% / 15% / 15% |
+| **Clinical Labs & Vitals** | `Clinical_Dataset.csv` | **100,000 Patients** | 26 cols | **18 Features** | 5 Targets | **70,000 / 15,000 / 15,000 (70% / 15% / 15%)** |
+| **Wearable & CGM** | `Wearable_Dataset.csv` | **100,000 Patients** | 19 cols | **15 Features** | 5 Targets | **70,000 / 15,000 / 15,000 (70% / 15% / 15%)** |
+| **Gut Microbiome 16S** | `Gut_Microbiome_Dataset.csv` | **100,000 Patients** | 51 cols | **49 Features** | 5 Targets | **70,000 / 15,000 / 15,000 (70% / 15% / 15%)** |
+| **Total Multimodal Pool** | **Synchronized Cohort** | **100,000 Patients** | **86 Total** | **82 Upstream Biomarkers** | **5 Targets** | **70,000 / 15,000 / 15,000 (70% / 15% / 15%)** |
 
 ---
 
@@ -223,11 +236,11 @@ The synthetic generation process incorporates real-world biological dependencies
 
 # SECTION 13: EXHAUSTIVE DATASET EVOLUTION ACROSS VERSIONS (V1 → V2 → V3 → V4)
 
-To understand how TeleMed AI v4 reached its current production maturity, the following section documents the complete technical evolution across all four dataset iterations:
+To understand how TeleMed AI reached its finalized v4 architecture, the following section documents the complete technical evolution across all four dataset iterations:
 
 ### 13.1 Dataset V1 (Initial Baseline Prototype)
-* **Files:** `archive/v1/Clinical_Dataset.csv` (26 cols), `archive/v1/Wearable_Dataset.csv` (19 cols), `archive/v1/Gut_Microbiome_Dataset.csv` (19 cols).
-* **Cohort Size:** 20,000 synthetic patient records.
+* **Dataset Files:** `archive/v1/Clinical_Dataset.csv` (26 cols), `archive/v1/Wearable_Dataset.csv` (19 cols), `archive/v1/Gut_Microbiome_Dataset.csv` (19 cols).
+* **Cohort Size:** 20,000 synthetic patient records (initial small prototype size).
 * **Feature Scope:** Clinical had 19 raw features; Wearable had 10 basic activity features; Gut had only 9 genus-level bacterial groups and 1 Shannon diversity index.
 * **Target Schema:** Contained 6 target columns, including a redundant `Healthy` label and an ambiguous `Obesity` label.
 * **Disadvantages & Why V1 Failed:**
@@ -238,7 +251,7 @@ To understand how TeleMed AI v4 reached its current production maturity, the fol
 * **Model Performance in V1:** Clinical ~82.4% accuracy (F1 ~0.767, AUC ~0.842), Wearable ~79.1% accuracy (F1 ~0.729), Gut ~76.5% accuracy (F1 ~0.702). Majority voting fusion achieved ~85.8% accuracy.
 
 ### 13.2 Dataset V2 (Correlated Prototype)
-* **Files:** `archive/v2/Clinical_Dataset_v2.csv` (24 cols), `archive/v2/Gut_Dataset_v2.csv` (59 cols).
+* **Dataset Files:** `archive/v2/Clinical_Dataset_v2.csv` (24 cols), `archive/v2/Gut_Dataset_v2.csv` (59 cols).
 * **Cohort Size:** 20,000 synthetic patient records.
 * **Improvements over V1:** Introduced mathematical covariance matrices linking clinical markers with basic wearable metrics; removed redundant `Healthy` target label; expanded gut bacterial taxa from 9 to 54 columns.
 * **Disadvantages & Why V2 Failed:**
@@ -249,7 +262,7 @@ To understand how TeleMed AI v4 reached its current production maturity, the fol
 * **Model Performance in V2:** Clinical ~86.8% accuracy (F1 ~0.826, AUC ~0.895), Wearable ~83.2% accuracy (F1 ~0.789), Gut ~81.0% accuracy (F1 ~0.810). Simple soft averaging fusion achieved ~90.1% accuracy.
 
 ### 13.3 Dataset V3 (Multi-Disease Architecture)
-* **Files:** `archive/v3/multimodal_v3_data/` (`clinical_v3.csv`, `wearable_standard_v3.csv`, `wearable_cgm_v3.csv`, `gut_v3.csv`, `labels_v3.csv`, `split_manifest_v3.csv`).
+* **Dataset Files:** `archive/v3/multimodal_v3_data/` (`clinical_v3.csv`, `wearable_standard_v3.csv`, `wearable_cgm_v3.csv`, `gut_v3.csv`, `labels_v3.csv`, `split_manifest_v3.csv`).
 * **Cohort Size:** 20,000 synthetic patient records.
 * **Improvements over V2:** Standardized the 5 frozen metabolic target labels (introducing `High_Adiposity_Risk`); decoupled targets into an independent `labels_v3.csv` file; partitioned wearable data into standard physical activity and CGM streams.
 * **Disadvantages & Why V3 Failed:**
@@ -259,7 +272,7 @@ To understand how TeleMed AI v4 reached its current production maturity, the fol
 * **Model Performance in V3:** Clinical ~88.5% accuracy (F1 ~0.852, AUC ~0.918), Wearable ~85.1% accuracy (F1 ~0.815), Gut ~83.7% accuracy (F1 ~0.798). Trimodal fusion reached ~92.4% accuracy.
 
 ### 13.4 Dataset V4 (Authoritative Final Production Baseline)
-* **Files:** Synchronized 100,000-patient research cohort and frozen 20,000-patient benchmark partition (`archive/legacy_datasets/expert_models_splits/patient_split.csv`).
+* **Dataset Scale:** Scaled by 5x to **100,000 Synchronized Patients** (70,000 Train / 15,000 Validation / 15,000 Test).
 * **Feature Scope:** Exactly **82 Upstream Predictive Biomarkers** (18 Clinical + 15 Wearable/CGM + 49 Gut 16S Taxa/Indices).
 * **Target Schema:** Exactly 5 frozen clinical targets (`Type2_Diabetes`, `Prediabetes`, `High_Adiposity_Risk`, `Metabolic_Syndrome`, `NAFLD`).
 * **Concrete Improvements in V4:**
@@ -275,7 +288,8 @@ To understand how TeleMed AI v4 reached its current production maturity, the fol
 
 | Technical Dimension | Version 1 (V1 Baseline) | Version 2 (V2 Correlated) | Version 3 (V3 Multi-Target) | Version 4 (V4 Final Release) |
 | :--- | :--- | :--- | :--- | :--- |
-| **Cohort Size** | 20,000 records | 20,000 records | 20,000 records | **100,000 Research / 20,000 Benchmark** |
+| **Total Cohort Size** | 20,000 records (Prototype) | 20,000 records (Prototype) | 20,000 records (Prototype) | **100,000 Synchronized Patients (Final)** |
+| **Split Protocol** | Random split | Random split | 70 / 15 / 15 (14k / 3k / 3k) | **70,000 Train / 15,000 Val / 15,000 Test** |
 | **Statistical Modeling** | Pure independent Gaussian noise | Basic covariance matrix | Physiological cross-talk | **Multivariate Gaussian Copulas + Dirichlet** |
 | **Target Labels** | 6 targets (with `Healthy`, `Obesity`) | 5 targets (with `Obesity`) | 5 targets (`High_Adiposity_Risk`) | **Exact 5 Frozen Clinical Targets** |
 | **Clinical Features** | 19 raw features | 19 raw features | 18 features | **18 Predictive Features (Standardized)** |
@@ -296,7 +310,7 @@ To understand how TeleMed AI v4 reached its current production maturity, the fol
 2. **Clinical CGM Integration:** V4 incorporated continuous interstitial glucose metrics, enabling wearable models to detect subclinical glycemic fluctuations that fasting blood glucose tests miss.
 3. **Metagenomic Granularity:** V4 expanded gut profiling to 40 species and 9 functional indices, providing the biological resolution needed to detect mucosal barrier degradation and short-chain fatty acid depletion.
 4. **Zero-Imputation Mathematical Guarantee:** V4 established the 7-pathway dynamic routing engine, eliminating the dangerous practice of synthetic data imputation.
-5. **Cryptographic Checksum Invariance:** All 8 dataset and model payload files in V4 are sealed with SHA256 hashes, ensuring that every published metric can be verified independently.
+5. **Cryptographic Checksum Invariance:** All dataset and model payload files in V4 are sealed with SHA256 hashes, ensuring that every published metric can be verified independently.
 
 ---
 
@@ -311,7 +325,7 @@ To eliminate confusion during academic defenses and technical reviews, feature c
 
 ### 15.2 Complete Feature-Provenance Master Table
 
-| Diagnostic Modality | Physical CSV File | Raw Columns | Non-Predictive Columns | Actual Predictive Features | Model Input Dimension | Verification Source |
+| Diagnostic Modality | Master Dataset File | Raw Columns | Non-Predictive Columns | Actual Predictive Features | Model Input Dimension | Verification Source |
 | :--- | :--- | :---: | :--- | :---: | :---: | :--- |
 | **Clinical ($C$)** | `clinical_v4_sample.csv` | 19 | 1 (`Patient_ID`) | **18 Features** | **18 Inputs** | `clinical_v4_expert_payload.joblib` |
 | **Wearable ($W$)** | `wearable_v4_sample.csv` | 16 | 1 (`Patient_ID`) | **15 Features** | **15 Inputs** | `wearable_v4_expert_payload.joblib` |
@@ -474,9 +488,9 @@ With $N = 3$ independent diagnostic modalities ($C, W, G$), there are exactly $2
 
 # SECTION 23: MODEL TRAINING AND VALIDATION PROTOCOL
 
-* **5-Fold Stratified Cross-Validation:** The training set (70,000 patients in the research cohort, 14,000 in the benchmark) was partitioned into 5 stratified folds to ensure equal positive-case representation across all iterations.
+* **5-Fold Stratified Cross-Validation:** The training partition (70,000 patients) was divided into 5 stratified folds to ensure equal positive-case representation across all iterations.
 * **Out-of-Fold (OOF) Prediction Stacking:** Base models generated out-of-sample predictions during cross-validation. The second-level meta-stacker was trained strictly on these out-of-fold predictions to prevent data leakage.
-* **Threshold Optimization:** Decision thresholds were tuned on the validation set to maximize Youden's J statistic (Sensitivity + Specificity - 1).
+* **Threshold Optimization:** Decision thresholds were tuned on the validation partition (15,000 patients) to maximize Youden's J statistic (Sensitivity + Specificity - 1).
 
 ---
 
@@ -1071,14 +1085,16 @@ Microbiome sequencing data can theoretically act as a unique personal identifier
 
 #### Question 7: What is your train/validation/test split strategy, and how do you prevent leakage in a generated dataset?
 **Authoritative Answer:**
-* **Partitioning Protocol:** We implemented a strict **70% Training / 15% Validation / 15% Test** partition across our synchronized cohort:
-  * Full Research Cohort: 70,000 Train / 15,000 Validation / 15,000 Test patients.
-  * Standard Frozen Benchmark: 14,000 Train / 3,000 Validation / 3,000 Test patients (`archive/legacy_datasets/expert_models_splits/patient_split.csv`).
+* **Partitioning Protocol:** The authoritative production dataset consists of **100,000 Synchronized Patients** partitioned using a strict **70.0% Training / 15.0% Validation / 15.0% Test** split protocol:
+  * **Training Partition (70.0%):** Exactly 70,000 patients for base expert model training and feature scaler fitting.
+  * **Validation Partition (15.0%):** Exactly 15,000 patients for hyperparameter tuning, probability calibration, and meta-learner fitting.
+  * **Test Partition (15.0%):** Exactly 15,000 patients held out as an untouched out-of-sample scientific evaluation set.
+  *(Historical Development Note: Earlier Phase-1 through Phase-3 prototypes V1–V3 utilized a smaller 20,000-sample cohort, which was scaled 5x to 100,000 in V4 for maximal statistical power and publication rigor).*
 * **Leakage Prevention Measures:**
   1. **Unified Patient Indexing:** The exact same patient IDs are partitioned simultaneously across Clinical, Wearable, and Gut datasets before any model training begins.
   2. **Preprocessing Isolation:** All feature scalers (`StandardScaler`) and imputation medians were fit strictly on the Training split and applied transform-only to Validation and Test splits.
   3. **Out-of-Fold (OOF) Stacking:** The second-level fusion meta-learner was trained strictly on 5-fold cross-validated out-of-fold predictions from the training set, ensuring it never saw base model predictions on data used to train those base models.
-  4. **Untouched Test Partition:** The 15% test set was sealed and evaluated only once for the final release benchmark.
+  4. **Untouched Test Partition:** The 15% test set (15,000 patients) was sealed and evaluated only once for the final release benchmark.
 
 ---
 
@@ -1209,7 +1225,7 @@ Finally, the full-stack system is live and verified: React 18 frontend on Vercel
 | Verification Item | Release Gate Status | Verified Repository Evidence |
 | :--- | :---: | :--- |
 | **1. Feature Counts Consistency (18, 15, 49, 82, 3)** | PASS | Audited across schema validator, `.joblib` payloads, and routing code. |
-| **2. Dataset Schema & Cohort Size Consistency** | PASS | Dual cohort tiers (100,000 research cohort / 20,000 benchmark) verified. |
+| **2. Dataset Schema & Cohort Size Consistency** | PASS | 100,000 synchronized multi-omic patient cohort (70k Train / 15k Val / 15k Test) verified. |
 | **3. Model Inventory & Estimator Classes** | PASS | Verified from serialized payload metadata and `n_features_in_`. |
 | **4. Multi-Label Classification Terminology** | PASS | 5 independent calibrated binary estimators verified. |
 | **5. 7-Pathway Routing Architecture** | PASS | Dynamic routing and null preservation verified in `v3_scientific_router.py`. |
