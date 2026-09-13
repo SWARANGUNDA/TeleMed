@@ -1403,42 +1403,119 @@ def create_doctor_credential(
     mime_type: str
 ) -> Dict[str, Any]:
     """Save an uploaded doctor credential document metadata entry and record audit event."""
-    conn = get_db_connection()
     doc_id = f"doc_cred_{secrets.token_hex(6)}"
     now = datetime.datetime.now(datetime.timezone.utc).isoformat()
 
+    # 1. Primary: PostgreSQL via SessionLocal
+    try:
+        session = SessionLocal()
+        try:
+            doc_profile = session.query(pg_models.DoctorProfile).filter(
+                (pg_models.DoctorProfile.doctor_id == doctor_id) | (pg_models.DoctorProfile.user_id == user_id)
+            ).first()
+            actual_doc_id = doc_profile.doctor_id if doc_profile else doctor_id
+
+            cred = pg_models.DoctorCredential(
+                document_id=doc_id,
+                doctor_id=actual_doc_id,
+                user_id=user_id,
+                document_type=document_type,
+                original_filename=original_filename,
+                stored_filename=stored_filename,
+                file_path=file_path,
+                file_size_bytes=file_size_bytes,
+                mime_type=mime_type,
+                uploaded_at=now
+            )
+            session.add(cred)
+            audit = pg_models.DoctorAuditLog(
+                log_id=f"aud_{secrets.token_hex(6)}",
+                doctor_id=actual_doc_id,
+                user_id=user_id,
+                action="DOCUMENT_UPLOADED",
+                old_status=None,
+                new_status=None,
+                actor_user_id=user_id,
+                actor_role="DOCTOR",
+                reason=f"Uploaded credential document '{original_filename}' ({document_type})",
+                timestamp=now
+            )
+            session.add(audit)
+            session.commit()
+            logger.info("Persisted credential %s to PostgreSQL for doctor %s", doc_id, actual_doc_id)
+        finally:
+            session.close()
+    except Exception as err:
+        logger.warning("SessionLocal create_doctor_credential notice: %s", err)
+
+    # 2. SQLite dual-write for local fallback & test-client consistency
+    conn = get_db_connection()
     try:
         with conn:
             conn.execute("""
-                INSERT INTO doctor_credentials (
+                INSERT OR REPLACE INTO doctor_credentials (
                     document_id, doctor_id, user_id, document_type, original_filename, stored_filename, file_path, file_size_bytes, mime_type, uploaded_at
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (doc_id, doctor_id, user_id, document_type, original_filename, stored_filename, file_path, file_size_bytes, mime_type, now))
 
-            # Audit log
             log_id = f"aud_{secrets.token_hex(6)}"
             conn.execute("""
                 INSERT INTO doctor_audit_logs (
                     log_id, doctor_id, user_id, action, old_status, new_status, actor_user_id, actor_role, reason, timestamp
                 ) VALUES (?, ?, ?, 'DOCUMENT_UPLOADED', NULL, NULL, ?, 'DOCTOR', ?, ?)
             """, (log_id, doctor_id, user_id, user_id, f"Uploaded credential document '{original_filename}' ({document_type})", now))
-
-            row = conn.execute("SELECT * FROM doctor_credentials WHERE document_id = ?", (doc_id,)).fetchone()
-            d = dict(row)
-            # Remove raw absolute internal file path from output dict
-            d.pop("file_path", None)
-            return d
+    except Exception as err:
+        logger.warning("SQLite create_doctor_credential notice: %s", err)
     finally:
         conn.close()
+
+    return {
+        "document_id": doc_id,
+        "doctor_id": doctor_id,
+        "user_id": user_id,
+        "document_type": document_type,
+        "original_filename": original_filename,
+        "stored_filename": stored_filename,
+        "file_size_bytes": file_size_bytes,
+        "mime_type": mime_type,
+        "uploaded_at": now
+    }
 
 
 def list_doctor_credentials(doctor_id: str) -> List[Dict[str, Any]]:
     """Fetch metadata for all credential documents submitted by a doctor."""
+    try:
+        session = SessionLocal()
+        try:
+            creds = session.query(pg_models.DoctorCredential).filter(
+                (pg_models.DoctorCredential.doctor_id == doctor_id) |
+                (pg_models.DoctorCredential.user_id == doctor_id)
+            ).order_by(pg_models.DoctorCredential.uploaded_at.desc()).all()
+            if creds:
+                return [
+                    {
+                        "document_id": c.document_id,
+                        "doctor_id": c.doctor_id,
+                        "user_id": c.user_id,
+                        "document_type": c.document_type,
+                        "original_filename": c.original_filename,
+                        "stored_filename": c.stored_filename,
+                        "file_size_bytes": c.file_size_bytes,
+                        "mime_type": c.mime_type,
+                        "uploaded_at": c.uploaded_at
+                    }
+                    for c in creds
+                ]
+        finally:
+            session.close()
+    except Exception as err:
+        logger.warning("SessionLocal list_doctor_credentials notice: %s", err)
+
     conn = get_db_connection()
     try:
         rows = conn.execute(
-            "SELECT document_id, doctor_id, user_id, document_type, original_filename, stored_filename, file_size_bytes, mime_type, uploaded_at FROM doctor_credentials WHERE doctor_id = ? ORDER BY uploaded_at DESC",
-            (doctor_id,)
+            "SELECT document_id, doctor_id, user_id, document_type, original_filename, stored_filename, file_size_bytes, mime_type, uploaded_at FROM doctor_credentials WHERE doctor_id = ? OR user_id = ? ORDER BY uploaded_at DESC",
+            (doctor_id, doctor_id)
         ).fetchall()
         return [dict(r) for r in rows]
     finally:
@@ -1447,6 +1524,30 @@ def list_doctor_credentials(doctor_id: str) -> List[Dict[str, Any]]:
 
 def get_doctor_credential_by_id(document_id: str) -> Optional[Dict[str, Any]]:
     """Internal helper to retrieve credential metadata including file path for authorized download."""
+    try:
+        session = SessionLocal()
+        try:
+            cred = session.query(pg_models.DoctorCredential).filter(
+                pg_models.DoctorCredential.document_id == document_id
+            ).first()
+            if cred:
+                return {
+                    "document_id": cred.document_id,
+                    "doctor_id": cred.doctor_id,
+                    "user_id": cred.user_id,
+                    "document_type": cred.document_type,
+                    "original_filename": cred.original_filename,
+                    "stored_filename": cred.stored_filename,
+                    "file_path": cred.file_path,
+                    "file_size_bytes": cred.file_size_bytes,
+                    "mime_type": cred.mime_type,
+                    "uploaded_at": cred.uploaded_at
+                }
+        finally:
+            session.close()
+    except Exception as err:
+        logger.warning("SessionLocal get_doctor_credential_by_id notice: %s", err)
+
     conn = get_db_connection()
     try:
         row = conn.execute("SELECT * FROM doctor_credentials WHERE document_id = ?", (document_id,)).fetchone()
@@ -1457,22 +1558,71 @@ def get_doctor_credential_by_id(document_id: str) -> Optional[Dict[str, Any]]:
 
 def delete_doctor_credential(user_id: str, document_id: str) -> bool:
     """Delete a doctor credential document if owned by the requesting user."""
+    deleted = False
+    try:
+        session = SessionLocal()
+        try:
+            cred = session.query(pg_models.DoctorCredential).filter(
+                pg_models.DoctorCredential.document_id == document_id,
+                (pg_models.DoctorCredential.user_id == user_id) | (pg_models.DoctorCredential.doctor_id == user_id)
+            ).first()
+            if cred:
+                session.delete(cred)
+                session.commit()
+                deleted = True
+        finally:
+            session.close()
+    except Exception as err:
+        logger.warning("SessionLocal delete_doctor_credential notice: %s", err)
+
     conn = get_db_connection()
     try:
         with conn:
-            cursor = conn.execute("DELETE FROM doctor_credentials WHERE user_id = ? AND document_id = ?", (user_id, document_id))
-            return cursor.rowcount > 0
+            cursor = conn.execute(
+                "DELETE FROM doctor_credentials WHERE (user_id = ? OR doctor_id = ?) AND document_id = ?",
+                (user_id, user_id, document_id)
+            )
+            if cursor.rowcount > 0:
+                deleted = True
     finally:
         conn.close()
+    return deleted
 
 
 def get_doctor_audit_history(doctor_id: str) -> List[Dict[str, Any]]:
     """Retrieve audit history log for a doctor application."""
+    try:
+        session = SessionLocal()
+        try:
+            logs = session.query(pg_models.DoctorAuditLog).filter(
+                (pg_models.DoctorAuditLog.doctor_id == doctor_id) | (pg_models.DoctorAuditLog.user_id == doctor_id)
+            ).order_by(pg_models.DoctorAuditLog.timestamp.asc()).all()
+            if logs:
+                return [
+                    {
+                        "log_id": l.log_id,
+                        "doctor_id": l.doctor_id,
+                        "user_id": l.user_id,
+                        "action": l.action,
+                        "old_status": l.old_status,
+                        "new_status": l.new_status,
+                        "actor_user_id": l.actor_user_id,
+                        "actor_role": l.actor_role,
+                        "reason": l.reason,
+                        "timestamp": l.timestamp
+                    }
+                    for l in logs
+                ]
+        finally:
+            session.close()
+    except Exception as err:
+        logger.warning("SessionLocal get_doctor_audit_history notice: %s", err)
+
     conn = get_db_connection()
     try:
         rows = conn.execute(
-            "SELECT log_id, doctor_id, user_id, action, old_status, new_status, actor_user_id, actor_role, reason, timestamp FROM doctor_audit_logs WHERE doctor_id = ? ORDER BY timestamp ASC",
-            (doctor_id,)
+            "SELECT log_id, doctor_id, user_id, action, old_status, new_status, actor_user_id, actor_role, reason, timestamp FROM doctor_audit_logs WHERE doctor_id = ? OR user_id = ? ORDER BY timestamp ASC",
+            (doctor_id, doctor_id)
         ).fetchall()
         return [dict(r) for r in rows]
     finally:
@@ -1481,12 +1631,87 @@ def get_doctor_audit_history(doctor_id: str) -> List[Dict[str, Any]]:
 
 def submit_doctor_application(user_id: str) -> Dict[str, Any]:
     """Transition a doctor application from PENDING or RESUBMISSION_REQUIRED to UNDER_REVIEW."""
-    conn = get_db_connection()
     now = datetime.datetime.now(datetime.timezone.utc).isoformat()
+    new_status = "UNDER_REVIEW"
+
+    # 1. Primary: PostgreSQL via SessionLocal
+    try:
+        session = SessionLocal()
+        try:
+            doc = session.query(pg_models.DoctorProfile).filter(
+                (pg_models.DoctorProfile.user_id == user_id) | (pg_models.DoctorProfile.doctor_id == user_id)
+            ).first()
+            if doc:
+                doctor_id = doc.doctor_id
+                current_status = doc.verification_status or "PENDING"
+                if current_status == "VERIFIED":
+                    return get_doctor_application_detail(doctor_id)
+                if current_status == "UNDER_REVIEW":
+                    return get_doctor_application_detail(doctor_id)
+
+                # Count credentials in PostgreSQL
+                doc_count = session.query(pg_models.DoctorCredential).filter(
+                    (pg_models.DoctorCredential.doctor_id == doctor_id) |
+                    (pg_models.DoctorCredential.user_id == user_id)
+                ).count()
+
+                # Also check SQLite count
+                conn_check = get_db_connection()
+                try:
+                    sq_count = conn_check.execute(
+                        "SELECT COUNT(*) FROM doctor_credentials WHERE doctor_id = ? OR user_id = ?",
+                        (doctor_id, user_id)
+                    ).fetchone()[0]
+                    doc_count = max(doc_count, sq_count)
+                finally:
+                    conn_check.close()
+
+                if doc_count == 0:
+                    raise ValueError("Please upload at least one verification document before submitting for review.")
+
+                doc.verification_status = new_status
+                log_id = f"aud_{secrets.token_hex(6)}"
+                audit = pg_models.DoctorAuditLog(
+                    log_id=log_id,
+                    doctor_id=doctor_id,
+                    user_id=doc.user_id,
+                    action="STATUS_CHANGED",
+                    old_status=current_status,
+                    new_status=new_status,
+                    actor_user_id=user_id,
+                    actor_role="DOCTOR",
+                    reason="Doctor submitted credentials for admin review",
+                    timestamp=now
+                )
+                session.add(audit)
+                session.commit()
+                logger.info("Doctor %s submitted application for review in PostgreSQL", doctor_id)
+
+                # Sync to SQLite
+                conn_sync = get_db_connection()
+                try:
+                    with conn_sync:
+                        conn_sync.execute(
+                            "UPDATE doctor_profiles SET verification_status = ? WHERE doctor_id = ? OR user_id = ?",
+                            (new_status, doctor_id, user_id)
+                        )
+                finally:
+                    conn_sync.close()
+
+                return get_doctor_application_detail(doctor_id)
+        finally:
+            session.close()
+    except ValueError:
+        raise
+    except Exception as err:
+        logger.warning("SessionLocal submit_doctor_application notice: %s, falling back to SQLite", err)
+
+    # 2. SQLite Fallback
+    conn = get_db_connection()
     try:
         cursor = conn.execute(
-            "SELECT doctor_id, verification_status, full_name, registration_number, specialization, experience_years FROM doctor_profiles WHERE user_id = ?",
-            (user_id,)
+            "SELECT doctor_id, verification_status, full_name, registration_number, specialization, experience_years FROM doctor_profiles WHERE user_id = ? OR doctor_id = ?",
+            (user_id, user_id)
         )
         doc_row = cursor.fetchone()
         if not doc_row:
@@ -1499,15 +1724,12 @@ def submit_doctor_application(user_id: str) -> Dict[str, Any]:
         if current_status == "UNDER_REVIEW":
             return get_doctor_application_detail(doctor_id)
 
-        # Require at least one verification document uploaded
-        doc_count = conn.execute("SELECT COUNT(*) FROM doctor_credentials WHERE doctor_id = ?", (doctor_id,)).fetchone()[0]
+        doc_count = conn.execute("SELECT COUNT(*) FROM doctor_credentials WHERE doctor_id = ? OR user_id = ?", (doctor_id, user_id)).fetchone()[0]
         if doc_count == 0:
             raise ValueError("Please upload at least one verification document before submitting for review.")
 
-        new_status = "UNDER_REVIEW"
         with conn:
-            conn.execute("UPDATE doctor_profiles SET verification_status = ? WHERE doctor_id = ?", (new_status, doctor_id))
-            # Audit log
+            conn.execute("UPDATE doctor_profiles SET verification_status = ? WHERE doctor_id = ? OR user_id = ?", (new_status, doctor_id, user_id))
             log_id = f"aud_{secrets.token_hex(6)}"
             conn.execute("""
                 INSERT INTO doctor_audit_logs (
@@ -3124,6 +3346,38 @@ def get_doctor_profile(user_id: str) -> Optional[Dict[str, Any]]:
     """Fetch doctor profile details for user_id or doctor_id."""
     if not user_id:
         return None
+    # 1. Primary: PostgreSQL via SessionLocal
+    try:
+        session = SessionLocal()
+        try:
+            doc = session.query(pg_models.DoctorProfile).filter(
+                (pg_models.DoctorProfile.user_id == user_id) | (pg_models.DoctorProfile.doctor_id == user_id)
+            ).first()
+            if doc:
+                return {
+                    "doctor_id": doc.doctor_id,
+                    "user_id": doc.user_id,
+                    "full_name": doc.full_name,
+                    "specialization": doc.specialization,
+                    "specialty": doc.specialization,
+                    "qualification": doc.qualification or "",
+                    "registration_number": doc.registration_number,
+                    "license_number": doc.registration_number,
+                    "registration_council": doc.registration_council or "",
+                    "medical_council": doc.registration_council or "",
+                    "experience_years": doc.experience_years or 0,
+                    "contact_number": doc.contact_number or "",
+                    "hospital_affiliation": doc.hospital_affiliation or "",
+                    "verification_status": doc.verification_status or "PENDING",
+                    "credential_notes": doc.credential_notes or "",
+                    "created_at": doc.created_at
+                }
+        finally:
+            session.close()
+    except Exception as err:
+        logger.warning("SessionLocal get_doctor_profile notice: %s, falling back to SQLite", err)
+
+    # 2. SQLite Fallback
     conn = get_db_connection()
     try:
         row = conn.execute("SELECT * FROM doctor_profiles WHERE user_id = ? OR doctor_id = ?", (user_id, user_id)).fetchone()
@@ -3140,9 +3394,46 @@ def get_doctor_profile(user_id: str) -> Optional[Dict[str, Any]]:
 
 
 def update_doctor_profile(user_id: str, updates: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-    """Update doctor profile fields in persistent SQLite database."""
+    """Update doctor profile fields in persistent PostgreSQL and SQLite databases."""
     if not user_id or not updates:
         return None
+
+    # 1. Primary: PostgreSQL via SessionLocal
+    try:
+        session = SessionLocal()
+        try:
+            doc = session.query(pg_models.DoctorProfile).filter(
+                (pg_models.DoctorProfile.user_id == user_id) | (pg_models.DoctorProfile.doctor_id == user_id)
+            ).first()
+            if doc:
+                for k, v in updates.items():
+                    if k in ("full_name", "qualification", "contact_number", "hospital_affiliation", "verification_status"):
+                        setattr(doc, k, v)
+                    elif k in ("specialization", "specialty"):
+                        doc.specialization = v
+                    elif k in ("registration_number", "license_number"):
+                        doc.registration_number = v
+                    elif k in ("registration_council", "medical_council"):
+                        doc.registration_council = v
+                    elif k == "experience_years":
+                        try:
+                            doc.experience_years = int(v)
+                        except (ValueError, TypeError):
+                            pass
+
+                if "full_name" in updates:
+                    u = session.query(pg_models.User).filter(pg_models.User.user_id == doc.user_id).first()
+                    if u:
+                        u.full_name = updates["full_name"]
+
+                session.commit()
+                logger.info("Updated doctor profile for %s in PostgreSQL", user_id)
+        finally:
+            session.close()
+    except Exception as err:
+        logger.warning("SessionLocal update_doctor_profile notice: %s, continuing with SQLite", err)
+
+    # 2. SQLite Update
     conn = get_db_connection()
     try:
         fields = []
@@ -3163,7 +3454,8 @@ def update_doctor_profile(user_id: str, updates: Dict[str, Any]) -> Optional[Dic
         conn.commit()
         return get_doctor_profile(user_id)
     except Exception as e:
-        return None
+        logger.warning("SQLite update_doctor_profile notice: %s", e)
+        return get_doctor_profile(user_id)
     finally:
         conn.close()
 

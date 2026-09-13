@@ -10,7 +10,7 @@ import {
   fetchUserAppointments, fetchMyDoctorAvailability, addDoctorAvailabilitySlot,
   deleteDoctorAvailabilitySlot, updateAppointmentStatus, joinAppointment,
   fetchVerifiedDoctors, bookAppointment, fetchPatientConsultations, configureDoctorAvailability,
-  getAuthToken
+  getAuthToken, getWsBaseUrl
 } from '../api/client';
 import AppointmentBookingModal from '../components/AppointmentBookingModal';
 
@@ -169,11 +169,10 @@ export default function AppointmentsPage({ user, onNavigate }) {
     let pingInterval = null;
 
     try {
-      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      const isDev = ['localhost', '127.0.0.1'].includes(window.location.hostname) && ['5173', '5174', '5175', '5176'].includes(window.location.port);
-      const host = isDev ? `${window.location.hostname}:8000` : window.location.host;
+      const wsBase = getWsBaseUrl();
+      if (!wsBase) return;
       const token = getAuthToken() || user.user_id;
-      ws = new WebSocket(`${protocol}//${host}/ws/notifications/${user.user_id}?token=${encodeURIComponent(token)}`);
+      ws = new WebSocket(`${wsBase}/ws/notifications/${user.user_id}?token=${encodeURIComponent(token)}`);
       socketRef.current = ws;
 
       ws.onopen = () => {

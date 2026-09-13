@@ -13,7 +13,7 @@
  */
 
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { getAuthToken } from '../api/client';
+import { getAuthToken, getWsBaseUrl } from '../api/client';
 
 export const CALL_STATES = {
   IDLE: 'IDLE',
@@ -50,14 +50,6 @@ function getIceConfig() {
     });
   }
   return config;
-}
-
-function getWsBaseUrl() {
-  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-  const isDev = ['localhost', '127.0.0.1'].includes(window.location.hostname)
-    && ['5173', '5174', '5175', '5176'].includes(window.location.port);
-  const host = isDev ? `${window.location.hostname}:8000` : window.location.host;
-  return `${protocol}//${host}`;
 }
 
 export default function useWebRTCCall(consultationId, user) {

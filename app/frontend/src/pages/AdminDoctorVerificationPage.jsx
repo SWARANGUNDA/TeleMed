@@ -194,7 +194,19 @@ export default function AdminDoctorVerificationPage() {
     setSubmitting(true);
     try {
       const docId = selectedApp.doctor_id || selectedApp.id;
-      await transitionDoctorStatus(docId, newStatus, transitionReason);
+      const currentStatus = (selectedApp.verification_status || 'PENDING').toUpperCase();
+
+      // If application is PENDING and admin is approving or requesting resubmission,
+      // transition through UNDER_REVIEW first so the backend state machine is strictly satisfied
+      if (currentStatus === 'PENDING' && newStatus !== 'UNDER_REVIEW') {
+        try {
+          await transitionDoctorStatus(docId, 'UNDER_REVIEW', 'Admin opened audit workspace');
+        } catch (e) {
+          console.warn('Pre-transition to UNDER_REVIEW note:', e);
+        }
+      }
+
+      await transitionDoctorStatus(docId, newStatus, transitionReason || (newStatus === 'VERIFIED' ? 'Credentials verified against official medical registry' : ''));
       alert(`Doctor Status Updated to ${newStatus.replace(/_/g, ' ')}`);
       setSelectedApp(null);
       await loadApplications();

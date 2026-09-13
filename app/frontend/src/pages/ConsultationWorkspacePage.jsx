@@ -22,7 +22,8 @@ import {
   fetchConsultationNote,
   completeConsultation,
   respondToDoctorAssignment,
-  getAuthToken
+  getAuthToken,
+  getWsBaseUrl
 } from '../api/client';
 import useAudioCall, { CALL_STATES } from '../utils/useAudioCall';
 
@@ -339,11 +340,9 @@ export default function ConsultationWorkspacePage({ user, consultationContext, i
     let pingInterval = null;
 
     try {
-      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      const isDev = ['localhost', '127.0.0.1'].includes(window.location.hostname) && ['5173', '5174', '5175', '5176'].includes(window.location.port);
-      const host = isDev ? `${window.location.hostname}:8000` : window.location.host;
+      const wsBase = getWsBaseUrl();
       const token = getAuthToken() || user?.user_id || '';
-      const wsUrl = `${protocol}//${host}/ws/chat/${cId}?token=${encodeURIComponent(token)}`;
+      const wsUrl = `${wsBase}/ws/chat/${cId}?token=${encodeURIComponent(token)}`;
       ws = new WebSocket(wsUrl);
       socketRef.current = ws;
 

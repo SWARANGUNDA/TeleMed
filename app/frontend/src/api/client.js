@@ -19,19 +19,44 @@ export function getCsrfToken() {
   }
 }
 
+export function getWsBaseUrl() {
+  if (typeof window === 'undefined') return '';
+  const isDev = ['localhost', '127.0.0.1'].includes(window.location.hostname) && ['5173', '5174', '5175', '5176'].includes(window.location.port);
+  if (isDev) {
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    return `${protocol}//${window.location.hostname}:8000`;
+  }
+  if (import.meta.env?.VITE_WS_URL) {
+    return import.meta.env.VITE_WS_URL;
+  }
+  return 'wss://telemed-3koh.onrender.com';
+}
+
 export function getAuthToken() {
-  if (_inMemoryAccessToken) return _inMemoryAccessToken;
-  try {
-    if (typeof sessionStorage !== 'undefined') {
-      const sTok = sessionStorage.getItem('telemed_auth_token') || sessionStorage.getItem('telemed_token');
-      if (sTok) return sTok;
-    }
-    if (typeof localStorage !== 'undefined') {
-      const lTok = localStorage.getItem('telemed_auth_token') || localStorage.getItem('telemed_token');
-      if (lTok) return lTok;
-    }
-  } catch (e) {}
-  return '';
+  let token = _inMemoryAccessToken;
+  if (!token) {
+    try {
+      if (typeof sessionStorage !== 'undefined') {
+        token = sessionStorage.getItem('telemed_auth_token') || sessionStorage.getItem('telemed_token') || '';
+      }
+      if (!token && typeof localStorage !== 'undefined') {
+        token = localStorage.getItem('telemed_auth_token') || localStorage.getItem('telemed_token') || '';
+      }
+    } catch (e) {}
+  }
+  if (token) {
+    try {
+      const parts = token.split('.');
+      if (parts.length === 3) {
+        const payload = JSON.parse(atob(parts[1]));
+        if (payload.exp && payload.exp * 1000 < Date.now()) {
+          setAuthToken(null);
+          return '';
+        }
+      }
+    } catch (e) {}
+  }
+  return token || '';
 }
 
 export function setAuthToken(token) {
