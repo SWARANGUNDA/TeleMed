@@ -141,10 +141,19 @@ export default function ReportPage({ user, session, predictionData, onDiscussWit
   const pathwayUsed = predictionData?.effective_pathway || predictionData?.pathway_used || 'C+W+G';
   const dqScore = Math.round(predictionData?.data_quality_score ? (predictionData.data_quality_score * 100) : (predictionData?.overall_quality_score || 85));
 
-  const predictions = predictionData?.predictions || predictionData?.disease_outcomes || {};
-  const clinFeats = predictionData?.confirmed_features?.clinical || predictionData?.clinical_features || {};
-  const wearFeats = predictionData?.confirmed_features?.wearable || predictionData?.wearable_features || {};
-  const gutFeats = predictionData?.confirmed_features?.gut || predictionData?.gut_features || {};
+  const safeParseFeats = (obj) => {
+    if (!obj) return {};
+    if (typeof obj === 'string') {
+      try { return JSON.parse(obj); } catch (e) { return {}; }
+    }
+    return typeof obj === 'object' ? obj : {};
+  };
+
+  const rawConf = safeParseFeats(predictionData?.confirmed_features) || safeParseFeats(session?.confirmed_features) || {};
+  const predictions = safeParseFeats(predictionData?.predictions) || safeParseFeats(predictionData?.disease_outcomes) || {};
+  const clinFeats = safeParseFeats(rawConf.clinical || predictionData?.clinical_features || predictionData?.clinical_data || session?.confirmed_features?.clinical || {});
+  const wearFeats = safeParseFeats(rawConf.wearable || predictionData?.wearable_features || predictionData?.wearable_data || session?.confirmed_features?.wearable || {});
+  const gutFeats = safeParseFeats(rawConf.gut || predictionData?.gut_features || predictionData?.gut_data || session?.confirmed_features?.gut || {});
 
   // Sort diseases by probability descending
   const sortedDiseases = Object.keys(predictions).map(k => {

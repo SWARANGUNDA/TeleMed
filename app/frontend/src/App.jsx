@@ -260,20 +260,29 @@ export default function App() {
 
             if (userRecords.length > 0) {
               const latest = userRecords[0];
-              const snap = latest.prediction_snapshot || latest;
+              const rawSnap = latest.prediction_snapshot || latest;
+              const features = latest.confirmed_features || rawSnap.confirmed_features || {};
+              const snap = {
+                ...rawSnap,
+                confirmed_features: features,
+                active_modalities: latest.active_modalities || rawSnap.active_modalities || ['clinical', 'wearable', 'gut'],
+                effective_pathway: latest.effective_pathway || rawSnap.effective_pathway || rawSnap.pathway_used || 'C+W+G',
+                data_quality_score: latest.data_quality_score ?? rawSnap.data_quality_score,
+                record_id: latest.record_id || rawSnap.record_id,
+              };
               if (snap) {
                 setPredictionData(snap);
                 setSession(prev => prev || {
                   session_id: latest.record_id || latest.session_id || `P_${currentUser.user_id?.slice(-6) || 'REC'}`,
-                  confirmed_features: snap.confirmed_features || snap.clinical_features || {},
-                  effective_pathway: snap.effective_pathway || snap.pathway_used || 'C+W+G',
+                  confirmed_features: features,
+                  effective_pathway: snap.effective_pathway || 'C+W+G',
                   active_modalities: snap.active_modalities || ['clinical', 'wearable', 'gut'],
                   status: 'REPORT_READY'
                 });
                 if (!xaiData) {
-                  const clin = snap.confirmed_features?.clinical || snap.clinical_features || snap.clinical_data || {};
-                  const wear = snap.confirmed_features?.wearable || snap.wearable_features || snap.wearable_data || {};
-                  const gut = snap.confirmed_features?.gut || snap.gut_features || snap.gut_data || {};
+                  const clin = features.clinical || snap.clinical_features || snap.clinical_data || {};
+                  const wear = features.wearable || snap.wearable_features || snap.wearable_data || {};
+                  const gut = features.gut || snap.gut_features || snap.gut_data || {};
                   if (Object.keys(clin).length > 0 || Object.keys(wear).length > 0 || Object.keys(gut).length > 0) {
                     fetchXAIV3({
                       patient_id: latest.record_id || 'P_USER_001',
