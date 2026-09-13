@@ -13,23 +13,24 @@ import logging
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Union
 try:
-    from . import config
+    from app.backend.database.db import SessionLocal, check_db_connection
+    from app.backend.models import models as pg_models
+    from app.backend import config
 except (ImportError, ValueError):
     try:
-        from .. import config
+        from .database.db import SessionLocal, check_db_connection
+        from .models import models as pg_models
+        from . import config
     except (ImportError, ValueError):
-        import config
-
-try:
-    from .database.db import SessionLocal, check_db_connection
-    from .models import models as pg_models
-except (ImportError, ValueError):
-    try:
-        from database.db import SessionLocal, check_db_connection
-        from models import models as pg_models
-    except (ImportError, ValueError):
-        from app.backend.database.db import SessionLocal, check_db_connection
-        from app.backend.models import models as pg_models
+        try:
+            from database.db import SessionLocal, check_db_connection
+            from models import models as pg_models
+            import config
+        except Exception:
+            SessionLocal = None
+            check_db_connection = None
+            pg_models = None
+            config = None
 
 
 
@@ -2267,6 +2268,94 @@ def get_patient_consultation_detail(user_id: str, consultation_id: str) -> Optio
         cd["doctor_note"] = dict(note_row) if note_row else None
 
         return cd
+    finally:
+        conn.close()
+
+
+def get_admin_consultation_detail(consultation_id: str) -> Optional[Dict[str, Any]]:
+    """Fetch full consultation snapshot for Admin governance, assignments, and audit."""
+    conn = get_db_connection()
+    try:
+        sql = """
+            SELECT c.*, d.full_name AS doctor_full_name, d.specialization AS doctor_specialization,
+                   d.qualification AS doctor_qualification, d.hospital_affiliation, d.verification_status AS doctor_verification_status,
+                   p.full_name AS patient_name, p.age AS patient_age, p.gender AS patient_gender
+            FROM consultations c
+            LEFT JOIN doctor_profiles d ON (c.assigned_doctor_id = d.doctor_id OR c.assigned_doctor_id = d.user_id)
+            LEFT JOIN patient_profiles p ON (c.user_id = p.user_id OR c.patient_id = p.patient_id)
+            WHERE c.consultation_id = ?
+        """
+        row = conn.execute(sql, (consultation_id,)).fetchone()
+        if not row:
+            return None
+
+        cd = dict(row)
+
+        # Fetch shared records with metadata
+        sh_rows = conn.execute("""
+            SELECT s.share_id, s.record_id, s.status AS share_status, s.shared_at, s.revoked_at,
+                   r.created_at AS record_created_at, r.effective_pathway, r.data_quality_score, r.status AS record_status
+            FROM consultation_shared_records s
+            LEFT JOIN health_records r ON s.record_id = r.record_id
+            WHERE s.consultation_id = ?
+            ORDER BY s.shared_at DESC
+        """, (consultation_id,)).fetchall()
+        cd["shared_records"] = [dict(s) for s in sh_rows]
+
+        # Fetch audit history
+        audit_rows = conn.execute("""
+            SELECT log_id, action, old_status, new_status, actor_role, reason, timestamp
+            FROM consultation_audit_logs
+            WHERE consultation_id = ?
+            ORDER BY timestamp ASC
+        """, (consultation_id,)).fetchall()
+        cd["audit_history"] = [dict(a) for a in audit_rows]
+
+        # Fetch messages & doctor consultation note
+        msg_rows = conn.execute("""
+            SELECT message_id, consultation_id, sender_user_id, sender_role, sender_name, content, created_at
+            FROM consultation_messages
+            WHERE consultation_id = ?
+            ORDER BY created_at ASC
+        """, (consultation_id,)).fetchall()
+        cd["messages"] = [dict(m) for m in msg_rows]
+
+        note_row = conn.execute("SELECT * FROM consultation_notes WHERE consultation_id = ?", (consultation_id,)).fetchone()
+        cd["doctor_note"] = dict(note_row) if note_row else None
+
+        return cd
+    finally:
+        conn.close()
+
+
+def get_doctor_consultation_detail(doctor_user_id: str, consultation_id: str) -> Optional[Dict[str, Any]]:
+    """Fetch consultation snapshot verifying assigned doctor, co-doctor, or verified physician authorization."""
+    participant = validate_consultation_participant(doctor_user_id, consultation_id)
+    if not participant:
+        return None
+    return get_admin_consultation_detail(consultation_id)
+
+
+def get_consultation_by_id(consultation_id: str) -> Optional[Dict[str, Any]]:
+    """Fetch consultation row/snapshot by consultation_id."""
+    return get_admin_consultation_detail(consultation_id)
+
+
+def is_co_doctor_assigned(consultation_id: str, doctor_id: str) -> bool:
+    """Check if doctor (by doctor_id or user_id) is invited as a co-doctor on a consultation."""
+    conn = get_db_connection()
+    try:
+        doc_row = conn.execute(
+            "SELECT doctor_id, user_id FROM doctor_profiles WHERE user_id = ? OR doctor_id = ?",
+            (doctor_id, doctor_id)
+        ).fetchone()
+        d_id = doc_row["doctor_id"] if doc_row else doctor_id
+        u_id = doc_row["user_id"] if doc_row else doctor_id
+        row = conn.execute(
+            "SELECT 1 FROM consultation_co_doctors WHERE consultation_id = ? AND (doctor_id = ? OR doctor_id = ? OR doctor_id = ?)",
+            (consultation_id, doctor_id, d_id, u_id)
+        ).fetchone()
+        return bool(row)
     finally:
         conn.close()
 

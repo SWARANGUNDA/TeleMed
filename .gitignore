@@ -55,4 +55,5 @@ app/backend/uploads/
 .coverage
 htmlcov/
 *.timestamp*
+/TeleMed_AI_v4_Master_Technical_Report_FINAL.docx
 
