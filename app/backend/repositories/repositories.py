@@ -3,6 +3,7 @@ repositories/repositories.py — Repository Pattern Layer for TeleMed AI Platfor
 """
 
 from typing import List, Optional, Dict, Any
+from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 try:
     from ..models.models import (

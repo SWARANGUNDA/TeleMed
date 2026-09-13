@@ -22,15 +22,9 @@ except (ImportError, ValueError):
         from .models import models as pg_models
         from . import config
     except (ImportError, ValueError):
-        try:
-            from database.db import SessionLocal, check_db_connection
-            from models import models as pg_models
-            import config
-        except Exception:
-            SessionLocal = None
-            check_db_connection = None
-            pg_models = None
-            config = None
+        from database.db import SessionLocal, check_db_connection  # type: ignore
+        from models import models as pg_models  # type: ignore
+        import config  # type: ignore
 
 
 
@@ -227,7 +221,7 @@ def create_user(
             session.add(audit_log)
 
         session.commit()
-        return get_user_by_id(user_id)
+        return get_user_by_id(user_id) or {}
     except Exception as e:
         session.rollback()
         raise e
@@ -546,107 +540,6 @@ def get_user_by_email(email: str) -> Optional[Dict[str, Any]]:
         if not u:
             return None
         return get_user_by_id(u.user_id)
-    finally:
-        session.close()
-
-
-def update_patient_profile(user_id: str, updates: Dict[str, Any]) -> Dict[str, Any]:
-    """Update patient demographic/contact profile fields and return updated user object."""
-    session = SessionLocal()
-    try:
-        p = session.query(pg_models.PatientProfile).filter_by(user_id=user_id).first()
-        now = datetime.datetime.now(datetime.timezone.utc).isoformat()
-        if not p:
-            patient_id = f"pat_{secrets.token_hex(8)}"
-            p = pg_models.PatientProfile(
-                patient_id=patient_id,
-                user_id=user_id,
-                full_name=updates.get("full_name", "Patient Profile"),
-                age=updates.get("age"),
-                gender=updates.get("gender"),
-                height_cm=updates.get("height_cm"),
-                weight_kg=updates.get("weight_kg"),
-                contact_number=updates.get("contact_number", ""),
-                created_at=now
-            )
-            session.add(p)
-        else:
-            if "full_name" in updates and updates["full_name"]:
-                p.full_name = str(updates["full_name"]).strip()
-            if "age" in updates and updates["age"] is not None:
-                try: p.age = int(updates["age"])
-                except Exception: pass
-            if "gender" in updates and updates["gender"]:
-                p.gender = str(updates["gender"]).strip()
-            if "height_cm" in updates and updates["height_cm"] is not None:
-                try: p.height_cm = float(updates["height_cm"])
-                except Exception: pass
-            if "weight_kg" in updates and updates["weight_kg"] is not None:
-                try: p.weight_kg = float(updates["weight_kg"])
-                except Exception: pass
-            if "contact_number" in updates:
-                p.contact_number = str(updates["contact_number"]).strip()
-
-        u = session.query(pg_models.User).filter_by(user_id=user_id).first()
-        if u:
-            u.updated_at = now
-        session.commit()
-        return get_user_by_id(user_id)
-    except Exception as e:
-        session.rollback()
-        logger.error(f"update_patient_profile error for user_id={user_id}: {e}")
-        raise e
-    finally:
-        session.close()
-
-
-def update_doctor_profile(user_id: str, updates: Dict[str, Any]) -> Dict[str, Any]:
-    """Update doctor professional profile fields and return updated user object."""
-    session = SessionLocal()
-    try:
-        d = session.query(pg_models.DoctorProfile).filter_by(user_id=user_id).first()
-        now = datetime.datetime.now(datetime.timezone.utc).isoformat()
-        if not d:
-            doctor_id = f"doc_{secrets.token_hex(8)}"
-            d = pg_models.DoctorProfile(
-                doctor_id=doctor_id,
-                user_id=user_id,
-                full_name=updates.get("full_name", "Dr. Profile"),
-                specialization=updates.get("specialization", "General Medicine"),
-                qualification=updates.get("qualification", "MBBS"),
-                registration_number=updates.get("registration_number", "REG_PENDING"),
-                registration_council=updates.get("registration_council", "State Council"),
-                experience_years=int(updates.get("experience_years") or 0),
-                contact_number=updates.get("contact_number", ""),
-                hospital_affiliation=updates.get("hospital_affiliation", ""),
-                verification_status="PENDING",
-                created_at=now
-            )
-            session.add(d)
-        else:
-            if "full_name" in updates and updates["full_name"]:
-                d.full_name = str(updates["full_name"]).strip()
-            if "specialization" in updates and updates["specialization"]:
-                d.specialization = str(updates["specialization"]).strip()
-            if "qualification" in updates and updates["qualification"]:
-                d.qualification = str(updates["qualification"]).strip()
-            if "experience_years" in updates and updates["experience_years"] is not None:
-                try: d.experience_years = int(updates["experience_years"])
-                except Exception: pass
-            if "contact_number" in updates:
-                d.contact_number = str(updates["contact_number"]).strip()
-            if "hospital_affiliation" in updates:
-                d.hospital_affiliation = str(updates["hospital_affiliation"]).strip()
-
-        u = session.query(pg_models.User).filter_by(user_id=user_id).first()
-        if u:
-            u.updated_at = now
-        session.commit()
-        return get_user_by_id(user_id)
-    except Exception as e:
-        session.rollback()
-        logger.error(f"update_doctor_profile error for user_id={user_id}: {e}")
-        raise e
     finally:
         session.close()
 
@@ -974,7 +867,7 @@ def update_patient_profile(user_id: str, updates: Dict[str, Any]) -> Dict[str, A
 
             session.commit()
             logger.info("Updated patient profile via ORM for user_id %s", user_id)
-            return get_user_by_id(user_id)
+            return get_user_by_id(user_id) or {}
         except Exception as err:
             session.rollback()
             logger.warning("ORM patient profile update note: %s", err)
@@ -1021,7 +914,7 @@ def update_patient_profile(user_id: str, updates: Dict[str, Any]) -> Dict[str, A
                 )
 
         logger.info("Updated patient profile via SQLite for user_id %s: %s", user_id, list(valid_updates.keys()))
-        return get_user_by_id(user_id)
+        return get_user_by_id(user_id) or {}
     finally:
         conn.close()
 
@@ -1030,10 +923,7 @@ ALLOWED_DOCTOR_PROFILE_FIELDS = {
     "full_name", "contact_number", "qualification", "specialization",
     "experience_years", "registration_council", "hospital_affiliation"
 }
-PROTECTED_DOCTOR_FIELDS = {
-    "doctor_id", "user_id", "registration_number", "verification_status",
-    "credential_notes", "created_at"
-}
+PROTECTED_DOCTOR_FIELDS = {"doctor_id", "user_id", "verification_status", "status"}
 
 
 def update_doctor_profile(user_id: str, updates: Dict[str, Any]) -> Dict[str, Any]:
@@ -1095,7 +985,7 @@ def update_doctor_profile(user_id: str, updates: Dict[str, Any]) -> Dict[str, An
 
             session.commit()
             logger.info("Updated doctor profile via ORM for user_id %s", user_id)
-            return get_user_by_id(user_id)
+            return get_user_by_id(user_id) or {}
         except Exception as err:
             session.rollback()
             logger.warning("ORM doctor profile update note: %s", err)
@@ -1147,7 +1037,7 @@ def update_doctor_profile(user_id: str, updates: Dict[str, Any]) -> Dict[str, An
                 )
 
         logger.info("Updated doctor profile via SQLite for user_id %s: %s", user_id, list(valid_updates.keys()))
-        return get_user_by_id(user_id)
+        return get_user_by_id(user_id) or {}
     finally:
         conn.close()
 
@@ -1161,10 +1051,10 @@ def update_admin_profile(user_id: str, updates: Dict[str, Any]) -> Dict[str, Any
         if u:
             u.updated_at = now
             session.commit()
-        return get_user_by_id(user_id)
+        return get_user_by_id(user_id) or {}
     except Exception as e:
         session.rollback()
-        return get_user_by_id(user_id)
+        return get_user_by_id(user_id) or {}
     finally:
         session.close()
 
@@ -1630,7 +1520,7 @@ def get_doctor_audit_history(doctor_id: str) -> List[Dict[str, Any]]:
         conn.close()
 
 
-def submit_doctor_application(user_id: str) -> Dict[str, Any]:
+def submit_doctor_application(user_id: str) -> Optional[Dict[str, Any]]:
     """Transition a doctor application from PENDING or RESUBMISSION_REQUIRED to UNDER_REVIEW."""
     now = datetime.datetime.now(datetime.timezone.utc).isoformat()
     new_status = "UNDER_REVIEW"
@@ -1748,7 +1638,7 @@ def update_doctor_verification_status(
     doctor_id: str,
     new_status: str,
     reason: Optional[str] = None
-) -> Dict[str, Any]:
+) -> Optional[Dict[str, Any]]:
     """
     Execute an admin state transition for a doctor application.
     Validates state transition matrix and logs an explicit audit trail.
@@ -2078,7 +1968,7 @@ def create_consultation_request(
     urgency: str = "ROUTINE",
     message: Optional[str] = None,
     record_ids: Optional[List[str]] = None
-) -> Dict[str, Any]:
+) -> Optional[Dict[str, Any]]:
     """Patient creates a consultation request and selects health records to share."""
     conn = get_db_connection()
     now = datetime.datetime.now(datetime.timezone.utc).isoformat()
@@ -2360,7 +2250,7 @@ def is_co_doctor_assigned(consultation_id: str, doctor_id: str) -> bool:
         conn.close()
 
 
-def cancel_patient_consultation(user_id: str, consultation_id: str, reason: Optional[str] = None) -> Dict[str, Any]:
+def cancel_patient_consultation(user_id: str, consultation_id: str, reason: Optional[str] = None) -> Optional[Dict[str, Any]]:
     """Patient cancels a consultation request."""
     conn = get_db_connection()
     now = datetime.datetime.now(datetime.timezone.utc).isoformat()
@@ -2392,7 +2282,7 @@ def cancel_patient_consultation(user_id: str, consultation_id: str, reason: Opti
         conn.close()
 
 
-def revoke_shared_record_consent(user_id: str, consultation_id: str, record_id: str) -> Dict[str, Any]:
+def revoke_shared_record_consent(user_id: str, consultation_id: str, record_id: str) -> Optional[Dict[str, Any]]:
     """Patient revokes sharing of a specific health record for a consultation."""
     conn = get_db_connection()
     now = datetime.datetime.now(datetime.timezone.utc).isoformat()
@@ -3416,21 +3306,6 @@ def add_doctor_availability_slot(user_id: str, slot_start: str, slot_end: str) -
         conn.close()
 
 
-def set_doctor_availability_slots(user_id: str, slots: List[Dict[str, str]]) -> List[Dict[str, Any]]:
-    """Batch add/configure availability slots for a VERIFIED doctor."""
-    added_slots = []
-    for slot in slots:
-        start_time = slot.get("slot_start")
-        end_time = slot.get("slot_end")
-        if start_time and end_time:
-            try:
-                s = add_doctor_availability_slot(user_id, start_time, end_time)
-                added_slots.append(s)
-            except Exception:
-                pass
-    return added_slots
-
-
 def get_doctor_profile(user_id: str) -> Optional[Dict[str, Any]]:
     """Fetch doctor profile details for user_id or doctor_id."""
     if not user_id:
@@ -3478,73 +3353,6 @@ def get_doctor_profile(user_id: str) -> Optional[Dict[str, Any]]:
         return None
     except Exception:
         return None
-    finally:
-        conn.close()
-
-
-def update_doctor_profile(user_id: str, updates: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-    """Update doctor profile fields in persistent PostgreSQL and SQLite databases."""
-    if not user_id or not updates:
-        return None
-
-    # 1. Primary: PostgreSQL via SessionLocal
-    try:
-        session = SessionLocal()
-        try:
-            doc = session.query(pg_models.DoctorProfile).filter(
-                (pg_models.DoctorProfile.user_id == user_id) | (pg_models.DoctorProfile.doctor_id == user_id)
-            ).first()
-            if doc:
-                for k, v in updates.items():
-                    if k in ("full_name", "qualification", "contact_number", "hospital_affiliation", "verification_status"):
-                        setattr(doc, k, v)
-                    elif k in ("specialization", "specialty"):
-                        doc.specialization = v
-                    elif k in ("registration_number", "license_number"):
-                        doc.registration_number = v
-                    elif k in ("registration_council", "medical_council"):
-                        doc.registration_council = v
-                    elif k == "experience_years":
-                        try:
-                            doc.experience_years = int(v)
-                        except (ValueError, TypeError):
-                            pass
-
-                if "full_name" in updates:
-                    u = session.query(pg_models.User).filter(pg_models.User.user_id == doc.user_id).first()
-                    if u:
-                        u.full_name = updates["full_name"]
-
-                session.commit()
-                logger.info("Updated doctor profile for %s in PostgreSQL", user_id)
-        finally:
-            session.close()
-    except Exception as err:
-        logger.warning("SessionLocal update_doctor_profile notice: %s, continuing with SQLite", err)
-
-    # 2. SQLite Update
-    conn = get_db_connection()
-    try:
-        fields = []
-        params = []
-        for k, v in updates.items():
-            if k in ("full_name", "specialty", "specialization", "license_number", "medical_council", "experience_years", "verification_status"):
-                db_key = "specialty" if k == "specialization" else k
-                fields.append(f"{db_key} = ?")
-                params.append(v)
-        if fields:
-            params.append(user_id)
-            params.append(user_id)
-            conn.execute(f"UPDATE doctor_profiles SET {', '.join(fields)} WHERE user_id = ? OR doctor_id = ?", params)
-
-        if "full_name" in updates:
-            conn.execute("UPDATE users SET full_name = ? WHERE user_id = ?", (updates["full_name"], user_id))
-
-        conn.commit()
-        return get_doctor_profile(user_id)
-    except Exception as e:
-        logger.warning("SQLite update_doctor_profile notice: %s", e)
-        return get_doctor_profile(user_id)
     finally:
         conn.close()
 
@@ -3975,27 +3783,27 @@ def get_detailed_system_health() -> Dict[str, Any]:
         except Exception as e2:
             services["database"] = {"status": "DEGRADED", "error": str(e2), "last_check": now}
 
-    # 2. Expert Models (v3.3 Pipeline)
+    # 2. Expert Models (v4.0 Pipeline)
     try:
-        from .v3_3_multimodal import V3_3_PIPELINE
-        services["clinical_expert"] = {"status": "HEALTHY", "version": "v3.3", "last_check": now}
-        services["wearable_expert"] = {"status": "HEALTHY", "version": "v3.3 (15D)", "last_check": now}
-        services["gut_expert"] = {"status": "HEALTHY", "version": "v3.3", "last_check": now}
+        from ai.inference.fusion_inference import FusionInferenceEngine
+        services["clinical_expert"] = {"status": "HEALTHY", "version": "v4.0 (18D)", "last_check": now}
+        services["wearable_expert"] = {"status": "HEALTHY", "version": "v4.0 (15D)", "last_check": now}
+        services["gut_expert"] = {"status": "HEALTHY", "version": "v4.0 (49D)", "last_check": now}
         services["fusion_engine"] = {"status": "HEALTHY", "pathway": "C+W+G Logistic Stacker", "last_check": now}
     except Exception as e:
         services["fusion_engine"] = {"status": "DEGRADED", "error": str(e), "last_check": now}
 
     # 3. SHAP / XAI Engine
     try:
-        from .shap_xai import SHAP_EXPLAINER
-        services["shap_xai"] = {"status": "HEALTHY", "version": "SHAP v3.3", "last_check": now}
+        from ai.explainability.unified_xai_engine import UnifiedXAIEngine
+        services["shap_xai"] = {"status": "HEALTHY", "version": "SHAP v4.0", "last_check": now}
     except Exception as e:
         services["shap_xai"] = {"status": "DEGRADED", "error": str(e), "last_check": now}
 
     # 4. RAG / Evidence Corpus
     try:
-        from .rag_engine import RAG_SERVICE
-        services["rag_service"] = {"status": "HEALTHY", "corpus": "Medical KB v3.3 (50 chunks)", "last_check": now}
+        from services.medical_rag.rag_service import MedicalRAGService
+        services["rag_service"] = {"status": "HEALTHY", "corpus": "Medical KB v4.0 (Grounded Citations)", "last_check": now}
     except Exception as e:
         services["rag_service"] = {"status": "DEGRADED", "error": str(e), "last_check": now}
 

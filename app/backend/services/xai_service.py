@@ -66,11 +66,6 @@ def generate_v3_xai_attribution(v3_engine: Any, validated_intake: Dict[str, Any]
     """
     Computes TreeSHAP statistical model feature attributions for active v3 expert models.
     Explicitly labels contributions as 'Statistical Predictor Contributions' (NOT biological causality).
-    """
-def generate_v3_xai_attribution(v3_engine: Any, validated_intake: Dict[str, Any], disease: str = "Type2_Diabetes") -> Dict[str, Any]:
-    """
-    Computes TreeSHAP statistical model feature attributions for active v3 expert models.
-    Explicitly labels contributions as 'Statistical Predictor Contributions' (NOT biological causality).
     Explains pre-calibration tree outputs directly.
     Tracks raw feature values and median-imputed flags.
     """
