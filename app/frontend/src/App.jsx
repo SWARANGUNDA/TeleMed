@@ -47,6 +47,7 @@ const ResearchPage = lazy(() => import('./pages/ResearchPage'));
 const ContactPage = lazy(() => import('./pages/ContactPage'));
 const LoginPage = lazy(() => import('./pages/LoginPage'));
 const RegisterPage = lazy(() => import('./pages/RegisterPage'));
+const AdminLoginPage = lazy(() => import('./pages/AdminLoginPage'));
 
 function PageSkeleton() {
   return (
@@ -497,7 +498,9 @@ export default function App() {
     );
   }
 
-  const isPublicRoute = ['/', '/about', '/features', '/how-it-works', '/research', '/contact', '/login', '/register'].includes(location.pathname);
+  const isPublicRoute = [
+    '/', '/about', '/features', '/how-it-works', '/research', '/contact', '/login', '/register', '/admin/login'
+  ].includes(location.pathname) || (location.pathname === '/admin' && currentUser?.role !== 'ADMIN');
 
   const defaultRoleDashboard =
     currentUser?.role === 'ADMIN'
@@ -517,7 +520,7 @@ export default function App() {
           <Route path="/how-it-works" element={<HowItWorksPage user={currentUser} onOpenAuth={(mode) => navigate(mode === 'register' ? '/register' : '/login')} />} />
           <Route path="/research" element={<ResearchPage user={currentUser} onOpenAuth={(mode) => navigate(mode === 'register' ? '/register' : '/login')} />} />
           <Route path="/contact" element={<ContactPage user={currentUser} onOpenAuth={(mode) => navigate(mode === 'register' ? '/register' : '/login')} />} />
-          <Route path="/login" element={<LoginPage onLogin={handleLogin} user={currentUser} />} />
+          <Route path="/login" element={<LoginPage onLogin={handleLogin} onLoginSuccess={handleLoginSuccess} user={currentUser} />} />
           <Route path="/register" element={<RegisterPage onLoginSuccess={handleLoginSuccess} user={currentUser} />} />
 
             {/* PATIENT-SPECIFIC ROUTES */}
@@ -715,7 +718,20 @@ export default function App() {
             } />
 
             {/* ADMIN ROUTES */}
-            <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
+            <Route path="/admin" element={
+              currentUser?.role === 'ADMIN' ? (
+                <Navigate to="/admin/dashboard" replace />
+              ) : (
+                <AdminLoginPage onLogin={handleLogin} onLoginSuccess={handleLoginSuccess} user={currentUser} />
+              )
+            } />
+            <Route path="/admin/login" element={
+              currentUser?.role === 'ADMIN' ? (
+                <Navigate to="/admin/dashboard" replace />
+              ) : (
+                <AdminLoginPage onLogin={handleLogin} onLoginSuccess={handleLoginSuccess} user={currentUser} />
+              )
+            } />
             <Route path="/admin/dashboard" element={
               <ProtectedRoute currentUser={currentUser} authChecking={authChecking} allowedRoles={['ADMIN']}>
                 <AdminDashboardPage onNavigate={handleNavigate} />

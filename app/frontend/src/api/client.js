@@ -194,6 +194,24 @@ export async function loginUser(email, password, portalRole = null) {
   return data;
 }
 
+export async function loginWithGoogle(payload) {
+  const res = await fetch(`${API_BASE}/auth/google`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+    credentials: 'include',
+  });
+  const data = await res.json();
+  if (!res.ok) {
+    const detailMsg = data.detail || data.message || 'Google Single Sign-On failed.';
+    throw new Error(detailMsg);
+  }
+  if (data.access_token || data.token) {
+    setAuthToken(data.access_token || data.token);
+  }
+  return data;
+}
+
 export async function registerPatient(payload) {
   const res = await fetch(`${API_BASE}/auth/register/patient`, {
     method: 'POST',

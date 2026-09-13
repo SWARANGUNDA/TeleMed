@@ -2,14 +2,17 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import PublicCanvasLayout from '../components/landing/PublicCanvasLayout';
 import { Activity, Lock, Mail, ArrowRight, ShieldCheck, Eye, EyeOff, Sparkles, LayoutDashboard, TrendingUp, User } from 'lucide-react';
+import GoogleAuthModal from '../components/auth/GoogleAuthModal';
 
-export default function LoginPage({ onLogin, user, onOpenAuth }) {
+export default function LoginPage({ onLogin, onLoginSuccess, user, onOpenAuth }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [portalRole, setPortalRole] = useState('PATIENT');
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState(null);
+  const [adminNotice, setAdminNotice] = useState(false);
+  const [isGoogleModalOpen, setIsGoogleModalOpen] = useState(false);
 
   const navigate = useNavigate();
 
@@ -24,10 +27,13 @@ export default function LoginPage({ onLogin, user, onOpenAuth }) {
     const val = e.target.value;
     setEmail(val);
     const valLower = val.toLowerCase();
-    if (valLower.includes('admin') && portalRole !== 'ADMIN') {
-      setPortalRole('ADMIN');
-    } else if (valLower.includes('doctor') && portalRole !== 'DOCTOR') {
-      setPortalRole('DOCTOR');
+    if (valLower.includes('admin')) {
+      setAdminNotice(true);
+    } else {
+      setAdminNotice(false);
+      if (valLower.includes('doctor') && portalRole !== 'DOCTOR') {
+        setPortalRole('DOCTOR');
+      }
     }
   };
 
@@ -36,10 +42,23 @@ export default function LoginPage({ onLogin, user, onOpenAuth }) {
     setLoading(true);
     setErrorMsg(null);
 
-    let activeRole = portalRole;
     const emailLower = email.trim().toLowerCase();
-    if (emailLower.includes('admin')) activeRole = 'ADMIN';
-    else if (emailLower.includes('doctor')) activeRole = 'DOCTOR';
+    if (emailLower.includes('admin')) {
+      setLoading(false);
+      setErrorMsg(
+        <span>
+          Administrator accounts must sign in via the dedicated Admin Portal at{' '}
+          <Link to="/admin" className="underline font-black text-indigo-700">
+            /admin
+          </Link>
+          .
+        </span>
+      );
+      return;
+    }
+
+    let activeRole = portalRole;
+    if (emailLower.includes('doctor')) activeRole = 'DOCTOR';
 
     try {
       if (onLogin) {
@@ -49,10 +68,21 @@ export default function LoginPage({ onLogin, user, onOpenAuth }) {
             setPortalRole(authenticatedUser.role);
           }
         } catch (initialErr) {
-          // If role mismatch occurred, auto-retry seamlessly with the user's actual database role
           const mismatchMatch = (initialErr.message || '').match(/account role \((ADMIN|DOCTOR|PATIENT)\)/i);
           if (mismatchMatch && mismatchMatch[1]) {
             const correctRole = mismatchMatch[1].toUpperCase();
+            if (correctRole === 'ADMIN') {
+              setErrorMsg(
+                <span>
+                  This is an Administrator account. Please use the secure{' '}
+                  <Link to="/admin" className="underline font-black text-indigo-700">
+                    Admin Portal (/admin)
+                  </Link>{' '}
+                  to sign in.
+                </span>
+              );
+              return;
+            }
             setPortalRole(correctRole);
             const retryUser = await onLogin(email.trim(), password, correctRole);
             if (retryUser && retryUser.role) {
@@ -74,11 +104,16 @@ export default function LoginPage({ onLogin, user, onOpenAuth }) {
     setErrorMsg('Password reset instructions have been sent to your administrator. Please check your inbox or contact support.');
   };
 
-  const handleGoogleAuth = () => {
-    setErrorMsg('Google Single Sign-On (SSO) is enabled for enterprise accounts. Please sign in using your email & password.');
+  const handleGoogleSuccess = (authenticatedUser) => {
+    if (onLoginSuccess) {
+      onLoginSuccess(authenticatedUser);
+    } else {
+      const dashPath = authenticatedUser.role === 'ADMIN' ? '/admin/dashboard' : authenticatedUser.role === 'DOCTOR' ? '/doctor/dashboard' : '/dashboard';
+      navigate(dashPath, { replace: true });
+    }
   };
 
-  const roleButtonLabel = portalRole === 'ADMIN' ? 'Admin' : portalRole === 'DOCTOR' ? 'Doctor' : 'Patient';
+  const roleButtonLabel = portalRole === 'DOCTOR' ? 'Doctor' : 'Patient';
 
   return (
     <PublicCanvasLayout user={user} onOpenAuth={onOpenAuth} hideFooter={true}>
@@ -112,7 +147,7 @@ export default function LoginPage({ onLogin, user, onOpenAuth }) {
                 Access your multimodal patient records & AI risk predictions.
               </p>
 
-              {/* 3 WHITE BENEFIT CARDS matching Prelogin Canvas Styling */}
+              {/* 3 WHITE BENEFIT CARDS */}
               <div className="space-y-2.5 pt-0.5">
                 <div className="p-3 rounded-2xl bg-white border border-slate-200/80 shadow-2xs flex items-start gap-3 hover:translate-x-1 transition-transform">
                   <div className="p-2 rounded-xl bg-blue-50 text-blue-600 shrink-0">
@@ -167,7 +202,7 @@ export default function LoginPage({ onLogin, user, onOpenAuth }) {
 
           </div>
 
-          {/* RIGHT COLUMN: Compact White Login Card (Zero Vertical Overflow) */}
+          {/* RIGHT COLUMN: Compact White Login Card */}
           <div className="lg:col-span-5 flex justify-center lg:justify-end">
             <div className="w-full max-w-[390px] sm:max-w-[400px] rounded-[28px] bg-white border border-slate-200/90 p-5 sm:p-6 shadow-[0_20px_50px_rgba(15,23,42,0.06)] space-y-3">
               
@@ -184,20 +219,29 @@ export default function LoginPage({ onLogin, user, onOpenAuth }) {
                 </p>
               </div>
 
+              {adminNotice && (
+                <div className="p-2.5 rounded-xl bg-indigo-50 border border-indigo-200 text-indigo-900 text-xs font-semibold flex items-center justify-between">
+                  <span>Administrator login is on the /admin route.</span>
+                  <Link to="/admin" className="font-extrabold text-indigo-600 hover:text-indigo-800 underline ml-2 whitespace-nowrap">
+                    Go to /admin →
+                  </Link>
+                </div>
+              )}
+
               {errorMsg && (
-                <div className="p-2 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-bold leading-normal">
+                <div className="p-2.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-bold leading-normal">
                   {errorMsg}
                 </div>
               )}
 
               <form onSubmit={handleFormSubmit} className="space-y-2.5 text-left">
                 
-                {/* ROLE SEGMENTED CONTROL: SELECT PORTAL ROLE */}
+                {/* ROLE SEGMENTED CONTROL: SELECT PORTAL ROLE (PATIENT & DOCTOR ONLY) */}
                 <div className="space-y-1">
                   <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider block">
                     SELECT PORTAL ROLE
                   </label>
-                  <div className="grid grid-cols-3 gap-1.5 p-1 rounded-xl bg-slate-100/90 border border-slate-200/80">
+                  <div className="grid grid-cols-2 gap-1.5 p-1 rounded-xl bg-slate-100/90 border border-slate-200/80">
                     <button
                       type="button"
                       onClick={() => setPortalRole('PATIENT')}
@@ -222,19 +266,6 @@ export default function LoginPage({ onLogin, user, onOpenAuth }) {
                     >
                       <ShieldCheck className="w-3.5 h-3.5" />
                       <span>Doctor</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => setPortalRole('ADMIN')}
-                      className={`py-1.5 px-2.5 rounded-lg text-xs font-extrabold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-                        portalRole === 'ADMIN'
-                          ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-xs'
-                          : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
-                      }`}
-                    >
-                      <Lock className="w-3.5 h-3.5" />
-                      <span>Admin</span>
                     </button>
                   </div>
                 </div>
@@ -316,7 +347,7 @@ export default function LoginPage({ onLogin, user, onOpenAuth }) {
 
                 <button
                   type="button"
-                  onClick={handleGoogleAuth}
+                  onClick={() => setIsGoogleModalOpen(true)}
                   className="w-full py-2.5 px-3 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-extrabold text-xs shadow-2xs transition-all flex items-center justify-center gap-2 cursor-pointer"
                 >
                   <svg className="w-4 h-4" viewBox="0 0 24 24">
@@ -329,12 +360,24 @@ export default function LoginPage({ onLogin, user, onOpenAuth }) {
                 </button>
               </div>
 
-              {/* Bottom Link */}
-              <div className="pt-0.5 text-center text-xs font-medium text-slate-600">
-                <span>Don't have an account? </span>
-                <Link to="/register" className="font-extrabold text-blue-600 hover:text-blue-700 underline">
-                  Create an account
-                </Link>
+              {/* Bottom Links */}
+              <div className="pt-0.5 space-y-2 text-center text-xs font-medium text-slate-600">
+                <div>
+                  <span>Don't have an account? </span>
+                  <Link to="/register" className="font-extrabold text-blue-600 hover:text-blue-700 underline">
+                    Create an account
+                  </Link>
+                </div>
+
+                <div className="pt-1 border-t border-slate-100 flex items-center justify-center">
+                  <Link
+                    to="/admin"
+                    className="text-[11px] font-semibold text-slate-400 hover:text-indigo-600 transition-colors inline-flex items-center gap-1"
+                  >
+                    <Lock className="w-3 h-3 text-slate-400" />
+                    <span>Administrator Command Center</span>
+                  </Link>
+                </div>
               </div>
 
             </div>
@@ -342,6 +385,14 @@ export default function LoginPage({ onLogin, user, onOpenAuth }) {
 
         </div>
       </main>
+
+      {/* Google Single Sign-On Modal */}
+      <GoogleAuthModal
+        isOpen={isGoogleModalOpen}
+        onClose={() => setIsGoogleModalOpen(false)}
+        onSuccess={handleGoogleSuccess}
+        initialRole={portalRole}
+      />
     </PublicCanvasLayout>
   );
 }

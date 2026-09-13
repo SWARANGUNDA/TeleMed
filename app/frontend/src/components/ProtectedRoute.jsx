@@ -16,7 +16,9 @@ export default function ProtectedRoute({ currentUser, authChecking, allowedRoles
   }
 
   if (!currentUser) {
-    // Redirect to /login on unauthenticated protected access
+    if (location.pathname.startsWith('/admin')) {
+      return <Navigate to="/admin" state={{ from: location }} replace />;
+    }
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 

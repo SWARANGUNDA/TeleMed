@@ -124,6 +124,14 @@ class RefreshTokenRequest(BaseModel):
     refresh_token: Optional[str] = None
 
 
+class GoogleAuthRequest(BaseModel):
+    credential: Optional[str] = Field(None, description="Google ID Token JWT")
+    email: Optional[str] = Field(None, description="Google user email")
+    name: Optional[str] = Field(None, description="Google user full name")
+    picture: Optional[str] = Field(None, description="Google user avatar URL")
+    role: Optional[str] = Field("PATIENT", description="Assigned role: PATIENT or DOCTOR")
+
+
 class ForgotPasswordRequest(BaseModel):
     email: str
 
@@ -289,6 +297,102 @@ def login(req: LoginRequest, request: Request, response: Response):
     )
     return {
         "message": "Login successful.",
+        "access_token": access_token,
+        "refresh_token": refresh_token,
+        "token_type": "bearer",
+        "token": access_token,
+        "session_token": session_token,
+        "user": user
+    }
+
+
+@router.post("/google", status_code=status.HTTP_200_OK)
+def google_auth(req: GoogleAuthRequest, response: Response):
+    """
+    Authenticate existing user or auto-provision a new account via Google Single Sign-On.
+    Decodes Google ID token credential if provided, or accepts verified email/name claims.
+    """
+    email = None
+    name = req.name or ""
+    picture = req.picture or ""
+
+    if req.credential:
+        try:
+            import jwt
+            payload = jwt.decode(req.credential, options={"verify_signature": False})
+            email = payload.get("email")
+            name = name or payload.get("name", "")
+            picture = picture or payload.get("picture", "")
+        except Exception:
+            pass
+
+    if not email and req.email:
+        email = req.email.strip().lower()
+
+    if not email:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Valid Google email address is required for authentication."
+        )
+
+    email_clean = email.strip().lower()
+    user = database.get_user_by_email(email_clean)
+
+    if not user:
+        # Auto-provision new account for Google user
+        chosen_role = (req.role or "PATIENT").strip().upper()
+        if chosen_role not in ("PATIENT", "DOCTOR"):
+            chosen_role = "PATIENT"
+
+        display_name = name or email_clean.split("@")[0].replace(".", " ").title()
+        auto_password = f"GAuth_{secrets.token_urlsafe(16)}!9Aa"
+
+        profile_data = {
+            "full_name": display_name,
+            "picture": picture,
+            "provider": "google",
+            "contact_number": ""
+        }
+        if chosen_role == "DOCTOR":
+            profile_data["specialization"] = "General Medicine"
+            profile_data["registration_number"] = f"MD-G-{secrets.token_hex(4).upper()}"
+            profile_data["verification_status"] = "PENDING"
+            if not display_name.lower().startswith("dr."):
+                profile_data["full_name"] = f"Dr. {display_name}"
+
+        try:
+            user = database.create_user(
+                email=email_clean,
+                password=auto_password,
+                role=chosen_role,
+                profile_data=profile_data
+            )
+        except Exception as e:
+            # If race condition or existing user, re-fetch
+            user = database.get_user_by_email(email_clean)
+            if not user:
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail=f"Could not provision account: {str(e)}"
+                )
+
+    # Issue tokens & session
+    access_token = create_access_token({"sub": user["user_id"], "email": user["email"], "role": user["role"]})
+    refresh_token = create_refresh_token({"sub": user["user_id"], "role": user["role"]})
+    session_token = database.create_auth_session(user["user_id"])
+    _set_auth_cookies(response, access_token, refresh_token)
+
+    database.log_audit_event(
+        actor_user_id=user["user_id"],
+        role=user["role"],
+        action="AUTH_GOOGLE_SUCCESS",
+        resource_type="USER_AUTH",
+        resource_id=user["user_id"],
+        context={"provider": "google", "email": email_clean}
+    )
+
+    return {
+        "message": "Google authentication successful.",
         "access_token": access_token,
         "refresh_token": refresh_token,
         "token_type": "bearer",

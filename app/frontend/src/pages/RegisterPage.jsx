@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import PublicCanvasLayout from '../components/landing/PublicCanvasLayout';
 import { Activity, User, Mail, Lock, ArrowRight, ShieldCheck, Briefcase, Hash, Eye, EyeOff, Check, Sparkles, TrendingUp, Users } from 'lucide-react';
 import { registerPatient, registerDoctor } from '../api/client';
+import GoogleAuthModal from '../components/auth/GoogleAuthModal';
 
 export default function RegisterPage({ onLoginSuccess, user, onOpenAuth }) {
   const [fullName, setFullName] = useState('');
@@ -12,6 +13,7 @@ export default function RegisterPage({ onLoginSuccess, user, onOpenAuth }) {
   const [role, setRole] = useState('PATIENT');
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState(null);
+  const [isGoogleModalOpen, setIsGoogleModalOpen] = useState(false);
 
   // Doctor-specific fields
   const [specialization, setSpecialization] = useState('');
@@ -76,7 +78,16 @@ export default function RegisterPage({ onLoginSuccess, user, onOpenAuth }) {
   };
 
   const handleGoogleAuth = () => {
-    setErrorMsg('Google Single Sign-On (SSO) is enabled for enterprise accounts. Please register using email & password.');
+    setIsGoogleModalOpen(true);
+  };
+
+  const handleGoogleSuccess = (authenticatedUser) => {
+    if (onLoginSuccess) {
+      onLoginSuccess(authenticatedUser);
+    } else {
+      const dashPath = authenticatedUser.role === 'ADMIN' ? '/admin/dashboard' : authenticatedUser.role === 'DOCTOR' ? '/doctor/dashboard' : '/dashboard';
+      navigate(dashPath);
+    }
   };
 
   return (
@@ -400,6 +411,14 @@ export default function RegisterPage({ onLoginSuccess, user, onOpenAuth }) {
 
         </div>
       </main>
+
+      {/* Google Single Sign-On Modal */}
+      <GoogleAuthModal
+        isOpen={isGoogleModalOpen}
+        onClose={() => setIsGoogleModalOpen(false)}
+        onSuccess={handleGoogleSuccess}
+        initialRole={role}
+      />
     </PublicCanvasLayout>
   );
 }
