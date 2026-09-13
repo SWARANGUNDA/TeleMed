@@ -20,24 +20,47 @@ export default function LoginPage({ onLogin, user, onOpenAuth }) {
     }
   }, [user, navigate]);
 
+  const handleEmailChange = (e) => {
+    const val = e.target.value;
+    setEmail(val);
+    const valLower = val.toLowerCase();
+    if (valLower.includes('admin') && portalRole !== 'ADMIN') {
+      setPortalRole('ADMIN');
+    } else if (valLower.includes('doctor') && portalRole !== 'DOCTOR') {
+      setPortalRole('DOCTOR');
+    }
+  };
+
   const handleFormSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     setErrorMsg(null);
 
+    let activeRole = portalRole;
+    const emailLower = email.trim().toLowerCase();
+    if (emailLower.includes('admin')) activeRole = 'ADMIN';
+    else if (emailLower.includes('doctor')) activeRole = 'DOCTOR';
+
     try {
       if (onLogin) {
-        // Authenticate with server
-        const authenticatedUser = await onLogin(email.trim(), password, portalRole);
-        
-        // Strict Role Authorization Guard Check
-        if (authenticatedUser && authenticatedUser.role && authenticatedUser.role !== portalRole) {
-          const actualRole = authenticatedUser.role;
-          const requestedRole = portalRole;
-          
-          throw new Error(
-            `Authorization Failed: Your account role (${actualRole}) does not match the requested ${requestedRole} Portal. Please select the ${actualRole} Portal to sign in.`
-          );
+        try {
+          const authenticatedUser = await onLogin(email.trim(), password, activeRole);
+          if (authenticatedUser && authenticatedUser.role) {
+            setPortalRole(authenticatedUser.role);
+          }
+        } catch (initialErr) {
+          // If role mismatch occurred, auto-retry seamlessly with the user's actual database role
+          const mismatchMatch = (initialErr.message || '').match(/account role \((ADMIN|DOCTOR|PATIENT)\)/i);
+          if (mismatchMatch && mismatchMatch[1]) {
+            const correctRole = mismatchMatch[1].toUpperCase();
+            setPortalRole(correctRole);
+            const retryUser = await onLogin(email.trim(), password, correctRole);
+            if (retryUser && retryUser.role) {
+              setPortalRole(retryUser.role);
+            }
+          } else {
+            throw initialErr;
+          }
         }
       }
     } catch (err) {
@@ -224,7 +247,7 @@ export default function LoginPage({ onLogin, user, onOpenAuth }) {
                     <input
                       type="email"
                       value={email}
-                      onChange={(e) => setEmail(e.target.value)}
+                      onChange={handleEmailChange}
                       placeholder="Enter your email address"
                       required
                       className="w-full pl-8 pr-3 py-2.5 rounded-xl bg-slate-50/70 border border-slate-200 text-xs sm:text-sm font-medium focus:bg-white focus:outline-none focus:border-blue-600 transition-all h-10 sm:h-11"

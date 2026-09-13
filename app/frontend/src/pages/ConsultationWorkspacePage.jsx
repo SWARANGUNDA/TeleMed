@@ -21,7 +21,8 @@ import {
   saveDoctorConsultationNote,
   fetchConsultationNote,
   completeConsultation,
-  respondToDoctorAssignment
+  respondToDoctorAssignment,
+  getAuthToken
 } from '../api/client';
 import useAudioCall, { CALL_STATES } from '../utils/useAudioCall';
 

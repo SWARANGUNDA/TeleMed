@@ -36,9 +36,26 @@ except (ImportError, ValueError):
 logger = logging.getLogger("web_platform.database")
 
 
+_sqlite_tables_initialized = False
+
+def _ensure_sqlite_tables():
+    global _sqlite_tables_initialized
+    if _sqlite_tables_initialized:
+        return
+    try:
+        from sqlalchemy import create_engine
+        db_path = Path(__file__).resolve().parent / "telemed_local.db"
+        sqlite_engine = create_engine(f"sqlite:///{db_path}", connect_args={"check_same_thread": False})
+        pg_models.Base.metadata.create_all(bind=sqlite_engine)
+        _sqlite_tables_initialized = True
+    except Exception as e:
+        logger.warning("Notice initializing SQLite tables: %s", e)
+
+
 def get_db_connection():
-    """Return SQLite connection for raw legacy SQL functions."""
+    """Return SQLite connection for raw legacy SQL functions, ensuring schema exists."""
     import sqlite3
+    _ensure_sqlite_tables()
     db_path = Path(__file__).resolve().parent / "telemed_local.db"
     conn = sqlite3.connect(db_path, check_same_thread=False)
     conn.row_factory = sqlite3.Row
@@ -711,6 +728,103 @@ def update_doctor_status(
 
 def get_admin_stats() -> Dict[str, Any]:
     """Get system summary statistics, queue previews, and recent administrative activity for Admin dashboard."""
+    try:
+        session = SessionLocal()
+        try:
+            total_users = session.query(pg_models.User).count()
+            total_patients = session.query(pg_models.User).filter_by(role="PATIENT").count()
+            total_doctors = session.query(pg_models.User).filter_by(role="DOCTOR").count()
+
+            try:
+                today_assessments = session.query(pg_models.Assessment).count()
+            except Exception:
+                today_assessments = 0
+
+            try:
+                pending_doctors = session.query(pg_models.DoctorProfile).filter(
+                    pg_models.DoctorProfile.verification_status.in_(["PENDING", "UNDER_REVIEW", "RESUBMISSION_REQUIRED"])
+                ).count()
+                verified_doctors = session.query(pg_models.DoctorProfile).filter_by(verification_status="VERIFIED").count()
+            except Exception:
+                pending_doctors = 0
+                verified_doctors = 0
+
+            try:
+                requested_consultations = session.query(pg_models.Consultation).filter_by(status="REQUESTED").count()
+                active_consultations = session.query(pg_models.Consultation).filter(
+                    pg_models.Consultation.status.in_(["ASSIGNED", "ACCEPTED", "ACTIVE"])
+                ).count()
+                completed_consultations = session.query(pg_models.Consultation).filter_by(status="COMPLETED").count()
+            except Exception:
+                requested_consultations = 0
+                active_consultations = 0
+                completed_consultations = 0
+
+            verification_preview = []
+            try:
+                docs = session.query(pg_models.DoctorProfile, pg_models.User).join(
+                    pg_models.User, pg_models.DoctorProfile.user_id == pg_models.User.user_id
+                ).order_by(pg_models.DoctorProfile.created_at.desc()).limit(5).all()
+                for d, u in docs:
+                    verification_preview.append({
+                        "doctor_id": d.doctor_id,
+                        "full_name": d.full_name,
+                        "email": u.email,
+                        "specialization": d.specialization,
+                        "verification_status": d.verification_status,
+                        "created_at": d.created_at
+                    })
+            except Exception:
+                pass
+
+            recent_activity = []
+            try:
+                auds = session.query(pg_models.DoctorAuditLog).order_by(pg_models.DoctorAuditLog.timestamp.desc()).limit(8).all()
+                for a in auds:
+                    recent_activity.append({
+                        "log_id": a.log_id,
+                        "action": a.action,
+                        "old_status": a.old_status,
+                        "new_status": a.new_status,
+                        "reason": a.reason,
+                        "timestamp": a.timestamp
+                    })
+            except Exception:
+                pass
+
+            consultation_preview = []
+            try:
+                cons = session.query(pg_models.Consultation).order_by(pg_models.Consultation.created_at.desc()).limit(5).all()
+                for c in cons:
+                    consultation_preview.append({
+                        "consultation_id": c.consultation_id,
+                        "user_id": c.user_id,
+                        "doctor_id": c.assigned_doctor_id,
+                        "status": c.status,
+                        "created_at": c.created_at
+                    })
+            except Exception:
+                pass
+
+            return {
+                "total_users": total_users,
+                "total_patients": total_patients,
+                "total_doctors": total_doctors,
+                "today_assessments": today_assessments,
+                "pending_doctors": pending_doctors,
+                "verified_doctors": verified_doctors,
+                "requested_consultations": requested_consultations,
+                "active_consultations": active_consultations,
+                "completed_consultations": completed_consultations,
+                "verification_preview": verification_preview,
+                "consultation_preview": consultation_preview,
+                "recent_activity": recent_activity
+            }
+        finally:
+            session.close()
+    except Exception as err:
+        logger.warning("SessionLocal get_admin_stats notice: %s, falling back to SQLite", err)
+
     conn = get_db_connection()
     try:
         total_users = conn.execute("SELECT COUNT(*) FROM users").fetchone()[0]
@@ -720,14 +834,14 @@ def get_admin_stats() -> Dict[str, Any]:
         try:
             today_assessments = conn.execute("SELECT COUNT(*) FROM patient_assessments").fetchone()[0]
         except Exception:
-            today_assessments = 142
+            today_assessments = 0
         
         try:
             pending_doctors = conn.execute("SELECT COUNT(*) FROM doctor_profiles WHERE verification_status IN ('PENDING', 'UNDER_REVIEW', 'RESUBMISSION_REQUIRED')").fetchone()[0]
             verified_doctors = conn.execute("SELECT COUNT(*) FROM doctor_profiles WHERE verification_status = 'VERIFIED'").fetchone()[0]
         except Exception:
-            pending_doctors = 1
-            verified_doctors = 1
+            pending_doctors = 0
+            verified_doctors = 0
         
         try:
             requested_consultations = conn.execute("SELECT COUNT(*) FROM consultations WHERE status = 'REQUESTED'").fetchone()[0]
@@ -786,7 +900,7 @@ def get_admin_stats() -> Dict[str, Any]:
             "recent_activity": recent_activity
         }
     except Exception as e:
-        print("get_admin_stats notice:", e)
+        logger.warning("get_admin_stats notice: %s", e)
         return {
             "total_users": 10,
             "total_patients": 8,
@@ -1417,9 +1531,54 @@ def update_doctor_verification_status(
     Validates state transition matrix and logs an explicit audit trail.
     """
     new_status_clean = new_status.strip().upper()
-    conn = get_db_connection()
     now = datetime.datetime.now(datetime.timezone.utc).isoformat()
+    reason_clean = reason.strip() if reason else f"Admin transitioned status to {new_status_clean}"
 
+    # Try SessionLocal first (PostgreSQL primary)
+    try:
+        session = SessionLocal()
+        try:
+            doc = session.query(pg_models.DoctorProfile).filter(
+                (pg_models.DoctorProfile.doctor_id == doctor_id) | (pg_models.DoctorProfile.user_id == doctor_id)
+            ).first()
+            if doc:
+                current_status = doc.verification_status
+                if current_status == new_status_clean:
+                    logger.info("Doctor %s is already in status %s (idempotent request)", doctor_id, new_status_clean)
+                    return get_doctor_application_detail(doc.doctor_id)
+                allowed = ALLOWED_DOCTOR_STATUS_TRANSITIONS.get(current_status, set())
+                if new_status_clean not in allowed:
+                    raise ValueError(f"Invalid status transition from '{current_status}' to '{new_status_clean}'. Allowed target status(es): {list(allowed)}.")
+                if new_status_clean in ("REJECTED", "RESUBMISSION_REQUIRED", "SUSPENDED") and not (reason and reason.strip()):
+                    raise ValueError(f"A detailed reason is required when setting doctor verification status to '{new_status_clean}'.")
+
+                doc.verification_status = new_status_clean
+                doc.credential_notes = reason_clean
+                log_id = f"aud_{secrets.token_hex(6)}"
+                audit = pg_models.DoctorAuditLog(
+                    log_id=log_id,
+                    doctor_id=doc.doctor_id,
+                    user_id=doc.user_id,
+                    action="STATUS_CHANGED",
+                    old_status=current_status,
+                    new_status=new_status_clean,
+                    actor_user_id=admin_user_id,
+                    actor_role="ADMIN",
+                    reason=reason_clean,
+                    timestamp=now
+                )
+                session.add(audit)
+                session.commit()
+                logger.info("Admin %s updated doctor %s verification status to %s in PostgreSQL", admin_user_id, doc.doctor_id, new_status_clean)
+                return get_doctor_application_detail(doc.doctor_id)
+        finally:
+            session.close()
+    except ValueError:
+        raise
+    except Exception as err:
+        logger.warning("SessionLocal update_doctor_verification_status notice: %s, trying SQLite", err)
+
+    conn = get_db_connection()
     try:
         cursor = conn.execute("SELECT doctor_id, user_id, verification_status FROM doctor_profiles WHERE doctor_id = ?", (doctor_id,))
         doc_row = cursor.fetchone()
@@ -1436,7 +1595,6 @@ def update_doctor_verification_status(
         allowed = ALLOWED_DOCTOR_STATUS_TRANSITIONS.get(current_status, set())
         if new_status_clean not in allowed:
             raise ValueError(f"Invalid status transition from '{current_status}' to '{new_status_clean}'. Allowed target status(es): {list(allowed)}.")
-
 
         if new_status_clean in ("REJECTED", "RESUBMISSION_REQUIRED", "SUSPENDED") and not (reason and reason.strip()):
             raise ValueError(f"A detailed reason is required when setting doctor verification status to '{new_status_clean}'.")
@@ -1459,7 +1617,7 @@ def update_doctor_verification_status(
                 ) VALUES (?, ?, ?, 'STATUS_CHANGED', ?, ?, ?, 'ADMIN', ?, ?)
             """, (log_id, doctor_id, user_id, current_status, new_status_clean, admin_user_id, reason_clean, now))
 
-        logger.info("Admin %s updated doctor %s verification status to %s", admin_user_id, doctor_id, new_status_clean)
+        logger.info("Admin %s updated doctor %s verification status to %s in SQLite", admin_user_id, doctor_id, new_status_clean)
         return get_doctor_application_detail(doctor_id)
     finally:
         conn.close()
@@ -1471,6 +1629,50 @@ def list_doctor_applications(
     search_query: Optional[str] = None
 ) -> List[Dict[str, Any]]:
     """List doctor applications for Admin workspace with status/specialization filtering."""
+    try:
+        session = SessionLocal()
+        try:
+            query = session.query(pg_models.DoctorProfile, pg_models.User).join(
+                pg_models.User, pg_models.DoctorProfile.user_id == pg_models.User.user_id
+            )
+            if status_filter:
+                query = query.filter(pg_models.DoctorProfile.verification_status == status_filter.strip().upper())
+            if specialization_filter:
+                query = query.filter(pg_models.DoctorProfile.specialization.ilike(f"%{specialization_filter.strip()}%"))
+            if search_query:
+                sq = f"%{search_query.strip()}%"
+                query = query.filter(
+                    (pg_models.DoctorProfile.full_name.ilike(sq)) |
+                    (pg_models.User.email.ilike(sq)) |
+                    (pg_models.DoctorProfile.registration_number.ilike(sq))
+                )
+            rows = query.order_by(pg_models.DoctorProfile.created_at.desc()).all()
+            result = []
+            for doc, u in rows:
+                doc_count = session.query(pg_models.DoctorCredential).filter_by(doctor_id=doc.doctor_id).count()
+                result.append({
+                    "doctor_id": doc.doctor_id,
+                    "user_id": doc.user_id,
+                    "full_name": doc.full_name,
+                    "email": u.email,
+                    "specialization": doc.specialization,
+                    "qualification": doc.qualification,
+                    "registration_number": doc.registration_number,
+                    "registration_council": doc.registration_council,
+                    "experience_years": doc.experience_years,
+                    "contact_number": doc.contact_number,
+                    "hospital_affiliation": doc.hospital_affiliation,
+                    "verification_status": doc.verification_status,
+                    "credential_notes": doc.credential_notes,
+                    "created_at": doc.created_at,
+                    "documents_count": doc_count
+                })
+            return result
+        finally:
+            session.close()
+    except Exception as err:
+        logger.warning("SessionLocal list_doctor_applications notice: %s, falling back to SQLite", err)
+
     conn = get_db_connection()
     try:
         sql = """
@@ -1498,7 +1700,6 @@ def list_doctor_applications(
         result = []
         for r in rows:
             d = dict(r)
-            # Count credentials uploaded
             doc_count = conn.execute("SELECT COUNT(*) FROM doctor_credentials WHERE doctor_id = ?", (d["doctor_id"],)).fetchone()[0]
             d["documents_count"] = doc_count
             result.append(d)
@@ -1509,6 +1710,70 @@ def list_doctor_applications(
 
 def get_doctor_application_detail(doctor_id: str) -> Optional[Dict[str, Any]]:
     """Fetch full detail snapshot of a doctor application including credentials & audit history."""
+    try:
+        session = SessionLocal()
+        try:
+            row = session.query(pg_models.DoctorProfile, pg_models.User).join(
+                pg_models.User, pg_models.DoctorProfile.user_id == pg_models.User.user_id
+            ).filter(
+                (pg_models.DoctorProfile.doctor_id == doctor_id) | (pg_models.DoctorProfile.user_id == doctor_id)
+            ).first()
+            if row:
+                doc, u = row
+                creds = session.query(pg_models.DoctorCredential).filter_by(doctor_id=doc.doctor_id).order_by(pg_models.DoctorCredential.uploaded_at.desc()).all()
+                auds = session.query(pg_models.DoctorAuditLog).filter_by(doctor_id=doc.doctor_id).order_by(pg_models.DoctorAuditLog.timestamp.desc()).all()
+                return {
+                    "doctor_id": doc.doctor_id,
+                    "user_id": doc.user_id,
+                    "full_name": doc.full_name,
+                    "email": u.email,
+                    "specialization": doc.specialization,
+                    "qualification": doc.qualification,
+                    "registration_number": doc.registration_number,
+                    "registration_council": doc.registration_council,
+                    "experience_years": doc.experience_years,
+                    "contact_number": doc.contact_number,
+                    "hospital_affiliation": doc.hospital_affiliation,
+                    "verification_status": doc.verification_status,
+                    "credential_notes": doc.credential_notes,
+                    "created_at": doc.created_at,
+                    "documents_count": len(creds),
+                    "credentials": [
+                        {
+                            "document_id": c.document_id,
+                            "doctor_id": c.doctor_id,
+                            "user_id": c.user_id,
+                            "document_type": c.document_type,
+                            "original_filename": c.original_filename,
+                            "stored_filename": c.stored_filename,
+                            "file_path": c.file_path,
+                            "file_size_bytes": c.file_size_bytes,
+                            "mime_type": c.mime_type,
+                            "uploaded_at": c.uploaded_at
+                        }
+                        for c in creds
+                    ],
+                    "audit_history": [
+                        {
+                            "log_id": a.log_id,
+                            "doctor_id": a.doctor_id,
+                            "user_id": a.user_id,
+                            "action": a.action,
+                            "old_status": a.old_status,
+                            "new_status": a.new_status,
+                            "actor_user_id": a.actor_user_id,
+                            "actor_role": a.actor_role,
+                            "reason": a.reason,
+                            "timestamp": a.timestamp
+                        }
+                        for a in auds
+                    ]
+                }
+        finally:
+            session.close()
+    except Exception as err:
+        logger.warning("SessionLocal get_doctor_application_detail notice: %s, falling back to SQLite", err)
+
     conn = get_db_connection()
     try:
         sql = """
@@ -1521,10 +1786,8 @@ def get_doctor_application_detail(doctor_id: str) -> Optional[Dict[str, Any]]:
         """
         row = conn.execute(sql, (doctor_id, doctor_id)).fetchone()
         if not row:
-            # Check if this doctor_id is a user_id for a DOCTOR account missing a profile
             u_check = conn.execute("SELECT user_id, role FROM users WHERE (user_id = ? OR user_id = ?) AND role = 'DOCTOR'", (doctor_id, doctor_id)).fetchone()
             if u_check:
-                # Trigger auto-recovery via _user_row_to_dict
                 get_user_by_id(u_check[0])
                 row = conn.execute(sql, (doctor_id, doctor_id)).fetchone()
             if not row:
@@ -1533,7 +1796,6 @@ def get_doctor_application_detail(doctor_id: str) -> Optional[Dict[str, Any]]:
         doc_dict = dict(row)
         target_doc_id = doc_dict["doctor_id"]
 
-        # Fetch credentials & audit history
         credentials = list_doctor_credentials(target_doc_id)
         audit_history = get_doctor_audit_history(target_doc_id)
 
@@ -1852,6 +2114,64 @@ def revoke_shared_record_consent(user_id: str, consultation_id: str, record_id: 
 
 def list_admin_consultations(status_filter: Optional[str] = None, search_query: Optional[str] = None) -> List[Dict[str, Any]]:
     """List consultation requests for Admin queue displaying assignment metadata ONLY (zero clinical records)."""
+    try:
+        session = SessionLocal()
+        try:
+            query = session.query(
+                pg_models.Consultation,
+                pg_models.User,
+                pg_models.PatientProfile,
+                pg_models.DoctorProfile
+            ).join(
+                pg_models.User, pg_models.Consultation.user_id == pg_models.User.user_id
+            ).outerjoin(
+                pg_models.PatientProfile, pg_models.Consultation.user_id == pg_models.PatientProfile.user_id
+            ).outerjoin(
+                pg_models.DoctorProfile, pg_models.Consultation.assigned_doctor_id == pg_models.DoctorProfile.doctor_id
+            )
+            if status_filter:
+                query = query.filter(pg_models.Consultation.status == status_filter.strip().upper())
+            if search_query:
+                sq = f"%{search_query.strip()}%"
+                query = query.filter(
+                    (pg_models.User.email.ilike(sq)) |
+                    (pg_models.PatientProfile.full_name.ilike(sq)) |
+                    (pg_models.Consultation.specialization.ilike(sq))
+                )
+            rows = query.order_by(pg_models.Consultation.created_at.desc()).all()
+            result = []
+            for c, u, p, d in rows:
+                shared_count = session.query(pg_models.ConsultationSharedRecord).filter(
+                    pg_models.ConsultationSharedRecord.consultation_id == c.consultation_id,
+                    pg_models.ConsultationSharedRecord.status == 'ACTIVE'
+                ).count()
+                result.append({
+                    "consultation_id": c.consultation_id,
+                    "patient_id": c.patient_id,
+                    "user_id": c.user_id,
+                    "patient_email": u.email,
+                    "patient_name": p.full_name if p else (u.email.split('@')[0].title()),
+                    "assigned_doctor_id": c.assigned_doctor_id,
+                    "doctor_name": d.full_name if d else None,
+                    "doctor_specialization": d.specialization if d else None,
+                    "requested_specialization": c.specialization,
+                    "specialization": c.specialization,
+                    "category": c.category,
+                    "reason": c.reason,
+                    "urgency": c.urgency,
+                    "message": c.message,
+                    "status": c.status,
+                    "created_at": c.created_at,
+                    "updated_at": c.updated_at,
+                    "completed_at": c.completed_at,
+                    "shared_records_count": shared_count
+                })
+            return result
+        finally:
+            session.close()
+    except Exception as err:
+        logger.warning("SessionLocal list_admin_consultations notice: %s, falling back to SQLite", err)
+
     conn = get_db_connection()
     try:
         sql = """
@@ -3149,7 +3469,25 @@ FORBIDDEN_SCIENTIFIC_SETTINGS = {
 
 
 def get_system_settings() -> Dict[str, str]:
-    """Retrieve operational system settings."""
+    """Retrieve operational system settings from PostgreSQL or fallback."""
+    try:
+        session = SessionLocal()
+        try:
+            rows = session.query(pg_models.SystemSetting).all()
+            if rows:
+                settings = {r.setting_key: r.setting_value for r in rows}
+                if "maintenance_mode" not in settings:
+                    settings["maintenance_mode"] = "false"
+                if "maintenance_message" not in settings:
+                    settings["maintenance_message"] = "TeleMed AI platform is operational."
+                if "system_announcement" not in settings:
+                    settings["system_announcement"] = ""
+                return settings
+        finally:
+            session.close()
+    except Exception as err:
+        logger.warning("SessionLocal get_system_settings notice: %s, falling back to SQLite", err)
+
     conn = get_db_connection()
     try:
         rows = conn.execute("SELECT setting_key, setting_value FROM system_settings").fetchall()
@@ -3161,6 +3499,13 @@ def get_system_settings() -> Dict[str, str]:
         if "system_announcement" not in settings:
             settings["system_announcement"] = ""
         return settings
+    except Exception as e:
+        logger.warning("get_system_settings notice: %s", e)
+        return {
+            "maintenance_mode": "false",
+            "maintenance_message": "TeleMed AI platform is operational.",
+            "system_announcement": ""
+        }
     finally:
         conn.close()
 
@@ -3176,8 +3521,33 @@ def update_system_settings(admin_user_id: str, settings_dict: Dict[str, str]) ->
         if key not in ALLOWED_NON_SCIENTIFIC_SETTINGS:
             raise ValueError(f"Invalid setting key '{key}'. Only safe operational settings may be modified.")
 
-    conn = get_db_connection()
     now = datetime.datetime.now(datetime.timezone.utc).isoformat()
+
+    # Try SessionLocal first
+    try:
+        session = SessionLocal()
+        try:
+            for k, v in settings_dict.items():
+                setting = session.query(pg_models.SystemSetting).filter_by(setting_key=k).first()
+                if setting:
+                    setting.setting_value = str(v)
+                    setting.updated_at = now
+                    setting.updated_by = admin_user_id
+                else:
+                    setting = pg_models.SystemSetting(
+                        setting_key=k,
+                        setting_value=str(v),
+                        updated_at=now,
+                        updated_by=admin_user_id
+                    )
+                    session.add(setting)
+            session.commit()
+        finally:
+            session.close()
+    except Exception as err:
+        logger.warning("SessionLocal update_system_settings notice: %s", err)
+
+    conn = get_db_connection()
     try:
         with conn:
             for k, v in settings_dict.items():
@@ -3202,17 +3572,27 @@ def get_detailed_system_health() -> Dict[str, Any]:
     now = datetime.datetime.now(datetime.timezone.utc).isoformat()
     services = {}
 
-    # 1. Database Health Check
+    # 1. Database Health Check (queries real engine first)
     try:
-        conn = get_db_connection()
+        from .database.db import engine
+        from sqlalchemy import text
         t0 = datetime.datetime.now(datetime.timezone.utc)
-        conn.execute("SELECT 1").fetchone()
+        with engine.connect() as db_conn:
+            db_conn.execute(text("SELECT 1"))
         t1 = datetime.datetime.now(datetime.timezone.utc)
         latency_ms = round((t1 - t0).total_seconds() * 1000, 2)
-        conn.close()
-        services["database"] = {"status": "HEALTHY", "latency_ms": latency_ms, "last_check": now}
+        services["database"] = {"status": "HEALTHY", "latency_ms": latency_ms, "engine": engine.name, "last_check": now}
     except Exception as e:
-        services["database"] = {"status": "UNAVAILABLE", "error": str(e), "last_check": now}
+        try:
+            conn = get_db_connection()
+            t0 = datetime.datetime.now(datetime.timezone.utc)
+            conn.execute("SELECT 1").fetchone()
+            t1 = datetime.datetime.now(datetime.timezone.utc)
+            latency_ms = round((t1 - t0).total_seconds() * 1000, 2)
+            conn.close()
+            services["database"] = {"status": "HEALTHY", "latency_ms": latency_ms, "last_check": now}
+        except Exception as e2:
+            services["database"] = {"status": "DEGRADED", "error": str(e2), "last_check": now}
 
     # 2. Expert Models (v3.3 Pipeline)
     try:
@@ -3398,7 +3778,62 @@ def query_admin_audit_logs(
     """
     Search and filter audit records for the Admin Audit Console.
     Paginated with total record count and filters.
+    Primary: PostgreSQL via SessionLocal (where log_audit_event writes), with SQLite fallback.
     """
+    try:
+        session = SessionLocal()
+        try:
+            query = session.query(pg_models.AuditEvent)
+            if role:
+                query = query.filter(pg_models.AuditEvent.role == role.upper())
+            if action:
+                query = query.filter(pg_models.AuditEvent.action.ilike(f"%{action}%"))
+            if outcome:
+                query = query.filter(pg_models.AuditEvent.outcome == outcome.upper())
+            if search:
+                s_pat = f"%{search}%"
+                query = query.filter(
+                    (pg_models.AuditEvent.actor_user_id.ilike(s_pat)) |
+                    (pg_models.AuditEvent.action.ilike(s_pat)) |
+                    (pg_models.AuditEvent.resource_type.ilike(s_pat)) |
+                    (pg_models.AuditEvent.resource_id.ilike(s_pat))
+                )
+            total = query.count()
+            offset = (page - 1) * page_size
+            events = query.order_by(pg_models.AuditEvent.created_at.desc()).offset(offset).limit(page_size).all()
+            items = []
+            for r in events:
+                ctx = {}
+                if r.context_json:
+                    try:
+                        ctx = json.loads(r.context_json)
+                    except Exception:
+                        ctx = {}
+                items.append({
+                    "event_id": r.event_id,
+                    "actor_user_id": r.actor_user_id,
+                    "role": r.role,
+                    "action": r.action,
+                    "resource_type": r.resource_type,
+                    "resource_id": r.resource_id or "",
+                    "outcome": r.outcome,
+                    "context": ctx,
+                    "prev_hash": r.prev_hash,
+                    "event_hash": r.event_hash,
+                    "created_at": r.created_at
+                })
+            return {
+                "total": total,
+                "page": page,
+                "page_size": page_size,
+                "total_pages": (total + page_size - 1) // page_size if total > 0 else 1,
+                "items": items
+            }
+        finally:
+            session.close()
+    except Exception as err:
+        logger.warning("SessionLocal query_admin_audit_logs notice: %s, falling back to SQLite", err)
+
     conn = get_db_connection()
     try:
         where_clauses = []

@@ -76,6 +76,7 @@ def submit_account_deletion_request(
 # ------------------------------------------------------------------
 
 @router.get("/admin/audit", status_code=status.HTTP_200_OK)
+@router.get("/admin/audit/logs", status_code=status.HTTP_200_OK)
 def get_admin_audit_logs(
     role: Optional[str] = Query(None, description="Filter by actor role (PATIENT, DOCTOR, ADMIN)"),
     action: Optional[str] = Query(None, description="Filter by action name"),

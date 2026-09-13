@@ -11,7 +11,8 @@ import {
 import { PageContainer } from '../components/layout';
 import {
   fetchDoctorConsultations,
-  respondToDoctorAssignment
+  respondToDoctorAssignment,
+  getAuthToken
 } from '../api/client';
 import WorkloadPanel from '../components/doctor/WorkloadPanel';
 import HighRiskPatients from '../components/doctor/HighRiskPatients';

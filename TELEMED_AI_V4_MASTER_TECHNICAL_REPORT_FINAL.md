@@ -105,68 +105,215 @@ Despite the well-established biological cross-talk among these three axes, moder
 
 ---
 
-# SECTION 8: KEY ARCHITECTURAL INNOVATIONS
+# SECTION 8: KEY ARCHITECTURAL INNOVATIONS — EXPLAINED IN DETAIL
 
-```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                    TELEMED AI v4 SIX CORE INNOVATIONS                       │
-├─────────────────────────────────────────────────────────────────────────────┤
-│ 1. 7-Pathway Combinatorial Router: Operates on all data permutations.      │
-│ 2. Zero-Imputation Guarantee: Unprovided modalities remain strictly null.   │
-│ 3. Hierarchical Probability Stacking: 82 features -> 15 probs -> 5 targets. │
-│ 4. Instant Unified TreeSHAP: Sub-60ms fair polynomial feature attribution.  │
-│ 5. Deterministic Medical RAG: In-memory vector search over 5 guidelines.    │
-│ 6. Multi-Portal Zero-Cost Stack: React 18 + FastAPI + Neon PostgreSQL 17.   │
-└─────────────────────────────────────────────────────────────────────────────┘
-```
+TeleMed AI v4 is built on six interconnected architectural innovations. This section explains each one so that any team member or reviewer can understand exactly what it does and why it matters.
+
+### Innovation 1: Zero-Imputation 7-Pathway Dynamic Routing Engine
+**What it does:** When a patient submits health data, the system first checks which of the three test categories (Clinical blood tests, Wearable/CGM sensor data, Gut microbiome sequencing) are actually present. Based on which modalities are available, the system automatically selects and executes the correct machine learning pipeline from a set of 7 pre-trained pathways — one for every possible combination of the 3 data types.
+
+**Why it matters:** Traditional AI systems require all input features to be present. If a patient is missing wearable data, the system either crashes or fills in fake numbers (imputation). In healthcare, imputing fake biological values is dangerous because it creates artificial physiological relationships that don't exist. Our routing engine never fabricates data — if a test is missing, it remains marked as "NOT PROVIDED" and the system routes to a pipeline trained specifically on the data that IS available.
+
+**How it works internally:**
+1. The patient's incoming data payload arrives at the backend API endpoint (`POST /api/v1/predict/analyze`).
+2. The Schema Validator (`v3_schema_validator.py`) scans the payload and classifies each of the 3 modalities as either PRESENT or NULL.
+3. Based on which modalities are present, the Router (`v3_scientific_router.py`) selects the matching pathway key: `C`, `W`, `G`, `C+W`, `C+G`, `W+G`, or `C+W+G`.
+4. The selected pathway's pre-trained model artifacts are loaded from `.joblib` files and inference is executed.
+5. Results flow downstream to the TreeSHAP explainer and Medical RAG synthesizer.
+
+**The mathematical basis:** With 3 modalities (Clinical, Wearable, Gut), the total number of non-empty subsets is 2^3 - 1 = 7. Each subset represents a unique combination of available data, and each has its own dedicated, independently trained model pipeline. This is exhaustive — there is no possible data combination that falls outside these 7 pathways.
+
+### Innovation 2: Hierarchical Two-Stage Probability Meta-Stacking
+**What it does:** Instead of combining all 82 raw biological features into one giant model (which would break when features are missing), the system uses a two-stage approach. In Stage 1, three specialized "expert" models each process their own domain (blood chemistry, wearable sensors, gut bacteria). Each expert outputs 5 calibrated probability scores (one per disease). In Stage 2, a second-level "meta-learner" model takes those probability scores as its input and computes the final fused risk score.
+
+**Why it matters:** This design means each expert model is optimized for its own biological domain. The meta-learner then learns how much to trust each expert for each specific disease. For example, for Type 2 Diabetes, the meta-learner learns that the Clinical expert should be weighted at 80.5% while the Wearable expert contributes 19.5% — because blood HbA1c is the gold-standard diabetes marker, while CGM data provides useful secondary confirmation.
+
+**How it works internally:**
+1. Stage 1: The Clinical Expert (18 features) runs 5 binary classifiers and outputs 5 probability scores. The Wearable Expert (15 features) does the same. The Gut Expert (49 features) does the same. This produces 15 total probability values (3 modalities x 5 diseases).
+2. Stage 2: For each disease target, the Meta-Learner takes a 3-element probability vector [P_Clinical, P_Wearable, P_Gut] and computes a final weighted combination using disease-specific learned weights.
+3. The final output is 5 calibrated risk scores between 0% and 100%, one per metabolic condition.
+
+**What "Late Fusion" means:** In machine learning literature, there are three types of multimodal fusion:
+* **Early Fusion:** Concatenate all raw features into one vector and train one model. Fails when features are missing.
+* **Intermediate Fusion:** Share hidden layers between modality-specific neural networks. Requires deep learning and is harder to explain.
+* **Late Fusion (our approach):** Each modality has an independent model that produces probability outputs. These probabilities are then combined by a separate fusion model. This is the most robust to missing data and the most interpretable.
+
+### Innovation 3: Sub-60ms Unified TreeSHAP Explainability
+**What it does:** For every patient prediction, the system computes exactly which biomarkers pushed the risk score higher (risk drivers) and which biomarkers pushed it lower (protective factors). These attributions are displayed as interactive waterfall charts showing the top positive and negative contributors.
+
+**Why it matters:** Doctors will not trust a black-box AI that just says "74% diabetes risk" without explanation. TreeSHAP provides mathematically fair, individually-tailored explanations that help clinicians verify the AI's reasoning and take targeted clinical action.
+
+**How it works internally:**
+1. For tree-based models (XGBoost, CatBoost, RandomForest, ExtraTrees), the system uses `shap.TreeExplainer` which traces all possible decision paths through the tree ensemble in polynomial time O(TLD^2), computing exact Shapley values. T = number of trees, L = maximum leaves per tree, D = maximum depth.
+2. For linear models (LogisticRegression), the system computes exact attributions using the formula: attribution_i = weight_i × (patient_value_i - population_mean_i). This satisfies all four Shapley axioms (efficiency, symmetry, dummy, linearity) and executes in under 2 milliseconds.
+3. Both tree and linear attributions are normalized into a unified waterfall chart format showing red bars (risk-increasing biomarkers) and green bars (protective biomarkers).
+4. The top 5 risk drivers and top 5 protective factors are extracted and passed to the Medical RAG engine for targeted recommendation generation.
+
+**What are Shapley values in simple terms:** Imagine you are trying to figure out which players on a cricket team contributed most to winning a match. Shapley values calculate each player's contribution by considering every possible combination of teammates and averaging the marginal contribution of that player across all combinations. In our system, "players" are biomarkers (like HbA1c, BMI, heart rate) and the "match result" is the disease risk score.
+
+### Innovation 4: Deterministic Evidence-Grounded Medical RAG
+**What it does:** After computing risk scores and biomarker drivers, the system generates a personalized clinical care summary. Instead of allowing an AI to freely invent medical advice (which causes dangerous hallucinations), the system retrieves relevant text passages from a pre-built database of 20 verified clinical guideline chunks and assembles recommendations by citing those official sources.
+
+**Why it matters:** Consumer AI chatbots routinely hallucinate medical facts — they may invent drug names, cite non-existent clinical trials, or give contradictory advice. By restricting all recommendations to verified, retrievable guideline text with explicit source citations, the system eliminates the possibility of invented medical advice. Every recommendation can be traced back to a specific page in a specific medical guideline document.
+
+**How it works internally:**
+1. The patient's top risk conditions and biomarker drivers are converted into a semantic query vector using sentence-transformer embeddings.
+2. The query is compared against 20 pre-embedded guideline chunks from 5 official medical societies (ADA, WHO, AASLD, AHA/NHLBI, ISAPP) using cosine similarity in the in-memory vector index.
+3. The top-matching chunks are retrieved in under 15 milliseconds (no external API call, no internet required).
+4. A structured care summary is assembled using the retrieved text, with each recommendation tagged with its source citation badge (e.g., "[Source: ADA-2024-Standards]").
+5. Anti-hallucination guardrail: If no guideline chunk has a cosine similarity above the 0.60 threshold, the system returns "No matching clinical guideline found" instead of generating speculative advice.
+
+**What is RAG:** RAG stands for "Retrieval-Augmented Generation." Traditional AI text generation works by predicting the next word based on patterns in training data, which can lead to plausible-sounding but factually incorrect output. RAG adds a retrieval step before generation: instead of relying on memory alone, the system first searches a curated knowledge base for relevant facts, and then generates text grounded in those retrieved facts. This dramatically reduces hallucinations.
+
+### Innovation 5: Full-Stack Multi-Portal Web Architecture
+**What it does:** The platform provides three distinct role-based web portals — Patient, Doctor, and Admin — each with dedicated workflows, access controls, and dashboards tailored to their user persona.
+
+**How it works externally:**
+* **Patient Portal:** Upload lab reports (PDF/image), view 5-disease risk dashboard with TreeSHAP waterfall charts, browse health records vault with historical analyses, search and book specialist appointments by department, chat with assigned doctors through secure in-app messaging.
+* **Doctor Portal:** Register and upload medical license (PDF) for verification, view assigned patient charts with AI-generated risk analyses, enter clinical consultation notes with disease-specific care recommendations, view patient history across multiple visits.
+* **Admin Portal:** Review and approve/reject doctor credential applications with document preview, view system telemetry and server health metrics (CPU, memory, active users), inspect the tamper-evident cryptographic audit ledger (hash-chained event log), manage user accounts.
+
+**How role-based access control works internally:**
+Each API endpoint is decorated with a `require_role("PATIENT")`, `require_role("DOCTOR")`, or `require_role("ADMIN")` dependency. When a request arrives, the middleware extracts the JWT token, decodes the user's role, and checks if it matches the required role. If it doesn't match, the request is rejected with a 403 Forbidden response before any business logic executes.
+
+### Innovation 6: Zero-Cost Production Cloud Deployment
+**What it does:** The entire platform runs live on the internet at zero monthly hosting cost by leveraging free-tier cloud services optimally.
+
+**How it works externally:**
+* **Frontend (React 18 SPA):** Deployed to Vercel's Edge Network as static HTML/JS/CSS. Vercel serves the frontend from global CDN edge nodes for sub-100ms page loads worldwide. The Vercel free tier provides unlimited static deployments and 100GB bandwidth per month.
+* **Backend (FastAPI):** Deployed to Render's free-tier web service. The FastAPI application handles all API requests, ML inference, and database operations. The Render free tier provides 750 hours/month of runtime and 512MB RAM.
+* **Database (PostgreSQL 17):** Hosted on Neon's serverless PostgreSQL platform with automatic connection pooling, point-in-time recovery, and daily backups. The Neon free tier provides 0.5GB storage and 191 compute hours/month.
+* **API Proxy:** Vercel's `vercel.json` configuration rewrites all `/api/*` requests from the frontend to the Render backend URL, so both frontend and backend appear to operate on the same domain — avoiding CORS issues and presenting a unified URL to users.
 
 ---
 
-# SECTION 9: END-TO-END SYSTEM ARCHITECTURE
+# SECTION 9: END-TO-END SYSTEM ARCHITECTURE — FULL DATA FLOW EXPLAINED
+
+### 9.1 High-Level Architecture Diagram
 
 ```
-[User Browser: Patient / Doctor / Admin]
-       │
-       ▼ (HTTPS / WSS)
-[Vercel Edge Network: React 18 + Vite SPA]
-  ├── Public Web Pages (Hero, Features, Research, About, Care)
-  ├── Patient Portal (Intake, 7-Pathway AI, Records Vault, Consultations)
-  ├── Doctor Portal (Credential Upload, Verification Queue, Clinical Workspace)
-  ├── Admin Portal (Doctor Application Ledger, Audit Logs, Telemetry)
-  └── SPA Routing & /api/* Reverse Proxy Rewrites
-       │
-       ▼ (Secure Reverse Proxy HTTPS)
-[Render Cloud: FastAPI ASGI Web Service (app.backend.main:app)]
-  ├── Security & Governance Layer
-  │     ├── RateLimitingMiddleware (Sliding window IP throttling)
-  │     ├── SecurityHeadersMiddleware (CSP, X-Frame-Options, HSTS)
-  │     ├── Role-Based Access Control (require_role: PATIENT, DOCTOR, ADMIN)
-  │     └── Cryptographic Hash-Chained Audit Ledger
-  │
-  ├── Multimodal Intake & Normalization Engine
-  │     ├── PDF Parser & Tesseract OCR Engine
-  │     ├── Schema Validation & Biomarker Bounds Checker (v3_schema_validator)
-  │     └── Missing Modality Detection & Null Masking
-  │
-  ├── 7-Pathway Dynamic Routing Engine (v3_scientific_router.py)
-  │     ├── Pathway 1 (C)     ──> Clinical Expert (18 inputs -> 5 probabilities)
-  │     ├── Pathway 2 (W)     ──> Wearable CGM Expert (15 inputs -> 5 probabilities)
-  │     ├── Pathway 3 (G)     ──> Gut 16S Expert (49 inputs -> 5 probabilities)
-  │     ├── Pathway 4 (C+W)   ──> Bimodal Stacking (33 features -> 2-Input Meta)
-  │     ├── Pathway 5 (C+G)   ──> Bimodal Stacking (67 features -> 2-Input Meta)
-  │     ├── Pathway 6 (W+G)   ──> Bimodal Stacking (64 features -> 2-Input Meta via wg_stacker)
-  │     └── Pathway 7 (C+W+G) ──> Trimodal Meta-Learner (82 features -> 15 Probabilities -> 3-Input Meta)
-  │
-  ├── Explainable AI & Clinical Synthesis Engine
-  │     ├── Unified TreeSHAP Engine (15 fitted TreeExplainers + Linear Explainers)
-  │     └── Medical RAG Service (In-Memory Vector Search, 20 Chunks, 5 Guidelines)
-  │
-  └── Database & Persistence Layer
-        ├── SQLAlchemy 2.0 ORM with Connection Pooling (pool_size=30, max_overflow=20)
-        └── Neon Cloud Serverless PostgreSQL 17 (10 Normalized Relational Tables)
+┌─────────────────────────────────────────────────────────────────────────────────────────────┐
+│                              USER BROWSER (Patient / Doctor / Admin)                         │
+└──────────────────────────────────────┬──────────────────────────────────────────────────────┘
+                                       │ HTTPS Requests
+                                       ▼
+┌─────────────────────────────────────────────────────────────────────────────────────────────┐
+│                           VERCEL EDGE NETWORK (Frontend Hosting)                             │
+│                                                                                             │
+│   React 18 Single Page Application (SPA) built with Vite 5.4                                │
+│   ┌──────────────┐  ┌──────────────┐  ┌──────────────┐  ┌──────────────────────────────┐   │
+│   │  Public Pages │  │Patient Portal│  │Doctor Portal │  │   Admin Portal               │   │
+│   │  (Hero, About,│  │(Intake, Risk │  │(Credentials, │  │   (Doctor Verification,     │   │
+│   │   Features,  │  │ Dashboard,   │  │ Patient      │  │    Audit Logs, Telemetry)   │   │
+│   │   Research)  │  │ Records,     │  │ Charts,      │  │                             │   │
+│   │              │  │ Appointments)│  │ Notes)       │  │                             │   │
+│   └──────────────┘  └──────────────┘  └──────────────┘  └──────────────────────────────┘   │
+│                                                                                             │
+│   vercel.json: /api/* requests are reverse-proxied to Render backend                        │
+└──────────────────────────────────────┬──────────────────────────────────────────────────────┘
+                                       │ HTTPS Reverse Proxy
+                                       ▼
+┌─────────────────────────────────────────────────────────────────────────────────────────────┐
+│                        RENDER CLOUD (Backend API Server)                                     │
+│                                                                                             │
+│   FastAPI ASGI Application (Python 3.11)                                                    │
+│                                                                                             │
+│   ┌─── LAYER 1: Security & Middleware ──────────────────────────────────────────────────┐   │
+│   │  RateLimitingMiddleware ──> SecurityHeadersMiddleware ──> CORSMiddleware            │   │
+│   │  JWT Token Verification ──> Role-Based Access Control (PATIENT/DOCTOR/ADMIN)       │   │
+│   │  Cryptographic Hash-Chained Audit Ledger (every action logged immutably)           │   │
+│   └────────────────────────────────────────────────────────────────────────────────────┘   │
+│                                                                                             │
+│   ┌─── LAYER 2: Multimodal Intake & Data Processing ───────────────────────────────────┐   │
+│   │  PDF Text Extraction (pypdf) ──> Scanned Image OCR (Tesseract)                     │   │
+│   │  Biomarker Alias Resolution ("SGPT" -> ALT, "A1C" -> HbA1c)                       │   │
+│   │  Unit Normalization (mmol/L -> mg/dL) ──> Bounds Validation                        │   │
+│   │  Schema Validator: Detects which modalities (C, W, G) are present vs absent        │   │
+│   └────────────────────────────────────────────────────────────────────────────────────┘   │
+│                                                                                             │
+│   ┌─── LAYER 3: 7-Pathway ML Inference Engine ─────────────────────────────────────────┐   │
+│   │  Dynamic Router selects the correct pathway based on available modalities:         │   │
+│   │                                                                                     │   │
+│   │  P1 (C only)    ──> Clinical Expert (18 features ──> 5 probabilities)              │   │
+│   │  P2 (W only)    ──> Wearable Expert (15 features ──> 5 probabilities)              │   │
+│   │  P3 (G only)    ──> Gut Expert (49 features ──> 5 probabilities)                   │   │
+│   │  P4 (C+W)       ──> Bimodal Stacker (2 probabilities per disease ──> fused score)  │   │
+│   │  P5 (C+G)       ──> Bimodal Stacker (2 probabilities per disease ──> fused score)  │   │
+│   │  P6 (W+G)       ──> WG Bimodal Stacker (2 probs per disease ──> fused score)      │   │
+│   │  P7 (C+W+G)     ──> Trimodal Meta-Stacker (3 probs per disease ──> fused score)   │   │
+│   └────────────────────────────────────────────────────────────────────────────────────┘   │
+│                                                                                             │
+│   ┌─── LAYER 4: Explainability & Clinical Synthesis ───────────────────────────────────┐   │
+│   │  Unified TreeSHAP Engine: Computes biomarker attributions in <60ms                 │   │
+│   │  Medical RAG Engine: Retrieves guideline text from 20 chunks (5 sources)           │   │
+│   │  Care Summary Generator: Assembles personalized recommendations + citations        │   │
+│   └────────────────────────────────────────────────────────────────────────────────────┘   │
+│                                                                                             │
+│   ┌─── LAYER 5: Application Services ──────────────────────────────────────────────────┐   │
+│   │  Authentication (JWT) ──> User Management ──> Appointment Scheduling               │   │
+│   │  Consultation Chat ──> Doctor Credential Verification ──> Health Records Vault     │   │
+│   └────────────────────────────────────────────────────────────────────────────────────┘   │
+└──────────────────────────────────────┬──────────────────────────────────────────────────────┘
+                                       │ SQLAlchemy ORM (pool_size=30)
+                                       ▼
+┌─────────────────────────────────────────────────────────────────────────────────────────────┐
+│                      NEON CLOUD (Serverless PostgreSQL 17)                                    │
+│                                                                                             │
+│   10 Normalized Relational Tables:                                                          │
+│   users | patient_profiles | doctor_profiles | doctor_documents | health_records             │
+│   consultations | appointments | messages | notifications | audit_events                    │
+└─────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
+
+### 9.2 Complete Request Lifecycle — How a Patient Prediction Works End-to-End
+
+To help explain this system to a reviewer, here is the exact step-by-step sequence of what happens when a patient requests a health risk analysis:
+
+**Step 1 — User Login (Frontend to Backend):**
+The patient opens the web application at `https://tele-med-omega.vercel.app` in their browser. They log in with email and password. The React frontend sends a `POST /api/v1/auth/login` request to the backend. The backend verifies the bcrypt-hashed password, generates a signed JWT token containing the user's ID and role (`PATIENT`), and returns it. The frontend stores this token in browser memory (not localStorage for security) and attaches it to every subsequent API request as an `Authorization: Bearer <token>` header.
+
+**Step 2 — Document Upload (Frontend to Backend):**
+The patient navigates to the Intake page and uploads their medical lab report (a PDF file). The React frontend sends a `POST /api/v1/intake/upload` request with the PDF as a multipart form attachment. On the backend, the Intake Engine first validates the file type and size (<25MB), then extracts text from the PDF using `pypdf`. If the PDF is a scanned image, Tesseract OCR is used instead. The extracted text is scanned for biomarker keywords using regex alias matching (e.g., "Hemoglobin A1c", "A1C", or "glycated hemoglobin" all map to `HbA1c`). Extracted numerical values are validated against physiological bounds (e.g., heart rate must be between 25 and 260 bpm, blood glucose must be between 20 and 600 mg/dL). Units are normalized to standard clinical formats (e.g., mmol/L is converted to mg/dL using the conversion factor 18.0182).
+
+**Step 3 — Biomarker Confirmation (Frontend to Backend):**
+The extracted biomarkers are displayed to the patient on screen in an editable form for manual review and correction. If the OCR misread a value (e.g., "1O5" instead of "105"), the patient can fix it manually. The patient clicks "Confirm" which sends a `POST /api/v1/intake/confirm` request. This locks the intake session and advances its state from EXTRACTED to CONFIRMED.
+
+**Step 4 — Modality Detection (Inside Backend):**
+The Schema Validator scans the confirmed biomarker payload against three predefined feature lists:
+* `CLINICAL_V4_FEATURES` — 18 predictive features: Age, Gender, Height, Weight, BMI, Waist_Circumference, Systolic_BP, Diastolic_BP, Fasting_Blood_Glucose, HbA1c, Triglycerides, HDL, LDL, ALT, AST, Family_History_Diabetes, Family_History_Hypertension, Family_History_CVD.
+* `WEARABLE_V4_FEATURES` — 15 predictive features: Average_Daily_Steps, Active_Minutes, Sedentary_Time_Minutes, Resting_Heart_Rate, Heart_Rate_Variability_RMSSD, Sleep_Duration_Hours, Sleep_Efficiency_Score, Autonomic_Stress_Score, Activity_Energy_Expenditure, Exercise_Frequency_Days, CGM_Average_Glucose, CGM_Glucose_CV, CGM_Time_In_Range, CGM_Time_Above_Range, CGM_Time_Below_Range.
+* `GUT_V4_TAXA_FEATURES` — 49 predictive features: 40 bacterial taxa (Akkermansia muciniphila, Faecalibacterium prausnitzii, Roseburia intestinalis, Bifidobacterium longum, Bifidobacterium adolescentis, Bacteroides thetaiotaomicron, Bacteroides vulgatus, Bacteroides fragilis, Bacteroides uniformis, Prevotella copri, Ruminococcus bromii, Ruminococcus gnavus, Blautia wexlerae, Blautia hansenii, Collinsella aerofaciens, Escherichia coli, Klebsiella pneumoniae, Coprococcus eutactus, Alistipes putredinis, Alistipes finegoldii, Subdoligranulum variable, Enterococcus faecalis, Eubacterium rectale, Eubacterium hallii, Parabacteroides distasonis, Lactobacillus acidophilus, Lactobacillus rhamnosus, Streptococcus thermophilus, Eggerthella lenta, Christensenella minuta, Methanobrevibacter smithii, Dialister invisus, Holdemanella biformis, Barnesiella intestinihominis, Anaerostipes caccae, Phascolarctobacterium faecium, Veillonella parvula, Fusobacterium nucleatum, Bilophila wadsworthia, Sutterella wadsworthensis) + 4 diversity indices (Shannon, Simpson, Observed Richness, Pielou Evenness) + 4 functional health indices (SCFA Producer, Butyrate Producer, Barrier Associated, Inflammation Associated) + 1 ratio (Log Firmicutes/Bacteroidetes).
+
+For each modality, it checks whether ALL required fields are present. If a modality's fields are fully absent, it is marked as `null`. This step determines which pathway will be activated.
+
+**Step 5 — Dynamic Pathway Routing (Inside Backend):**
+The Router examines the modality availability flags and selects the correct pathway. For example, if the patient uploaded blood tests and wearable data but no gut sequencing, the flags are `C=PRESENT, W=PRESENT, G=NULL`, and the router selects **Pathway 4 (C+W Bimodal)**. The router then loads the corresponding pre-trained `.joblib` model artifacts from disk. Each pathway has its own dedicated model file, scaler file, and threshold file.
+
+**Step 6 — Stage 1 Base Expert Inference (Inside Backend):**
+The selected pathway's base expert models are executed. For Pathway 4 (C+W):
+  * The Clinical Expert's `StandardScaler` normalizes the 18 clinical features (subtracts the training mean and divides by the training standard deviation for each feature), then the Clinical classifier computes 5 probability scores (one per disease) using `model.predict_proba()`.
+  * The Wearable Expert's `StandardScaler` normalizes the 15 wearable features, then the Wearable classifier computes 5 probability scores.
+  * This produces 10 intermediate probability values (2 modalities × 5 diseases).
+
+**Step 7 — Stage 2 Meta-Stacking Fusion (Inside Backend):**
+For each of the 5 disease targets, the Bimodal Stacker takes the 2 probability values [P_Clinical, P_Wearable] as input. The stacker is a LogisticRegression model trained with L2 regularization (C=1.0) that applies its trained weights to compute a single fused risk probability. This produces 5 final risk scores. Each score is compared against its disease-specific calibrated threshold (Type 2 Diabetes = 0.33, Prediabetes = 0.33, High Adiposity = 0.39, MetSyn = 0.31, NAFLD = 0.29) to produce a binary YES/NO risk classification alongside the continuous probability.
+
+**Step 8 — TreeSHAP Feature Attribution (Inside Backend):**
+For each disease, the Unified TreeSHAP Engine computes how much each individual biomarker contributed to that patient's specific risk score. For tree-based expert models (XGBoost, CatBoost, RandomForest, ExtraTrees), `shap.TreeExplainer` traces all decision tree paths and computes exact Shapley values. For logistic regression models, the exact linear Shapley formula is used: `attribution_i = weight_i × (patient_value_i - population_mean_i)`. The result is a ranked list of biomarkers sorted by absolute contribution magnitude — the top positive contributors are labeled "Risk Drivers" (shown as red bars) and the top negative contributors are labeled "Protective Factors" (shown as green bars).
+
+**Step 9 — Medical RAG Report Generation (Inside Backend):**
+The patient's elevated risk conditions and top biomarker drivers are encoded into a semantic query. The in-memory vector engine searches the 20 guideline chunks and retrieves the most relevant recommendations (top-3 by cosine similarity score). A structured clinical care summary is assembled with sections for:
+  * **Dietary Modifications** — citing ADA, WHO guidelines
+  * **Physical Activity** — citing AHA recommendations
+  * **Laboratory Follow-Up** — suggesting specific repeat tests based on elevated biomarkers
+  * **Specialist Referral** — recommending endocrinologist, hepatologist, or cardiologist based on disease risk profile
+Each recommendation is tagged with its source citation badge (e.g., "[Source: ADA-2024-Standards §5.2]").
+
+**Step 10 — Response Delivery (Backend to Frontend):**
+The complete analysis results (5 risk scores, TreeSHAP biomarker attributions, and clinical care summary) are returned as a JSON response. The React frontend renders the interactive risk dashboard with color-coded disease cards (green = low risk, yellow = moderate, red = high), interactive waterfall charts for each disease, and the full care summary report. The results are simultaneously saved to the `health_records` database table for the patient's permanent records vault, where they can be accessed at any future time.
 
 ---
+
 
 # SECTION 10: AUTHORITATIVE DATASET COHORT & PARTITION SPECIFICATIONS
 
@@ -333,7 +480,6 @@ To eliminate confusion during academic defenses and technical reviews, feature c
 | **Total Upstream Modalities** | **All 3 Modalities** | **86** | **4 Non-Predictive** | **82 Total Biomarkers** | **82 Inputs** | **Sum:** $18 + 15 + 49 = \mathbf{82}$ |
 | **Trimodal Meta-Learner** | `v4_multimodal_fusion` | N/A | None | **3 Probabilities per Disease** | **3 Inputs per Target** | `n_features_in_ = 3` in Fusion Payload |
 | **Bimodal Meta-Learner (W+G)** | `wg_logistic_regression` | N/A | None | **2 Probabilities per Disease** | **2 Inputs per Target** | `n_features_in_ = 2` in Stacker Payload |
-
 
 # SECTION 16: COMPREHENSIVE MODALITY SPECIFICATIONS & BIOMARKER CATALOG
 
@@ -617,7 +763,8 @@ For each disease target, the meta-stacker evaluates the input vector $\mathbf{z}
 
 ### 32.1 Type 2 Diabetes Meta-Model (L2-Regularized Logistic Regression)
 * **Mathematical Formula:**  
-  $$	ext{Fused Risk Score} = \sigma\left( +0.0348 + (1.0130 	imes P_{	ext{Clinical}}) + (0.2458 	imes P_{	ext{Wearable}}) + (0.0000 	imes P_{	ext{Gut}}) ight)$$
+  $$	ext{Fused Risk Score} = \sigma\left( +0.0348 + (1.0130 	imes P_{	ext{Clinical}}) + (0.2458 	imes P_{	ext{Wearable}}) + (0.0000 	imes P_{	ext{Gut}}) 
+ight)$$
 * **Normalized Modality Contributions:** Clinical = **80.47%**, Wearable = **19.53%**, Gut = **0.00%**.
 * **Clinical Rationale:** Blood chemistry markers (HbA1c and fasting blood glucose) provide the overwhelming diagnostic foundation for established diabetes. Continuous glucose metrics provide valuable secondary confirmation, while gut dysbiosis indices have lower marginal predictive power once severe clinical hyperglycemia is already established.
 
@@ -627,19 +774,22 @@ For each disease target, the meta-stacker evaluates the input vector $\mathbf{z}
 
 ### 32.3 High Adiposity Risk / Obesity Meta-Model (L2-Regularized Logistic Regression)
 * **Mathematical Formula:**  
-  $$	ext{Fused Risk Score} = \sigma\left( -0.1058 + (0.9148 	imes P_{	ext{Clinical}}) + (0.1556 	imes P_{	ext{Wearable}}) + (0.0446 	imes P_{	ext{Gut}}) ight)$$
+  $$	ext{Fused Risk Score} = \sigma\left( -0.1058 + (0.9148 	imes P_{	ext{Clinical}}) + (0.1556 	imes P_{	ext{Wearable}}) + (0.0446 	imes P_{	ext{Gut}}) 
+ight)$$
 * **Normalized Modality Contributions:** Clinical = **82.04%**, Wearable = **13.96%**, Gut = **4.00%**.
 * **Clinical Rationale:** Anthropometric measurements (BMI, waist circumference) dominate adiposity assessment, while sedentary physical activity and gut dysbiosis indices (*Akkermansia muciniphila* depletion) provide important supplementary signals.
 
 ### 32.4 Metabolic Syndrome Meta-Model (L2-Regularized Logistic Regression)
 * **Mathematical Formula:**  
-  $$	ext{Fused Risk Score} = \sigma\left( +0.0743 + (1.0016 	imes P_{	ext{Clinical}}) + (0.0503 	imes P_{	ext{Wearable}}) + (0.0575 	imes P_{	ext{Gut}}) ight)$$
+  $$	ext{Fused Risk Score} = \sigma\left( +0.0743 + (1.0016 	imes P_{	ext{Clinical}}) + (0.0503 	imes P_{	ext{Wearable}}) + (0.0575 	imes P_{	ext{Gut}}) 
+ight)$$
 * **Normalized Modality Contributions:** Clinical = **90.29%**, Wearable = **4.53%**, Gut = **5.18%**.
 * **Clinical Rationale:** Clinical lipid panels (triglycerides, HDL) and blood pressure drive the diagnosis, with gut inflammatory indices providing secondary validation of systemic metabolic endotoxemia.
 
 ### 32.5 NAFLD / Fatty Liver Meta-Model (L2-Regularized Logistic Regression)
 * **Mathematical Formula:**  
-  $$	ext{Fused Risk Score} = \sigma\left( +0.1068 + (1.0831 	imes P_{	ext{Clinical}}) + (0.0524 	imes P_{	ext{Wearable}}) + (0.0000 	imes P_{	ext{Gut}}) ight)$$
+  $$	ext{Fused Risk Score} = \sigma\left( +0.1068 + (1.0831 	imes P_{	ext{Clinical}}) + (0.0524 	imes P_{	ext{Wearable}}) + (0.0000 	imes P_{	ext{Gut}}) 
+ight)$$
 * **Normalized Modality Contributions:** Clinical = **95.38%**, Wearable = **4.62%**, Gut = **0.00%**.
 * **Clinical Rationale:** Hepatic transaminases (ALT, AST) and central visceral adiposity (waist circumference) provide the primary clinical signal for fatty liver risk.
 

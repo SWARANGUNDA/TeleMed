@@ -9,7 +9,8 @@ import {
 import {
   fetchUserAppointments, fetchMyDoctorAvailability, addDoctorAvailabilitySlot,
   deleteDoctorAvailabilitySlot, updateAppointmentStatus, joinAppointment,
-  fetchVerifiedDoctors, bookAppointment, fetchPatientConsultations, configureDoctorAvailability
+  fetchVerifiedDoctors, bookAppointment, fetchPatientConsultations, configureDoctorAvailability,
+  getAuthToken
 } from '../api/client';
 import AppointmentBookingModal from '../components/AppointmentBookingModal';
 
