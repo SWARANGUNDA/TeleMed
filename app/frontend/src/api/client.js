@@ -12,6 +12,40 @@ const V3_API_BASE = API_BASE.replace(/\/api\/v1$/, '/api/v3');
 
 let _inMemoryAccessToken = '';
 
+/**
+ * Resilient fetch wrapper with AbortController timeout.
+ * Prevents hanging requests from blocking the UI during backend cold starts.
+ */
+export async function fetchWithTimeout(url, options = {}, timeoutMs = 3500) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const res = await fetch(url, {
+      ...options,
+      signal: options.signal || controller.signal,
+    });
+    return res;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
+/**
+ * Pre-warms the Render backend asynchronously.
+ * Fires a lightweight, non-blocking ping to wake up the sleeping container
+ * while the user browses public pages.
+ */
+export function warmupBackend() {
+  try {
+    const healthUrl = API_BASE.replace(/\/api\/v1$/, '/api/health');
+    fetch(healthUrl, { mode: 'cors', cache: 'no-store' }).catch(() => {});
+  } catch (e) {}
+}
+
+if (typeof window !== 'undefined') {
+  warmupBackend();
+}
+
 export function getCsrfToken() {
   try {
     if (typeof document === 'undefined') return '';
@@ -178,12 +212,12 @@ export async function refreshToken(tokenParam = null) {
   try {
     const token = tokenParam || (typeof sessionStorage !== 'undefined' ? sessionStorage.getItem('telemed_refresh_token') || '' : '');
     const bodyPayload = token ? JSON.stringify({ refresh_token: token }) : undefined;
-    const res = await fetch(`${API_BASE}/auth/refresh`, {
+    const res = await fetchWithTimeout(`${API_BASE}/auth/refresh`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: bodyPayload,
       credentials: 'include',
-    });
+    }, 4000);
     if (!res.ok) return null;
     const data = await parseJsonSafely(res);
     if (!data) return null;
@@ -260,11 +294,11 @@ export async function registerDoctor(payload) {
 
 export async function logoutUser() {
   try {
-    await fetch(`${API_BASE}/auth/logout`, {
+    await fetchWithTimeout(`${API_BASE}/auth/logout`, {
       method: 'POST',
       headers: getAuthHeaders(),
       credentials: 'include',
-    });
+    }, 2500);
   } catch (e) {}
   setAuthToken(null);
 }
@@ -281,18 +315,18 @@ export async function getCurrentUser() {
       if (!refreshRes) return null;
       token = getAuthToken();
     }
-    const res = await fetch(`${API_BASE}/auth/me`, {
+    const res = await fetchWithTimeout(`${API_BASE}/auth/me`, {
       headers: getAuthHeaders(),
       credentials: 'include',
-    });
+    }, 3500);
     if (!res.ok) {
       if (res.status === 401) {
         const refreshRes = await refreshToken();
         if (refreshRes) {
-          const retryRes = await fetch(`${API_BASE}/auth/me`, {
+          const retryRes = await fetchWithTimeout(`${API_BASE}/auth/me`, {
             headers: getAuthHeaders(),
             credentials: 'include',
-          });
+          }, 3500);
           if (retryRes.ok) {
             const retryData = await parseJsonSafely(retryRes);
             return retryData?.user || null;

@@ -8,7 +8,7 @@ import ProtectedRoute from './components/ProtectedRoute';
 
 import AssessmentComparisonModal from './components/AssessmentComparisonModal';
 import useTheme from './utils/useTheme';
-import { predictV3, fetchXAIV3, analyzePredictions, confirmFeatures, getCurrentUser, logoutUser, loginUser, fetchPatientRecords } from './api/client';
+import { predictV3, fetchXAIV3, analyzePredictions, confirmFeatures, getCurrentUser, logoutUser, loginUser, fetchPatientRecords, warmupBackend } from './api/client';
 
 // Lazy-loaded pages (code split per route)
 const DashboardPage = lazy(() => import('./pages/DashboardPage'));
@@ -205,8 +205,9 @@ export default function App() {
     } catch (e) {}
   };
 
-  // Check active user session on startup
+  // Check active user session on startup & trigger silent backend warmup
   useEffect(() => {
+    warmupBackend();
     async function checkAuth() {
       try {
         const user = await getCurrentUser();
@@ -491,22 +492,6 @@ export default function App() {
   const handleResetSession = () => {
     handleStartNewAssessment();
   };
-
-  if (authChecking) {
-    return (
-      <div style={{
-        minHeight: '100vh',
-        background: '#0f172a',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        color: '#64748b',
-        fontFamily: 'Inter, sans-serif'
-      }}>
-        Initializing TeleMed AI RBAC Engine...
-      </div>
-    );
-  }
 
   const isPublicRoute = [
     '/', '/about', '/features', '/how-it-works', '/research', '/contact', '/login', '/register', '/admin/login'
