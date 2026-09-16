@@ -44,7 +44,6 @@ export default function CameraCaptureModal({ isOpen, onClose, onCaptureConfirm }
         videoRef.current.srcObject = mediaStream;
       }
     } catch (err) {
-      console.warn('Camera initialization error:', err);
       try {
         const fallbackStream = await navigator.mediaDevices.getUserMedia({ video: true });
         setStream(fallbackStream);

@@ -372,9 +372,11 @@ export default function App() {
     setSession(null);
     setPredictionData(null);
     setXaiData(null);
-    sessionStorage.clear();
-    localStorage.removeItem('telemed_token');
-    localStorage.removeItem('telemed_user');
+    try {
+      sessionStorage.clear();
+      localStorage.removeItem('telemed_token');
+      localStorage.removeItem('telemed_user');
+    } catch (e) {}
     navigate('/');
   };
 
@@ -431,7 +433,7 @@ export default function App() {
           await confirmFeatures(sid, confirmed);
           await analyzePredictions(sid);
         } catch (e) {
-          console.warn('V1 prediction analysis non-blocking warning:', e);
+          // Non-blocking fallback
         }
       }
 
@@ -466,7 +468,6 @@ export default function App() {
         setXaiData(xai);
         setSession((prev) => ({ ...prev, status: 'XAI_READY' }));
       } catch (xaiErr) {
-        console.warn('XAI attribution fetch non-blocking note:', xaiErr);
         setSession((prev) => ({ ...prev, status: 'ANALYZED' }));
       }
 

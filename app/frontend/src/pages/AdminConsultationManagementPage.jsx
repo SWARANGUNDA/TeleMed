@@ -41,12 +41,12 @@ export default function AdminConsultationManagementPage() {
         fetchAdminDoctorApplications('VERIFIED').catch(() => ({ applications: [] }))
       ]);
 
-      const fetchedCons = consData.consultations || [];
-      const fetchedAll = allConsData.consultations || [];
+      const fetchedCons = Array.isArray(consData) ? consData : (consData?.consultations || []);
+      const fetchedAll = Array.isArray(allConsData) ? allConsData : (allConsData?.consultations || []);
 
       setConsultations(fetchedCons);
       setAllConsultations(fetchedAll);
-      setDoctors(docData.applications || docData.doctors || []);
+      setDoctors(Array.isArray(docData) ? docData : (docData?.applications || docData?.doctors || []));
     } catch (err) {
       setErrorMsg(err.message || 'Failed to load consultation queue.');
       setConsultations([]);

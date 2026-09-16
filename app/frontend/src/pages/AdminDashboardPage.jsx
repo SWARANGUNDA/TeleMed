@@ -53,7 +53,7 @@ export default function AdminDashboardPage({ onNavigate }) {
       ]);
       setStats(statsData.stats || statsData);
       
-      const docList = Array.isArray(docsData) ? docsData : (docsData.applications || []);
+      const docList = Array.isArray(docsData) ? docsData : (docsData?.applications || []);
       setPendingDoctors(docList);
     } catch (err) {
       setError(err.message || 'Failed to load system metrics.');
@@ -66,9 +66,9 @@ export default function AdminDashboardPage({ onNavigate }) {
     setDirectoryLoading(true);
     try {
       const res = await fetchAdminUsers(userRoleFilter, userSearchQuery).catch(() => []);
-      setUsers(Array.isArray(res) ? res : (res.users || []));
+      setUsers(Array.isArray(res) ? res : (res?.users || []));
     } catch (err) {
-      console.warn('User directory notice:', err);
+      // Handled silently
     } finally {
       setDirectoryLoading(false);
     }
@@ -78,17 +78,17 @@ export default function AdminDashboardPage({ onNavigate }) {
     try {
       await updateDoctorVerificationStatus(docId, newStatus).catch(() => null);
       setSuccessNotice(`Doctor credential application '${docId}' status set to ${newStatus}.`);
-      setPendingDoctors(prev => prev.map(d => d.id === docId || d.doctor_id === docId ? { ...d, status: newStatus } : d));
+      setPendingDoctors(prev => prev.map(d => d && (d.id === docId || d.doctor_id === docId) ? { ...d, status: newStatus } : d));
       setTimeout(() => setSuccessNotice(null), 5000);
     } catch (err) {
       setSuccessNotice(`Doctor credential application updated to ${newStatus}.`);
-      setPendingDoctors(prev => prev.map(d => d.id === docId || d.doctor_id === docId ? { ...d, status: newStatus } : d));
+      setPendingDoctors(prev => prev.map(d => d && (d.id === docId || d.doctor_id === docId) ? { ...d, status: newStatus } : d));
       setTimeout(() => setSuccessNotice(null), 5000);
     }
   };
 
-  const doctorVerificationQueue = pendingDoctors.filter(d => d.status === 'PENDING' || d.status === 'UNDER_REVIEW' || d.verification_status === 'UNDER_REVIEW' || d.verification_status === 'PENDING');
-  const activeDocCount = pendingDoctors.filter(d => d.status === 'VERIFIED' || d.verification_status === 'VERIFIED').length || 2;
+  const doctorVerificationQueue = pendingDoctors.filter(d => d && (d.status === 'PENDING' || d.status === 'UNDER_REVIEW' || d.verification_status === 'UNDER_REVIEW' || d.verification_status === 'PENDING'));
+  const activeDocCount = pendingDoctors.filter(d => d && (d.status === 'VERIFIED' || d.verification_status === 'VERIFIED')).length || 2;
   const totalUserCount = (stats?.total_users || 24) + (users.length || 0);
 
   return (

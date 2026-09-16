@@ -141,7 +141,7 @@ export default function AppointmentsPage({ user, onNavigate }) {
         name: d.doctor_profile?.full_name || d.full_name || 'Doctor',
         specialty: d.doctor_profile?.specialization || 'General Medicine',
         experience: d.doctor_profile?.experience_years ? `${d.doctor_profile.experience_years}+ Years Exp.` : null,
-        avatar: (d.doctor_profile?.full_name || d.full_name || 'D').split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()
+        avatar: (d.doctor_profile?.full_name || d.full_name || 'D').split(' ').filter(Boolean).map(n => n[0]).join('').slice(0, 2).toUpperCase()
       })));
       setConsultationsList(consData?.consultations || []);
 
@@ -150,7 +150,6 @@ export default function AppointmentsPage({ user, onNavigate }) {
         setAvailabilitySlots(slotsData || []);
       }
     } catch (err) {
-      console.warn("Error loading appointments data:", err);
       setError(err.message || "Failed to sync real-time appointments.");
     } finally {
       setLoading(false);
@@ -409,7 +408,6 @@ export default function AppointmentsPage({ user, onNavigate }) {
       notify("Appointment booked successfully!");
       await loadWorkspaceData(true);
     } catch (err) {
-      console.error("Booking error:", err);
       setError(err.message || 'Failed to book appointment.');
     } finally {
       setBookingLoading(false);
@@ -420,7 +418,7 @@ export default function AppointmentsPage({ user, onNavigate }) {
     try {
       const aptId = apt.appointment_id || apt.id;
       if (aptId) {
-        await joinAppointment(aptId).catch(err => console.warn("Status update note:", err));
+        await joinAppointment(aptId).catch(() => {});
       }
 
       setAppointments(prev => prev.map(item =>
@@ -444,7 +442,7 @@ export default function AppointmentsPage({ user, onNavigate }) {
         window.location.href = '/consultations';
       }
     } catch (err) {
-      console.error("Failed to transition consultation context:", err);
+      setError(err.message || 'Failed to initialize consultation session.');
     }
   };
 
@@ -459,7 +457,6 @@ export default function AppointmentsPage({ user, onNavigate }) {
       setActiveDropdownId(null);
       notify(`Appointment status updated to ${newStatus}`);
     } catch (err) {
-      console.error("Status update error:", err);
       setError(err.message || "Failed to update status.");
     }
   };
@@ -533,7 +530,6 @@ export default function AppointmentsPage({ user, onNavigate }) {
       setAvailabilitySlots(prev => prev.filter(s => s.slot_id !== slotId));
       notify("Availability slot deleted.");
     } catch (err) {
-      console.error("Failed to delete slot:", err);
       setError(err.message || "Failed to delete slot.");
     }
   };

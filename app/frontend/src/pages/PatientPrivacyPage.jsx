@@ -42,12 +42,15 @@ export default function PatientPrivacyPage({ user }) {
     setExporting(true);
     try {
       const data = await exportUserAccountData();
-      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const content = typeof data === 'string' ? data : JSON.stringify(data, null, 2);
+      const blob = new Blob([content], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
       a.download = `telemed_account_data_${user?.user_id || 'export'}.json`;
+      document.body.appendChild(a);
       a.click();
+      a.remove();
       URL.revokeObjectURL(url);
     } catch (err) {
       setError(err.message || 'Failed to export account data.');

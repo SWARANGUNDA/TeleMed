@@ -72,10 +72,10 @@ export function useToast() {
   if (!context) {
     // Return fallback no-op if context is missing
     return {
-      success: (m) => console.log('[Success]', m),
-      error: (m) => console.error('[Error]', m),
-      info: (m) => console.log('[Info]', m),
-      warning: (m) => console.warn('[Warning]', m),
+      success: () => {},
+      error: () => {},
+      info: () => {},
+      warning: () => {},
     };
   }
   return context.toast;

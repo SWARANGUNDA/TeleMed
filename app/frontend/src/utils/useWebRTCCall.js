@@ -326,7 +326,6 @@ export default function useWebRTCCall(consultationId, user) {
     } catch (err) {
       if (withVideo && (err.name === 'NotAllowedError' || err.name === 'NotFoundError' || err.name === 'NotReadableError')) {
         // Graceful fallback to audio-only if camera fails
-        console.warn('Camera access unavailable, attempting audio-only fallback:', err.message);
         try {
           const audioStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
           localStreamRef.current = audioStream;
@@ -469,7 +468,7 @@ export default function useWebRTCCall(consultationId, user) {
             await pcRef.current.addIceCandidate(new RTCIceCandidate(data.candidate));
           }
         } catch (err) {
-          console.warn('ICE candidate non-fatal warning:', err.message);
+          // Non-fatal ICE candidate note
         }
         break;
       }
@@ -531,7 +530,6 @@ export default function useWebRTCCall(consultationId, user) {
       ws = new WebSocket(wsUrl);
       wsRef.current = ws;
     } catch (err) {
-      console.error('Failed to create WebRTC signaling WebSocket:', err);
       return;
     }
 
@@ -548,7 +546,7 @@ export default function useWebRTCCall(consultationId, user) {
         const data = JSON.parse(event.data);
         handleSignalingMessage(data);
       } catch (err) {
-        console.warn('Invalid signaling payload:', err);
+        // Ignored invalid signaling frame
       }
     };
 
@@ -763,7 +761,7 @@ export default function useWebRTCCall(consultationId, user) {
           localVideoRef.current.play().catch(() => {});
         }
       } catch (err) {
-        console.warn('Switch camera error:', err);
+        // Camera switch failed silently
       }
     }
   }, [facingMode, isVideoEnabled]);

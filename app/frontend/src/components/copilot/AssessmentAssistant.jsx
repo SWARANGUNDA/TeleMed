@@ -12,11 +12,12 @@ export default function AssessmentAssistant({ predictionData, user }) {
     async function loadHistory() {
       try {
         const data = await fetchPatientRecords(user?.user_id || 'me');
-        if (Array.isArray(data)) {
-          setRecords(data.sort((a, b) => new Date(b.created_at || b.date || 0) - new Date(a.created_at || a.date || 0)));
+        const list = Array.isArray(data) ? data : (data?.records || []);
+        if (list.length > 0) {
+          setRecords(list.sort((a, b) => new Date(b.created_at || b.date || 0) - new Date(a.created_at || a.date || 0)));
         }
       } catch (e) {
-        console.warn('Could not load assessment history:', e);
+        // Handled silently
       } finally {
         setLoading(false);
       }

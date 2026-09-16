@@ -53,7 +53,7 @@ self.addEventListener('fetch', (event) => {
         if (event.request.mode === 'navigate') {
           return caches.match('/index.html');
         }
-        throw err;
+        return new Response('', { status: 408, statusText: 'Network request offline' });
       });
     })
   );

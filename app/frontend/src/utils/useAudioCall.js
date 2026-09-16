@@ -220,7 +220,7 @@ export default function useAudioCall(consultationId, user) {
       try {
         await pc.addIceCandidate(new RTCIceCandidate(candidate));
       } catch (err) {
-        console.warn('Queued ICE candidate note:', err.message);
+        // Queued candidate handled
       }
     }
   }, []);
@@ -478,7 +478,7 @@ export default function useAudioCall(consultationId, user) {
             try {
               await pcRef.current.addIceCandidate(new RTCIceCandidate(data.candidate));
             } catch (err) {
-              console.warn('ICE candidate note:', err.message);
+              // Non-fatal ICE candidate note
             }
           } else {
             // Queue until remote description is set
@@ -536,7 +536,6 @@ export default function useAudioCall(consultationId, user) {
       ws = new WebSocket(wsUrl);
       wsRef.current = ws;
     } catch (err) {
-      console.error('Failed to create call signaling WebSocket:', err);
       return;
     }
 
@@ -553,7 +552,7 @@ export default function useAudioCall(consultationId, user) {
         const data = JSON.parse(event.data);
         handleSignalingMessage(data);
       } catch (err) {
-        console.warn('Invalid signaling message:', err);
+        // Ignored invalid signaling frame
       }
     };
 

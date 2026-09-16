@@ -8,6 +8,24 @@
 
 import { classifyBiomarker, classifyWearable, classifyGut } from './clinicalRanges';
 
+function safeParse(val) {
+  if (!val) return {};
+  if (typeof val === 'string') {
+    try {
+      return JSON.parse(val);
+    } catch {
+      return {};
+    }
+  }
+  return typeof val === 'object' ? val : {};
+}
+
+function extractVal(item) {
+  if (item === null || item === undefined) return null;
+  if (typeof item === 'object') return item.value ?? item.raw_value ?? null;
+  return item;
+}
+
 /**
  * 1. Overall Patient Health Score (0 - 100)
  * Transparent Formula:
@@ -15,13 +33,15 @@ import { classifyBiomarker, classifyWearable, classifyGut } from './clinicalRang
  * - Metabolic Risk Penalty: 50% (50 - Mean(Disease_Risk_Probabilities) * 50)
  * - Biomarker Normalcy Component: 30% (Normalcy_Ratio * 30)
  */
-export function calculateOverallHealthScore(predictionData) {
-  if (!predictionData) return null;
+export function calculateOverallHealthScore(rawPredictionData) {
+  if (!rawPredictionData) return null;
+  const predictionData = typeof rawPredictionData === 'string' ? safeParse(rawPredictionData) : rawPredictionData;
+  if (!predictionData || typeof predictionData !== 'object') return null;
 
   const dq = predictionData.data_quality_score ?? predictionData.overall_quality_score ?? 0.85;
   const dqComponent = (dq > 1.0 ? dq / 100 : dq) * 20;
 
-  const outcomes = predictionData.disease_outcomes || predictionData.predictions || {};
+  const outcomes = safeParse(predictionData.disease_outcomes || predictionData.predictions || {});
   const diseaseKeys = ['Type2_Diabetes', 'Prediabetes', 'High_Adiposity_Risk', 'Metabolic_Syndrome', 'NAFLD'];
   let riskSum = 0;
   let riskCount = 0;
@@ -39,18 +59,18 @@ export function calculateOverallHealthScore(predictionData) {
   const riskComponent = Math.max(0, 50 - (meanRisk * 50));
 
   // Biomarker Normalcy Ratio
-  const clin = predictionData.confirmed_features?.clinical || predictionData.clinical_features || {};
+  const confirmed = safeParse(predictionData.confirmed_features);
+  const clin = safeParse(confirmed.clinical || predictionData.clinical_features || predictionData.clinical_data || {});
   let normalCount = 0;
   let totalCount = 0;
 
   Object.keys(clin).forEach(k => {
     if (['Patient_ID', 'Gender'].includes(k)) return;
-    const item = clin[k];
-    const val = typeof item === 'object' ? item.value ?? item.raw_value : item;
+    const val = extractVal(clin[k]);
     if (val !== null && val !== undefined) {
       totalCount++;
       const cls = classifyBiomarker(k, val);
-      if (cls.category === 'normal' || cls.status === 'NORMAL' || cls.status === 'OPTIMAL') {
+      if (cls && (cls.category === 'normal' || cls.status === 'NORMAL' || cls.status === 'OPTIMAL')) {
         normalCount++;
       }
     }
@@ -81,27 +101,33 @@ export function calculateOverallHealthScore(predictionData) {
  * 2. Longitudinal Shifts: "What's Improving?" and "What's Worsening?"
  */
 export function analyzeLongitudinalShifts(records) {
-  if (!records || records.length < 2) {
+  if (!records || !Array.isArray(records) || records.length < 2) {
     return { improving: [], worsening: [], stable: [], hasHistory: false };
   }
 
   const recent = records[0];
   const baseline = records[records.length - 1];
+  if (!recent || !baseline) {
+    return { improving: [], worsening: [], stable: [], hasHistory: false };
+  }
 
   const improving = [];
   const worsening = [];
   const stable = [];
 
   // A. Disease Risk Trajectory Shifts
-  const recentOutcomes = recent.prediction_snapshot?.disease_outcomes || {};
-  const baselineOutcomes = baseline.prediction_snapshot?.disease_outcomes || {};
+  const recentSnap = safeParse(recent.prediction_snapshot || recent);
+  const baselineSnap = safeParse(baseline.prediction_snapshot || baseline);
+
+  const recentOutcomes = safeParse(recentSnap.disease_outcomes || recentSnap.predictions || {});
+  const baselineOutcomes = safeParse(baselineSnap.disease_outcomes || baselineSnap.predictions || {});
 
   const diseaseKeys = ['Type2_Diabetes', 'Prediabetes', 'High_Adiposity_Risk', 'Metabolic_Syndrome', 'NAFLD'];
   diseaseKeys.forEach(key => {
     const p1 = recentOutcomes[key]?.calibrated_probability ?? recentOutcomes[key]?.probability;
     const p2 = baselineOutcomes[key]?.calibrated_probability ?? baselineOutcomes[key]?.probability;
 
-    if (p1 !== undefined && p2 !== undefined) {
+    if (p1 !== undefined && p2 !== undefined && typeof p1 === 'number' && typeof p2 === 'number') {
       const diffPct = Math.round((p1 - p2) * 100);
       const name = key.replace(/_/g, ' ');
       if (diffPct <= -3) {
@@ -130,8 +156,8 @@ export function analyzeLongitudinalShifts(records) {
   });
 
   // B. Clinical Biomarker Shifts
-  const clin1 = recent.confirmed_features?.clinical || {};
-  const clin2 = baseline.confirmed_features?.clinical || {};
+  const clin1 = safeParse(recent.confirmed_features?.clinical || recentSnap.confirmed_features?.clinical || recentSnap.clinical_features || {});
+  const clin2 = safeParse(baseline.confirmed_features?.clinical || baselineSnap.confirmed_features?.clinical || baselineSnap.clinical_features || {});
 
   const trackedLabs = [
     { key: 'Fasting_Blood_Glucose', name: 'Fasting Blood Glucose', unit: 'mg/dL', lowerIsBetter: true },
@@ -144,9 +170,12 @@ export function analyzeLongitudinalShifts(records) {
   ];
 
   trackedLabs.forEach(item => {
-    const v1 = clin1[item.key];
-    const v2 = clin2[item.key];
-    if (v1 !== undefined && v2 !== undefined && typeof v1 === 'number' && typeof v2 === 'number') {
+    const raw1 = extractVal(clin1[item.key]);
+    const raw2 = extractVal(clin2[item.key]);
+    const v1 = typeof raw1 === 'number' ? raw1 : (raw1 !== null && raw1 !== undefined ? Number(raw1) : NaN);
+    const v2 = typeof raw2 === 'number' ? raw2 : (raw2 !== null && raw2 !== undefined ? Number(raw2) : NaN);
+
+    if (!isNaN(v1) && !isNaN(v2)) {
       const diff = v1 - v2;
       const formattedDiff = diff > 0 ? `+${diff.toFixed(1)} ${item.unit}` : `${diff.toFixed(1)} ${item.unit}`;
       
@@ -177,15 +206,18 @@ export function analyzeLongitudinalShifts(records) {
 /**
  * 3. Rules-Based Early Warning Indicators
  */
-export function detectEarlyWarnings(predictionData, historyRecords = []) {
+export function detectEarlyWarnings(rawPredictionData, historyRecords = []) {
   const warnings = [];
-  if (!predictionData) return warnings;
+  if (!rawPredictionData) return warnings;
+  const predictionData = typeof rawPredictionData === 'string' ? safeParse(rawPredictionData) : rawPredictionData;
+  if (!predictionData || typeof predictionData !== 'object') return warnings;
 
-  const clin = predictionData.confirmed_features?.clinical || predictionData.clinical_features || {};
-  const outcomes = predictionData.disease_outcomes || predictionData.predictions || {};
+  const confirmed = safeParse(predictionData.confirmed_features);
+  const clin = safeParse(confirmed.clinical || predictionData.clinical_features || predictionData.clinical_data || {});
 
   // Rule 1: High Glucose
-  const glucose = clin.Fasting_Blood_Glucose;
+  const rawGlucose = extractVal(clin.Fasting_Blood_Glucose ?? clin.Glucose ?? clin.Fasting_Glucose);
+  const glucose = typeof rawGlucose === 'number' ? rawGlucose : (rawGlucose ? Number(rawGlucose) : null);
   if (glucose && glucose >= 126) {
     warnings.push({
       id: 'EW-GLUCOSE',
@@ -197,8 +229,10 @@ export function detectEarlyWarnings(predictionData, historyRecords = []) {
   }
 
   // Rule 2: High Systolic / Diastolic BP
-  const sbp = clin.Systolic_BP;
-  const dbp = clin.Diastolic_BP;
+  const rawSbp = extractVal(clin.Systolic_BP ?? clin.Systolic);
+  const rawDbp = extractVal(clin.Diastolic_BP ?? clin.Diastolic);
+  const sbp = typeof rawSbp === 'number' ? rawSbp : (rawSbp ? Number(rawSbp) : null);
+  const dbp = typeof rawDbp === 'number' ? rawDbp : (rawDbp ? Number(rawDbp) : null);
   if ((sbp && sbp >= 140) || (dbp && dbp >= 90)) {
     warnings.push({
       id: 'EW-BP',
@@ -210,14 +244,14 @@ export function detectEarlyWarnings(predictionData, historyRecords = []) {
   }
 
   // Rule 3: Significant Risk Acceleration (if history exists)
-  if (historyRecords && historyRecords.length >= 2) {
-    const recent = historyRecords[0]?.prediction_snapshot?.disease_outcomes || {};
-    const baseline = historyRecords[historyRecords.length - 1]?.prediction_snapshot?.disease_outcomes || {};
+  if (Array.isArray(historyRecords) && historyRecords.length >= 2) {
+    const recent = safeParse(historyRecords[0]?.prediction_snapshot?.disease_outcomes || historyRecords[0]?.prediction_snapshot?.predictions || {});
+    const baseline = safeParse(historyRecords[historyRecords.length - 1]?.prediction_snapshot?.disease_outcomes || historyRecords[historyRecords.length - 1]?.prediction_snapshot?.predictions || {});
 
     Object.keys(recent).forEach(key => {
       const p1 = recent[key]?.calibrated_probability ?? recent[key]?.probability;
       const p2 = baseline[key]?.calibrated_probability ?? baseline[key]?.probability;
-      if (p1 !== undefined && p2 !== undefined && (p1 - p2) >= 0.15) {
+      if (typeof p1 === 'number' && typeof p2 === 'number' && (p1 - p2) >= 0.15) {
         warnings.push({
           id: `EW-RISK-${key}`,
           title: `Accelerating ${key.replace(/_/g, ' ')} Risk Shift`,
@@ -235,27 +269,36 @@ export function detectEarlyWarnings(predictionData, historyRecords = []) {
 /**
  * 4. Cross-Modality & Gut Microbiome Insights (Correlative)
  */
-export function generateCrossModalityInsights(predictionData) {
+export function generateCrossModalityInsights(rawPredictionData) {
   const insights = [];
-  if (!predictionData) return insights;
+  if (!rawPredictionData) return insights;
+  const predictionData = typeof rawPredictionData === 'string' ? safeParse(rawPredictionData) : rawPredictionData;
+  if (!predictionData || typeof predictionData !== 'object') return insights;
 
-  const clin = predictionData.confirmed_features?.clinical || predictionData.clinical_features || {};
-  const wear = predictionData.confirmed_features?.wearable || predictionData.wearable_features || {};
-  const gut = predictionData.confirmed_features?.gut || predictionData.gut_features || {};
+  const confirmed = safeParse(predictionData.confirmed_features);
+  const clin = safeParse(confirmed.clinical || predictionData.clinical_features || predictionData.clinical_data || {});
+  const wear = safeParse(confirmed.wearable || predictionData.wearable_features || predictionData.wearable_data || {});
+  const gut = safeParse(confirmed.gut || predictionData.gut_features || predictionData.gut_data || {});
+
+  const stepsVal = extractVal(wear.Daily_Steps ?? wear.Average_Daily_Steps ?? wear.Total_Steps);
+  const steps = typeof stepsVal === 'number' ? stepsVal : (stepsVal ? Number(stepsVal) : null);
+
+  const glucVal = extractVal(clin.Fasting_Blood_Glucose ?? clin.Glucose ?? clin.Fasting_Glucose);
+  const gluc = typeof glucVal === 'number' ? glucVal : (glucVal ? Number(glucVal) : null);
 
   // Insight A: Activity & Glycemic Correlation
-  if (wear.Daily_Steps && clin.Fasting_Blood_Glucose) {
-    if (wear.Daily_Steps < 5000 && clin.Fasting_Blood_Glucose > 100) {
+  if (steps && gluc) {
+    if (steps < 5000 && gluc > 100) {
       insights.push({
         title: 'Activity & Glycemic Correlation',
-        description: `Sedentary physical activity (${wear.Daily_Steps.toLocaleString()} daily steps) correlates with elevated fasting blood glucose (${clin.Fasting_Blood_Glucose} mg/dL). Increasing daily movement supports glycemic sensitivity.`,
+        description: `Sedentary physical activity (${steps.toLocaleString()} daily steps) correlates with elevated fasting blood glucose (${gluc} mg/dL). Increasing daily movement supports glycemic sensitivity.`,
         tag: 'Clinical + Wearable',
         variant: 'warning'
       });
-    } else if (wear.Daily_Steps >= 8000 && clin.Fasting_Blood_Glucose <= 100) {
+    } else if (steps >= 8000 && gluc <= 100) {
       insights.push({
         title: 'Optimal Activity & Glucose Balance',
-        description: `High daily step count (${wear.Daily_Steps.toLocaleString()} steps) aligns with optimal fasting blood glucose (${clin.Fasting_Blood_Glucose} mg/dL).`,
+        description: `High daily step count (${steps.toLocaleString()} steps) aligns with optimal fasting blood glucose (${gluc} mg/dL).`,
         tag: 'Clinical + Wearable',
         variant: 'success'
       });
@@ -263,11 +306,17 @@ export function generateCrossModalityInsights(predictionData) {
   }
 
   // Insight B: Sleep & Stress & Autonomic Tone Correlation
-  if (wear.Total_Sleep_Duration_Hours && wear.HRV_RMSSD) {
-    if (wear.Total_Sleep_Duration_Hours < 6 && wear.HRV_RMSSD < 30) {
+  const sleepVal = extractVal(wear.Total_Sleep_Duration_Hours ?? wear.Sleep_Duration_Hours);
+  const sleep = typeof sleepVal === 'number' ? sleepVal : (sleepVal ? Number(sleepVal) : null);
+
+  const hrvVal = extractVal(wear.HRV_RMSSD ?? wear.Heart_Rate_Variability_RMSSD);
+  const hrv = typeof hrvVal === 'number' ? hrvVal : (hrvVal ? Number(hrvVal) : null);
+
+  if (sleep && hrv) {
+    if (sleep < 6 && hrv < 30) {
       insights.push({
         title: 'Sleep Duration & HRV Autonomic Tone',
-        description: `Short sleep duration (${wear.Total_Sleep_Duration_Hours} hrs) coincides with reduced HRV (${wear.HRV_RMSSD} ms), signaling sympathetic nervous system dominance.`,
+        description: `Short sleep duration (${sleep} hrs) coincides with reduced HRV (${hrv} ms), signaling sympathetic nervous system dominance.`,
         tag: 'Wearable Telemetry',
         variant: 'warning'
       });
@@ -275,23 +324,25 @@ export function generateCrossModalityInsights(predictionData) {
   }
 
   // Insight C: Gut Microbiome Taxa Interpretation
-  const akkermansia = gut['Akkermansia_muciniphila'] ?? gut['g_Akkermansia'];
+  const akkermansia = extractVal(gut['Akkermansia_muciniphila'] ?? gut['g_Akkermansia'] ?? gut['Akkermansia']);
   if (akkermansia !== undefined && akkermansia !== null) {
-    const val = typeof akkermansia === 'object' ? akkermansia.value ?? akkermansia.raw_value : akkermansia;
-    if (val < 1.0) {
-      insights.push({
-        title: 'Gut Microbiome Barrier Taxa (Akkermansia muciniphila)',
-        description: `Relative abundance of Akkermansia muciniphila is lower than optimal (${val}%). Higher abundance is associated in medical literature with gut mucosal barrier integrity and metabolic health.`,
-        tag: 'Gut Microbiome',
-        variant: 'info'
-      });
-    } else {
-      insights.push({
-        title: 'Robust Gut Barrier Biomarker Abundance',
-        description: `Akkermansia muciniphila abundance is well-represented (${val}%), supporting mucosal layer integrity and gut metabolic signaling.`,
-        tag: 'Gut Microbiome',
-        variant: 'success'
-      });
+    const val = typeof akkermansia === 'number' ? akkermansia : Number(akkermansia);
+    if (!isNaN(val)) {
+      if (val < 1.0) {
+        insights.push({
+          title: 'Gut Microbiome Barrier Taxa (Akkermansia muciniphila)',
+          description: `Relative abundance of Akkermansia muciniphila is lower than optimal (${val}%). Higher abundance is associated in medical literature with gut mucosal barrier integrity and metabolic health.`,
+          tag: 'Gut Microbiome',
+          variant: 'info'
+        });
+      } else {
+        insights.push({
+          title: 'Robust Gut Barrier Biomarker Abundance',
+          description: `Akkermansia muciniphila abundance is well-represented (${val}%), supporting mucosal layer integrity and gut metabolic signaling.`,
+          tag: 'Gut Microbiome',
+          variant: 'success'
+        });
+      }
     }
   }
 

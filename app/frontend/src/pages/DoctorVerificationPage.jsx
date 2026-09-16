@@ -95,7 +95,7 @@ export default function DoctorVerificationPage({ currentUser }) {
         }
       }
     } catch (err) {
-      console.warn('Vault load notice:', err);
+      // Handled silently
     } finally {
       setLoading(false);
     }
@@ -168,7 +168,7 @@ export default function DoctorVerificationPage({ currentUser }) {
       await saveVaultDocument(newCred);
       await uploadDoctorCredential(selectedFile, documentType).catch(() => null);
     } catch (err) {
-      console.warn('Backend upload note:', err);
+      // Handled silently
     } finally {
       const updated = [...credentials, newCred];
       setCredentials(updated);
@@ -191,7 +191,7 @@ export default function DoctorVerificationPage({ currentUser }) {
       await deleteVaultDocument(docId);
       await deleteDoctorCredential(docId).catch(() => null);
     } catch (err) {
-      console.warn('Delete note:', err);
+      // Handled silently
     } finally {
       const updated = credentials.filter(c => c.document_id !== docId);
       setCredentials(updated);
@@ -215,7 +215,7 @@ export default function DoctorVerificationPage({ currentUser }) {
         }
       }
     } catch (err) {
-      console.warn('Preview load note:', err);
+      // Handled silently
     } finally {
       setPreviewLoading(false);
     }
@@ -268,7 +268,6 @@ export default function DoctorVerificationPage({ currentUser }) {
       setSuccessMsg('Physician profile credentials updated & synced to database!');
       window.dispatchEvent(new Event('telemed:user-updated'));
     } catch (err) {
-      console.warn("Profile update notice:", err);
       // Fallback local update
       setDocMetadata(editMetaForm);
       setIsEditingProfile(false);

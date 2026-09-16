@@ -39,20 +39,28 @@ export default function DashboardPage({
   const [savedRecords, setSavedRecords] = useState([]);
   const [recordsLoading, setRecordsLoading] = useState(true);
 
+  const safeParse = (data) => {
+    if (!data) return null;
+    if (typeof data === 'string') {
+      try { return JSON.parse(data); } catch { return null; }
+    }
+    return typeof data === 'object' ? data : null;
+  };
+
   useEffect(() => {
     async function loadUserData() {
       setRecordsLoading(true);
       try {
         const appts = await fetchUserAppointments();
-        setAppointments(appts || []);
+        setAppointments(Array.isArray(appts) ? appts : (appts?.appointments || []));
       } catch (e) {}
       try {
         const consData = await fetchPatientConsultations();
-        setConsultations(consData.consultations || []);
+        setConsultations(Array.isArray(consData) ? consData : (consData?.consultations || []));
       } catch (e) {}
       try {
         const recsData = await fetchPatientRecords();
-        setSavedRecords(recsData.records || []);
+        setSavedRecords(Array.isArray(recsData) ? recsData : (recsData?.records || []));
       } catch (e) {} finally {
         setRecordsLoading(false);
       }
@@ -64,7 +72,8 @@ export default function DashboardPage({
 
   // Determine active prediction payload: passed session prediction OR latest saved record snapshot
   const activeRecord = savedRecords.length > 0 ? savedRecords[0] : null;
-  const activePredictionData = predictionData || (activeRecord ? activeRecord.prediction_snapshot : null);
+  const rawPred = predictionData || (activeRecord ? activeRecord.prediction_snapshot : null);
+  const activePredictionData = safeParse(rawPred);
 
   // Compute Health Intelligence
   const healthScoreObj = calculateOverallHealthScore(activePredictionData);
@@ -180,9 +189,29 @@ export default function DashboardPage({
   const rawDq = activePredictionData.data_quality_score ?? activePredictionData.overall_quality_score ?? null;
   const dqScore = (rawDq !== null && rawDq !== undefined) ? (rawDq <= 1 ? Math.round(rawDq * 100) : Math.min(100, Math.round(rawDq))) : null;
 
-  const clinFeats = activePredictionData.confirmed_features?.clinical || activePredictionData.clinical_features || (activeRecord?.confirmed_features?.clinical || {});
-  const wearFeats = activePredictionData.confirmed_features?.wearable || activePredictionData.wearable_features || (activeRecord?.confirmed_features?.wearable || {});
-  const gutFeats = activePredictionData.confirmed_features?.gut || activePredictionData.gut_features || (activeRecord?.confirmed_features?.gut || {});
+  const clinFeats = (typeof activePredictionData?.confirmed_features?.clinical === 'object' && activePredictionData?.confirmed_features?.clinical !== null)
+    ? activePredictionData.confirmed_features.clinical
+    : (typeof activePredictionData?.clinical_features === 'object' && activePredictionData?.clinical_features !== null)
+      ? activePredictionData.clinical_features
+      : (typeof activeRecord?.confirmed_features?.clinical === 'object' && activeRecord?.confirmed_features?.clinical !== null)
+        ? activeRecord.confirmed_features.clinical
+        : {};
+
+  const wearFeats = (typeof activePredictionData?.confirmed_features?.wearable === 'object' && activePredictionData?.confirmed_features?.wearable !== null)
+    ? activePredictionData.confirmed_features.wearable
+    : (typeof activePredictionData?.wearable_features === 'object' && activePredictionData?.wearable_features !== null)
+      ? activePredictionData.wearable_features
+      : (typeof activeRecord?.confirmed_features?.wearable === 'object' && activeRecord?.confirmed_features?.wearable !== null)
+        ? activeRecord.confirmed_features.wearable
+        : {};
+
+  const gutFeats = (typeof activePredictionData?.confirmed_features?.gut === 'object' && activePredictionData?.confirmed_features?.gut !== null)
+    ? activePredictionData.confirmed_features.gut
+    : (typeof activePredictionData?.gut_features === 'object' && activePredictionData?.gut_features !== null)
+      ? activePredictionData.gut_features
+      : (typeof activeRecord?.confirmed_features?.gut === 'object' && activeRecord?.confirmed_features?.gut !== null)
+        ? activeRecord.confirmed_features.gut
+        : {};
 
 
   const diseasesList = [
@@ -207,33 +236,33 @@ export default function DashboardPage({
 
   // Biomarker Summary Data Array Builders
   const buildClinicalRows = () => {
-    const keys = Object.keys(clinFeats).filter(k => !['Patient_ID', 'Gender'].includes(k));
+    const keys = Object.keys(clinFeats || {}).filter(k => !['Patient_ID', 'Gender'].includes(k));
     if (!keys.length) return [];
     return keys.map(k => {
       const item = clinFeats[k];
-      const val = typeof item === 'object' ? item.value ?? item.raw_value : item;
+      const val = (typeof item === 'object' && item !== null) ? (item.value ?? item.raw_value ?? '') : item;
       const cls = classifyBiomarker ? classifyBiomarker(k, val) : { status: 'NORMAL', category: 'normal', referenceRange: 'Standard' };
       return { name: k, value: val, unit: cls.unit || 'mg/dL', range: cls.referenceRange, status: cls.status };
     });
   };
 
   const buildWearableRows = () => {
-    const keys = Object.keys(wearFeats);
+    const keys = Object.keys(wearFeats || {});
     if (!keys.length) return [];
     return keys.map(k => {
       const item = wearFeats[k];
-      const val = typeof item === 'object' ? item.value ?? item.raw_value : item;
+      const val = (typeof item === 'object' && item !== null) ? (item.value ?? item.raw_value ?? '') : item;
       const cls = classifyWearable ? classifyWearable(k, val) : { status: 'OPTIMAL', range: 'Normal Telemetry' };
       return { name: k, value: val, unit: cls.unit || 'units', range: cls.range, status: cls.status };
     });
   };
 
   const buildGutRows = () => {
-    const keys = Object.keys(gutFeats);
+    const keys = Object.keys(gutFeats || {});
     if (!keys.length) return [];
     return keys.map(k => {
       const item = gutFeats[k];
-      const val = typeof item === 'object' ? item.value ?? item.raw_value : item;
+      const val = (typeof item === 'object' && item !== null) ? (item.value ?? item.raw_value ?? '') : item;
       const cls = classifyGut ? classifyGut(k, val) : { status: 'BALANCED', range: 'Normal Abundance' };
       return { name: k, value: val, unit: cls.unit || '%', range: cls.range, status: cls.status };
     });
@@ -874,14 +903,14 @@ export default function DashboardPage({
           </div>
           <div className="space-y-3">
             {savedRecords && savedRecords.length > 0 ? (
-              savedRecords.slice(0, 3).map((rec) => (
-                <div key={rec.record_id} className="p-4 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-subtle)] flex items-center justify-between flex-wrap gap-3 hover:border-[var(--primary)] transition-all cursor-pointer" onClick={() => onNavigate('records')}>
+              savedRecords.slice(0, 3).map((rec, idx) => (
+                <div key={rec.record_id || rec.id || rec.session_id || idx} className="p-4 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-subtle)] flex items-center justify-between flex-wrap gap-3 hover:border-[var(--primary)] transition-all cursor-pointer" onClick={() => onNavigate('records')}>
                   <div className="flex items-center gap-3">
                     <div className="p-2.5 rounded-xl bg-[var(--primary-light)] text-[var(--primary)] shrink-0"><FileText className="w-5 h-5" /></div>
                     <div>
-                      <h5 className="text-xs font-bold text-[var(--text-main)]">Assessment #{rec.record_id}</h5>
+                      <h5 className="text-xs font-bold text-[var(--text-main)]">Assessment #{rec.record_id || rec.id || rec.session_id || (idx + 1)}</h5>
                       <p className="text-[10px] font-mono text-[var(--text-muted)] mt-0.5">
-                        Uploaded: {new Date(rec.created_at).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })} • Modalities: {(rec.active_modalities || ['clinical']).join(', ')}
+                        Uploaded: {rec.created_at ? new Date(rec.created_at).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'Recently'} • Modalities: {(rec.active_modalities || ['clinical']).join(', ')}
                       </p>
                     </div>
                   </div>

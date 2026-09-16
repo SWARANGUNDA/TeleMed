@@ -201,9 +201,7 @@ export default function AdminDoctorVerificationPage() {
       if (currentStatus === 'PENDING' && newStatus !== 'UNDER_REVIEW') {
         try {
           await transitionDoctorStatus(docId, 'UNDER_REVIEW', 'Admin opened audit workspace');
-        } catch (e) {
-          console.warn('Pre-transition to UNDER_REVIEW note:', e);
-        }
+        } catch (e) {}
       }
 
       await transitionDoctorStatus(docId, newStatus, transitionReason || (newStatus === 'VERIFIED' ? 'Credentials verified against official medical registry' : ''));

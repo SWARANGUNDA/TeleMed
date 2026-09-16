@@ -82,9 +82,8 @@ export default function DoctorDashboardPage({ user, onNavigate }) {
     setErrorMsg(null);
     try {
       const data = await fetchDoctorConsultations('');
-      setAllConsultations(data.consultations || []);
+      setAllConsultations(Array.isArray(data) ? data : (data?.consultations || []));
     } catch (err) {
-      console.warn("Error fetching doctor consultations:", err);
       setErrorMsg(err.message || 'Failed to fetch assigned consultations.');
       setAllConsultations([]);
     } finally {

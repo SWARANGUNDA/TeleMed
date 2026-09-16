@@ -12,7 +12,9 @@ export default class ErrorBoundary extends React.Component {
   }
 
   componentDidCatch(error, errorInfo) {
-    console.error('[TeleMed ErrorBoundary caught an unhandled component error]:', error, errorInfo);
+    if (import.meta.env?.DEV) {
+      console.warn('[TeleMed ErrorBoundary caught an unhandled component error]:', error, errorInfo);
+    }
     this.setState({ errorInfo });
   }
 

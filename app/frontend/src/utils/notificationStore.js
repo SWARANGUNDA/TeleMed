@@ -106,10 +106,12 @@ export const notificationStore = {
     
     // Check if user has already been initialized previously
     const welcomedKey = `telemed_welcomed_${uid}`;
-    if (localStorage.getItem(welcomedKey)) {
-      localStorage.setItem(key, JSON.stringify([]));
-      return [];
-    }
+    try {
+      if (localStorage.getItem(welcomedKey)) {
+        localStorage.setItem(key, JSON.stringify([]));
+        return [];
+      }
+    } catch (e) {}
 
     const initial = getInitialNotificationsForUser(uid, userRole);
     try {

@@ -37,7 +37,6 @@ export async function saveVaultDocument(doc) {
       req.onerror = (e) => reject(e.target.error);
     });
   } catch (err) {
-    console.warn('IndexedDB save warning:', err);
     return false;
   }
 }
@@ -53,7 +52,6 @@ export async function getVaultDocument(documentId) {
       req.onerror = (e) => reject(e.target.error);
     });
   } catch (err) {
-    console.warn('IndexedDB get warning:', err);
     return null;
   }
 }
@@ -73,7 +71,6 @@ export async function getAllVaultDocuments(doctorUserId) {
       req.onerror = (e) => reject(e.target.error);
     });
   } catch (err) {
-    console.warn('IndexedDB getAll warning:', err);
     return [];
   }
 }
@@ -89,7 +86,6 @@ export async function deleteVaultDocument(documentId) {
       req.onerror = (e) => reject(e.target.error);
     });
   } catch (err) {
-    console.warn('IndexedDB delete warning:', err);
     return false;
   }
 }

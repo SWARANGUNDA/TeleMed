@@ -65,18 +65,18 @@ export default function ProfilePage({ user, session, predictionData, onNavigate,
   const defaultAvatarId = userRole === 'ADMIN' ? 'admin' : userRole === 'DOCTOR' ? 'doctor_male' : 'male';
 
   const [profileForm, setProfileForm] = useState(() => {
-    const key = `telemed_user_profile_${user?.user_id || 'guest'}`;
-    const saved = localStorage.getItem(key);
-    if (saved) {
-      try { 
+    try {
+      const key = `telemed_user_profile_${user?.user_id || 'guest'}`;
+      const saved = localStorage.getItem(key);
+      if (saved) {
         const parsed = JSON.parse(saved);
-        const validAv = getAvatarById(parsed.selectedAvatar);
+        const validAv = getAvatarById(parsed?.selectedAvatar);
         return {
           ...parsed,
           selectedAvatar: validAv.id
         };
-      } catch (e) {}
-    }
+      }
+    } catch (e) {}
     return {
       fullName: initialName,
       patientId: user?.user_id || prof.patient_id || 'usr_patient',
@@ -134,7 +134,7 @@ export default function ProfilePage({ user, session, predictionData, onNavigate,
       };
       await (await import('../api/client')).updateUserProfile(payload);
     } catch (err) {
-      console.warn("Backend profile save note:", err);
+      // Handled silently
     }
 
     setSaveSuccessMsg('Profile details updated successfully!');

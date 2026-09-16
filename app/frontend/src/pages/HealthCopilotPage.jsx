@@ -200,13 +200,9 @@ export default function HealthCopilotPage({ user, session, predictionData: propP
       setLoadingRecord(true);
       try {
         const res = await fetchPatientRecords();
-        if (res && res.records && res.records.length > 0) {
-          setFetchedRecord(res.records[0]);
-        } else {
-          setFetchedRecord(null);
-        }
+        const records = Array.isArray(res) ? res : (res?.records || []);
+        setFetchedRecord(records.length > 0 ? records[0] : null);
       } catch (err) {
-        console.warn("Could not load patient assessment record:", err);
         setFetchedRecord(null);
       } finally {
         setLoadingRecord(false);

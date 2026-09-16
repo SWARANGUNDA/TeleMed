@@ -22,12 +22,12 @@ export default function BiomarkerExplorer({ predictionData, user }) {
       if (!predictionData || (!predictionData.confirmed_features && !predictionData.clinical_features && !predictionData.input_data)) {
         setHistoryLoading(true);
         try {
-          const res = await fetchPatientRecords();
-          if (res.records && res.records.length > 0) {
+          const res = await fetchPatientRecords().catch(() => null);
+          if (res?.records && res.records.length > 0) {
             setHistoricalRecord(res.records[0]);
           }
         } catch (err) {
-          console.error("Failed to load historical record fallback", err);
+          // Gracefully continue without historical fallback
         } finally {
           setHistoryLoading(false);
         }

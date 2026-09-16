@@ -261,7 +261,6 @@ export default function ConsultationWorkspacePage({ user, consultationContext, i
         setSelectedConsultation(consList[0]);
       }
     } catch (err) {
-      console.warn("Consultations load notice:", err);
       setErrorMsg(err.message || 'Failed to sync clinical workspace.');
     } finally {
       setLoading(false);
@@ -321,7 +320,7 @@ export default function ConsultationWorkspacePage({ user, consultationContext, i
         })));
       }
     } catch (err) {
-      console.warn("Messages sync notice:", err);
+      // Handled silently
     } finally {
       if (!silent) setLoadingMessages(false);
     }

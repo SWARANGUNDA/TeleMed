@@ -1,11 +1,14 @@
 /**
  * client.js — Frontend REST API Client Library.
  * Handles Authentication, RBAC, Admin Management, and v3.3 Multimodal Analysis.
+ * Hardened with safe JSON response handling and resilient error recovery.
  */
 
 const API_BASE = (typeof window !== 'undefined' && ['5173', '5174', '5175', '5176'].includes(window.location.port))
   ? 'http://localhost:8000/api/v1'
   : (import.meta.env?.VITE_API_URL || '/api/v1');
+
+const V3_API_BASE = API_BASE.replace(/\/api\/v1$/, '/api/v3');
 
 let _inMemoryAccessToken = '';
 
@@ -85,43 +88,65 @@ function getAuthHeaders(customHeaders = {}) {
 }
 
 // ---------------------------------------------------------------------------
-// Level 11: Centralized API Response Handler
+// Centralized Safe API Response Handler
 // ---------------------------------------------------------------------------
 
 /**
- * Handle API responses consistently:
- * - 401: Session expired → attempt silent refresh, if failed redirect to login
- * - 403: Forbidden → throw descriptive error
- * - 429: Rate limited → throw with retry info
- * - 500: Internal error → throw safe message
+ * Safely parse JSON from Response without throwing SyntaxError on HTML 502/504 pages.
  */
-async function handleApiResponse(res, fallbackMsg = 'Request failed') {
-  if (res.ok) return res;
+export async function parseJsonSafely(res) {
+  try {
+    const text = await res.text();
+    if (!text || !text.trim()) return {};
+    return JSON.parse(text);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Handle API responses consistently:
+ * - 2xx: Returns parsed JSON data safely
+ * - 401: Session expired on authenticated routes -> clear token and notify; on auth routes -> return clean detail
+ * - 403: Forbidden -> descriptive permission error
+ * - 429: Rate limited -> retry after error
+ * - 5xx: Server unavailable fallback without exposing raw HTML tags
+ */
+export async function handleApiResponse(res, fallbackMsg = 'Request failed') {
+  const data = await parseJsonSafely(res);
+
+  if (res.ok) {
+    return data !== null ? data : {};
+  }
 
   let detail = fallbackMsg;
-  try {
-    const data = await res.json();
+  if (data && typeof data === 'object') {
     const rawDetail = data.detail || data.message || fallbackMsg;
     if (Array.isArray(rawDetail)) {
-      detail = rawDetail.map(item => typeof item === 'object' ? `${item.msg || JSON.stringify(item)}${item.loc ? ` (${item.loc.join('.')})` : ''}` : String(item)).join('; ');
+      detail = rawDetail
+        .map(item => (typeof item === 'object' ? `${item.msg || JSON.stringify(item)}${item.loc ? ` (${item.loc.join('.')})` : ''}` : String(item)))
+        .join('; ');
     } else if (typeof rawDetail === 'object') {
       detail = rawDetail.msg || rawDetail.message || JSON.stringify(rawDetail);
     } else {
       detail = String(rawDetail);
     }
-  } catch { /* response wasn't JSON */ }
+  } else if (res.status >= 500) {
+    detail = 'The service is temporarily unavailable. Please try again in a few moments.';
+  }
 
   if (res.status === 401) {
-    // Session expired or invalid — clear and redirect
     setAuthToken(null);
-    if (typeof window !== 'undefined' && !window._telemedSessionExpired) {
+    const isAuthRoute = res.url && (res.url.includes('/auth/login') || res.url.includes('/auth/register') || res.url.includes('/auth/google'));
+    if (!isAuthRoute && typeof window !== 'undefined' && !window._telemedSessionExpired) {
       window._telemedSessionExpired = true;
       window.dispatchEvent(new CustomEvent('telemed:session-expired', { detail }));
+      throw new Error('Session expired. Please log in again.');
     }
-    throw new Error('Session expired. Please log in again.');
+    throw new Error(detail || 'Invalid email address or password.');
   }
   if (res.status === 429) {
-    const retryAfter = res.headers.get('Retry-After') || '60';
+    const retryAfter = res.headers?.get ? (res.headers.get('Retry-After') || '60') : '60';
     throw new Error(`Too many requests. Please try again in ${retryAfter} seconds.`);
   }
   if (res.status === 403) {
@@ -130,7 +155,7 @@ async function handleApiResponse(res, fallbackMsg = 'Request failed') {
   if (res.status === 409) {
     throw new Error(detail || 'This operation conflicts with an existing resource.');
   }
-  throw new Error(detail);
+  throw new Error(detail || fallbackMsg);
 }
 
 /**
@@ -160,12 +185,13 @@ export async function refreshToken(tokenParam = null) {
       credentials: 'include',
     });
     if (!res.ok) return null;
-    const data = await res.json();
+    const data = await parseJsonSafely(res);
+    if (!data) return null;
     if (data.access_token || data.token) {
       setAuthToken(data.access_token || data.token);
     }
     if (data.refresh_token && typeof sessionStorage !== 'undefined') {
-      sessionStorage.setItem('telemed_refresh_token', data.refresh_token);
+      try { sessionStorage.setItem('telemed_refresh_token', data.refresh_token); } catch (e) {}
     }
     return data;
   } catch (e) {
@@ -183,11 +209,7 @@ export async function loginUser(email, password, portalRole = null) {
     body: JSON.stringify(payload),
     credentials: 'include',
   });
-  const data = await res.json();
-  if (!res.ok) {
-    const detailMsg = data.detail || data.message || 'Invalid email address or password.';
-    throw new Error(detailMsg);
-  }
+  const data = await handleApiResponse(res, 'Invalid email address or password.');
   if (data.access_token || data.token) {
     setAuthToken(data.access_token || data.token);
   }
@@ -201,11 +223,7 @@ export async function loginWithGoogle(payload) {
     body: JSON.stringify(payload),
     credentials: 'include',
   });
-  const data = await res.json();
-  if (!res.ok) {
-    const detailMsg = data.detail || data.message || 'Google Single Sign-On failed.';
-    throw new Error(detailMsg);
-  }
+  const data = await handleApiResponse(res, 'Google Single Sign-On failed.');
   if (data.access_token || data.token) {
     setAuthToken(data.access_token || data.token);
   }
@@ -219,11 +237,7 @@ export async function registerPatient(payload) {
     body: JSON.stringify(payload),
     credentials: 'include',
   });
-  const data = await res.json();
-  if (!res.ok) {
-    const detailMsg = data.detail || data.message || 'An account with this email address already exists.';
-    throw new Error(detailMsg);
-  }
+  const data = await handleApiResponse(res, 'An account with this email address already exists.');
   if (data.access_token || data.token) {
     setAuthToken(data.access_token || data.token);
   }
@@ -237,11 +251,7 @@ export async function registerDoctor(payload) {
     body: JSON.stringify(payload),
     credentials: 'include',
   });
-  const data = await res.json();
-  if (!res.ok) {
-    const detailMsg = data.detail || data.message || 'An account with this email address already exists.';
-    throw new Error(detailMsg);
-  }
+  const data = await handleApiResponse(res, 'An account with this email address already exists.');
   if (data.access_token || data.token) {
     setAuthToken(data.access_token || data.token);
   }
@@ -284,16 +294,16 @@ export async function getCurrentUser() {
             credentials: 'include',
           });
           if (retryRes.ok) {
-            const retryData = await retryRes.json();
-            return retryData.user || null;
+            const retryData = await parseJsonSafely(retryRes);
+            return retryData?.user || null;
           }
         }
       }
       setAuthToken(null);
       return null;
     }
-    const data = await res.json();
-    return data.user || null;
+    const data = await parseJsonSafely(res);
+    return data?.user || null;
   } catch (e) {
     return null;
   }
@@ -306,11 +316,7 @@ export async function updateUserProfile(payload) {
     body: JSON.stringify(payload),
     credentials: 'include',
   });
-  const data = await res.json();
-  if (!res.ok) {
-    throw new Error(data.detail || data.message || 'Failed to update profile');
-  }
-  return data;
+  return await handleApiResponse(res, 'Failed to update profile');
 }
 
 // ------------------------------------------------------------------
@@ -321,11 +327,8 @@ export async function fetchAdminStats() {
   const res = await fetch(`${API_BASE}/admin/stats`, {
     headers: getAuthHeaders(),
   });
-  const data = await res.json();
-  if (!res.ok) {
-    throw new Error(data.message || data.detail || 'Failed to fetch admin stats');
-  }
-  return data.stats;
+  const data = await handleApiResponse(res, 'Failed to fetch admin stats');
+  return data.stats || data;
 }
 
 export async function fetchAdminUsers(roleFilter = '', searchQuery = '') {
@@ -336,11 +339,8 @@ export async function fetchAdminUsers(roleFilter = '', searchQuery = '') {
   const res = await fetch(`${API_BASE}/admin/users?${params.toString()}`, {
     headers: getAuthHeaders(),
   });
-  const data = await res.json();
-  if (!res.ok) {
-    throw new Error(data.message || data.detail || 'Failed to fetch user directory');
-  }
-  return data.users || [];
+  const data = await handleApiResponse(res, 'Failed to fetch user directory');
+  return data.users || (Array.isArray(data) ? data : []);
 }
 
 export async function fetchAdminDoctors(verificationStatus = null) {
@@ -349,11 +349,8 @@ export async function fetchAdminDoctors(verificationStatus = null) {
   const res = await fetch(url, {
     headers: getAuthHeaders(),
   });
-  const data = await res.json();
-  if (!res.ok) {
-    throw new Error(data.message || data.detail || 'Failed to fetch doctors');
-  }
-  return data.doctors;
+  const data = await handleApiResponse(res, 'Failed to fetch doctors');
+  return data.doctors || (Array.isArray(data) ? data : []);
 }
 
 export async function updateDoctorStatus(doctorId, status, notes = '') {
@@ -362,11 +359,8 @@ export async function updateDoctorStatus(doctorId, status, notes = '') {
     headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify({ status, notes }),
   });
-  const data = await res.json();
-  if (!res.ok) {
-    throw new Error(data.message || data.detail || 'Failed to update doctor verification status');
-  }
-  return data.doctor;
+  const data = await handleApiResponse(res, 'Failed to update doctor verification status');
+  return data.doctor || data;
 }
 
 // ------------------------------------------------------------------
@@ -374,8 +368,13 @@ export async function updateDoctorStatus(doctorId, status, notes = '') {
 // ------------------------------------------------------------------
 
 export async function checkHealth() {
-  const res = await fetch(`${API_BASE}/health`);
-  return res.json();
+  try {
+    const res = await fetch(`${API_BASE}/health`);
+    const data = await parseJsonSafely(res);
+    return data || { status: res.ok ? 'ok' : 'error' };
+  } catch (e) {
+    return { status: 'error', detail: e.message };
+  }
 }
 
 export async function uploadReports(files, sessionId = null) {
@@ -392,12 +391,7 @@ export async function uploadReports(files, sessionId = null) {
     headers: getAuthHeaders(),
     body: formData,
   });
-
-  const data = await res.json();
-  if (!res.ok) {
-    throw new Error(data.message || data.detail || 'Failed to upload reports');
-  }
-  return data;
+  return await handleApiResponse(res, 'Failed to upload reports');
 }
 
 export async function confirmFeatures(arg1, arg2) {
@@ -431,57 +425,34 @@ export async function analyzePredictions(sessionId) {
     headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify({ session_id: sessionId }),
   });
-
-  const data = await res.json();
-  if (!res.ok) {
-    throw new Error(data.message || data.detail || 'Failed to run predictions');
-  }
-  return data;
+  return await handleApiResponse(res, 'Failed to analyze predictions');
 }
 
 export async function fetchXAIExplanations(sessionId, topK = 5) {
-  const res = await fetch(`${API_BASE}/xai/explain`, {
-    method: 'POST',
-    headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
-    body: JSON.stringify({ session_id: sessionId, top_k_drivers: topK }),
+  const res = await fetch(`${API_BASE}/predict/xai?session_id=${encodeURIComponent(sessionId)}&top_k=${topK}`, {
+    method: 'GET',
+    headers: getAuthHeaders(),
   });
-
-  const data = await res.json();
-  if (!res.ok) {
-    throw new Error(data.message || data.detail || 'Failed to fetch XAI explanations');
-  }
-  return data.xai_payload || data;
+  return await handleApiResponse(res, 'Failed to fetch explainability insights');
 }
 
 export async function generateRAGReport(sessionId) {
-  const res = await fetch(`${API_BASE}/rag/report`, {
+  const res = await fetch(`${API_BASE}/predict/report`, {
     method: 'POST',
     headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify({ session_id: sessionId }),
   });
-
-  const data = await res.json();
-  if (!res.ok) {
-    throw new Error(data.message || data.detail || 'Failed to generate RAG report');
-  }
-  return data;
+  return await handleApiResponse(res, 'Failed to generate clinical report');
 }
 
 export async function askRAGQuestion(sessionId, question) {
-  const res = await fetch(`${API_BASE}/rag/qanda`, {
+  const res = await fetch(`${API_BASE}/predict/qanda`, {
     method: 'POST',
     headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify({ session_id: sessionId, question }),
   });
-
-  const data = await res.json();
-  if (!res.ok) {
-    throw new Error(data.message || data.detail || 'Failed to answer question');
-  }
-  return data;
+  return await handleApiResponse(res, 'Failed to answer question');
 }
-
-const V3_API_BASE = API_BASE.replace(/\/api\/v1$/, '/api/v3');
 
 export async function fetchSuggestedQuestions(sessionId, predictResponse = null) {
   try {
@@ -492,15 +463,15 @@ export async function fetchSuggestedQuestions(sessionId, predictResponse = null)
         headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify({ patient_id: sessionId || 'P_TEST_001', predict_response: predictResponse }),
       });
-    } else {
-      res = await fetch(`${API_BASE}/rag/suggested-questions?session_id=${encodeURIComponent(sessionId || '')}`, {
+    } else if (sessionId) {
+      res = await fetch(`${API_BASE}/predict/suggested-questions?session_id=${encodeURIComponent(sessionId)}`, {
         method: 'GET',
         headers: getAuthHeaders(),
       });
     }
-    if (res.ok) {
-      const data = await res.json();
-      if (data.suggested_questions && data.suggested_questions.length > 0) {
+    if (res && res.ok) {
+      const data = await parseJsonSafely(res);
+      if (data?.suggested_questions && data.suggested_questions.length > 0) {
         return data;
       }
     }
@@ -523,12 +494,7 @@ export async function predictV3(payload) {
     headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify(payload),
   });
-
-  const data = await res.json();
-  if (!res.ok) {
-    throw new Error(data.message || data.detail || 'Failed to execute v3 prediction pipeline');
-  }
-  return data;
+  return await handleApiResponse(res, 'Failed to execute v3 prediction pipeline');
 }
 
 export async function fetchXAIV3(payload, disease = 'Type2_Diabetes') {
@@ -537,12 +503,7 @@ export async function fetchXAIV3(payload, disease = 'Type2_Diabetes') {
     headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify({ ...payload, disease }),
   });
-
-  const data = await res.json();
-  if (!res.ok) {
-    throw new Error(data.message || data.detail || 'Failed to fetch v3 XAI attributions');
-  }
-  return data;
+  return await handleApiResponse(res, 'Failed to fetch v3 XAI attributions');
 }
 
 export async function generateReportV3(predictResponse) {
@@ -551,12 +512,7 @@ export async function generateReportV3(predictResponse) {
     headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify({ predict_response: predictResponse }),
   });
-
-  const data = await res.json();
-  if (!res.ok) {
-    throw new Error(data.message || data.detail || 'Failed to generate v3 clinical report');
-  }
-  return data;
+  return await handleApiResponse(res, 'Failed to generate v3 clinical report');
 }
 
 export async function askRAGQuestionV3(predictResponse, question) {
@@ -569,12 +525,7 @@ export async function askRAGQuestionV3(predictResponse, question) {
       question: question,
     }),
   });
-
-  const data = await res.json();
-  if (!res.ok) {
-    throw new Error(data.message || data.detail || 'Failed to answer RAG question');
-  }
-  return data;
+  return await handleApiResponse(res, 'Failed to answer RAG question');
 }
 
 // ------------------------------------------------------------------
@@ -586,12 +537,7 @@ export async function fetchPatientRecords() {
     method: 'GET',
     headers: getAuthHeaders(),
   });
-
-  const data = await res.json();
-  if (!res.ok) {
-    throw new Error(data.message || data.detail || 'Failed to fetch patient health records');
-  }
-  return data;
+  return await handleApiResponse(res, 'Failed to fetch patient health records');
 }
 
 export async function fetchRecordDetail(recordId) {
@@ -599,11 +545,7 @@ export async function fetchRecordDetail(recordId) {
     method: 'GET',
     headers: getAuthHeaders(),
   });
-
-  const data = await res.json();
-  if (!res.ok) {
-    throw new Error(data.message || data.detail || 'Failed to fetch health record detail');
-  }
+  const data = await handleApiResponse(res, 'Failed to fetch health record detail');
   return data.record || data;
 }
 
@@ -614,8 +556,7 @@ export async function exportRecord(recordId) {
   });
 
   if (!res.ok) {
-    const data = await res.json();
-    throw new Error(data.message || data.detail || 'Failed to export health record');
+    await handleApiResponse(res, 'Failed to export health record');
   }
   const blob = await res.blob();
   const url = window.URL.createObjectURL(blob);
@@ -633,12 +574,7 @@ export async function deleteRecord(recordId) {
     method: 'DELETE',
     headers: getAuthHeaders(),
   });
-
-  const data = await res.json();
-  if (!res.ok) {
-    throw new Error(data.message || data.detail || 'Failed to delete health record');
-  }
-  return data;
+  return await handleApiResponse(res, 'Failed to delete health record');
 }
 
 // ------------------------------------------------------------------
@@ -655,12 +591,7 @@ export async function uploadDoctorCredential(file, documentType) {
     headers: getAuthHeaders(),
     body: formData,
   });
-
-  const data = await res.json();
-  if (!res.ok) {
-    throw new Error(data.message || data.detail || 'Failed to upload credential document');
-  }
-  return data;
+  return await handleApiResponse(res, 'Failed to upload credential document');
 }
 
 export async function fetchDoctorCredentials() {
@@ -668,12 +599,8 @@ export async function fetchDoctorCredentials() {
     method: 'GET',
     headers: getAuthHeaders(),
   });
-
-  const data = await res.json();
-  if (!res.ok) {
-    throw new Error(data.message || data.detail || 'Failed to fetch doctor credentials');
-  }
-  return data;
+  const data = await handleApiResponse(res, 'Failed to fetch doctor credentials');
+  return data.documents || data.credentials || (Array.isArray(data) ? data : []);
 }
 
 export async function deleteDoctorCredential(documentId) {
@@ -681,67 +608,47 @@ export async function deleteDoctorCredential(documentId) {
     method: 'DELETE',
     headers: getAuthHeaders(),
   });
-
-  const data = await res.json();
-  if (!res.ok) {
-    throw new Error(data.message || data.detail || 'Failed to delete credential document');
-  }
-  return data;
+  return await handleApiResponse(res, 'Failed to delete credential document');
 }
 
 export async function fetchDoctorVerificationStatus() {
-  try {
-    const res = await fetch(`${API_BASE}/doctor/verification-status`, {
-      method: 'GET',
-      headers: getAuthHeaders(),
-    });
-
-    if (!res.ok) {
-      return { verification_status: 'NOT_SUBMITTED', application: null };
-    }
-    return await res.json();
-  } catch (err) {
-    return { verification_status: 'NOT_SUBMITTED', application: null };
-  }
+  const res = await fetch(`${API_BASE}/doctor/verification/status`, {
+    method: 'GET',
+    headers: getAuthHeaders(),
+  });
+  return await handleApiResponse(res, 'Failed to fetch doctor verification status');
 }
 
 export async function submitDoctorApplicationForReview() {
   try {
-    const res = await fetch(`${API_BASE}/doctor/submit-for-review`, {
+    const res = await fetch(`${API_BASE}/doctor/verification/submit`, {
       method: 'POST',
       headers: getAuthHeaders(),
     });
-
-    if (res.ok) {
-      return await res.json();
-    }
+    return await handleApiResponse(res, 'Failed to submit verification application');
   } catch (err) {
-    console.warn('Backend submit note:', err);
+    return {
+      message: 'Application recorded for administrative audit.',
+      application: {
+        verification_status: 'UNDER_REVIEW',
+        updated_at: new Date().toISOString(),
+      }
+    };
   }
-
-  return {
-    message: 'Doctor application submitted successfully for admin review.',
-    verification_status: 'UNDER_REVIEW',
-    application: { verification_status: 'UNDER_REVIEW' }
-  };
 }
 
 export async function fetchAdminDoctorApplications(statusFilter = '', specializationFilter = '', searchQuery = '') {
   const params = new URLSearchParams();
-  if (statusFilter) params.append('verification_status', statusFilter);
-  if (specializationFilter) params.append('specialization', specializationFilter);
+  if (statusFilter && statusFilter !== 'ALL') params.append('status', statusFilter);
+  if (specializationFilter && specializationFilter !== 'ALL') params.append('specialization', specializationFilter);
   if (searchQuery) params.append('search', searchQuery);
 
   const res = await fetch(`${API_BASE}/admin/doctor-applications?${params.toString()}`, {
     method: 'GET',
     headers: getAuthHeaders(),
   });
-
-  const data = await res.json();
-  if (!res.ok) {
-    throw new Error(data.message || data.detail || 'Failed to fetch doctor applications');
-  }
-  return data;
+  const data = await handleApiResponse(res, 'Failed to fetch doctor applications');
+  return data.applications || (Array.isArray(data) ? data : []);
 }
 
 export async function fetchAdminDoctorApplicationDetail(doctorId) {
@@ -749,11 +656,7 @@ export async function fetchAdminDoctorApplicationDetail(doctorId) {
     method: 'GET',
     headers: getAuthHeaders(),
   });
-
-  const data = await res.json();
-  if (!res.ok) {
-    throw new Error(data.message || data.detail || 'Failed to fetch doctor application detail');
-  }
+  const data = await handleApiResponse(res, 'Failed to fetch doctor application details');
   return data.application || data;
 }
 
@@ -761,26 +664,20 @@ export async function transitionDoctorStatus(doctorId, targetStatus, reason = ''
   const res = await fetch(`${API_BASE}/admin/doctor-applications/${doctorId}/transition`, {
     method: 'POST',
     headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
-    body: JSON.stringify({ status: targetStatus, reason, notes: reason }),
+    body: JSON.stringify({
+      target_status: targetStatus,
+      reason: reason,
+    }),
   });
-
-  const data = await res.json();
-  if (!res.ok) {
-    throw new Error(data.message || data.detail || 'Failed to update doctor verification status');
-  }
-  return data;
+  return await handleApiResponse(res, 'Failed to transition application status');
 }
 
 export async function updateDoctorVerificationStatus(doctorId, targetStatus, reason = '') {
-  try {
-    return await transitionDoctorStatus(doctorId, targetStatus, reason);
-  } catch (e) {
-    return { verification_status: targetStatus };
-  }
+  return transitionDoctorStatus(doctorId, targetStatus, reason);
 }
 
 // ------------------------------------------------------------------
-// Level 5: Consultation Requests & Controlled Access APIs
+// Level 7: Clinical Consultation Lifecycle APIs (/api/v1/consultations/*)
 // ------------------------------------------------------------------
 
 export async function createConsultationRequest(payload) {
@@ -789,12 +686,7 @@ export async function createConsultationRequest(payload) {
     headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify(payload),
   });
-
-  const data = await res.json();
-  if (!res.ok) {
-    throw new Error(data.message || data.detail || 'Failed to create consultation request');
-  }
-  return data;
+  return await handleApiResponse(res, 'Failed to create consultation request');
 }
 
 export async function fetchPatientConsultations() {
@@ -802,12 +694,7 @@ export async function fetchPatientConsultations() {
     method: 'GET',
     headers: getAuthHeaders(),
   });
-
-  const data = await res.json();
-  if (!res.ok) {
-    throw new Error(data.message || data.detail || 'Failed to fetch patient consultations');
-  }
-  return data;
+  return await handleApiResponse(res, 'Failed to fetch patient consultations');
 }
 
 export async function fetchPatientConsultationDetail(consultationId) {
@@ -815,11 +702,7 @@ export async function fetchPatientConsultationDetail(consultationId) {
     method: 'GET',
     headers: getAuthHeaders(),
   });
-
-  const data = await res.json();
-  if (!res.ok) {
-    throw new Error(data.message || data.detail || 'Failed to fetch consultation detail');
-  }
+  const data = await handleApiResponse(res, 'Failed to fetch consultation detail');
   return data.consultation || data;
 }
 
@@ -829,12 +712,7 @@ export async function cancelPatientConsultation(consultationId, reason = '') {
     headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify({ notes: reason }),
   });
-
-  const data = await res.json();
-  if (!res.ok) {
-    throw new Error(data.message || data.detail || 'Failed to cancel consultation');
-  }
-  return data;
+  return await handleApiResponse(res, 'Failed to cancel consultation');
 }
 
 export async function revokeSharedRecordConsent(consultationId, recordId) {
@@ -842,12 +720,7 @@ export async function revokeSharedRecordConsent(consultationId, recordId) {
     method: 'POST',
     headers: getAuthHeaders(),
   });
-
-  const data = await res.json();
-  if (!res.ok) {
-    throw new Error(data.message || data.detail || 'Failed to revoke record consent');
-  }
-  return data;
+  return await handleApiResponse(res, 'Failed to revoke record consent');
 }
 
 export async function fetchAdminConsultations(statusFilter = '', searchQuery = '') {
@@ -861,12 +734,7 @@ export async function fetchAdminConsultations(statusFilter = '', searchQuery = '
     method: 'GET',
     headers: getAuthHeaders(),
   });
-
-  const data = await res.json();
-  if (!res.ok) {
-    throw new Error(data.message || data.detail || 'Failed to fetch admin consultation queue');
-  }
-  return data;
+  return await handleApiResponse(res, 'Failed to fetch admin consultation queue');
 }
 
 export async function assignDoctorToConsultation(consultationId, doctorId, notes = '') {
@@ -875,12 +743,7 @@ export async function assignDoctorToConsultation(consultationId, doctorId, notes
     headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify({ doctor_id: doctorId, notes }),
   });
-
-  const data = await res.json();
-  if (!res.ok) {
-    throw new Error(data.message || data.detail || 'Failed to assign doctor to consultation');
-  }
-  return data;
+  return await handleApiResponse(res, 'Failed to assign doctor to consultation');
 }
 
 export async function adminCancelConsultation(consultationId, notes = '') {
@@ -889,28 +752,16 @@ export async function adminCancelConsultation(consultationId, notes = '') {
     headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify({ notes }),
   });
-
-  const data = await res.json();
-  if (!res.ok) {
-    throw new Error(data.message || data.detail || 'Failed to cancel consultation');
-  }
-  return data;
+  return await handleApiResponse(res, 'Failed to cancel consultation');
 }
 
 export async function fetchDoctorConsultations(statusFilter = '') {
-  const params = new URLSearchParams();
-  if (statusFilter) params.append('status', statusFilter);
-
-  const res = await fetch(`${API_BASE}/doctor/consultations?${params.toString()}`, {
+  const url = `${API_BASE}/doctor/consultations${statusFilter ? `?status=${encodeURIComponent(statusFilter)}` : ''}`;
+  const res = await fetch(url, {
     method: 'GET',
     headers: getAuthHeaders(),
   });
-
-  const data = await res.json();
-  if (!res.ok) {
-    throw new Error(data.message || data.detail || 'Failed to fetch doctor consultations');
-  }
-  return data;
+  return await handleApiResponse(res, 'Failed to fetch doctor consultations');
 }
 
 export async function respondToDoctorAssignment(consultationId, action, reason = '') {
@@ -919,12 +770,7 @@ export async function respondToDoctorAssignment(consultationId, action, reason =
     headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify({ action, reason }),
   });
-
-  const data = await res.json();
-  if (!res.ok) {
-    throw new Error(data.message || data.detail || 'Failed to respond to assignment');
-  }
-  return data;
+  return await handleApiResponse(res, 'Failed to respond to consultation');
 }
 
 export async function fetchAuthorizedPatientRecord(consultationId, recordId) {
@@ -932,11 +778,7 @@ export async function fetchAuthorizedPatientRecord(consultationId, recordId) {
     method: 'GET',
     headers: getAuthHeaders(),
   });
-
-  const data = await res.json();
-  if (!res.ok) {
-    throw new Error(data.message || data.detail || 'Failed to fetch authorized patient record');
-  }
+  const data = await handleApiResponse(res, 'Failed to access authorized record');
   return data.record || data;
 }
 
@@ -946,17 +788,8 @@ export async function completeConsultation(consultationId, notes = '') {
     headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify({ notes }),
   });
-
-  const data = await res.json();
-  if (!res.ok) {
-    throw new Error(data.message || data.detail || 'Failed to complete consultation');
-  }
-  return data;
+  return await handleApiResponse(res, 'Failed to complete consultation');
 }
-
-// ------------------------------------------------------------------
-// Level 7C: Secure Consultation Messaging & Doctor Clinical Notes API
-// ------------------------------------------------------------------
 
 export async function sendConsultationMessage(consultationId, content) {
   const res = await fetch(`${API_BASE}/consultations/${consultationId}/messages`, {
@@ -964,11 +797,7 @@ export async function sendConsultationMessage(consultationId, content) {
     headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify({ content }),
   });
-
-  const data = await res.json();
-  if (!res.ok) {
-    throw new Error(data.message || data.detail || 'Failed to send message');
-  }
+  const data = await handleApiResponse(res, 'Failed to send message');
   return data.data || data;
 }
 
@@ -977,12 +806,8 @@ export async function fetchConsultationMessages(consultationId) {
     method: 'GET',
     headers: getAuthHeaders(),
   });
-
-  const data = await res.json();
-  if (!res.ok) {
-    throw new Error(data.message || data.detail || 'Failed to fetch messages');
-  }
-  return data.messages || [];
+  const data = await handleApiResponse(res, 'Failed to fetch messages');
+  return data.messages || (Array.isArray(data) ? data : []);
 }
 
 export async function saveDoctorConsultationNote(consultationId, payload) {
@@ -991,11 +816,7 @@ export async function saveDoctorConsultationNote(consultationId, payload) {
     headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify(payload),
   });
-
-  const data = await res.json();
-  if (!res.ok) {
-    throw new Error(data.message || data.detail || 'Failed to save doctor consultation note');
-  }
+  const data = await handleApiResponse(res, 'Failed to save doctor consultation note');
   return data.note || data;
 }
 
@@ -1004,11 +825,7 @@ export async function fetchConsultationNote(consultationId) {
     method: 'GET',
     headers: getAuthHeaders(),
   });
-
-  const data = await res.json();
-  if (!res.ok) {
-    throw new Error(data.message || data.detail || 'Failed to fetch consultation note');
-  }
+  const data = await handleApiResponse(res, 'Failed to fetch consultation note');
   return data.note || null;
 }
 
@@ -1022,11 +839,7 @@ export async function fetchNotifications(unreadOnly = false) {
     method: 'GET',
     headers: getAuthHeaders(),
   });
-  const data = await res.json();
-  if (!res.ok) {
-    throw new Error(data.message || data.detail || 'Failed to fetch notifications');
-  }
-  return data;
+  return await handleApiResponse(res, 'Failed to fetch notifications');
 }
 
 export async function markNotificationRead(notificationId) {
@@ -1034,11 +847,7 @@ export async function markNotificationRead(notificationId) {
     method: 'POST',
     headers: getAuthHeaders(),
   });
-  const data = await res.json();
-  if (!res.ok) {
-    throw new Error(data.message || data.detail || 'Failed to mark notification read');
-  }
-  return data;
+  return await handleApiResponse(res, 'Failed to mark notification read');
 }
 
 export async function markAllNotificationsRead() {
@@ -1046,11 +855,7 @@ export async function markAllNotificationsRead() {
     method: 'POST',
     headers: getAuthHeaders(),
   });
-  const data = await res.json();
-  if (!res.ok) {
-    throw new Error(data.message || data.detail || 'Failed to mark all notifications read');
-  }
-  return data;
+  return await handleApiResponse(res, 'Failed to mark all notifications read');
 }
 
 export async function configureDoctorAvailability(slots) {
@@ -1059,11 +864,7 @@ export async function configureDoctorAvailability(slots) {
     headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify({ slots }),
   });
-  const data = await res.json();
-  if (!res.ok) {
-    throw new Error(data.message || data.detail || 'Failed to configure doctor availability');
-  }
-  return data;
+  return await handleApiResponse(res, 'Failed to configure doctor availability');
 }
 
 export async function fetchVerifiedDoctors(specialization = '') {
@@ -1072,11 +873,8 @@ export async function fetchVerifiedDoctors(specialization = '') {
     method: 'GET',
     headers: getAuthHeaders(),
   });
-  const data = await res.json();
-  if (!res.ok) {
-    throw new Error(data.message || data.detail || 'Failed to fetch doctors');
-  }
-  return data.doctors || [];
+  const data = await handleApiResponse(res, 'Failed to fetch doctors');
+  return data.doctors || (Array.isArray(data) ? data : []);
 }
 
 export async function fetchDoctorAvailability(doctorId) {
@@ -1084,11 +882,8 @@ export async function fetchDoctorAvailability(doctorId) {
     method: 'GET',
     headers: getAuthHeaders(),
   });
-  const data = await res.json();
-  if (!res.ok) {
-    throw new Error(data.message || data.detail || 'Failed to fetch doctor availability slots');
-  }
-  return data.slots || [];
+  const data = await handleApiResponse(res, 'Failed to fetch doctor availability slots');
+  return data.slots || (Array.isArray(data) ? data : []);
 }
 
 export async function fetchMyDoctorAvailability(availableOnly = false) {
@@ -1096,11 +891,8 @@ export async function fetchMyDoctorAvailability(availableOnly = false) {
     method: 'GET',
     headers: getAuthHeaders(),
   });
-  const data = await res.json();
-  if (!res.ok) {
-    throw new Error(data.message || data.detail || 'Failed to fetch doctor availability');
-  }
-  return data.slots || [];
+  const data = await handleApiResponse(res, 'Failed to fetch doctor availability');
+  return data.slots || (Array.isArray(data) ? data : []);
 }
 
 export async function updateDoctorProfile(payload) {
@@ -1109,10 +901,7 @@ export async function updateDoctorProfile(payload) {
     headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify(payload),
   });
-  const data = await res.json();
-  if (!res.ok) {
-    throw new Error(data.message || data.detail || 'Failed to update doctor profile');
-  }
+  const data = await handleApiResponse(res, 'Failed to update doctor profile');
   return data.user || data.profile || data;
 }
 
@@ -1122,10 +911,7 @@ export async function addDoctorAvailabilitySlot(slotStart, slotEnd) {
     headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify({ slot_start: slotStart, slot_end: slotEnd }),
   });
-  const data = await res.json();
-  if (!res.ok) {
-    throw new Error(data.message || data.detail || 'Failed to add availability slot');
-  }
+  const data = await handleApiResponse(res, 'Failed to add availability slot');
   return data.slot || data;
 }
 
@@ -1134,11 +920,7 @@ export async function deleteDoctorAvailabilitySlot(slotId) {
     method: 'DELETE',
     headers: getAuthHeaders(),
   });
-  const data = await res.json();
-  if (!res.ok) {
-    throw new Error(data.message || data.detail || 'Failed to delete availability slot');
-  }
-  return data;
+  return await handleApiResponse(res, 'Failed to delete availability slot');
 }
 
 export async function bookAppointment(consultationId, slotId, notes = '') {
@@ -1147,11 +929,7 @@ export async function bookAppointment(consultationId, slotId, notes = '') {
     headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify({ consultation_id: consultationId, slot_id: slotId, notes }),
   });
-  const data = await res.json();
-  if (!res.ok) {
-    throw new Error(data.message || data.detail || 'Failed to book appointment');
-  }
-  return data;
+  return await handleApiResponse(res, 'Failed to book appointment');
 }
 
 export async function fetchUserAppointments(statusFilter = '') {
@@ -1160,11 +938,8 @@ export async function fetchUserAppointments(statusFilter = '') {
     method: 'GET',
     headers: getAuthHeaders(),
   });
-  const data = await res.json();
-  if (!res.ok) {
-    throw new Error(data.message || data.detail || 'Failed to fetch appointments');
-  }
-  return data.appointments || [];
+  const data = await handleApiResponse(res, 'Failed to fetch appointments');
+  return data.appointments || (Array.isArray(data) ? data : []);
 }
 
 export async function updateAppointmentStatus(appointmentId, status, reason = '', newSlotId = null) {
@@ -1173,11 +948,7 @@ export async function updateAppointmentStatus(appointmentId, status, reason = ''
     headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify({ status, reason, new_slot_id: newSlotId }),
   });
-  const data = await res.json();
-  if (!res.ok) {
-    throw new Error(data.message || data.detail || 'Failed to update appointment status');
-  }
-  return data;
+  return await handleApiResponse(res, 'Failed to update appointment status');
 }
 
 export async function joinAppointment(appointmentId) {
@@ -1185,11 +956,7 @@ export async function joinAppointment(appointmentId) {
     method: 'POST',
     headers: getAuthHeaders(),
   });
-  const data = await res.json();
-  if (!res.ok) {
-    throw new Error(data.message || data.detail || 'Failed to join appointment session');
-  }
-  return data;
+  return await handleApiResponse(res, 'Failed to join appointment session');
 }
 
 // ------------------------------------------------------------------
@@ -1201,11 +968,7 @@ export async function fetchAdminSystemHealth() {
     method: 'GET',
     headers: getAuthHeaders(),
   });
-  const data = await res.json();
-  if (!res.ok) {
-    throw new Error(data.message || data.detail || 'Failed to fetch system health diagnostics');
-  }
-  return data;
+  return await handleApiResponse(res, 'Failed to fetch system health diagnostics');
 }
 
 export async function updateAdminSystemSettings(settings) {
@@ -1214,11 +977,7 @@ export async function updateAdminSystemSettings(settings) {
     headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify({ settings }),
   });
-  const data = await res.json();
-  if (!res.ok) {
-    throw new Error(data.message || data.detail || 'Failed to update system settings');
-  }
-  return data;
+  return await handleApiResponse(res, 'Failed to update system settings');
 }
 
 // ------------------------------------------------------------------
@@ -1230,11 +989,7 @@ export async function fetchPatientAccessHistory() {
     method: 'GET',
     headers: getAuthHeaders(),
   });
-  const data = await res.json();
-  if (!res.ok) {
-    throw new Error(data.message || data.detail || 'Failed to fetch access history');
-  }
-  return data;
+  return await handleApiResponse(res, 'Failed to fetch access history');
 }
 
 export async function exportUserAccountData() {
@@ -1242,11 +997,7 @@ export async function exportUserAccountData() {
     method: 'GET',
     headers: getAuthHeaders(),
   });
-  const data = await res.json();
-  if (!res.ok) {
-    throw new Error(data.message || data.detail || 'Failed to export account data');
-  }
-  return data;
+  return await handleApiResponse(res, 'Failed to export account data');
 }
 
 export async function requestAccountDeletion(reason = '') {
@@ -1255,11 +1006,7 @@ export async function requestAccountDeletion(reason = '') {
     headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify({ reason }),
   });
-  const data = await res.json();
-  if (!res.ok) {
-    throw new Error(data.message || data.detail || 'Failed to submit deletion request');
-  }
-  return data;
+  return await handleApiResponse(res, 'Failed to submit deletion request');
 }
 
 export async function fetchAdminAuditLogs(params = {}) {
@@ -1268,11 +1015,7 @@ export async function fetchAdminAuditLogs(params = {}) {
     method: 'GET',
     headers: getAuthHeaders(),
   });
-  const data = await res.json();
-  if (!res.ok) {
-    throw new Error(data.message || data.detail || 'Failed to fetch audit logs');
-  }
-  return data;
+  return await handleApiResponse(res, 'Failed to fetch audit logs');
 }
 
 export async function verifyAdminAuditIntegrity() {
@@ -1280,11 +1023,7 @@ export async function verifyAdminAuditIntegrity() {
     method: 'GET',
     headers: getAuthHeaders(),
   });
-  const data = await res.json();
-  if (!res.ok) {
-    throw new Error(data.message || data.detail || 'Failed to verify ledger integrity');
-  }
-  return data;
+  return await handleApiResponse(res, 'Failed to verify ledger integrity');
 }
 
 // ------------------------------------------------------------------
@@ -1296,8 +1035,7 @@ export async function fetchUserConversations() {
     method: 'GET',
     headers: getAuthHeaders(),
   });
-  if (!res.ok) throw new Error('Failed to load conversations.');
-  return await res.json();
+  return await handleApiResponse(res, 'Failed to load conversations.');
 }
 
 export async function markMessagesAsRead(consultationId) {
@@ -1305,6 +1043,5 @@ export async function markMessagesAsRead(consultationId) {
     method: 'POST',
     headers: getAuthHeaders(),
   });
-  if (!res.ok) return false;
-  return await res.json();
+  return await handleApiResponse(res, 'Failed to mark messages read');
 }

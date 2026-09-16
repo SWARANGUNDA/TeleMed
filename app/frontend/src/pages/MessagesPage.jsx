@@ -109,7 +109,7 @@ export default function MessagesPage({ user }) {
       const allThreads = [aiThread, ...dbThreads];
       setConversations(allThreads);
     } catch (err) {
-      console.warn("Conversations load notice:", err);
+      // Handled silently
     } finally {
       setLoadingConversations(false);
     }
@@ -139,7 +139,7 @@ export default function MessagesPage({ user }) {
 
       setConversations(prev => prev.map(c => c.id === convId ? { ...c, unreadCount: 0 } : c));
     } catch (err) {
-      console.warn("Messages fetch note:", err);
+      // Handled silently
     } finally {
       setLoadingMessages(false);
     }
