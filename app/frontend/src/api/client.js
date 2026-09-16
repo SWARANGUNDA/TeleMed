@@ -211,6 +211,10 @@ export function withSubmitGuard(key, fn) {
 export async function refreshToken(tokenParam = null) {
   try {
     const token = tokenParam || (typeof sessionStorage !== 'undefined' ? sessionStorage.getItem('telemed_refresh_token') || '' : '');
+    // If no refresh token exists, do not fire an unauthorized request that triggers a 401 console error
+    if (!token && (typeof document === 'undefined' || !document.cookie || !document.cookie.includes('telemed_refresh_token'))) {
+      return null;
+    }
     const bodyPayload = token ? JSON.stringify({ refresh_token: token }) : undefined;
     const res = await fetchWithTimeout(`${API_BASE}/auth/refresh`, {
       method: 'POST',
@@ -957,11 +961,20 @@ export async function deleteDoctorAvailabilitySlot(slotId) {
   return await handleApiResponse(res, 'Failed to delete availability slot');
 }
 
-export async function bookAppointment(consultationId, slotId, notes = '') {
+export async function bookAppointment(consultationId, slotId, notes = '', doctorId = null, slotStart = null, slotEnd = null) {
+  const payload = {
+    consultation_id: consultationId || null,
+    slot_id: slotId || null,
+    notes: notes || '',
+  };
+  if (doctorId) payload.doctor_id = doctorId;
+  if (slotStart) payload.slot_start = slotStart;
+  if (slotEnd) payload.slot_end = slotEnd;
+
   const res = await fetch(`${API_BASE}/appointments`, {
     method: 'POST',
     headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
-    body: JSON.stringify({ consultation_id: consultationId, slot_id: slotId, notes }),
+    body: JSON.stringify(payload),
   });
   return await handleApiResponse(res, 'Failed to book appointment');
 }

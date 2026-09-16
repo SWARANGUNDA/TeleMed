@@ -228,7 +228,7 @@ export default function ConsultationWorkspacePage({ user, consultationContext, i
     try {
       const [consRes, recRes] = await Promise.all([
         isDoctor ? fetchDoctorConsultations('').catch(() => ({ consultations: [] })) : fetchPatientConsultations().catch(() => ({ consultations: [] })),
-        fetchPatientRecords().catch(() => ({ records: [] }))
+        (!isDoctor) ? fetchPatientRecords().catch(() => ({ records: [] })) : Promise.resolve({ records: [] })
       ]);
 
       const consList = consRes?.consultations || (Array.isArray(consRes) ? consRes : []);
@@ -275,7 +275,18 @@ export default function ConsultationWorkspacePage({ user, consultationContext, i
   // Load SOAP Clinical Notes when selected consultation changes
   useEffect(() => {
     const cId = selectedConsultation?.consultation_id || selectedConsultation?.id;
-    if (!cId) return;
+    const consStatus = (selectedConsultation?.status || '').toUpperCase();
+    if (!cId || consStatus === 'REQUESTED' || consStatus === 'PENDING') {
+      setClinicalNotes({
+        chiefComplaints: selectedConsultation?.reason || '',
+        examination: '',
+        historyOfPresentIllness: selectedConsultation?.message || '',
+        assessmentDiagnosis: '',
+        prescription: '',
+        treatmentPlan: ''
+      });
+      return;
+    }
 
     fetchConsultationNote(cId)
       .then(note => {
@@ -330,7 +341,15 @@ export default function ConsultationWorkspacePage({ user, consultationContext, i
   useEffect(() => {
     const activeCons = selectedConsultation || (consultations && consultations.length > 0 ? consultations[0] : null);
     const cId = activeCons?.consultation_id || activeCons?.id;
+    const consStatus = (activeCons?.status || '').toUpperCase();
     if (!cId) return;
+
+    // Awaiting doctor assignment: skip message polling and WS connection to avoid 403 loops
+    if (consStatus === 'REQUESTED' || consStatus === 'PENDING') {
+      setMessagesThread([]);
+      setConnectionStatus('waiting_doctor');
+      return;
+    }
 
     loadMessages(cId);
     setConnectionStatus('connecting');

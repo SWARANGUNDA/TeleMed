@@ -403,7 +403,14 @@ export default function AppointmentsPage({ user, onNavigate }) {
     setBookingLoading(true);
     setError(null);
     try {
-      await bookAppointment(bookingData.consultationId, bookingData.slotId, bookingData.reason);
+      await bookAppointment(
+        bookingData.consultationId,
+        bookingData.slotId,
+        bookingData.reason,
+        bookingData.doctorId,
+        bookingData.slotStart,
+        bookingData.slotEnd
+      );
       setShowBookModal(false);
       notify("Appointment booked successfully!");
       await loadWorkspaceData(true);

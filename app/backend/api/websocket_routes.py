@@ -89,8 +89,14 @@ async def websocket_chat_endpoint(
     try:
         consultation = database.get_consultation_by_id(consultation_id)
         if consultation:
+            user_doc_id = None
+            if role == "DOCTOR":
+                doc_row = database.get_doctor_profile(user_id) if hasattr(database, 'get_doctor_profile') else None
+                if doc_row and isinstance(doc_row, dict):
+                    user_doc_id = doc_row.get("doctor_id")
+
             is_patient = (consultation.get("user_id") == user_id or consultation.get("patient_user_id") == user_id)
-            is_doctor = (consultation.get("assigned_doctor_id") == user_id or consultation.get("doctor_id") == user_id)
+            is_doctor = (consultation.get("assigned_doctor_id") in (user_id, user_doc_id) or consultation.get("doctor_id") in (user_id, user_doc_id))
             is_co_doctor = database.is_co_doctor_assigned(consultation_id, user_id) if hasattr(database, 'is_co_doctor_assigned') else False
             is_admin = (role == "ADMIN")
 

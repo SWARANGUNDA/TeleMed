@@ -120,9 +120,12 @@ export default function AppointmentBookingModal({
 
     try {
       if (onBook) {
+        const selectedSlotObj = slots.find(s => (s.slot_id === selectedSlotId || s.id === selectedSlotId));
         await onBook({
           doctorId: selectedDoctorId,
           slotId: selectedSlotId || null,
+          slotStart: selectedSlotObj?.slot_start || null,
+          slotEnd: selectedSlotObj?.slot_end || null,
           consultationId: selectedConsultationId || (consultations[0]?.consultation_id || null),
           type: consultationType,
           reason,

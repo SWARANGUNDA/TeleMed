@@ -24,8 +24,11 @@ class ConfigureAvailabilityRequest(BaseModel):
 
 class BookAppointmentRequest(BaseModel):
     consultation_id: Optional[str] = Field(None, description="Active consultation ID (Optional)")
-    slot_id: str = Field(..., description="Available doctor slot ID")
+    slot_id: Optional[str] = Field(None, description="Available doctor slot ID (Optional)")
     notes: Optional[str] = Field(None, description="Optional booking notes")
+    doctor_id: Optional[str] = Field(None, description="Doctor ID if booking on-demand/fallback slot")
+    slot_start: Optional[str] = Field(None, description="Start time ISO string if fallback slot")
+    slot_end: Optional[str] = Field(None, description="End time ISO string if fallback slot")
 
 
 class UpdateAppointmentStatusRequest(BaseModel):
@@ -230,7 +233,10 @@ def book_consultation_appointment(
             user_id=booking_user_id,
             consultation_id=req.consultation_id,
             slot_id=req.slot_id,
-            notes=req.notes or ""
+            notes=req.notes or "",
+            doctor_id=req.doctor_id,
+            slot_start=req.slot_start,
+            slot_end=req.slot_end
         )
         import asyncio
         from ..websocket_manager import ws_manager
