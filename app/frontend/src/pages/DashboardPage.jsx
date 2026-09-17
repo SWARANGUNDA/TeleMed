@@ -98,7 +98,7 @@ export default function DashboardPage({
     { key: 'contact_number', label: 'Contact Number', val: profile.contact_number },
   ];
 
-  const filledFields = profileFields.filter(f => f.val !== null && f.val !== undefined && f.val !== '');
+  const filledFields = profileFields.filter(f => f.val !== null && f.val !== undefined && String(f.val).trim() !== '');
   const completionPct = Math.round((filledFields.length / profileFields.length) * 100);
 
   // EMPTY STATE if no predictionData and no saved historical assessment
@@ -186,7 +186,11 @@ export default function DashboardPage({
   const outcomes = activePredictionData.disease_outcomes || activePredictionData.predictions || {};
   const pathwayUsed = activePredictionData.pathway_used || activePredictionData.effective_pathway || 'C+W+G';
   const activeMods = activePredictionData.active_modalities || ['clinical', 'wearable', 'gut'];
-  const rawDq = activePredictionData.data_quality_score ?? activePredictionData.overall_quality_score ?? null;
+  const rawDq = activePredictionData.data_quality_score ?? 
+                activePredictionData.overall_quality_score ?? 
+                activePredictionData.routing_metadata?.data_quality_score ??
+                activePredictionData.data_quality_scores?.overall_quality_score ?? 
+                activePredictionData.data_quality_scores?.data_quality_score ?? null;
   const dqScore = (rawDq !== null && rawDq !== undefined) ? (rawDq <= 1 ? Math.round(rawDq * 100) : Math.min(100, Math.round(rawDq))) : null;
 
   const clinFeats = (typeof activePredictionData?.confirmed_features?.clinical === 'object' && activePredictionData?.confirmed_features?.clinical !== null)
@@ -221,6 +225,17 @@ export default function DashboardPage({
     { key: 'Metabolic_Syndrome', title: 'Metabolic Syndrome', desc: 'Cluster of metabolic risk factors' },
     { key: 'NAFLD', title: 'NAFLD Liver Health', desc: 'Non-alcoholic fatty liver disease risk' },
   ];
+
+  // Helper for Risk Probability
+  const getProb = (data) => {
+    if (!data) return 0;
+    return data.calibrated_probability !== undefined 
+      ? data.calibrated_probability 
+      : (data.probability !== undefined ? data.probability : (data.risk_score || 0));
+  };
+
+  const t2dProb = getProb(outcomes['Type2_Diabetes']);
+  const preProb = getProb(outcomes['Prediabetes']);
 
   // Helper for Risk Badge & Border Color
   const getRiskMeta = (riskLevel) => {
@@ -471,15 +486,38 @@ export default function DashboardPage({
         </div>
       </ContentSection>
 
-      {/* 3. FIVE DISEASE RISK CARDS GRID (Thin Colored Top Border, Equal Height, Hover Elevation Only) */}
+      {/* 3. MUTUALLY EXCLUSIVE DISEASE RISK CARDS GRID (Thin Colored Top Border, Equal Height, Hover Elevation Only) */}
       <ContentSection title="Multi-Disease Risk Predictions" subtitle="Ensemble predictions powered by Clinical v4, Wearables v4 (15D), and Gut v4 Unified Models">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
           {diseasesList.map((disease) => {
+            const t2dIsPositive = (outcomes['Type2_Diabetes']?.risk_level?.toLowerCase() === 'positive') || (t2dProb >= 0.4);
+            const isPrediabetesOmitted = disease.key === 'Prediabetes' && (t2dIsPositive || t2dProb > preProb);
+            const isT2DOmitted = disease.key === 'Type2_Diabetes' && !t2dIsPositive && preProb > t2dProb;
+            const isOmitted = isPrediabetesOmitted || isT2DOmitted;
+
+            if (isOmitted) {
+              const reason = isPrediabetesOmitted 
+                ? 'Subsumed by Type 2 Diabetes evaluation.' 
+                : 'Condition absent; Prediabetes is the active dominant stage.';
+              
+              return (
+                <Card
+                  key={disease.key}
+                  isGlass={true}
+                  className="p-6 h-full flex flex-col justify-center items-center text-center border-dashed border-2 border-[var(--border-subtle)] bg-[var(--bg-surface)]/30"
+                >
+                  <ShieldCheck className="w-8 h-8 text-[var(--success)] mb-3 opacity-40" />
+                  <h4 className="text-sm font-bold text-[var(--text-muted)] line-through decoration-[var(--border-subtle)]">{disease.title}</h4>
+                  <Badge variant="outline" size="sm" className="mt-2 text-[10px] bg-transparent">Not Present</Badge>
+                  <p className="text-[10px] text-[var(--text-dim)] mt-3 leading-relaxed">
+                    {reason}
+                  </p>
+                </Card>
+              );
+            }
+
             const data = outcomes[disease.key] || {};
-            const prob = data.calibrated_probability !== undefined 
-              ? data.calibrated_probability 
-              : (data.probability !== undefined ? data.probability : (data.risk_score || 0));
-            const probPct = Math.round(prob * 100);
+            const probPct = Math.round(getProb(data) * 100);
             const riskLvl = data.risk_level || 'Low';
             const { variant, borderColor, badgeText } = getRiskMeta(riskLvl);
 
@@ -513,15 +551,19 @@ export default function DashboardPage({
                   <div className="mt-4 pt-3 border-t border-[var(--border-subtle)] flex items-center justify-between gap-2">
                   <button
                     onClick={() => toggleWhy(disease.key)}
-                    className="text-[11px] font-semibold text-[var(--text-muted)] hover:text-[var(--text-main)] inline-flex items-center gap-1 transition-colors"
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-bold text-[var(--text-main)] bg-[var(--bg-surface-hover)] border border-[var(--border-subtle)] hover:bg-[var(--primary)]/10 hover:border-[var(--primary)]/30 hover:text-[var(--primary)] transition-all shadow-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/20"
                   >
-                    {expandedWhy[disease.key] ? 'Details ▲' : 'Details ▼'}
+                    {expandedWhy[disease.key] ? (
+                      <>Hide Details <ChevronUp className="w-3 h-3" /></>
+                    ) : (
+                      <>View Details <ChevronDown className="w-3 h-3" /></>
+                    )}
                   </button>
 
                   <Button
-                    variant="ghost"
+                    variant="outline"
                     size="sm"
-                    className="!px-2.5 !py-1 text-xs"
+                    className="!px-3 !py-1.5 text-xs rounded-xl hover:shadow-sm"
                     onClick={() => onNavigate('xai', '', disease.key)}
                   >
                     Explain <ArrowRight className="w-3.5 h-3.5 ml-1" />
@@ -547,125 +589,6 @@ export default function DashboardPage({
               </Card>
             );
           })}
-        </div>
-      </ContentSection>
-
-      {/* 4. PHYSIOLOGICAL SYSTEM CARDS (Dynamic, strictly derived from active assessment data) */}
-      <ContentSection title="Physiological Systems Overview" subtitle="Organ system health status derived from active validated features">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-          {(() => {
-            // 1. Cardiovascular
-            const sys = clinFeats.Systolic_BP ?? clinFeats.Systolic;
-            const dia = clinFeats.Diastolic_BP ?? clinFeats.Diastolic;
-            const rhr = wearFeats.Resting_Heart_Rate ?? wearFeats.Heart_Rate;
-            let cardioValue = 'NOT PROVIDED';
-            let cardioDesc = 'Upload clinical BP or wearable heart rate to evaluate cardiovascular metrics.';
-            let cardioStatus = 'NOT PROVIDED';
-            let cardioVariant = 'outline';
-            if (sys !== undefined && dia !== undefined) {
-              cardioValue = `${sys}/${dia} mmHg`;
-              const isElev = sys >= 130 || dia >= 85;
-              cardioStatus = isElev ? 'Elevated' : 'Normal';
-              cardioVariant = isElev ? 'warning' : 'success';
-              cardioDesc = isElev ? 'Systolic/Diastolic blood pressure is elevated; clinical monitoring advised.' : 'Systolic & Diastolic blood pressure within optimal range.';
-            } else if (rhr !== undefined) {
-              cardioValue = `${rhr} bpm (RHR)`;
-              cardioStatus = rhr > 85 ? 'Elevated' : 'Normal';
-              cardioVariant = rhr > 85 ? 'warning' : 'success';
-              cardioDesc = `Resting heart rate measured at ${rhr} bpm.`;
-            }
-
-            // 2. Hepatic (Liver)
-            const alt = clinFeats.ALT;
-            const ast = clinFeats.AST;
-            let hepaticValue = 'NOT PROVIDED';
-            let hepaticDesc = 'Upload liver enzyme panel to evaluate ALT and AST markers.';
-            let hepaticStatus = 'NOT PROVIDED';
-            let hepaticVariant = 'outline';
-            if (alt !== undefined || ast !== undefined) {
-              hepaticValue = alt !== undefined ? `${alt} U/L ALT` : `${ast} U/L AST`;
-              const isElev = (alt && alt > 40) || (ast && ast > 40);
-              hepaticStatus = isElev ? 'Elevated' : 'Optimal';
-              hepaticVariant = isElev ? 'warning' : 'success';
-              hepaticDesc = isElev ? 'Liver transaminases elevated; lifestyle hepatic support recommended.' : 'ALT & AST hepatic enzymes within normal physiological limits.';
-            }
-
-            // 3. Glycemic System
-            const gluc = clinFeats.Fasting_Blood_Glucose ?? clinFeats.Glucose ?? clinFeats.Fasting_Glucose;
-            const hba1c = clinFeats.HbA1c;
-            let glycemicValue = 'NOT PROVIDED';
-            let glycemicDesc = 'Upload fasting glucose or HbA1c lab report for glycemic profiling.';
-            let glycemicStatus = 'NOT PROVIDED';
-            let glycemicVariant = 'outline';
-            if (gluc !== undefined || hba1c !== undefined) {
-              glycemicValue = hba1c !== undefined ? `${hba1c}% HbA1c` : `${gluc} mg/dL Glucose`;
-              const isElev = (hba1c && hba1c >= 5.7) || (gluc && gluc >= 100);
-              glycemicStatus = isElev ? 'Elevated' : 'Optimal';
-              glycemicVariant = isElev ? 'warning' : 'success';
-              glycemicDesc = isElev ? 'Glycemic markers suggest insulin resistance or impaired fasting glucose.' : 'Fasting blood glucose and HbA1c within normal reference range.';
-            }
-
-            // 4. Gut Microbiome
-            const akk = gutFeats.Akkermansia_muciniphila ?? gutFeats.Akkermansia;
-            const faec = gutFeats.Faecalibacterium_prausnitzii ?? gutFeats.Faecalibacterium;
-            let gutValue = 'NOT PROVIDED';
-            let gutDesc = 'Upload 16S gut sequencing data to assess microbial composition.';
-            let gutStatus = 'NOT PROVIDED';
-            let gutVariant = 'outline';
-            if (akk !== undefined || faec !== undefined) {
-              gutValue = akk !== undefined ? `${akk}% Akkermansia` : `${faec}% Faecalibacterium`;
-              const isLow = (akk !== undefined && akk < 1.0);
-              gutStatus = isLow ? 'Suboptimal' : 'Balanced';
-              gutVariant = isLow ? 'warning' : 'success';
-              gutDesc = isLow ? 'Low abundance of protective keystone taxa detected.' : 'Key symbiotic microbial taxa detected at healthy relative abundance.';
-            }
-
-            // 5. Wearables & Telemetry
-            const steps = wearFeats.Average_Daily_Steps ?? wearFeats.Daily_Steps ?? wearFeats.Total_Steps;
-            const sleep = wearFeats.Sleep_Duration_Hours ?? wearFeats.Total_Sleep_Duration_Hours;
-            let wearValue = 'NOT PROVIDED';
-            let wearDesc = 'Upload wearable activity/sleep data to monitor continuous telemetry.';
-            let wearStatus = 'NOT PROVIDED';
-            let wearVariant = 'outline';
-            if (steps !== undefined || sleep !== undefined) {
-              wearValue = steps !== undefined ? `${Number(steps).toLocaleString()} Steps/Day` : `${sleep} hrs Sleep`;
-              const isSub = (steps !== undefined && steps < 5000);
-              wearStatus = isSub ? 'Suboptimal' : 'Optimal';
-              wearVariant = isSub ? 'warning' : 'success';
-              wearDesc = isSub ? 'Daily activity below 5,000 steps baseline; light daily walks recommended.' : 'Daily activity and recovery metrics met.';
-            }
-
-            const sysCards = [
-              { name: 'Cardiovascular', icon: Heart, iconBg: 'bg-rose-500/10 text-rose-500', value: cardioValue, desc: cardioDesc, status: cardioStatus, variant: cardioVariant },
-              { name: 'Hepatic (Liver)', icon: ActivitySquare, iconBg: 'bg-amber-500/10 text-amber-500', value: hepaticValue, desc: hepaticDesc, status: hepaticStatus, variant: hepaticVariant },
-              { name: 'Glycemic System', icon: Droplet, iconBg: 'bg-blue-500/10 text-blue-500', value: glycemicValue, desc: glycemicDesc, status: glycemicStatus, variant: glycemicVariant },
-              { name: 'Gut Microbiome', icon: Dna, iconBg: 'bg-purple-500/10 text-purple-500', value: gutValue, desc: gutDesc, status: gutStatus, variant: gutVariant },
-              { name: 'Wearables & Telemetry', icon: Watch, iconBg: 'bg-teal-500/10 text-teal-500', value: wearValue, desc: wearDesc, status: wearStatus, variant: wearVariant },
-            ];
-
-            return sysCards.map((card, idx) => {
-              const Icon = card.icon;
-              return (
-                <Card key={idx} isGlass={true} className="p-6 h-full flex flex-col justify-between hover:border-[var(--primary)]/40 transition-all duration-200">
-                  <div className="space-y-3">
-                    <div className={`p-3 w-12 h-12 rounded-xl ${card.iconBg} flex items-center justify-center shrink-0`}>
-                      <Icon className="w-6 h-6" />
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <h5 className="text-sm font-bold text-[var(--text-main)]">{card.name}</h5>
-                      <Badge variant={card.variant} size="sm">{card.status}</Badge>
-                    </div>
-                    <div>
-                      <span className={`text-lg font-extrabold font-mono ${card.value === 'NOT PROVIDED' ? 'text-[var(--text-muted)] text-sm' : 'text-[var(--text-main)]'}`}>
-                        {card.value}
-                      </span>
-                      <p className="text-[11px] text-[var(--text-muted)] mt-1">{card.desc}</p>
-                    </div>
-                  </div>
-                </Card>
-              );
-            });
-          })()}
         </div>
       </ContentSection>
 

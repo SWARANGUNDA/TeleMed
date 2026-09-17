@@ -16,7 +16,7 @@ import { PageContainer, PageHeader, ContentSection } from '../components/layout'
 import { fetchPatientRecords, fetchRecordDetail, exportRecord, deleteRecord } from '../api/client';
 import { classifyBiomarker } from '../utils/clinicalRanges';
 
-export default function HealthRecordsPage({ currentUser }) {
+export default function HealthRecordsPage({ currentUser, session, predictionData, onStartAnalysis, onShareWithDoctor, onClearAssessment }) {
   const [activeTab, setActiveTab] = useState('history'); // 'history' | 'compare' | 'trends'
   const [records, setRecords] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -88,6 +88,11 @@ export default function HealthRecordsPage({ currentUser }) {
     try {
       await deleteRecord(recordToDelete.record_id);
       setRecords((prev) => prev.filter((r) => r.record_id !== recordToDelete.record_id));
+      
+      // Perform side-effect outside the state updater function
+      if (records.length === 1 && records[0].record_id === recordToDelete.record_id && onClearAssessment) {
+        onClearAssessment();
+      }
       setSelectedForCompare((prev) => prev.filter((id) => id !== recordToDelete.record_id));
       setRecordToDelete(null);
       if (selectedDetailRecord && selectedDetailRecord.record_id === recordToDelete.record_id) {

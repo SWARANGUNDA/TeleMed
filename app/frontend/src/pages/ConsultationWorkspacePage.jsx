@@ -15,6 +15,8 @@ import {
   createConsultationRequest,
   fetchPatientConsultations,
   fetchDoctorConsultations,
+  fetchOpenConsultations,
+  claimConsultation,
   fetchPatientRecords,
   sendConsultationMessage,
   fetchConsultationMessages,
@@ -227,7 +229,21 @@ export default function ConsultationWorkspacePage({ user, consultationContext, i
 
     try {
       const [consRes, recRes] = await Promise.all([
-        isDoctor ? fetchDoctorConsultations('').catch(() => ({ consultations: [] })) : fetchPatientConsultations().catch(() => ({ consultations: [] })),
+        isDoctor ? Promise.all([
+          fetchDoctorConsultations('').catch(() => ({ consultations: [] })),
+          fetchOpenConsultations().catch(() => ({ consultations: [] }))
+        ]).then(([assigned, open]) => {
+          const a = assigned?.consultations || [];
+          const o = open?.consultations || [];
+          const allMap = new Map();
+          a.forEach(c => allMap.set(c.consultation_id, c));
+          o.forEach(c => {
+             if (!allMap.has(c.consultation_id)) {
+               allMap.set(c.consultation_id, c);
+             }
+          });
+          return { consultations: Array.from(allMap.values()) };
+        }).catch(() => ({ consultations: [] })) : fetchPatientConsultations().catch(() => ({ consultations: [] })),
         (!isDoctor) ? fetchPatientRecords().catch(() => ({ records: [] })) : Promise.resolve({ records: [] })
       ]);
 
@@ -529,7 +545,9 @@ export default function ConsultationWorkspacePage({ user, consultationContext, i
   const filteredConsultations = useMemo(() => {
     let list = [...consultations];
 
-    if (queueFilter === 'ACTIVE') {
+    if (queueFilter === 'OPEN_QUEUE') {
+      list = list.filter(c => ['REQUESTED', 'PENDING'].includes((c.status || '').toUpperCase()) && !c.assigned_doctor_id);
+    } else if (queueFilter === 'ACTIVE') {
       list = list.filter(c => ['ACTIVE', 'ASSIGNED', 'ACCEPTED', 'IN_CONSULTATION', 'IN_PROGRESS'].includes((c.status || '').toUpperCase()));
     } else if (queueFilter === 'PENDING') {
       list = list.filter(c => ['ASSIGNED', 'PENDING', 'REQUESTED'].includes((c.status || '').toUpperCase()));
@@ -550,6 +568,19 @@ export default function ConsultationWorkspacePage({ user, consultationContext, i
 
     return list;
   }, [consultations, queueFilter, searchQuery]);
+
+  const handleClaimConsultation = async (cId) => {
+    try {
+      setLoading(true);
+      await claimConsultation(cId);
+      await loadWorkspaceData();
+      setQueueFilter('ACTIVE');
+    } catch (err) {
+      setErrorMsg(err.message || 'Failed to claim consultation.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const activeConsultation = selectedConsultation || consultations[0];
   const patientDisplayName = activeConsultation?.patient_name || user?.full_name || user?.name || 'Patient';
@@ -757,6 +788,7 @@ export default function ConsultationWorkspacePage({ user, consultationContext, i
             <div className="flex items-center space-x-1.5 overflow-x-auto custom-scrollbar pb-1 sm:pb-0">
               {[
                 { id: 'ALL', label: `All Consultations (${consultations.length})` },
+                ...(isDoctor ? [{ id: 'OPEN_QUEUE', label: 'Open Requests' }] : []),
                 { id: 'ACTIVE', label: 'Active & Assigned' },
                 { id: 'PENDING', label: 'Pending Assignment' },
                 { id: 'COMPLETED', label: 'Completed' },
@@ -890,10 +922,20 @@ export default function ConsultationWorkspacePage({ user, consultationContext, i
                           <span>View Summary & Prescription</span>
                         </button>
                       ) : (
-                        <div className="w-full py-2.5 px-4 bg-amber-50 border border-amber-200 text-amber-800 text-xs font-bold rounded-xl text-center flex items-center justify-center space-x-2">
-                          <Clock className="w-4 h-4 text-amber-600" />
-                          <span>Awaiting Doctor Assignment</span>
-                        </div>
+                        isDoctor && isPending && !c.assigned_doctor_id ? (
+                          <button
+                            onClick={() => handleClaimConsultation(c.consultation_id || c.id)}
+                            className="w-full py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl flex items-center justify-center space-x-2 transition-all cursor-pointer"
+                          >
+                            <Stethoscope className="w-4 h-4 text-emerald-100" />
+                            <span>Attend Request (Claim)</span>
+                          </button>
+                        ) : (
+                          <div className="w-full py-2.5 px-4 bg-amber-50 border border-amber-200 text-amber-800 text-xs font-bold rounded-xl text-center flex items-center justify-center space-x-2">
+                            <Clock className="w-4 h-4 text-amber-600" />
+                            <span>Awaiting Doctor Assignment</span>
+                          </div>
+                        )
                       )}
                     </div>
                   </div>

@@ -3,7 +3,7 @@ import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Cell, Refere
 import { ArrowUpRight, ArrowDownRight, ChevronDown, ChevronUp, Info, HelpCircle } from 'lucide-react';
 import { classifyBiomarker } from '../utils/clinicalRanges';
 
-export const FEATURE_PATIENT_METADATA = {
+const FEATURE_PATIENT_METADATA = {
   Fasting_Blood_Glucose: { friendlyName: 'Fasting Blood Glucose', unit: 'mg/dL', refRange: '70–99 mg/dL' },
   HbA1c: { friendlyName: 'HbA1c (Long-term Glucose)', unit: '%', refRange: '< 5.7%' },
   Systolic_BP: { friendlyName: 'Systolic Blood Pressure', unit: 'mmHg', refRange: '< 120 mmHg' },
@@ -24,7 +24,7 @@ export const FEATURE_PATIENT_METADATA = {
   Sleep_Hours: { friendlyName: 'Sleep Duration', unit: 'hours/night', refRange: '7–9 hours' }
 };
 
-export function getFeatureMeta(rawKey, val) {
+function getFeatureMeta(rawKey, val) {
   const numVal = parseFloat(val);
   const info = classifyBiomarker(rawKey, !isNaN(numVal) ? numVal : val);
   const fallback = FEATURE_PATIENT_METADATA[rawKey] || {};

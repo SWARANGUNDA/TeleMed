@@ -10,6 +10,7 @@ export default function PersonalizedRecommendations({ predictionData }) {
   const [expandedIdx, setExpandedIdx] = useState(0);
   const [activeTab, setActiveTab] = useState('protocols'); // 'protocols' | 'milestones' | 'simulator'
   const [selectedDisease, setSelectedDisease] = useState('Type2_Diabetes');
+  const [expandedMilestone, setExpandedMilestone] = useState(null);
 
   // Counterfactual What-If Simulator state
   const [simGlucoseDelta, setSimGlucoseDelta] = useState(-15);
@@ -115,73 +116,77 @@ export default function PersonalizedRecommendations({ predictionData }) {
     const isHighT2D = (glucose && glucose >= 126) || (hba1c && hba1c >= 6.5) || (t2dRisk && t2dRisk >= 0.40);
     const isPre = (glucose && glucose >= 100) || (hba1c && hba1c >= 5.7) || (prediabetesRisk && prediabetesRisk >= 0.35);
 
-    list.push({
-      group: 'Glycemic Regulation & Insulin Sensitivity',
-      icon: Utensils,
-      priority: isHighT2D ? 'URGENT' : (isPre ? 'HIGH' : 'OPTIMAL'),
-      badge: isHighT2D ? 'PRIORITY ACTION' : (isPre ? 'EVIDENCE PROTOCOL' : 'HEALTHY CORRIDOR'),
-      variant: isHighT2D ? 'danger' : (isPre ? 'warning' : 'success'),
-      rationale: `Clinical Rationale: Fasting glucose ${glucose !== null ? `${glucose} mg/dL` : 'calibrated baseline'} and HbA1c ${hba1c !== null ? `${hba1c}%` : 'calibrated baseline'}${t2dRisk !== null ? ` (Calibrated T2D Risk: ${Math.round(t2dRisk * 100)}%)` : ''}.`,
-      items: [
-        {
-          icon: '🥗',
-          title: 'Carbohydrate Sequencing & Low-GI Preloading',
-          detail: 'Consume dietary fiber and protein 10–15 minutes prior to complex carbohydrates. This physiological meal sequence significantly blunts postprandial glucose excursions by slowing gastric emptying and stimulating early GLP-1 release.',
-          target: hba1c ? `Target HbA1c: < ${isHighT2D ? '6.5%' : '5.7%'}` : 'Target Fasting Glucose: < 100 mg/dL',
-          dosage: 'Every main meal with carbohydrate content',
-          citation: 'ADA Standards of Care 2024 (§6 Glycemic Targets)'
-        },
-        {
-          icon: '🏃',
-          title: 'Post-Meal Ambulation (GLUT-4 Translocation)',
-          detail: 'Perform a 15–20 minute brisk walk or light bodyweight resistance within 30 minutes of completing major meals. Skeletal muscle contractions stimulate non-insulin dependent glucose uptake directly through GLUT-4 transporters.',
-          target: '15-20 min brisk ambulation post-meal',
-          dosage: 'Within 30 minutes postprandial',
-          citation: 'ADA Diabetes Care 2024 / Diabetologia 2023'
-        },
-        {
-          icon: '📈',
-          title: 'Glycemic Variability (CV) Stabilization',
-          detail: 'Minimize refined liquid carbohydrates and high-fructose syrups. Keep glycemic coefficient of variation under 33% to prevent endothelial oxidative stress and vascular inflammation.',
-          target: cgmCv ? `Current CV: ${cgmCv.toFixed(1)}% (Target: < 33%)` : 'CGM Glucose CV < 33%',
-          dosage: 'Continuous dietary baseline',
-          citation: 'International Consensus on Advanced CGM 2023'
-        }
-      ]
-    });
+    if (isHighT2D || isPre) {
+      list.push({
+        group: 'Glycemic Regulation & Insulin Sensitivity',
+        icon: Utensils,
+        priority: isHighT2D ? 'URGENT' : 'HIGH',
+        badge: isHighT2D ? 'PRIORITY ACTION' : 'EVIDENCE PROTOCOL',
+        variant: isHighT2D ? 'danger' : 'warning',
+        rationale: `Clinical Rationale: Fasting glucose ${glucose !== null ? `${glucose} mg/dL` : 'calibrated baseline'} and HbA1c ${hba1c !== null ? `${hba1c}%` : 'calibrated baseline'}${t2dRisk !== null ? ` (Calibrated T2D Risk: ${Math.round(t2dRisk * 100)}%)` : ''}.`,
+        items: [
+          {
+            icon: '🥗',
+            title: 'Carbohydrate Sequencing & Low-GI Preloading',
+            detail: 'Consume dietary fiber and protein 10–15 minutes prior to complex carbohydrates. This physiological meal sequence significantly blunts postprandial glucose excursions by slowing gastric emptying and stimulating early GLP-1 release.',
+            target: hba1c ? `Target HbA1c: < ${isHighT2D ? '6.5%' : '5.7%'}` : 'Target Fasting Glucose: < 100 mg/dL',
+            dosage: 'Every main meal with carbohydrate content',
+            citation: 'ADA Standards of Care 2024 (§6 Glycemic Targets)'
+          },
+          {
+            icon: '🏃',
+            title: 'Post-Meal Ambulation (GLUT-4 Translocation)',
+            detail: 'Perform a 15–20 minute brisk walk or light bodyweight resistance within 30 minutes of completing major meals. Skeletal muscle contractions stimulate non-insulin dependent glucose uptake directly through GLUT-4 transporters.',
+            target: '15-20 min brisk ambulation post-meal',
+            dosage: 'Within 30 minutes postprandial',
+            citation: 'ADA Diabetes Care 2024 / Diabetologia 2023'
+          },
+          {
+            icon: '📈',
+            title: 'Glycemic Variability (CV) Stabilization',
+            detail: 'Minimize refined liquid carbohydrates and high-fructose syrups. Keep glycemic coefficient of variation under 33% to prevent endothelial oxidative stress and vascular inflammation.',
+            target: cgmCv ? `Current CV: ${cgmCv.toFixed(1)}% (Target: < 33%)` : 'CGM Glucose CV < 33%',
+            dosage: 'Continuous dietary baseline',
+            citation: 'International Consensus on Advanced CGM 2023'
+          }
+        ]
+      });
+    }
 
     // ==========================================
     // Category 2: Cardiometabolic & Vitals Axis
     // ==========================================
-    const isBpElevated = (sysBp && sysBp >= 130) || (diaBp && diaBp >= 85);
-    const isLipidElevated = (trig && trig >= 150) || (hdl && hdl < 40);
+    const isBpElevated = (sysBp && sysBp >= 130) || (diaBp && diaBp >= 85) || (metSynRisk && metSynRisk >= 0.35);
+    const isLipidElevated = (trig && trig >= 150) || (hdl && hdl < 40) || (adiposityRisk && adiposityRisk >= 0.40);
 
-    list.push({
-      group: 'Cardiometabolic & Vascular Resilience',
-      icon: HeartPulse,
-      priority: isBpElevated ? 'HIGH' : (isLipidElevated ? 'MODERATE' : 'OPTIMAL'),
-      badge: isBpElevated ? 'VASCULAR DEFENSE' : (isLipidElevated ? 'LIPID REGULATION' : 'HEALTHY VASCULAR'),
-      variant: isBpElevated ? 'warning' : 'info',
-      rationale: `Vascular Rationale: Measured BP ${sysBp !== null ? `${sysBp}/${diaBp || 80} mmHg` : 'calibrated baseline'}${trig !== null && hdl !== null ? `, Triglycerides ${trig} mg/dL, HDL ${hdl} mg/dL (TG/HDL Ratio: ${(trig / hdl).toFixed(2)})` : ''}.`,
-      items: [
-        {
-          icon: '🧂',
-          title: 'Sodium-to-Potassium Ratio Optimization',
-          detail: 'Cap dietary sodium intake at < 2,000 mg/day while increasing potassium-rich whole foods (dark leafy greens, avocados, pulses) to facilitate vascular smooth muscle relaxation and suppress renin-angiotensin tone.',
-          target: sysBp ? `Target BP: < 120/80 mmHg (Currently ${sysBp}/${diaBp || 80})` : 'Target Sodium < 2.0 g/day',
-          dosage: 'Dietary sodium < 2.0g, potassium > 3.5g daily',
-          citation: 'AHA / ACC Hypertension Guidelines 2023'
-        },
-        {
-          icon: '🥑',
-          title: 'Triglyceride-to-HDL Optimization Protocol',
-          detail: 'Replace saturated and industrial trans-fats with extra virgin olive oil, cold-water omega-3 fatty acids (EPA/DHA), and walnuts to downregulate hepatic VLDL production and raise functional HDL-C particles.',
-          target: trig ? `Target TG: < 150 mg/dL (Currently ${trig} mg/dL)` : 'Target TG/HDL Ratio < 2.0',
-          dosage: '2–3g omega-3 EPA/DHA daily via nutrition or fish oil',
-          citation: 'ACC / AHA Multi-Society Cholesterol Guidelines 2022'
-        }
-      ]
-    });
+    if (isBpElevated || isLipidElevated) {
+      list.push({
+        group: 'Cardiometabolic & Vascular Resilience',
+        icon: HeartPulse,
+        priority: isBpElevated ? 'HIGH' : 'MODERATE',
+        badge: isBpElevated ? 'VASCULAR DEFENSE' : 'LIPID REGULATION',
+        variant: isBpElevated ? 'warning' : 'info',
+        rationale: `Vascular Rationale: Measured BP ${sysBp !== null ? `${sysBp}/${diaBp || 80} mmHg` : 'calibrated baseline'}${trig !== null && hdl !== null ? `, Triglycerides ${trig} mg/dL, HDL ${hdl} mg/dL (TG/HDL Ratio: ${(trig / hdl).toFixed(2)})` : ''}.`,
+        items: [
+          {
+            icon: '🧂',
+            title: 'Sodium-to-Potassium Ratio Optimization',
+            detail: 'Cap dietary sodium intake at < 2,000 mg/day while increasing potassium-rich whole foods (dark leafy greens, avocados, pulses) to facilitate vascular smooth muscle relaxation and suppress renin-angiotensin tone.',
+            target: sysBp ? `Target BP: < 120/80 mmHg (Currently ${sysBp}/${diaBp || 80})` : 'Target Sodium < 2.0 g/day',
+            dosage: 'Dietary sodium < 2.0g, potassium > 3.5g daily',
+            citation: 'AHA / ACC Hypertension Guidelines 2023'
+          },
+          {
+            icon: '🥑',
+            title: 'Triglyceride-to-HDL Optimization Protocol',
+            detail: 'Replace saturated and industrial trans-fats with extra virgin olive oil, cold-water omega-3 fatty acids (EPA/DHA), and walnuts to downregulate hepatic VLDL production and raise functional HDL-C particles.',
+            target: trig ? `Target TG: < 150 mg/dL (Currently ${trig} mg/dL)` : 'Target TG/HDL Ratio < 2.0',
+            dosage: '2–3g omega-3 EPA/DHA daily via nutrition or fish oil',
+            citation: 'ACC / AHA Multi-Society Cholesterol Guidelines 2022'
+          }
+        ]
+      });
+    }
 
     // ==========================================
     // Category 3: Autonomic Tone, Sleep & Telemetry
@@ -189,32 +194,34 @@ export default function PersonalizedRecommendations({ predictionData }) {
     const isSedentary = steps && steps < 6000;
     const isSleepShort = sleepHours && sleepHours < 7.0;
 
-    list.push({
-      group: 'Autonomic Tone, Sleep & Physical Cadence',
-      icon: Activity,
-      priority: isSedentary || isSleepShort ? 'HIGH' : 'OPTIMAL',
-      badge: isSedentary ? 'CADENCE TARGET' : (isSleepShort ? 'SLEEP HYGIENE' : 'AUTONOMIC RECOVERY'),
-      variant: isSedentary ? 'warning' : 'primary',
-      rationale: `Telemetry Rationale: Daily steps ${steps !== null ? `${Math.round(steps).toLocaleString()} steps/day` : 'calibrated baseline'}${sleepHours !== null ? `, Sleep Duration ${sleepHours} hrs/night` : ''}${hrv !== null ? `, HRV ${hrv} ms` : ''}.`,
-      items: [
-        {
-          icon: '🌙',
-          title: 'Circadian Sleep Extension & Vagal Rebound',
-          detail: 'Anchor a consistent bedtime window aiming for 7.0–8.5 hours of uninterrupted nocturnal sleep. Sleep deprivation triggers nocturnal cortisol elevation, peripheral insulin resistance, and sympathetic hyperactivation.',
-          target: sleepHours ? `Target: 7.0–8.5 hrs (Currently ${sleepHours} hrs)` : 'Target Sleep: 7.0–8.5 hrs/night',
-          dosage: 'Nightly 30-min pre-sleep blue light cessation',
-          citation: "AHA Life's Essential 8 Guidelines 2022"
-        },
-        {
-          icon: '👟',
-          title: 'Non-Exercise Activity Cadence Ramp',
-          detail: 'Systematically increase daily step volume by +1,500 to +2,500 steps/day over 30 days. Reaching ≥ 8,500 steps/day correlates with a 15–20% reduction in cardiometabolic mortality and improved insulin sensitivity.',
-          target: steps ? `Target: ≥ 8,500 steps/day (Baseline: ${Math.round(steps)})` : 'Target: ≥ 8,500 daily steps',
-          dosage: 'Daily cumulative ambulation',
-          citation: 'WHO Physical Activity & Sedentary Behaviour 2023'
-        }
-      ]
-    });
+    if (isSedentary || isSleepShort || (hrv && hrv < 30)) {
+      list.push({
+        group: 'Autonomic Tone, Sleep & Physical Cadence',
+        icon: Activity,
+        priority: isSedentary || isSleepShort ? 'HIGH' : 'MODERATE',
+        badge: isSedentary ? 'CADENCE TARGET' : 'SLEEP HYGIENE',
+        variant: isSedentary ? 'warning' : 'primary',
+        rationale: `Telemetry Rationale: Daily steps ${steps !== null ? `${Math.round(steps).toLocaleString()} steps/day` : 'calibrated baseline'}${sleepHours !== null ? `, Sleep Duration ${sleepHours} hrs/night` : ''}${hrv !== null ? `, HRV ${hrv} ms` : ''}.`,
+        items: [
+          {
+            icon: '🌙',
+            title: 'Circadian Sleep Extension & Vagal Rebound',
+            detail: 'Anchor a consistent bedtime window aiming for 7.0–8.5 hours of uninterrupted nocturnal sleep. Sleep deprivation triggers nocturnal cortisol elevation, peripheral insulin resistance, and sympathetic hyperactivation.',
+            target: sleepHours ? `Target: 7.0–8.5 hrs (Currently ${sleepHours} hrs)` : 'Target Sleep: 7.0–8.5 hrs/night',
+            dosage: 'Nightly 30-min pre-sleep blue light cessation',
+            citation: "AHA Life's Essential 8 Guidelines 2022"
+          },
+          {
+            icon: '👟',
+            title: 'Non-Exercise Activity Cadence Ramp',
+            detail: 'Systematically increase daily step volume by +1,500 to +2,500 steps/day over 30 days. Reaching ≥ 8,500 steps/day correlates with a 15–20% reduction in cardiometabolic mortality and improved insulin sensitivity.',
+            target: steps ? `Target: ≥ 8,500 steps/day (Baseline: ${Math.round(steps)})` : 'Target: ≥ 8,500 daily steps',
+            dosage: 'Daily cumulative ambulation',
+            citation: 'WHO Physical Activity & Sedentary Behaviour 2023'
+          }
+        ]
+      });
+    }
 
     // ==========================================
     // Category 4: Gut-Metabolic Axis & Microbial Ecology
@@ -222,53 +229,92 @@ export default function PersonalizedRecommendations({ predictionData }) {
     const hasAkkermansia = akkermansia !== null;
     const isAkkermansiaLow = hasAkkermansia && akkermansia < 1.0;
     const isShannonLow = shannon !== null && Number(shannon) < 3.0;
+    const isLiverStressed = (alt !== null && alt > 30) || (nafldRisk && nafldRisk >= 0.35);
 
-    list.push({
-      group: 'Gut-Metabolic Axis & Microbial Ecology',
-      icon: Dna,
-      priority: isAkkermansiaLow || isShannonLow ? 'HIGH' : 'OPTIMAL',
-      badge: isAkkermansiaLow ? 'MUCOSAL INTEGRITY' : 'GUT-LIVER PROTOCOL',
-      variant: isAkkermansiaLow ? 'warning' : 'accent',
-      rationale: `Microbiome Rationale: Shannon diversity ${shannon !== null ? Number(shannon).toFixed(2) : '2.81'}${akkermansia !== null ? `, Akkermansia ${akkermansia.toFixed(1)}%` : ''}${alt !== null ? `, ALT ${alt} U/L` : ''}.`,
-      items: [
-        {
-          icon: '🫐',
-          title: 'Akkermansia muciniphila Polyphenol Nourishment',
-          detail: 'Akkermansia muciniphila preserves the intestinal epithelial mucus layer, preventing metabolic endotoxemia (LPS translocation) that incites low-grade systemic inflammation and insulin resistance. Support it with polyphenol-dense foods (pomegranate ellagitannins, dark berries, green tea).',
-          target: akkermansia ? `Target: > 1.00% (Currently ${akkermansia.toFixed(2)}%)` : 'Target Akkermansia > 1.0% relative abundance',
-          dosage: 'Daily dietary polyphenols and dark berries',
-          citation: 'ISAPP International Consensus on Prebiotics 2023'
-        },
-        {
-          icon: '🌾',
-          title: 'Fermentable Prebiotic Substrates & Butyrate Synthesis',
-          detail: 'Increase dietary fermentable fibers (inulin, resistant starch from cooked/cooled legumes and potatoes, acacia fiber) to stimulate Short-Chain Fatty Acid (SCFA: acetate, propionate, butyrate) production by Faecalibacterium and Roseburia.',
-          target: 'Dietary fiber ≥ 30 g/day across 30+ plant varieties/week',
-          dosage: 'Progressive ramp: +5g fiber every 7 days',
-          citation: 'American Gut Project / Nature Microbiology 2022'
-        },
-        {
-          icon: '🛡️',
-          title: 'Gut-Liver Axis & MASLD / NAFLD Protection',
-          detail: 'Intestinal barrier dysbiosis drives portal lipopolysaccharide delivery to the liver, activating Kupffer cells and accelerating hepatic steatosis. Adopting a Mediterranean pattern with choline, betaine, and prebiotics shields hepatic parenchymal architecture.',
-          target: alt ? `Target ALT: ≤ 30 U/L (Current ALT: ${alt} U/L)` : 'Target ALT ≤ 30 U/L; Steatosis Reduction',
-          dosage: 'Mediterranean anti-steatotic dietary baseline',
-          citation: 'AASLD Practice Guidance on MASLD / NAFLD 2023'
-        }
-      ]
-    });
+    if (isAkkermansiaLow || isShannonLow || isLiverStressed) {
+      list.push({
+        group: 'Gut-Metabolic Axis & Microbial Ecology',
+        icon: Dna,
+        priority: isAkkermansiaLow || isShannonLow ? 'HIGH' : 'MODERATE',
+        badge: isAkkermansiaLow ? 'MUCOSAL INTEGRITY' : 'GUT-LIVER PROTOCOL',
+        variant: isAkkermansiaLow ? 'warning' : 'accent',
+        rationale: `Microbiome Rationale: Shannon diversity ${shannon !== null ? Number(shannon).toFixed(2) : '2.81'}${akkermansia !== null ? `, Akkermansia ${akkermansia.toFixed(1)}%` : ''}${alt !== null ? `, ALT ${alt} U/L` : ''}.`,
+        items: [
+          {
+            icon: '🫐',
+            title: 'Akkermansia muciniphila Polyphenol Nourishment',
+            detail: 'Akkermansia muciniphila preserves the intestinal epithelial mucus layer, preventing metabolic endotoxemia (LPS translocation) that incites low-grade systemic inflammation and insulin resistance. Support it with polyphenol-dense foods (pomegranate ellagitannins, dark berries, green tea).',
+            target: akkermansia ? `Target: > 1.00% (Currently ${akkermansia.toFixed(2)}%)` : 'Target Akkermansia > 1.0% relative abundance',
+            dosage: 'Daily dietary polyphenols and dark berries',
+            citation: 'ISAPP International Consensus on Prebiotics 2023'
+          },
+          {
+            icon: '🌾',
+            title: 'Fermentable Prebiotic Substrates & Butyrate Synthesis',
+            detail: 'Increase dietary fermentable fibers (inulin, resistant starch from cooked/cooled legumes and potatoes, acacia fiber) to stimulate Short-Chain Fatty Acid (SCFA: acetate, propionate, butyrate) production by Faecalibacterium and Roseburia.',
+            target: 'Dietary fiber ≥ 30 g/day across 30+ plant varieties/week',
+            dosage: 'Progressive ramp: +5g fiber every 7 days',
+            citation: 'American Gut Project / Nature Microbiology 2022'
+          },
+          {
+            icon: '🛡️',
+            title: 'Gut-Liver Axis & MASLD / NAFLD Protection',
+            detail: 'Intestinal barrier dysbiosis drives portal lipopolysaccharide delivery to the liver, activating Kupffer cells and accelerating hepatic steatosis. Adopting a Mediterranean pattern with choline, betaine, and prebiotics shields hepatic parenchymal architecture.',
+            target: alt ? `Target ALT: ≤ 30 U/L (Current ALT: ${alt} U/L)` : 'Target ALT ≤ 30 U/L; Steatosis Reduction',
+            dosage: 'Mediterranean anti-steatotic dietary baseline',
+            citation: 'AASLD Practice Guidance on MASLD / NAFLD 2023'
+          }
+        ]
+      });
+    }
+
+    if (list.length === 0) {
+      list.push({
+        group: 'General Health Maintenance & Prevention',
+        icon: Sparkles,
+        priority: 'OPTIMAL',
+        badge: 'MAINTENANCE',
+        variant: 'success',
+        rationale: 'Your biomarker and risk profile indicates excellent metabolic and cardiovascular health. Focus on maintaining these preventative habits.',
+        items: [
+          {
+            icon: '🧘',
+            title: 'Metabolic & Autonomic Maintenance',
+            detail: 'Continue a balanced whole-food diet, preserve your circadian rhythm, and ensure regular physical movement. Your current baseline mitigates major chronic disease vectors.',
+            target: 'Maintain current healthy baselines',
+            dosage: 'Daily continuous habits',
+            citation: 'WHO Health Promotion Guidelines 2023'
+          }
+        ]
+      });
+    }
 
     return list;
   }, [glucose, hba1c, sysBp, diaBp, bmi, waist, trig, hdl, ldl, alt, ast, steps, rhr, hrv, sleepHours, sleepEff, stress, cgmMean, cgmCv, cgmTir, akkermansia, faecali, roseburia, bifido, shannon, fbRatio, t2dRisk, prediabetesRisk, adiposityRisk, metSynRisk, nafldRisk]);
 
   // 3. Simulated Counterfactual Risk Calculation (ROBUST FORMULA)
-  const diseaseOptions = [
+  let diseaseOptions = [
     { key: 'Type2_Diabetes', label: 'Type 2 Diabetes', fallback: 68 },
     { key: 'Prediabetes', label: 'Prediabetes', fallback: 64 },
     { key: 'Metabolic_Syndrome', label: 'Metabolic Syndrome', fallback: 72 },
     { key: 'NAFLD', label: 'NAFLD / MASLD', fallback: 57 },
     { key: 'High_Adiposity_Risk', label: 'High Adiposity', fallback: 56 }
   ];
+
+  const t2dVal = getProb('Type2_Diabetes') || (68/100);
+  const preVal = getProb('Prediabetes') || (64/100);
+
+  if (t2dVal >= preVal) {
+    diseaseOptions = diseaseOptions.filter(o => o.key !== 'Prediabetes');
+  } else {
+    diseaseOptions = diseaseOptions.filter(o => o.key !== 'Type2_Diabetes');
+  }
+
+  React.useEffect(() => {
+    if (!diseaseOptions.some(d => d.key === selectedDisease)) {
+      setSelectedDisease(diseaseOptions[0].key);
+    }
+  }, [diseaseOptions, selectedDisease]);
 
   const currentDiseaseOption = diseaseOptions.find(d => d.key === selectedDisease) || diseaseOptions[0];
   const activeProb = getProb(selectedDisease);
@@ -460,11 +506,14 @@ export default function PersonalizedRecommendations({ predictionData }) {
               </thead>
               <tbody className="divide-y divide-[var(--border-subtle)] text-[11px]">
                 {/* Row 1: Fasting Glucose */}
-                <tr className="hover:bg-[var(--bg-surface)] transition-colors">
+                <tr className="hover:bg-[var(--bg-surface)] transition-colors cursor-pointer group" onClick={() => setExpandedMilestone(expandedMilestone === 'glucose' ? null : 'glucose')}>
                   <td className="py-3 px-3 font-bold text-[var(--text-main)] flex items-center gap-2">
-                    <Utensils className="w-3.5 h-3.5 text-blue-500" />
+                    <Utensils className="w-3.5 h-3.5 text-blue-500 group-hover:scale-110 transition-transform" />
                     <div>
-                      <span>Fasting Blood Glucose</span>
+                      <div className="flex items-center gap-1.5">
+                        <span>Fasting Blood Glucose</span>
+                        {expandedMilestone === 'glucose' ? <ChevronUp className="w-3 h-3 text-[var(--text-muted)]" /> : <ChevronDown className="w-3 h-3 text-[var(--text-muted)]" />}
+                      </div>
                       <div className="text-[10px] text-[var(--text-muted)] font-normal">Glycemic Homeostasis</div>
                     </div>
                   </td>
@@ -483,13 +532,31 @@ export default function PersonalizedRecommendations({ predictionData }) {
                   <td className="py-3 px-3 text-[10px] text-[var(--text-muted)] font-mono">ADA Standards 2024 §6</td>
                   <td className="py-3 px-3 text-right font-mono font-bold text-emerald-600">-18% T2D Progression</td>
                 </tr>
+                {expandedMilestone === 'glucose' && (
+                  <tr className="bg-blue-50/30 dark:bg-blue-900/10 border-b border-[var(--border-subtle)]">
+                    <td colSpan="5" className="px-4 py-3">
+                      <div className="flex items-start gap-3 p-3 rounded-xl bg-[var(--bg-primary)] border border-blue-200/50 dark:border-blue-800/30">
+                        <Zap className="w-4 h-4 text-amber-500 mt-0.5 shrink-0" />
+                        <div>
+                          <h5 className="text-xs font-bold text-[var(--text-main)] mb-1">Milestone Action Protocol</h5>
+                          <p className="text-[11px] text-[var(--text-muted)] leading-relaxed">
+                            Consume dietary fiber and protein 10–15 minutes prior to complex carbohydrates. Engage in a 15–20 minute brisk walk directly after meals to activate GLUT-4 glucose transporters in skeletal muscle, clearing glucose independently of insulin.
+                          </p>
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+                )}
 
                 {/* Row 2: HbA1c */}
-                <tr className="hover:bg-[var(--bg-surface)] transition-colors">
+                <tr className="hover:bg-[var(--bg-surface)] transition-colors cursor-pointer group" onClick={() => setExpandedMilestone(expandedMilestone === 'hba1c' ? null : 'hba1c')}>
                   <td className="py-3 px-3 font-bold text-[var(--text-main)] flex items-center gap-2">
-                    <Activity className="w-3.5 h-3.5 text-blue-500" />
+                    <Activity className="w-3.5 h-3.5 text-blue-500 group-hover:scale-110 transition-transform" />
                     <div>
-                      <span>Glycated Hemoglobin (HbA1c)</span>
+                      <div className="flex items-center gap-1.5">
+                        <span>Glycated Hemoglobin (HbA1c)</span>
+                        {expandedMilestone === 'hba1c' ? <ChevronUp className="w-3 h-3 text-[var(--text-muted)]" /> : <ChevronDown className="w-3 h-3 text-[var(--text-muted)]" />}
+                      </div>
                       <div className="text-[10px] text-[var(--text-muted)] font-normal">90-Day Glycation Burden</div>
                     </div>
                   </td>
@@ -508,13 +575,31 @@ export default function PersonalizedRecommendations({ predictionData }) {
                   <td className="py-3 px-3 text-[10px] text-[var(--text-muted)] font-mono">ADA Standards 2024 §2</td>
                   <td className="py-3 px-3 text-right font-mono font-bold text-emerald-600">-24% Complications</td>
                 </tr>
+                {expandedMilestone === 'hba1c' && (
+                  <tr className="bg-blue-50/30 dark:bg-blue-900/10 border-b border-[var(--border-subtle)]">
+                    <td colSpan="5" className="px-4 py-3">
+                      <div className="flex items-start gap-3 p-3 rounded-xl bg-[var(--bg-primary)] border border-blue-200/50 dark:border-blue-800/30">
+                        <Zap className="w-4 h-4 text-amber-500 mt-0.5 shrink-0" />
+                        <div>
+                          <h5 className="text-xs font-bold text-[var(--text-main)] mb-1">Milestone Action Protocol</h5>
+                          <p className="text-[11px] text-[var(--text-muted)] leading-relaxed">
+                            Stabilize glycemic coefficient of variation (CV) to under 33% by avoiding liquid carbohydrates and ensuring continuous nightly sleep of 7.0–8.5 hours. Poor sleep directly impairs insulin sensitivity.
+                          </p>
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+                )}
 
                 {/* Row 3: Blood Pressure */}
-                <tr className="hover:bg-[var(--bg-surface)] transition-colors">
+                <tr className="hover:bg-[var(--bg-surface)] transition-colors cursor-pointer group" onClick={() => setExpandedMilestone(expandedMilestone === 'bp' ? null : 'bp')}>
                   <td className="py-3 px-3 font-bold text-[var(--text-main)] flex items-center gap-2">
-                    <HeartPulse className="w-3.5 h-3.5 text-blue-500" />
+                    <HeartPulse className="w-3.5 h-3.5 text-blue-500 group-hover:scale-110 transition-transform" />
                     <div>
-                      <span>Vascular Blood Pressure</span>
+                      <div className="flex items-center gap-1.5">
+                        <span>Vascular Blood Pressure</span>
+                        {expandedMilestone === 'bp' ? <ChevronUp className="w-3 h-3 text-[var(--text-muted)]" /> : <ChevronDown className="w-3 h-3 text-[var(--text-muted)]" />}
+                      </div>
                       <div className="text-[10px] text-[var(--text-muted)] font-normal">Endothelial Hemodynamics</div>
                     </div>
                   </td>
@@ -533,13 +618,31 @@ export default function PersonalizedRecommendations({ predictionData }) {
                   <td className="py-3 px-3 text-[10px] text-[var(--text-muted)] font-mono">AHA / ACC 2023</td>
                   <td className="py-3 px-3 text-right font-mono font-bold text-emerald-600">-15% CVD / MetSyn</td>
                 </tr>
+                {expandedMilestone === 'bp' && (
+                  <tr className="bg-blue-50/30 dark:bg-blue-900/10 border-b border-[var(--border-subtle)]">
+                    <td colSpan="5" className="px-4 py-3">
+                      <div className="flex items-start gap-3 p-3 rounded-xl bg-[var(--bg-primary)] border border-blue-200/50 dark:border-blue-800/30">
+                        <Zap className="w-4 h-4 text-amber-500 mt-0.5 shrink-0" />
+                        <div>
+                          <h5 className="text-xs font-bold text-[var(--text-main)] mb-1">Milestone Action Protocol</h5>
+                          <p className="text-[11px] text-[var(--text-muted)] leading-relaxed">
+                            Optimize your Sodium-to-Potassium ratio by capping sodium under 2,000 mg/day while consuming potassium-rich greens. This dilates vascular smooth muscle and suppresses angiotensin tone.
+                          </p>
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+                )}
 
                 {/* Row 4: Daily Steps Cadence */}
-                <tr className="hover:bg-[var(--bg-surface)] transition-colors">
+                <tr className="hover:bg-[var(--bg-surface)] transition-colors cursor-pointer group" onClick={() => setExpandedMilestone(expandedMilestone === 'steps' ? null : 'steps')}>
                   <td className="py-3 px-3 font-bold text-[var(--text-main)] flex items-center gap-2">
-                    <Activity className="w-3.5 h-3.5 text-blue-500" />
+                    <Activity className="w-3.5 h-3.5 text-blue-500 group-hover:scale-110 transition-transform" />
                     <div>
-                      <span>Daily Ambulation Cadence</span>
+                      <div className="flex items-center gap-1.5">
+                        <span>Daily Ambulation Cadence</span>
+                        {expandedMilestone === 'steps' ? <ChevronUp className="w-3 h-3 text-[var(--text-muted)]" /> : <ChevronDown className="w-3 h-3 text-[var(--text-muted)]" />}
+                      </div>
                       <div className="text-[10px] text-[var(--text-muted)] font-normal">Physical Activity Volume</div>
                     </div>
                   </td>
@@ -558,13 +661,31 @@ export default function PersonalizedRecommendations({ predictionData }) {
                   <td className="py-3 px-3 text-[10px] text-[var(--text-muted)] font-mono">WHO Guidelines 2023</td>
                   <td className="py-3 px-3 text-right font-mono font-bold text-emerald-600">+16% Insulin Sensitivity</td>
                 </tr>
+                {expandedMilestone === 'steps' && (
+                  <tr className="bg-blue-50/30 dark:bg-blue-900/10 border-b border-[var(--border-subtle)]">
+                    <td colSpan="5" className="px-4 py-3">
+                      <div className="flex items-start gap-3 p-3 rounded-xl bg-[var(--bg-primary)] border border-blue-200/50 dark:border-blue-800/30">
+                        <Zap className="w-4 h-4 text-amber-500 mt-0.5 shrink-0" />
+                        <div>
+                          <h5 className="text-xs font-bold text-[var(--text-main)] mb-1">Milestone Action Protocol</h5>
+                          <p className="text-[11px] text-[var(--text-muted)] leading-relaxed">
+                            Systematically increase daily step volume by +1,500 to +2,500 steps over 30 days. Hitting the 8,500 threshold reduces sedentary sympathetic tone and improves cardiometabolic mortality outcomes.
+                          </p>
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+                )}
 
                 {/* Row 5: Gut Microbiome Diversity */}
-                <tr className="hover:bg-[var(--bg-surface)] transition-colors">
+                <tr className="hover:bg-[var(--bg-surface)] transition-colors cursor-pointer group" onClick={() => setExpandedMilestone(expandedMilestone === 'microbiome' ? null : 'microbiome')}>
                   <td className="py-3 px-3 font-bold text-[var(--text-main)] flex items-center gap-2">
-                    <Dna className="w-3.5 h-3.5 text-blue-500" />
+                    <Dna className="w-3.5 h-3.5 text-blue-500 group-hover:scale-110 transition-transform" />
                     <div>
-                      <span>Microbiome Shannon Diversity</span>
+                      <div className="flex items-center gap-1.5">
+                        <span>Microbiome Shannon Diversity</span>
+                        {expandedMilestone === 'microbiome' ? <ChevronUp className="w-3 h-3 text-[var(--text-muted)]" /> : <ChevronDown className="w-3 h-3 text-[var(--text-muted)]" />}
+                      </div>
                       <div className="text-[10px] text-[var(--text-muted)] font-normal">Ecology & Mucosal Health</div>
                     </div>
                   </td>
@@ -583,13 +704,31 @@ export default function PersonalizedRecommendations({ predictionData }) {
                   <td className="py-3 px-3 text-[10px] text-[var(--text-muted)] font-mono">ISAPP Consensus 2023</td>
                   <td className="py-3 px-3 text-right font-mono font-bold text-emerald-600">-14% Endotoxemia (LPS)</td>
                 </tr>
+                {expandedMilestone === 'microbiome' && (
+                  <tr className="bg-blue-50/30 dark:bg-blue-900/10 border-b border-[var(--border-subtle)]">
+                    <td colSpan="5" className="px-4 py-3">
+                      <div className="flex items-start gap-3 p-3 rounded-xl bg-[var(--bg-primary)] border border-blue-200/50 dark:border-blue-800/30">
+                        <Zap className="w-4 h-4 text-amber-500 mt-0.5 shrink-0" />
+                        <div>
+                          <h5 className="text-xs font-bold text-[var(--text-main)] mb-1">Milestone Action Protocol</h5>
+                          <p className="text-[11px] text-[var(--text-muted)] leading-relaxed">
+                            Consume polyphenol-dense foods (dark berries, pomegranate) to nourish Akkermansia muciniphila. This preserves the intestinal epithelial mucus layer and prevents systemic endotoxemia (LPS translocation).
+                          </p>
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+                )}
 
                 {/* Row 6: Hepatic Transaminases */}
-                <tr className="hover:bg-[var(--bg-surface)] transition-colors">
+                <tr className="hover:bg-[var(--bg-surface)] transition-colors cursor-pointer group" onClick={() => setExpandedMilestone(expandedMilestone === 'alt' ? null : 'alt')}>
                   <td className="py-3 px-3 font-bold text-[var(--text-main)] flex items-center gap-2">
-                    <Flame className="w-3.5 h-3.5 text-blue-500" />
+                    <Flame className="w-3.5 h-3.5 text-blue-500 group-hover:scale-110 transition-transform" />
                     <div>
-                      <span>Hepatic Transaminase (ALT)</span>
+                      <div className="flex items-center gap-1.5">
+                        <span>Hepatic Transaminase (ALT)</span>
+                        {expandedMilestone === 'alt' ? <ChevronUp className="w-3 h-3 text-[var(--text-muted)]" /> : <ChevronDown className="w-3 h-3 text-[var(--text-muted)]" />}
+                      </div>
                       <div className="text-[10px] text-[var(--text-muted)] font-normal">Steatosis & Liver Integrity</div>
                     </div>
                   </td>
@@ -608,6 +747,21 @@ export default function PersonalizedRecommendations({ predictionData }) {
                   <td className="py-3 px-3 text-[10px] text-[var(--text-muted)] font-mono">AASLD Practice 2023</td>
                   <td className="py-3 px-3 text-right font-mono font-bold text-emerald-600">-20% Hepatic Fat Infil.</td>
                 </tr>
+                {expandedMilestone === 'alt' && (
+                  <tr className="bg-blue-50/30 dark:bg-blue-900/10 border-b border-[var(--border-subtle)]">
+                    <td colSpan="5" className="px-4 py-3">
+                      <div className="flex items-start gap-3 p-3 rounded-xl bg-[var(--bg-primary)] border border-blue-200/50 dark:border-blue-800/30">
+                        <Zap className="w-4 h-4 text-amber-500 mt-0.5 shrink-0" />
+                        <div>
+                          <h5 className="text-xs font-bold text-[var(--text-main)] mb-1">Milestone Action Protocol</h5>
+                          <p className="text-[11px] text-[var(--text-muted)] leading-relaxed">
+                            A Mediterranean-style dietary pattern rich in choline and betaine protects against hepatic steatosis. Reducing refined fructose stops de-novo lipogenesis in the liver.
+                          </p>
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>

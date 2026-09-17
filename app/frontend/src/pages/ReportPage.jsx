@@ -155,12 +155,25 @@ export default function ReportPage({ user, session, predictionData, onDiscussWit
   const wearFeats = safeParseFeats(rawConf.wearable || predictionData?.wearable_features || predictionData?.wearable_data || session?.confirmed_features?.wearable || {});
   const gutFeats = safeParseFeats(rawConf.gut || predictionData?.gut_features || predictionData?.gut_data || session?.confirmed_features?.gut || {});
 
-  // Sort diseases by probability descending
-  const sortedDiseases = Object.keys(predictions).map(k => {
+  const t2dItem = predictions['Type2_Diabetes'] || {};
+  const t2dProbGlobal = t2dItem.calibrated_probability ?? t2dItem.probability ?? 0;
+  const preItem = predictions['Prediabetes'] || {};
+  const preProbGlobal = preItem.calibrated_probability ?? preItem.probability ?? 0;
+
+  // Filter and sort diseases by probability descending
+  let sortedDiseases = Object.keys(predictions).map(k => {
     const item = predictions[k] || {};
     const prob = item.calibrated_probability !== undefined ? item.calibrated_probability : (item.probability || 0);
     return { key: k, prob, riskLevel: item.risk_level || (prob >= 0.6 ? 'High Risk' : prob >= 0.3 ? 'Moderate Risk' : 'Low Risk'), class: item.predicted_class };
-  }).sort((a, b) => b.prob - a.prob);
+  });
+
+  if (t2dProbGlobal >= preProbGlobal) {
+    sortedDiseases = sortedDiseases.filter(d => d.key !== 'Prediabetes');
+  } else {
+    sortedDiseases = sortedDiseases.filter(d => d.key !== 'Type2_Diabetes');
+  }
+  
+  sortedDiseases.sort((a, b) => b.prob - a.prob);
 
   const highestRiskItem = sortedDiseases[0] || { key: 'Type2_Diabetes', prob: 0, riskLevel: 'Low Risk' };
   const highestRiskName = highestRiskItem.key.replace(/_/g, ' ');
@@ -289,6 +302,32 @@ export default function ReportPage({ user, session, predictionData, onDiscussWit
                 ? dData.calibrated_probability 
                 : (dData.probability !== undefined ? dData.probability : 0);
               const dPct = Math.round(dProb * 100);
+
+              let isPlaceholder = false;
+              let placeholderReason = '';
+
+              const t2dIsPositiveGlobal = (predictions['Type2_Diabetes']?.risk_level?.toLowerCase() === 'positive') || (t2dProbGlobal >= 0.4);
+              if (disease.key === 'Prediabetes' && (t2dIsPositiveGlobal || t2dProbGlobal > preProbGlobal)) {
+                isPlaceholder = true;
+                placeholderReason = 'Subsumed by Type 2 Diabetes evaluation.';
+              }
+              if (disease.key === 'Type2_Diabetes' && !t2dIsPositiveGlobal && preProbGlobal > t2dProbGlobal) {
+                isPlaceholder = true;
+                placeholderReason = 'Condition absent; Prediabetes is active.';
+              }
+
+              if (isPlaceholder) {
+                return (
+                  <Card key={disease.key} isGlass={true} className="p-4 space-y-2 border-2 border-dashed border-[var(--border-subtle)] bg-[var(--bg-primary)]/50 opacity-60">
+                    <div className="flex items-center justify-between gap-1 mb-1">
+                      <h4 className="text-xs font-extrabold text-[var(--text-muted)] line-through truncate" title={disease.title}>{disease.title}</h4>
+                      <Badge variant="ghost" size="sm" className="text-[9px]">NOT PRESENT</Badge>
+                    </div>
+                    <p className="text-[10px] text-[var(--text-muted)] leading-relaxed italic border-l-2 border-[var(--border-medium)] pl-2">{placeholderReason}</p>
+                  </Card>
+                );
+              }
+
               const dRisk = dData.risk_level || (dPct >= 60 ? 'High Risk' : dPct >= 30 ? 'Moderate Risk' : 'Low Risk');
               const variant = dRisk.toUpperCase().includes('HIGH') ? 'danger' : dRisk.toUpperCase().includes('MODERATE') ? 'warning' : 'success';
               const borderTop = dRisk.toUpperCase().includes('HIGH') ? 'border-t-4 border-t-[var(--danger)]' : dRisk.toUpperCase().includes('MODERATE') ? 'border-t-4 border-t-[var(--warning)]' : 'border-t-4 border-t-[var(--success)]';
@@ -386,62 +425,9 @@ export default function ReportPage({ user, session, predictionData, onDiscussWit
         </ContentSection>
 
         {/* SECTION 5: EVIDENCE-GROUNDED RECOMMENDATIONS */}
-        <ContentSection title="3. Evidence-Grounded Clinical Recommendations" subtitle="Medical guideline recommendations retrieved via vector RAG">
+        <ContentSection title="3. Evidence-Grounded Clinical Recommendations" subtitle="Dynamic clinical guidelines and interactive what-if risk simulations powered by Copilot">
           <div className="space-y-6">
             <PersonalizedRecommendations predictionData={predictionData} />
-
-            <Card isGlass={true} className="p-6 space-y-4">
-              <h4 className="text-sm font-extrabold text-[var(--text-main)]">Understanding Your Results — What Medical Guidelines Say</h4>
-              <p className="text-[11px] text-[var(--text-muted)] leading-relaxed">
-                Below are evidence-based medical guidelines relevant to your assessment, explained in everyday language.
-              </p>
-              {reportData?.retrieved_evidence && reportData.retrieved_evidence.length > 0 ? (
-                reportData.retrieved_evidence.map((ev, idx) => (
-                  <div key={idx} className="p-4 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-subtle)] space-y-2">
-                    <div className="flex items-center justify-between">
-                      <Badge variant="primary" size="sm">Guideline #{idx + 1}</Badge>
-                      <span className="text-[10px] font-mono text-[var(--text-muted)] uppercase">{ev.source || 'Medical Guidelines'}</span>
-                    </div>
-                    <p className="text-xs text-[var(--text-main)] font-semibold">
-                      {typeof ev === 'string' ? ev : (ev.snippet || ev.text || ev.title || JSON.stringify(ev))}
-                    </p>
-                  </div>
-                ))
-              ) : (
-                <div className="space-y-3">
-                  <div className="p-4 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-subtle)] space-y-2">
-                    <div className="flex items-center justify-between">
-                      <Badge variant="primary" size="sm">🩺 Blood Sugar Management</Badge>
-                      <span className="text-[10px] font-mono text-[var(--text-muted)]">ADA Guidelines 2026</span>
-                    </div>
-                    <p className="text-xs text-[var(--text-main)] leading-relaxed">
-                      {highestRiskPct >= 40
-                        ? `Your highest risk area is ${highestRiskName} at ${highestRiskPct}%. Medical guidelines recommend regular monitoring of blood sugar levels, a balanced diet low in refined carbohydrates, and at least 150 minutes of moderate exercise per week.`
-                        : `Your risk levels are within manageable ranges. Medical guidelines recommend maintaining a balanced diet, regular physical activity, and annual health checkups to stay on track.`
-                      }
-                    </p>
-                  </div>
-                  <div className="p-4 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-subtle)] space-y-2">
-                    <div className="flex items-center justify-between">
-                      <Badge variant="secondary" size="sm">💡 Lifestyle Recommendation</Badge>
-                      <span className="text-[10px] font-mono text-[var(--text-muted)]">Evidence-Based</span>
-                    </div>
-                    <p className="text-xs text-[var(--text-main)] leading-relaxed">
-                      Based on your assessment pathway ({pathwayUsed}), focus on the areas where your data shows room for improvement. Small, consistent lifestyle changes — like walking 30 minutes daily, eating more vegetables, and getting 7-9 hours of sleep — can significantly reduce your health risks over time.
-                    </p>
-                  </div>
-                  <div className="p-4 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-subtle)] space-y-2">
-                    <div className="flex items-center justify-between">
-                      <Badge variant="accent" size="sm">👨‍⚕️ Next Steps</Badge>
-                      <span className="text-[10px] font-mono text-[var(--text-muted)]">Clinical Recommendation</span>
-                    </div>
-                    <p className="text-xs text-[var(--text-main)] leading-relaxed">
-                      Share this report with your doctor at your next visit. They can review these AI-generated insights alongside your full medical history and determine if any additional testing or treatment adjustments are needed.
-                    </p>
-                  </div>
-                </div>
-              )}
-            </Card>
           </div>
         </ContentSection>
 

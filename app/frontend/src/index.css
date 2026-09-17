@@ -253,6 +253,16 @@ body {
   40% { transform: scale(1); opacity: 1; }
 }
 
+@keyframes fill-progress {
+  from { width: 0%; }
+  to { width: 100%; }
+}
+
+@keyframes slide-right {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(100%); }
+}
+
 .animate-fade-in {
   animation: fadeIn 200ms cubic-bezier(0.4, 0, 0.2, 1) forwards;
 }

@@ -68,6 +68,17 @@ def build_rag_patient_context(
             "research_disclaimer": config.RESEARCH_DISCLAIMER,
         }
 
+    is_empty_features = not patient_features or all(v is None or not v for v in patient_features.values())
+    if is_empty_features and not predict_response:
+        return {
+            "patient_id": patient_id,
+            "active_modalities": [],
+            "missing_modalities": ["clinical", "wearable", "gut"],
+            "fusion_pathway_used": "NONE",
+            "disease_risk_outcomes": {},
+            "research_disclaimer": config.RESEARCH_DISCLAIMER,
+        }
+
     if xai_engine is None:
         xai_engine = UnifiedXAIEngine().load()
 

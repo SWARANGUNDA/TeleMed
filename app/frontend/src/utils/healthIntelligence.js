@@ -122,10 +122,20 @@ export function analyzeLongitudinalShifts(records) {
   const recentOutcomes = safeParse(recentSnap.disease_outcomes || recentSnap.predictions || {});
   const baselineOutcomes = safeParse(baselineSnap.disease_outcomes || baselineSnap.predictions || {});
 
-  const diseaseKeys = ['Type2_Diabetes', 'Prediabetes', 'High_Adiposity_Risk', 'Metabolic_Syndrome', 'NAFLD'];
+  const getProb = (obj, k) => obj[k]?.calibrated_probability ?? obj[k]?.probability;
+  const t2dProb = getProb(recentOutcomes, 'Type2_Diabetes') || 0;
+  const preProb = getProb(recentOutcomes, 'Prediabetes') || 0;
+  
+  let diseaseKeys = ['Type2_Diabetes', 'Prediabetes', 'High_Adiposity_Risk', 'Metabolic_Syndrome', 'NAFLD'];
+  if (t2dProb >= preProb) {
+    diseaseKeys = diseaseKeys.filter(k => k !== 'Prediabetes');
+  } else {
+    diseaseKeys = diseaseKeys.filter(k => k !== 'Type2_Diabetes');
+  }
+
   diseaseKeys.forEach(key => {
-    const p1 = recentOutcomes[key]?.calibrated_probability ?? recentOutcomes[key]?.probability;
-    const p2 = baselineOutcomes[key]?.calibrated_probability ?? baselineOutcomes[key]?.probability;
+    const p1 = getProb(recentOutcomes, key);
+    const p2 = getProb(baselineOutcomes, key);
 
     if (p1 !== undefined && p2 !== undefined && typeof p1 === 'number' && typeof p2 === 'number') {
       const diffPct = Math.round((p1 - p2) * 100);
@@ -248,7 +258,16 @@ export function detectEarlyWarnings(rawPredictionData, historyRecords = []) {
     const recent = safeParse(historyRecords[0]?.prediction_snapshot?.disease_outcomes || historyRecords[0]?.prediction_snapshot?.predictions || {});
     const baseline = safeParse(historyRecords[historyRecords.length - 1]?.prediction_snapshot?.disease_outcomes || historyRecords[historyRecords.length - 1]?.prediction_snapshot?.predictions || {});
 
-    Object.keys(recent).forEach(key => {
+    const getP = (obj, k) => obj[k]?.calibrated_probability ?? obj[k]?.probability ?? 0;
+    const t2dProb = getP(recent, 'Type2_Diabetes');
+    const preProb = getP(recent, 'Prediabetes');
+    const keysToCheck = Object.keys(recent).filter(k => {
+      if (k === 'Prediabetes' && t2dProb >= preProb) return false;
+      if (k === 'Type2_Diabetes' && preProb > t2dProb) return false;
+      return true;
+    });
+
+    keysToCheck.forEach(key => {
       const p1 = recent[key]?.calibrated_probability ?? recent[key]?.probability;
       const p2 = baseline[key]?.calibrated_probability ?? baseline[key]?.probability;
       if (typeof p1 === 'number' && typeof p2 === 'number' && (p1 - p2) >= 0.15) {

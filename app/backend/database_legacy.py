@@ -2459,6 +2459,54 @@ def assign_doctor_to_consultation(admin_user_id: str, consultation_id: str, doct
     finally:
         conn.close()
 
+def claim_open_consultation(doctor_user_id: str, consultation_id: str) -> Dict[str, Any]:
+    """Doctor assigns themselves to an open (REQUESTED/PENDING) consultation."""
+    conn = get_db_connection()
+    now = datetime.datetime.now(datetime.timezone.utc).isoformat()
+    try:
+        c_row = conn.execute("SELECT consultation_id, patient_id, assigned_doctor_id, status FROM consultations WHERE consultation_id = ?", (consultation_id,)).fetchone()
+        if not c_row:
+            raise ValueError(f"Consultation '{consultation_id}' not found.")
+
+        cur_status = c_row["status"]
+        if cur_status not in ("REQUESTED", "PENDING"):
+            raise ValueError(f"Cannot claim consultation in status '{cur_status}'. Only open requests can be claimed.")
+
+        if c_row["assigned_doctor_id"]:
+            raise ValueError("Consultation is already assigned to a doctor.")
+
+        # Verify doctor is VERIFIED
+        doc_row = conn.execute("SELECT doctor_id, full_name, verification_status FROM doctor_profiles WHERE user_id = ?", (doctor_user_id,)).fetchone()
+        if not doc_row:
+            raise ValueError("Doctor profile not found for user.")
+            
+        if doc_row["verification_status"] != "VERIFIED":
+            raise ValueError(f"Doctor '{doc_row['full_name']}' status is '{doc_row['verification_status']}'. Only VERIFIED doctors can claim consultations.")
+
+        doctor_id = doc_row["doctor_id"]
+
+        with conn:
+            conn.execute("""
+                UPDATE consultations SET
+                    assigned_doctor_id = ?,
+                    status = 'ACCEPTED',
+                    updated_at = ?
+                WHERE consultation_id = ?
+            """, (doctor_id, now, consultation_id))
+
+            # Audit log
+            log_id = f"aud_c_{secrets.token_hex(6)}"
+            conn.execute("""
+                INSERT INTO consultation_audit_logs (
+                    log_id, consultation_id, patient_id, doctor_id, actor_user_id, actor_role, action, old_status, new_status, reason, timestamp
+                ) VALUES (?, ?, ?, ?, ?, 'DOCTOR', 'CLAIMED', ?, 'ACCEPTED', ?, ?)
+            """, (log_id, consultation_id, c_row["patient_id"], doctor_id, doctor_user_id, cur_status, f"Doctor {doc_row['full_name']} claimed consultation", now))
+
+        # Retrieve summary
+        return get_doctor_consultation_detail(doctor_user_id, consultation_id)
+    finally:
+        conn.close()
+
 
 def list_doctor_consultations(doctor_user_id: str, status_filter: Optional[str] = None) -> List[Dict[str, Any]]:
     """List assigned consultations for authenticated VERIFIED doctor (including MDT co-consultations)."""

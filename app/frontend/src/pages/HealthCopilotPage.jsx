@@ -503,17 +503,18 @@ export default function HealthCopilotPage({ user, session, predictionData: propP
 
                 {/* Left Column (8 Cols) — Main Conversational Chat Workspace */}
                 <div className="lg:col-span-8 space-y-6">
-                  <div className="bg-[var(--bg-surface)] rounded-3xl border border-[var(--border-subtle)] p-5 shadow-xs flex flex-col min-h-[620px] justify-between">
+                  <div className="bg-white/70 dark:bg-slate-900/70 backdrop-blur-xl rounded-[2rem] border border-slate-200/60 dark:border-slate-800/60 p-6 shadow-xl shadow-slate-200/40 dark:shadow-none flex flex-col min-h-[680px] justify-between relative overflow-hidden">
+                    <div className="absolute top-0 left-0 w-full h-32 bg-gradient-to-b from-blue-50/50 to-transparent dark:from-blue-900/20 pointer-events-none" />
 
                     {/* Chat Feed Header */}
-                    <div className="flex items-center justify-between pb-3 border-b border-[var(--border-subtle)]">
+                    <div className="flex items-center justify-between pb-4 border-b border-slate-200/60 dark:border-slate-700/60 relative z-10">
                       <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-xl bg-blue-600 text-white flex items-center justify-center font-bold shadow-xs">
-                          <Bot size={20} />
+                        <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 text-white flex items-center justify-center font-bold shadow-lg shadow-blue-500/20">
+                          <Bot size={22} />
                         </div>
                         <div>
-                          <h3 className="text-sm font-bold text-[var(--text-main)]">Conversational Assistant</h3>
-                          <p className="text-[10px] text-[var(--text-muted)] font-medium">Real-time live streaming grounded in verified clinical guidelines</p>
+                          <h3 className="text-sm font-extrabold text-slate-800 dark:text-slate-100">Conversational Assistant</h3>
+                          <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium mt-0.5">Real-time live streaming grounded in verified clinical guidelines</p>
                         </div>
                       </div>
 
@@ -523,14 +524,14 @@ export default function HealthCopilotPage({ user, session, predictionData: propP
                     </div>
 
                     {/* Action Prompt Pills */}
-                    <div className="py-3 border-b border-[var(--border-subtle)]/60 flex items-center gap-2 overflow-x-auto no-scrollbar">
-                      <span className="text-[10px] font-bold text-[var(--text-muted)] uppercase shrink-0">Prompts:</span>
+                    <div className="py-3.5 border-b border-slate-200/40 dark:border-slate-700/40 flex items-center gap-2 overflow-x-auto no-scrollbar relative z-10">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase shrink-0 tracking-wider">Prompts:</span>
                       {suggestedPrompts.map((promptText, idx) => (
                         <button
                           key={idx}
                           onClick={(e) => handleSendMessage(e, promptText)}
                           disabled={isAiLoading}
-                          className="px-3 py-1 text-xs font-semibold text-blue-600 dark:text-blue-400 bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/40 dark:hover:bg-blue-900/60 rounded-full transition-all whitespace-nowrap shrink-0 border border-blue-200/60 dark:border-blue-800/40 cursor-pointer"
+                          className="px-3.5 py-1.5 text-xs font-bold text-blue-700 dark:text-blue-300 bg-blue-50/80 hover:bg-blue-100/80 dark:bg-blue-950/40 dark:hover:bg-blue-900/60 rounded-full transition-all whitespace-nowrap shrink-0 border border-blue-200/60 dark:border-blue-800/40 cursor-pointer shadow-sm hover:shadow-md"
                         >
                           {promptText}
                         </button>
@@ -546,20 +547,20 @@ export default function HealthCopilotPage({ user, session, predictionData: propP
 
                         return (
                           <div key={msg.id} className={`flex flex-col ${isUser ? 'items-end' : 'items-start'}`}>
-                            <div className="flex items-center gap-1.5 mb-1">
-                              <span className="text-[10px] font-bold text-[var(--text-muted)]">
+                            <div className="flex items-center gap-1.5 mb-1.5">
+                              <span className="text-[10px] font-bold text-slate-500">
                                 {isUser ? userName : 'TeleMed AI Copilot'}
                               </span>
-                              <span className="text-[10px] font-mono text-[var(--text-muted)]">{msg.timestamp}</span>
+                              <span className="text-[10px] font-mono text-slate-400">{msg.timestamp}</span>
                             </div>
 
                             <div
-                              className={`p-4 rounded-2xl max-w-[88%] text-xs leading-relaxed shadow-xs relative transition-all ${
+                              className={`p-4 rounded-3xl max-w-[88%] text-[13px] leading-relaxed shadow-sm relative transition-all ${
                                 isUser
-                                  ? 'bg-blue-600 text-white rounded-br-none'
+                                  ? 'bg-gradient-to-br from-blue-600 to-indigo-600 text-white rounded-br-sm shadow-blue-500/20'
                                   : msg.isError
-                                  ? 'bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300 rounded-bl-none'
-                                  : 'bg-[var(--bg-primary)] border border-[var(--border-subtle)] text-[var(--text-main)] rounded-bl-none'
+                                  ? 'bg-rose-50/80 backdrop-blur-md border border-rose-200 text-rose-800 rounded-bl-sm'
+                                  : 'bg-white/90 dark:bg-slate-800/90 backdrop-blur-md border border-slate-200/80 dark:border-slate-700/80 text-slate-800 dark:text-slate-200 rounded-bl-sm shadow-slate-200/50'
                               }`}
                             >
                               {isUser ? (
@@ -604,17 +605,30 @@ export default function HealthCopilotPage({ user, session, predictionData: propP
                     </div>
 
                     {/* Message Composer Form */}
-                    <form onSubmit={handleSendMessage} className="pt-3 border-t border-[var(--border-subtle)] flex items-center gap-2">
-                      <Input
-                        placeholder={isDoctor ? "Ask Copilot about case guidelines, SHAP drivers, or summary..." : "Ask Copilot about your assessment, biomarkers, or report..."}
-                        value={chatInput}
-                        onChange={(e) => setChatInput(e.target.value)}
-                        disabled={isAiLoading}
-                        className="flex-1 text-xs"
-                      />
-                      <Button variant="primary" size="md" type="submit" isLoading={isAiLoading} leftIcon={<Send size={14} />}>
-                        Ask
-                      </Button>
+                    <form onSubmit={(e) => { e.preventDefault(); handleSendMessage(e); }} className="pt-4 border-t border-slate-200/60 dark:border-slate-700/60 relative z-10 mt-2">
+                      <div className="flex bg-white dark:bg-slate-800 rounded-full border border-slate-200 dark:border-slate-700 shadow-sm items-center p-1.5 focus-within:ring-4 focus-within:ring-blue-500/20 focus-within:border-blue-500 transition-all">
+                        <div className="w-10 h-10 flex items-center justify-center text-blue-500">
+                          <Bot size={20} />
+                        </div>
+                        <input
+                          placeholder={isDoctor ? "Ask Copilot about case guidelines, SHAP drivers, or summary..." : "Ask Copilot about your assessment, biomarkers, or report..."}
+                          value={chatInput}
+                          onChange={(e) => setChatInput(e.target.value)}
+                          disabled={isAiLoading}
+                          className="flex-1 bg-transparent border-none focus:outline-none px-2 py-2 text-sm text-slate-800 dark:text-slate-200 placeholder-slate-400"
+                        />
+                        <button
+                          type="submit"
+                          disabled={!chatInput.trim() || isAiLoading}
+                          className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${
+                            !chatInput.trim() || isAiLoading
+                              ? 'bg-slate-100 dark:bg-slate-700 text-slate-400 cursor-not-allowed'
+                              : 'bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-500/30 cursor-pointer'
+                          }`}
+                        >
+                          {isAiLoading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4 ml-0.5" />}
+                        </button>
+                      </div>
                     </form>
 
                   </div>

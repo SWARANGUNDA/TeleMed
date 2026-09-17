@@ -90,15 +90,7 @@ export function Topbar({ user, onLogout, onToggleTheme, theme = 'dark', onOpenMo
           </div>
         </div>
 
-        {/* Center: Global Search Bar Placeholder */}
-        <div className="hidden md:flex items-center w-72 lg:w-96 relative">
-          <Search className="w-4 h-4 absolute left-3 text-[var(--text-muted)] pointer-events-none" />
-          <input
-            type="text"
-            placeholder="Search patient record, lab test, or biomarker..."
-            className="w-full bg-[var(--bg-surface)] text-[var(--text-main)] text-xs rounded-xl pl-9 pr-4 py-2 border border-[var(--border-subtle)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)] transition-all placeholder:text-[var(--text-dim)]"
-          />
-        </div>
+
 
         {/* Right: Actions & User Profile */}
         <div className="flex items-center gap-3">

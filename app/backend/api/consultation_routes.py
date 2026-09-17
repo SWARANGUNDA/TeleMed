@@ -239,6 +239,39 @@ def admin_cancel_consultation(
 # Doctor Workspace & Controlled Clinical Access Endpoints
 # ------------------------------------------------------------------
 
+@router.get("/api/v1/doctor/consultations/open", status_code=status.HTTP_200_OK)
+def list_open_consultations(
+    current_user: dict = Depends(require_doctor_user)
+):
+    """Doctor Workspace: List all unassigned consultation requests."""
+    consultations = database.list_admin_consultations(status_filter="REQUESTED")
+    pending = database.list_admin_consultations(status_filter="PENDING")
+    all_open = consultations + pending
+    return {
+        "count": len(all_open),
+        "consultations": all_open
+    }
+
+
+@router.post("/api/v1/doctor/consultations/{consultation_id}/claim", status_code=status.HTTP_200_OK)
+def claim_consultation(
+    consultation_id: str,
+    current_user: dict = Depends(require_doctor_user)
+):
+    """Doctor assigns themselves to an open consultation."""
+    try:
+        updated = database.claim_open_consultation(
+            doctor_user_id=current_user["user_id"],
+            consultation_id=consultation_id
+        )
+        return {
+            "message": "Consultation successfully claimed and accepted.",
+            "consultation": updated
+        }
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
 @router.get("/api/v1/doctor/consultations", status_code=status.HTTP_200_OK)
 def list_doctor_consultations(
     verification_status: Optional[str] = None,

@@ -43,11 +43,8 @@ export default function IntakePage({
   const [showAllClinical, setShowAllClinical] = useState(false);
   const [showAllWearable, setShowAllWearable] = useState(false);
 
-  // Gut Pagination, Search & Composition State
+  // Gut Search & Composition State
   const [taxaSearchQuery, setTaxaSearchQuery] = useState('');
-  const [pageSize, setPageSize] = useState(10);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [isShowingAllTaxa, setIsShowingAllTaxa] = useState(false);
   const [otherTaxa, setOtherTaxa] = useState(4.5);
   const [patientId, setPatientId] = useState('');
 
@@ -143,8 +140,6 @@ export default function IntakePage({
       setSelectedProvenance(null);
       setFeatureSearchQuery('');
       setTaxaSearchQuery('');
-      setCurrentPage(1);
-      setIsShowingAllTaxa(false);
       setOtherTaxa(4.5);
     }
   }, [session, assessmentId]);
@@ -159,7 +154,11 @@ export default function IntakePage({
       }
       return file;
     });
-    setSelectedFiles((prev) => [...prev, ...newFiles]);
+    setSelectedFiles((prev) => {
+      const existingNames = new Set(prev.map(f => f.name));
+      const filtered = newFiles.filter(f => !existingNames.has(f.name));
+      return [...prev, ...filtered];
+    });
     setErrorMsg(null);
 
     newFiles.forEach((file) => {
@@ -642,7 +641,7 @@ export default function IntakePage({
         badge="Phase 1 Engine Active"
       />
 
-      {renderHorizontalStepper()}
+      {currentStep !== 3 && renderHorizontalStepper()}
 
       {/* Global Error Banner */}
       {errorMsg && (
@@ -1008,10 +1007,7 @@ export default function IntakePage({
                 label: 'Gut Microbiome (49)',
                 content: (() => {
                   const filteredTaxa = GUT_V4_TAXA_40.filter(t => t.toLowerCase().includes(featureSearchQuery.toLowerCase()) || t.toLowerCase().includes(taxaSearchQuery.toLowerCase()));
-                  const totalPages = Math.ceil(filteredTaxa.length / pageSize) || 1;
-                  const startIdx = (currentPage - 1) * pageSize;
-                  const endIdx = Math.min(startIdx + pageSize, filteredTaxa.length);
-                  const displayedTaxa = isShowingAllTaxa ? filteredTaxa : filteredTaxa.slice(startIdx, endIdx);
+                  const displayedTaxa = filteredTaxa;
 
                   // Compositional Check Calculation
                   const taxaSum = GUT_V4_TAXA_40.reduce((acc, t) => acc + (parseFloat(formGut[t]) || 0.0), 0.0);
@@ -1073,48 +1069,16 @@ export default function IntakePage({
 
                       {/* CONTROLS BAR */}
                       <Card isGlass={true} className="p-4 space-y-3">
-                        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 flex-wrap">
-                          <div className="flex items-center gap-2 w-full sm:w-auto">
-                            <div className="w-64">
-                              <Input
-                                placeholder="Search 40 V4 Taxa species..."
-                                leftIcon={<Search className="w-4 h-4" />}
-                                value={taxaSearchQuery}
-                                onChange={(e) => { setTaxaSearchQuery(e.target.value); setCurrentPage(1); }}
-                              />
-                            </div>
-                            <Button
-                              variant={isShowingAllTaxa ? 'primary' : 'outline'}
-                              size="sm"
-                              onClick={() => setIsShowingAllTaxa(!isShowingAllTaxa)}
-                            >
-                              {isShowingAllTaxa ? 'Paginate' : 'Show All (40)'}
-                            </Button>
-                          </div>
-
-                          <div className="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-end">
-                            <div className="flex items-center gap-1.5 text-xs text-[var(--text-muted)]">
-                              <span>Per page:</span>
-                              <select
-                                value={pageSize}
-                                onChange={(e) => { setPageSize(Number(e.target.value)); setCurrentPage(1); }}
-                                className="bg-[var(--bg-surface)] border border-[var(--border-medium)] rounded-lg px-2 py-1 text-xs font-mono text-[var(--text-main)]"
-                                disabled={isShowingAllTaxa}
-                              >
-                                <option value={5}>5</option>
-                                <option value={10}>10</option>
-                                <option value={20}>20</option>
-                                <option value={40}>40</option>
-                              </select>
-                            </div>
-
-                            <span className="text-xs font-mono font-semibold text-[var(--text-main)]">
-                              Showing {filteredTaxa.length === 0 ? 0 : isShowingAllTaxa ? 1 : startIdx + 1}–{isShowingAllTaxa ? filteredTaxa.length : endIdx} of {filteredTaxa.length} taxa
-                            </span>
-                          </div>
+                        <div className="flex items-center gap-2 w-full max-w-sm mb-2">
+                          <Input
+                            placeholder="Search 40 V4 Taxa species..."
+                            leftIcon={<Search className="w-4 h-4" />}
+                            value={taxaSearchQuery}
+                            onChange={(e) => setTaxaSearchQuery(e.target.value)}
+                          />
                         </div>
 
-                        {/* TAXA PAGINATED TABLE */}
+                        {/* TAXA TABLE */}
                         <Table headers={['Taxon Species Name', 'Relative Abundance (%)', 'Unit', 'Status', 'Details']}>
                           {displayedTaxa.map((featKey) => {
                             const val = formGut[featKey];
@@ -1249,7 +1213,7 @@ export default function IntakePage({
       )}
 
       {/* ALWAYS VISIBLE BOTTOM ACTION BAR */}
-      <div className="fixed bottom-0 left-0 right-0 z-[var(--z-header)] bg-[var(--bg-surface)]/90 backdrop-blur-md border-t border-[var(--border-subtle)] p-4 shadow-2xl">
+      <div className="fixed bottom-0 left-0 lg:left-[var(--sidebar-width)] right-0 transition-all duration-300 z-[var(--z-header)] bg-[var(--bg-surface)]/90 backdrop-blur-md border-t border-[var(--border-subtle)] p-4 shadow-2xl">
         <div className="max-w-[1600px] mx-auto flex items-center justify-between px-4 md:px-8">
           <Button
             variant="outline"
@@ -1287,6 +1251,17 @@ export default function IntakePage({
                 onClick={handleConfirmAndRunML}
               >
                 Confirm & Run Analysis →
+              </Button>
+            )}
+
+            {currentStep === 3 && journeyStage === 'completed' && (
+              <Button
+                variant="primary"
+                size="md"
+                onClick={() => navigate('/dashboard')}
+                rightIcon={<ArrowRight className="w-4 h-4" />}
+              >
+                View Prediction Results →
               </Button>
             )}
           </div>

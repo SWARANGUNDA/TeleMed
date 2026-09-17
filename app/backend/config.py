@@ -27,6 +27,8 @@ DEMO_DOCTOR_PASSWORD: str = os.getenv("TELEMED_DEMO_DOCTOR_PASSWORD", "DocSec#20
 DEMO_PATIENT_EMAIL: str = os.getenv("TELEMED_DEMO_PATIENT_EMAIL", "patient@telemed.ai")
 DEMO_PATIENT_PASSWORD: str = os.getenv("TELEMED_DEMO_PATIENT_PASSWORD", "PatSec#2026!HealthApp")
 
+# LLM Integration Configuration
+GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "")
 def validate_production_config():
     """
     Validate mandatory secrets in Production mode.

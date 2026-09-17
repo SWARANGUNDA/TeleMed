@@ -46,7 +46,6 @@ export function Sidebar({ isCollapsed, onToggleCollapse, userRole = 'PATIENT', c
     {
       group: "Records & Care",
       items: [
-        { id: "pat-copilot", label: "AI Health Copilot", icon: Sparkles, path: "/copilot" },
         { id: "pat-profile", label: "Profile Workspace", icon: UserCheck, path: "/profile" },
         { id: "pat-compare", label: "Compare & Analytics", icon: BarChart3, path: "/compare" },
         { id: "pat-messages", label: "Secure Messages", icon: Activity, path: "/messages" },

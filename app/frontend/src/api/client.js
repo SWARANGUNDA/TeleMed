@@ -5,7 +5,7 @@
  */
 
 const API_BASE = (typeof window !== 'undefined' && ['5173', '5174', '5175', '5176'].includes(window.location.port))
-  ? 'http://localhost:8000/api/v1'
+  ? 'http://127.0.0.1:8000/api/v1'
   : (import.meta.env?.VITE_API_URL || '/api/v1');
 
 const V3_API_BASE = API_BASE.replace(/\/api\/v1$/, '/api/v3');
@@ -61,7 +61,7 @@ export function getWsBaseUrl() {
   const isDev = ['localhost', '127.0.0.1'].includes(window.location.hostname) && ['5173', '5174', '5175', '5176'].includes(window.location.port);
   if (isDev) {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    return `${protocol}//${window.location.hostname}:8000`;
+    return `${protocol}//127.0.0.1:8000`;
   }
   if (import.meta.env?.VITE_WS_URL) {
     return import.meta.env.VITE_WS_URL;
@@ -388,7 +388,7 @@ export async function fetchAdminDoctors(verificationStatus = null) {
     headers: getAuthHeaders(),
   });
   const data = await handleApiResponse(res, 'Failed to fetch doctors');
-  return data.doctors || (Array.isArray(data) ? data : []);
+  return data.applications || data.doctors || (Array.isArray(data) ? data : []);
 }
 
 export async function updateDoctorStatus(doctorId, status, notes = '') {
@@ -484,7 +484,7 @@ export async function generateRAGReport(sessionId) {
 }
 
 export async function askRAGQuestion(sessionId, question) {
-  const res = await fetch(`${API_BASE}/predict/qanda`, {
+  const res = await fetch(`${API_BASE}/rag/qanda`, {
     method: 'POST',
     headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify({ session_id: sessionId, question }),
@@ -502,7 +502,7 @@ export async function fetchSuggestedQuestions(sessionId, predictResponse = null)
         body: JSON.stringify({ patient_id: sessionId || 'P_TEST_001', predict_response: predictResponse }),
       });
     } else if (sessionId) {
-      res = await fetch(`${API_BASE}/predict/suggested-questions?session_id=${encodeURIComponent(sessionId)}`, {
+      res = await fetch(`${API_BASE}/rag/suggested-questions?session_id=${encodeURIComponent(sessionId)}`, {
         method: 'GET',
         headers: getAuthHeaders(),
       });
@@ -650,7 +650,7 @@ export async function deleteDoctorCredential(documentId) {
 }
 
 export async function fetchDoctorVerificationStatus() {
-  const res = await fetch(`${API_BASE}/doctor/verification/status`, {
+  const res = await fetch(`${API_BASE}/doctor/verification-status`, {
     method: 'GET',
     headers: getAuthHeaders(),
   });
@@ -659,7 +659,7 @@ export async function fetchDoctorVerificationStatus() {
 
 export async function submitDoctorApplicationForReview() {
   try {
-    const res = await fetch(`${API_BASE}/doctor/verification/submit`, {
+    const res = await fetch(`${API_BASE}/doctor/submit-for-review`, {
       method: 'POST',
       headers: getAuthHeaders(),
     });
@@ -791,6 +791,23 @@ export async function adminCancelConsultation(consultationId, notes = '') {
     body: JSON.stringify({ notes }),
   });
   return await handleApiResponse(res, 'Failed to cancel consultation');
+}
+
+export async function fetchOpenConsultations() {
+  const url = `${API_BASE}/doctor/consultations/open`;
+  const res = await fetch(url, {
+    method: 'GET',
+    headers: getAuthHeaders(),
+  });
+  return await handleApiResponse(res, 'Failed to fetch open consultations');
+}
+
+export async function claimConsultation(consultationId) {
+  const res = await fetch(`${API_BASE}/doctor/consultations/${consultationId}/claim`, {
+    method: 'POST',
+    headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
+  });
+  return await handleApiResponse(res, 'Failed to claim consultation');
 }
 
 export async function fetchDoctorConsultations(statusFilter = '') {

@@ -5,6 +5,7 @@ import { Layout } from './components/layout/Layout';
 import AuthModal from './components/AuthModal';
 import ErrorBoundary from './components/ErrorBoundary';
 import ProtectedRoute from './components/ProtectedRoute';
+import ScrollToTop from './components/ScrollToTop';
 
 import AssessmentComparisonModal from './components/AssessmentComparisonModal';
 import useTheme from './utils/useTheme';
@@ -60,7 +61,7 @@ function PageSkeleton() {
   );
 }
 
-export function getNavFromPath(path, role) {
+function getNavFromPath(path, role) {
   switch (path) {
     case '/intake':
       return { activeNav: 'analysis', activeSubNav: 'new_analysis' };
@@ -109,7 +110,7 @@ export function getNavFromPath(path, role) {
   }
 }
 
-export function getPathFromNav(primaryNav, subNav, role) {
+function getPathFromNav(primaryNav, subNav, role) {
   if (primaryNav === 'analysis' || primaryNav === 'intake') return '/intake';
   if (primaryNav === 'results') {
     if (subNav === 'xai') return '/xai';
@@ -408,7 +409,7 @@ export default function App() {
 
   // P0 FIX: Hard assessment reset. Creates a fresh assessment context.
   // Clears ALL assessment-scoped state while preserving auth, profile, and historical records.
-  const handleStartNewAssessment = () => {
+  const handleClearAssessment = () => {
     const newId = `assess_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
     setAssessmentId(newId);
     setSession(null);
@@ -421,6 +422,10 @@ export default function App() {
       sessionStorage.removeItem('telemed_pred');
       sessionStorage.removeItem('telemed_xai');
     } catch (e) {}
+  };
+
+  const handleStartNewAssessment = () => {
+    handleClearAssessment();
     navigate('/intake');
   };
 
@@ -473,7 +478,8 @@ export default function App() {
       }
 
       setGuardNotice(null);
-      navigate('/dashboard');
+      // Auto-redirect removed entirely as requested, allowing reviewers to manually proceed
+      // using the "View Prediction Results ->" button on the Intake page.
     } catch (err) {
       setGuardNotice(`Analysis Notification: ${err.message || 'Pipeline execution warning'}`);
     }
@@ -506,6 +512,7 @@ export default function App() {
 
   const routeContent = (
     <ErrorBoundary key={location.pathname} onReset={() => navigate(defaultRoleDashboard)}>
+      <ScrollToTop />
       <Suspense fallback={<PageSkeleton />}>
         <Routes>
           {/* PUBLIC LANDING ROUTES */}
@@ -584,12 +591,9 @@ export default function App() {
                   session={session}
                   predictionData={predictionData}
                   onStartAnalysis={handleStartNewAssessment}
+                  onClearAssessment={handleClearAssessment}
                   onShareWithDoctor={(recId) => {
-                    setConsultationContext({
-                      reason: 'Sharing persistent health record for doctor review',
-                      recordId: recId
-                    });
-                    navigate('/consultations');
+                    handleDiscussWithDoctor(`Can you review my health record [ID: ${recId}]?`);
                   }}
                 />
               </ProtectedRoute>
@@ -798,6 +802,7 @@ export default function App() {
       onLogout={handleLogout}
       onToggleTheme={toggleTheme}
       theme={activeTheme}
+      noPageContainer={location.pathname === '/messages'}
     >
 
 

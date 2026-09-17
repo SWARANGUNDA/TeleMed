@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PageContainer } from '../components/layout';
+import MarkdownRenderer from '../components/MarkdownRenderer';
 import { Badge, Button, Modal } from '../components/ui';
 import {
   MessageSquare, Send, Search, CheckCheck, UserCheck, ShieldCheck,
@@ -26,51 +27,22 @@ export default function MessagesPage({ user }) {
   const patientFullName = user?.full_name || user?.name || user?.patient_profile?.full_name || (user?.email ? user.email.split('@')[0].replace('.', ' ').replace('_', ' ') : 'Patient');
   const patientFirstName = patientFullName.split(' ')[0] || 'Patient';
 
-  // AI Assistant Thread definition
-  const aiThread = {
-    id: 'ai_assistant',
-    consultation_id: null,
-    title: 'TeleMed AI Assistant',
-    doctorName: 'TeleMed AI Assistant',
-    specialty: 'AI Decision Support & Clinical RAG',
-    hospital: 'TeleMed AI Engine v4.0',
-    isOnline: true,
-    role: 'AI_ASSISTANT',
-    badge: 'AI DECISION SUPPORT',
-    lastMessage: 'Ready to analyze your multimodal health metrics and evidence.',
-    lastMessageTime: 'Just now',
-    unreadCount: 0,
-    status: 'ACTIVE',
-    isAi: true
-  };
-
   // State Management
-  const [conversations, setConversations] = useState([aiThread]);
-  const [selectedConversationId, setSelectedConversationId] = useState('ai_assistant');
+  const [conversations, setConversations] = useState([]);
+  const [selectedConversationId, setSelectedConversationId] = useState(null);
   const [activeTab, setActiveTab] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [messageInput, setMessageInput] = useState('');
-  const [messagesHistory, setMessagesHistory] = useState({
-    ai_assistant: [
-      {
-        message_id: 'msg-ai-init',
-        sender_user_id: 'ai_system',
-        sender_role: 'AI_ASSISTANT',
-        sender_name: 'TeleMed AI Assistant',
-        badge: 'AI DECISION SUPPORT',
-        content: `Hello ${patientFirstName}! I am your TeleMed AI Assistant. I synthesize clinical evidence from your lab parameters, wearables, and health assessments. Feel free to ask about your health records, predictions, or lifestyle recommendations.\n\nNote: AI guidance is for decision support and does not replace professional medical advice from your physician.`,
-        created_at: new Date().toISOString(),
-        status: 'sent'
-      }
-    ]
-  });
+  const [messagesHistory, setMessagesHistory] = useState({});
 
   const [loadingConversations, setLoadingConversations] = useState(true);
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [sending, setSending] = useState(false);
-  const [isAiThinking, setIsAiThinking] = useState(false);
   const [errorMsg, setErrorMsg] = useState(null);
   const [archivedIds, setArchivedIds] = useState(new Set());
+  const [isAiThinking, setIsAiThinking] = useState(false);
+  
+  const aiThread = { id: 'ai-assistant', doctorName: 'TeleMed AI Copilot', specialty: 'AI Assistant', title: 'Health Insights', timestamp: 'Now', unreadCount: 0, isAi: true };
   
   // Modals & Menus
   const [showSecurityModal, setShowSecurityModal] = useState(false);
@@ -87,7 +59,7 @@ export default function MessagesPage({ user }) {
 
   useEffect(() => {
     scrollToBottom();
-  }, [messagesHistory, selectedConversationId, isAiThinking, scrollToBottom]);
+  }, [messagesHistory, selectedConversationId, scrollToBottom]);
 
   const loadConversations = useCallback(async () => {
     setLoadingConversations(true);
@@ -96,7 +68,7 @@ export default function MessagesPage({ user }) {
       const res = await fetchUserConversations();
       const rawThreads = (res && Array.isArray(res.conversations)) ? res.conversations : [];
 
-      const seenIds = new Set([aiThread.id]);
+      const seenIds = new Set();
       const dbThreads = [];
       for (const t of rawThreads) {
         const tid = t.id || t.consultation_id;
@@ -106,8 +78,10 @@ export default function MessagesPage({ user }) {
         }
       }
       
-      const allThreads = [aiThread, ...dbThreads];
-      setConversations(allThreads);
+      setConversations(dbThreads);
+      if (dbThreads.length > 0 && !selectedConversationId) {
+        setSelectedConversationId(dbThreads[0].id || dbThreads[0].consultation_id);
+      }
     } catch (err) {
       // Handled silently
     } finally {
@@ -119,9 +93,8 @@ export default function MessagesPage({ user }) {
     loadConversations();
   }, [loadConversations]);
 
-  // Load Messages for Active Selected Conversation
   const loadActiveMessages = useCallback(async (convId) => {
-    if (!convId || convId === 'ai_assistant') return;
+    if (!convId) return;
 
     setLoadingMessages(true);
     try {
@@ -146,110 +119,109 @@ export default function MessagesPage({ user }) {
   }, []);
 
   useEffect(() => {
-    if (selectedConversationId && selectedConversationId !== 'ai_assistant') {
+    if (selectedConversationId) {
       loadActiveMessages(selectedConversationId);
     }
   }, [selectedConversationId, loadActiveMessages]);
 
-  // Send Message Logic
   const handleSendMessage = async (e) => {
     if (e) e.preventDefault();
     const text = messageInput.trim();
-    if (!text || sending || isAiThinking) return;
+    if (!text || sending || !selectedConversationId) return;
 
-    const nowIso = new Date().toISOString();
-    setMessageInput('');
-    setErrorMsg(null);
-
-    if (selectedConversationId === 'ai_assistant') {
-      // AI Assistant Path
+    if (activeConv?.isAi) {
       const userMsg = {
-        message_id: `user_msg_${Date.now()}`,
-        sender_user_id: userId,
-        sender_role: 'PATIENT',
-        sender_name: patientFullName,
+        message_id: `msg-${Date.now()}`,
+        sender_name: user?.full_name || 'You',
         content: text,
-        created_at: nowIso,
+        created_at: new Date().toISOString(),
+        sender_role: user?.role || 'PATIENT',
+        sender_user_id: userId,
         status: 'sent'
       };
 
       setMessagesHistory(prev => ({
         ...prev,
-        ai_assistant: [...(prev.ai_assistant || []), userMsg]
+        [selectedConversationId]: [...(prev[selectedConversationId] || []), userMsg]
       }));
 
+      setMessageInput('');
       setIsAiThinking(true);
+      
       try {
-        const ragRes = await askRAGQuestion(text);
-        const aiReplyText = ragRes?.answer || ragRes?.response || ragRes?.message || "Based on clinical evidence-based protocol, please verify your symptoms with your attending physician for diagnostic confirmation.";
-
-        const aiReplyMsg = {
-          message_id: `ai_msg_${Date.now()}`,
-          sender_user_id: 'ai_system',
-          sender_role: 'AI_ASSISTANT',
-          sender_name: 'TeleMed AI Assistant',
-          badge: 'AI DECISION SUPPORT',
-          content: aiReplyText,
+        const res = await askRAGQuestion(userId, text);
+        const botText = res.answer || res.answer_payload?.answer || res.answer_payload?.response_text || res.answer_payload?.response || 'I am sorry, I am unable to process that at the moment.';
+        const botMsg = {
+          message_id: `msg-${Date.now() + 1}`,
+          sender_name: 'TeleMed AI Copilot',
+          content: botText,
           created_at: new Date().toISOString(),
-          status: 'sent'
+          sender_role: 'AI',
+          sender_user_id: 'ai-assistant',
+          status: 'sent',
+          evidence: res.answer_payload?.retrieved_evidence || []
         };
-
         setMessagesHistory(prev => ({
           ...prev,
-          ai_assistant: [...(prev.ai_assistant || []), aiReplyMsg]
+          [selectedConversationId]: [...(prev[selectedConversationId] || []), botMsg]
         }));
       } catch (err) {
-        setErrorMsg("AI Assistant engine is temporarily busy. Please try again in a moment.");
+        setErrorMsg(err.message || "Failed to communicate with AI Copilot.");
       } finally {
         setIsAiThinking(false);
       }
-    } else {
-      // Doctor Consultation Path
-      setSending(true);
-      const tempMsgId = `temp_${Date.now()}`;
-      const newMsg = {
-        message_id: tempMsgId,
-        consultation_id: selectedConversationId,
-        sender_user_id: userId,
-        sender_role: userRole,
-        sender_name: patientFullName,
-        content: text,
-        created_at: nowIso,
-        status: 'sending'
-      };
+      return;
+    }
 
+    const nowIso = new Date().toISOString();
+    setMessageInput('');
+    setErrorMsg(null);
+
+    // Doctor Consultation Path
+    setSending(true);
+    const tempMsgId = `temp_${Date.now()}`;
+    const newMsg = {
+      message_id: tempMsgId,
+      consultation_id: selectedConversationId,
+      sender_user_id: userId,
+      sender_role: userRole,
+      sender_name: patientFullName,
+      content: text,
+      created_at: nowIso,
+      status: 'sending'
+    };
+
+    setMessagesHistory(prev => ({
+      ...prev,
+      [selectedConversationId]: [...(prev[selectedConversationId] || []), newMsg]
+    }));
+
+    try {
+      const res = await sendConsultationMessage(selectedConversationId, text);
+      const savedData = (res && typeof res === 'object' && res.data) ? res.data : res;
+      
       setMessagesHistory(prev => ({
         ...prev,
-        [selectedConversationId]: [...(prev[selectedConversationId] || []), newMsg]
+        [selectedConversationId]: (prev[selectedConversationId] || []).map(m => 
+          m.message_id === tempMsgId 
+            ? { ...m, message_id: savedData?.message_id || tempMsgId, status: 'sent', created_at: savedData?.created_at || nowIso }
+            : m
+        )
       }));
 
-      try {
-        const res = await sendConsultationMessage(selectedConversationId, text);
-        const savedData = (res && typeof res === 'object' && res.data) ? res.data : res;
-        
-        setMessagesHistory(prev => ({
-          ...prev,
-          [selectedConversationId]: (prev[selectedConversationId] || []).map(m => 
-            m.message_id === tempMsgId 
-              ? { ...m, message_id: savedData?.message_id || tempMsgId, status: 'sent', created_at: savedData?.created_at || nowIso }
-              : m
-          )
-        }));
-
-        setConversations(prev => prev.map(c => 
-          c.id === selectedConversationId ? { ...c, lastMessage: text, lastMessageTime: 'Just now' } : c
-        ));
-      } catch (err) {
-        setErrorMsg(err.message || "Failed to send message to physician.");
-        setMessagesHistory(prev => ({
-          ...prev,
-          [selectedConversationId]: (prev[selectedConversationId] || []).map(m => 
-            m.message_id === tempMsgId ? { ...m, status: 'failed' } : m
-          )
-        }));
-      } finally {
-        setSending(false);
-      }
+      setConversations(prev => prev.map(c => 
+        c.id === selectedConversationId ? { ...c, lastMessage: text, lastMessageTime: 'Just now' } : c
+      ));
+    } catch (err) {
+      setErrorMsg(err.message || "Failed to send message to physician.");
+      setMessagesHistory(prev => ({
+        ...prev,
+        [selectedConversationId]: (prev[selectedConversationId] || []).map(m => 
+          m.message_id === tempMsgId ? { ...m, status: 'failed' } : m
+        )
+      }));
+    } finally {
+      setSending(false);
     }
   };
 
@@ -332,12 +304,19 @@ export default function MessagesPage({ user }) {
       c.consultation_id?.toLowerCase().includes(q)
     );
   });
+  
+  let displayConversations = [...filteredConversations];
+  if (activeTab === 'all' || activeTab === 'ai') {
+    if (!searchQuery.trim() || aiThread.doctorName.toLowerCase().includes(searchQuery.toLowerCase())) {
+        displayConversations = [aiThread, ...displayConversations];
+    }
+  }
 
-  const activeConv = conversations.find(c => c.id === selectedConversationId) || aiThread;
+  const activeConv = displayConversations.find(c => c.id === selectedConversationId) || aiThread;
   const currentMessages = messagesHistory[selectedConversationId] || [];
 
   return (
-    <PageContainer className="max-w-[1480px] mx-auto px-4 py-4 space-y-4">
+    <div className="max-w-[1600px] w-full mx-auto p-2 flex flex-col h-full overflow-hidden space-y-2">
       
       {/* ── TOP MODERN HEADER BAR ────────────────────────────────────────────── */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 p-4 bg-gradient-to-r from-slate-900 via-slate-800 to-indigo-950 text-white rounded-2xl shadow-xl border border-slate-700/50">
@@ -379,7 +358,7 @@ export default function MessagesPage({ user }) {
       )}
 
       {/* ── 3-COLUMN CLINICAL WORKSPACE GRID ─────────────────────────────────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start h-[calc(100vh-170px)] min-h-[620px] max-h-[860px]">
+      <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-3 min-h-0">
 
         {/* ── LEFT COLUMN: Care Communications (3 cols) ─────────────────────── */}
         <div className="lg:col-span-3 bg-white border border-slate-200/90 rounded-2xl p-4 space-y-3.5 shadow-lg shadow-slate-100/60 flex flex-col h-full overflow-hidden">
@@ -447,7 +426,7 @@ export default function MessagesPage({ user }) {
                 <RefreshCw className="w-5 h-5 animate-spin mx-auto text-blue-600" />
                 <p>Syncing care channels...</p>
               </div>
-            ) : filteredConversations.length === 0 ? (
+            ) : displayConversations.length === 0 ? (
               <div className="py-10 text-center space-y-2.5 px-3 border border-dashed border-slate-200/80 rounded-2xl bg-slate-50/50 my-auto">
                 <div className="w-10 h-10 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center mx-auto">
                   <MessageSquare className="w-5 h-5" />
@@ -456,9 +435,8 @@ export default function MessagesPage({ user }) {
                 <p className="text-[11px] text-slate-500 leading-relaxed">Book a consultation with a specialist to initiate direct physician care communications.</p>
               </div>
             ) : (
-              filteredConversations.map((conv, idx) => {
+              displayConversations.map((conv, idx) => {
                 const isSelected = selectedConversationId === conv.id;
-                const isAi = conv.isAi;
 
                 return (
                   <div
@@ -472,12 +450,8 @@ export default function MessagesPage({ user }) {
                   >
                     <div className="flex items-start space-x-3">
                       {/* Avatar Icon */}
-                      <div className={`w-9 h-9 rounded-xl flex items-center justify-center text-xs font-bold flex-shrink-0 shadow-sm ${
-                        isAi 
-                          ? 'bg-gradient-to-tr from-purple-600 to-indigo-600 text-white shadow-purple-500/20' 
-                          : 'bg-gradient-to-tr from-blue-600 to-cyan-600 text-white shadow-blue-500/20'
-                      }`}>
-                        {isAi ? <Sparkles className="w-4 h-4" /> : <UserCheck className="w-4 h-4" />}
+                      <div className={`w-9 h-9 rounded-xl flex items-center justify-center text-xs font-bold flex-shrink-0 shadow-sm ${conv.isAi ? 'bg-gradient-to-tr from-purple-600 to-pink-500 text-white shadow-purple-500/20' : 'bg-gradient-to-tr from-blue-600 to-cyan-600 text-white shadow-blue-500/20'}`}>
+                        {conv.isAi ? <Bot className="w-4 h-4" /> : <UserCheck className="w-4 h-4" />}
                       </div>
 
                       <div className="flex-1 min-w-0">
@@ -527,38 +501,24 @@ export default function MessagesPage({ user }) {
           {/* Active Header */}
           <div className="p-3.5 px-5 border-b border-slate-100 flex items-center justify-between bg-white flex-shrink-0 shadow-2xs">
             <div className="flex items-center space-x-3.5 min-w-0">
-              <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-xs font-bold flex-shrink-0 shadow-md ${
-                activeConv.isAi ? 'bg-gradient-to-tr from-purple-600 to-indigo-600 text-white' : 'bg-gradient-to-tr from-blue-600 to-cyan-600 text-white'
-              }`}>
-                {activeConv.isAi ? <Sparkles className="w-5 h-5" /> : <UserCheck className="w-5 h-5" />}
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center text-xs font-bold flex-shrink-0 shadow-md bg-gradient-to-tr from-blue-600 to-cyan-600 text-white">
+                <UserCheck className="w-5 h-5" />
               </div>
 
               <div className="min-w-0">
                 <div className="flex items-center space-x-2.5">
                   <h3 className="text-sm font-extrabold text-slate-900 truncate">
-                    {activeConv.doctorName || activeConv.title}
+                    {activeConv?.doctorName || activeConv?.title || 'Select a Conversation'}
                   </h3>
-                  <span className={`text-[10px] font-extrabold px-2.5 py-0.5 rounded-full uppercase tracking-wider ${
-                    activeConv.isAi 
-                      ? 'bg-purple-100 text-purple-700 border border-purple-200' 
-                      : 'bg-emerald-100 text-emerald-700 border border-emerald-200'
-                  }`}>
-                    {activeConv.isAi ? 'AI Assistant Engine' : 'Verified Physician'}
-                  </span>
-
-                  {activeConv.isAi && (
-                    <button
-                      onClick={() => setShowAiInfoModal(true)}
-                      className="text-slate-400 hover:text-purple-600 transition-colors"
-                      title="AI Engine Info"
-                    >
-                      <Info className="w-4 h-4" />
-                    </button>
+                  {activeConv?.consultation_id && (
+                    <span className="text-[10px] font-extrabold px-2.5 py-0.5 rounded-full uppercase tracking-wider bg-emerald-100 text-emerald-700 border border-emerald-200">
+                      Verified Physician
+                    </span>
                   )}
                 </div>
 
                 <p className="text-xs text-slate-500 truncate mt-0.5">
-                  {activeConv.specialty} {!activeConv.isAi && activeConv.hospital ? `• ${activeConv.hospital}` : ''}
+                  {activeConv?.specialty} {activeConv?.hospital ? `• ${activeConv.hospital}` : ''}
                 </p>
               </div>
             </div>
@@ -603,17 +563,6 @@ export default function MessagesPage({ user }) {
             </div>
           </div>
 
-          {/* AI Disclosure Banner */}
-          {activeConv.isAi && (
-            <div className="px-5 py-2 bg-gradient-to-r from-purple-50 to-indigo-50 border-b border-purple-100 flex items-center justify-between text-xs text-purple-900 flex-shrink-0">
-              <div className="flex items-center space-x-2">
-                <Sparkles className="w-4 h-4 text-purple-600 flex-shrink-0" />
-                <span className="font-medium text-[11px]">AI-generated decision support synthesized from RAG engine & clinical guidelines.</span>
-              </div>
-              <span className="text-[10px] font-bold text-purple-700 bg-purple-200/60 px-2 py-0.5 rounded-md flex-shrink-0">v4.0 UNIFIED</span>
-            </div>
-          )}
-
           {/* Clinical Communication Timeline Feed */}
           <div className="flex-1 overflow-y-auto p-5 space-y-4 custom-scrollbar bg-slate-50/40">
             
@@ -625,12 +574,12 @@ export default function MessagesPage({ user }) {
             </div>
 
             {/* Real Consultation Event Marker */}
-            {!activeConv.isAi && activeConv.appointment_date && (
+            {activeConv?.appointment_date && (
               <div className="p-3 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200/80 rounded-2xl text-xs flex items-center space-x-3 text-blue-900 shadow-sm">
                 <CheckCircle2 className="w-5 h-5 text-blue-600 flex-shrink-0" />
                 <div>
-                  <p className="font-bold">Appointment Confirmed with {activeConv.doctorName}</p>
-                  <p className="text-[11px] text-blue-700">Scheduled slot: {activeConv.appointment_date} {activeConv.appointment_time || ''}</p>
+                  <p className="font-bold">Appointment Confirmed with {activeConv?.doctorName}</p>
+                  <p className="text-[11px] text-blue-700">Scheduled slot: {activeConv?.appointment_date} {activeConv?.appointment_time || ''}</p>
                 </div>
               </div>
             )}
@@ -649,8 +598,6 @@ export default function MessagesPage({ user }) {
             ) : (
               currentMessages.map((msg, index) => {
                 const isMe = msg.sender_user_id === userId || msg.sender_role === 'PATIENT';
-                const isAi = msg.sender_role === 'AI_ASSISTANT';
-
                 return (
                   <div
                     key={msg.message_id || index}
@@ -659,7 +606,7 @@ export default function MessagesPage({ user }) {
                     {/* Sender Label */}
                     <div className="flex items-center space-x-2 px-1">
                       <span className="text-[10px] font-bold text-slate-500">
-                        {isMe ? 'You' : msg.sender_name || activeConv.doctorName}
+                        {isMe ? 'You' : msg.sender_name || activeConv?.doctorName}
                       </span>
                       <span className="text-[10px] text-slate-400">
                         {formatTime(msg.created_at)}
@@ -671,14 +618,16 @@ export default function MessagesPage({ user }) {
                       className={`max-w-[85%] p-4 rounded-2xl text-xs space-y-1.5 shadow-sm transition-all ${
                         isMe
                           ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-br-none shadow-blue-500/10'
-                          : isAi
-                          ? 'bg-gradient-to-br from-purple-50/90 to-indigo-50/70 border border-purple-200/80 text-purple-950 rounded-bl-none shadow-purple-500/5'
                           : 'bg-white border border-slate-200/90 text-slate-900 rounded-bl-none shadow-slate-100'
                       }`}
                     >
-                      <p className="whitespace-pre-wrap leading-relaxed">
-                        {msg.content}
-                      </p>
+                      <div className="leading-relaxed">
+                        {msg.sender_role === 'AI' || msg.sender_user_id === 'ai-assistant' ? (
+                          <MarkdownRenderer text={msg.content} />
+                        ) : (
+                          <p className="whitespace-pre-wrap">{msg.content}</p>
+                        )}
+                      </div>
 
                       {/* Footer Status for Patient Messages */}
                       {isMe && (
@@ -705,20 +654,11 @@ export default function MessagesPage({ user }) {
               })
             )}
 
-            {/* AI Thinking Animation */}
-            {isAiThinking && (
-              <div className="flex items-center space-x-2.5 p-3.5 bg-purple-50/90 border border-purple-200 rounded-2xl text-xs text-purple-900 max-w-[80%] animate-pulse">
-                <Sparkles className="w-4 h-4 text-purple-600 animate-spin" />
-                <span className="font-semibold">TeleMed AI Assistant is synthesizing clinical evidence...</span>
-              </div>
-            )}
-
             <div ref={chatEndRef} />
           </div>
 
-          {/* Quick Prompt Presets for AI Chat */}
-          {activeConv.isAi && (
-            <div className="px-4 py-2 bg-slate-50/80 border-t border-slate-100 flex items-center space-x-2 overflow-x-auto no-scrollbar flex-shrink-0">
+          {activeConv?.isAi && (
+            <div className="px-4 py-2 bg-slate-50/80 border-t border-slate-100 flex flex-wrap items-center gap-2 flex-shrink-0">
               <span className="text-[10px] font-extrabold uppercase text-purple-600 flex-shrink-0 flex items-center gap-1">
                 <Zap className="w-3 h-3" /> Quick Ask:
               </span>
@@ -755,9 +695,9 @@ export default function MessagesPage({ user }) {
                 value={messageInput}
                 onChange={(e) => setMessageInput(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder={activeConv.isAi ? "Ask AI Assistant about lab parameters, risk scores, or health recommendations..." : "Write a secure message to your healthcare team..."}
+                placeholder={activeConv?.isAi ? "Ask AI Assistant about lab parameters, risk scores, or health recommendations..." : "Write a secure message to your healthcare team..."}
                 rows={1}
-                className="flex-1 px-4 py-2.5 text-xs bg-slate-50/80 border border-slate-200 rounded-xl focus:outline-none focus:border-blue-500 focus:bg-white text-slate-900 placeholder-slate-400 resize-none custom-scrollbar"
+                className="flex-1 px-4 py-2.5 text-xs bg-slate-50/80 border border-slate-200 rounded-xl focus:outline-none focus:border-blue-500 focus:bg-white text-slate-900 placeholder-slate-400 resize-none overflow-hidden"
               />
 
               <button
@@ -797,12 +737,12 @@ export default function MessagesPage({ user }) {
                 <Activity className="w-4 h-4" />
               </div>
               <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700">
-                {activeConv.isAi ? 'Care Context' : 'Consultation Details'}
+                {activeConv?.isAi ? 'Care Context' : 'Consultation Details'}
               </h3>
             </div>
 
             <div className="p-3 bg-gradient-to-br from-slate-50 to-indigo-50/30 border border-slate-200/70 rounded-xl space-y-2 text-xs">
-              {activeConv.isAi ? (
+              {activeConv?.isAi ? (
                 <>
                   <div className="flex justify-between">
                     <span className="text-slate-500">Session Type:</span>
@@ -824,33 +764,33 @@ export default function MessagesPage({ user }) {
                 <>
                   <div className="flex justify-between">
                     <span className="text-slate-500">Specialist:</span>
-                    <span className="font-bold text-slate-800 truncate max-w-[130px]">{activeConv.doctorName}</span>
+                    <span className="font-bold text-slate-800 truncate max-w-[130px]">{activeConv?.doctorName}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-slate-500">Specialty:</span>
-                    <span className="font-bold text-slate-800">{activeConv.specialty}</span>
+                    <span className="font-bold text-slate-800">{activeConv?.specialty}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-slate-500">ID:</span>
-                    <span className="font-mono font-bold text-blue-600">{activeConv.consultation_id}</span>
+                    <span className="font-mono font-bold text-blue-600">{activeConv?.consultation_id}</span>
                   </div>
-                  {activeConv.appointment_date && (
+                  {activeConv?.appointment_date && (
                     <div className="flex justify-between">
                       <span className="text-slate-500">Slot:</span>
-                      <span className="font-bold text-slate-800">{activeConv.appointment_date}</span>
+                      <span className="font-bold text-slate-800">{activeConv?.appointment_date}</span>
                     </div>
                   )}
                   <div className="flex justify-between items-center">
                     <span className="text-slate-500">Status:</span>
                     <span className="bg-emerald-100 text-emerald-700 text-[10px] font-extrabold px-2 py-0.5 rounded-full">
-                      {activeConv.status || 'Active'}
+                      {activeConv?.status || 'Active'}
                     </span>
                   </div>
                 </>
               )}
             </div>
 
-            {!activeConv.isAi && activeConv.consultation_id && (
+            {!activeConv?.isAi && activeConv?.consultation_id && (
               <button
                 className="w-full py-2 px-3 border border-slate-200 bg-slate-50 hover:bg-slate-100 rounded-xl text-slate-700 font-bold text-xs flex items-center justify-center space-x-1.5 transition-all cursor-pointer"
                 onClick={() => navigate('/consultations')}
@@ -893,16 +833,7 @@ export default function MessagesPage({ user }) {
                 <ChevronRight className="w-4 h-4 text-slate-400 group-hover:translate-x-0.5 transition-transform" />
               </button>
 
-              <button
-                onClick={() => navigate('/copilot')}
-                className="w-full p-2.5 bg-purple-50/80 hover:bg-purple-100 border border-purple-200 hover:border-purple-300 rounded-xl text-xs font-bold text-purple-800 flex items-center justify-between transition-all cursor-pointer shadow-2xs group"
-              >
-                <div className="flex items-center space-x-2.5">
-                  <Sparkles className="w-4 h-4 text-purple-600" />
-                  <span>Open AI Health Copilot</span>
-                </div>
-                <ChevronRight className="w-4 h-4 text-purple-400 group-hover:translate-x-0.5 transition-transform" />
-              </button>
+
             </div>
           </div>
 
@@ -971,6 +902,6 @@ export default function MessagesPage({ user }) {
         </Modal>
       )}
 
-    </PageContainer>
+    </div>
   );
 }

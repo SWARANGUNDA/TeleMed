@@ -73,6 +73,7 @@ __all__ = [
     "list_doctor_consultations",
     "list_admin_consultations",
     "assign_doctor_to_consultation",
+    "claim_open_consultation",
     "respond_to_doctor_assignment",
     "cancel_patient_consultation",
     "complete_consultation",

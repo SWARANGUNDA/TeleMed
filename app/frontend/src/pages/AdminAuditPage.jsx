@@ -71,7 +71,7 @@ export default function AdminAuditPage() {
 
   const handleExportCsv = () => {
     const API_BASE = (['5173','5174','5175','5176'].includes(window.location.port))
-      ? 'http://localhost:8000/api/v1'
+      ? 'http://127.0.0.1:8000/api/v1'
       : '/api/v1';
     const token = getAuthToken();
 

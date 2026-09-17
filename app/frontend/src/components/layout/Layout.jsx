@@ -4,7 +4,7 @@ import { Topbar } from './Topbar';
 import { PageContainer } from './PageContainer';
 import { Drawer } from '../ui/Drawer';
 
-export function Layout({ children, user, onLogout, onToggleTheme, theme = 'dark', className = '' }) {
+export function Layout({ children, user, onLogout, onToggleTheme, theme = 'dark', className = '', noPageContainer = false }) {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
@@ -35,10 +35,14 @@ export function Layout({ children, user, onLogout, onToggleTheme, theme = 'dark'
         />
 
         {/* Page Container */}
-        <main className="flex-1">
-          <PageContainer className={className}>
-            {children}
-          </PageContainer>
+        <main className="flex-1 flex flex-col" style={{ '--sidebar-width': isSidebarCollapsed ? '80px' : '280px' }}>
+          {noPageContainer ? (
+            children
+          ) : (
+            <PageContainer className={className}>
+              {children}
+            </PageContainer>
+          )}
         </main>
       </div>
 

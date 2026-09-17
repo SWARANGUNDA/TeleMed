@@ -16,6 +16,12 @@ from . import config
 from .post_validator import clean_rag_response
 from .prompt_templates import build_qanda_mode_prompt, build_report_mode_prompt
 
+import os
+try:
+    import google.generativeai as genai
+except ImportError:
+    genai = None
+
 logger = logging.getLogger("services.medical_rag.generator")
 
 
@@ -75,6 +81,19 @@ class GroundedRAGGenerator:
         user_question: str = "",
     ) -> str:
         """Execute LLM generation or deterministic grounded fallback."""
+        api_key = self.api_key or os.getenv("GEMINI_API_KEY")
+
+        if api_key and genai:
+            try:
+                genai.configure(api_key=api_key)
+                model = genai.GenerativeModel('gemini-1.5-flash')
+                response = model.generate_content(prompt)
+                if response and response.text:
+                    return response.text
+            except Exception as e:
+                logger.error(f"Gemini API generation failed: {e}. Falling back to deterministic mode.")
+        
+        # Fallback to deterministic dummy logic if API key missing or generation fails
         if mode == "REPORT":
             return self._build_grounded_report_fallback(patient_context, retrieved_evidence)
         else:
@@ -198,28 +217,28 @@ class GroundedRAGGenerator:
         active_mods = [m.lower() for m in patient_context.get("active_modalities", [])]
         mods_set = set(active_mods)
         if mods_set == {"clinical"}:
-            mod_phrase = "Based on the available clinical data and model-estimated risk profile"
+            mod_phrase = "Based on your clinical lab panel and model-estimated risk profile"
             mod_desc = "clinical lab panel"
         elif mods_set == {"wearable"}:
-            mod_phrase = "Based on the available wearable data and model-estimated risk profile"
+            mod_phrase = "Based on your wearable telemetry data and model-estimated risk profile"
             mod_desc = "wearable telemetry"
         elif mods_set == {"gut"}:
-            mod_phrase = "Based on the available gut microbiome data and model-estimated risk profile"
+            mod_phrase = "Based on your gut microbiome profile and model-estimated risk profile"
             mod_desc = "gut microbiome profile"
         elif mods_set == {"clinical", "wearable"}:
-            mod_phrase = "Based on the available clinical and wearable data and model-estimated risk profile"
+            mod_phrase = "Based on your clinical and wearable data and model-estimated risk profile"
             mod_desc = "clinical and wearable data"
         elif mods_set == {"clinical", "gut"}:
-            mod_phrase = "Based on the available clinical and gut microbiome data and model-estimated risk profile"
+            mod_phrase = "Based on your clinical lab panel and gut microbiome profile and model-estimated risk profile"
             mod_desc = "clinical lab panel and gut microbiome profile"
         elif mods_set == {"wearable", "gut"}:
-            mod_phrase = "Based on the available wearable and gut microbiome data and model-estimated risk profile"
+            mod_phrase = "Based on your wearable telemetry and gut microbiome profile and model-estimated risk profile"
             mod_desc = "wearable telemetry and gut microbiome profile"
         elif mods_set == {"clinical", "wearable", "gut"}:
-            mod_phrase = "Based on the available clinical, wearable, and gut microbiome data and model-estimated risk profile"
+            mod_phrase = "Based on your clinical, wearable, and gut microbiome data and model-estimated risk profile"
             mod_desc = "clinical, wearable, and gut microbiome data"
         else:
-            mod_phrase = "Based on the available health data and model-estimated risk profile"
+            mod_phrase = "Based on your available health data and model-estimated risk profile"
             mod_desc = "available data"
 
         disease_outcomes = patient_context.get("disease_risk_outcomes", {})
@@ -229,48 +248,42 @@ class GroundedRAGGenerator:
         ]
 
         ans = []
-        ans.append(f"### Direct Summary\n{mod_phrase}, here is the guidance for **\"{user_question}\"**:\n")
+        ans.append(f"Hello! Here is a simple explanation regarding your question: **\"{user_question}\"**\n")
 
-        ans.append("### Personalized Health Context")
-        if high_risk_diseases:
-            ans.append(f"This guidance directly addresses your screening profile for **{', '.join(high_risk_diseases)}**, synthesized from your {mod_desc}.\n")
-        else:
-            ans.append(f"This guidance is tailored to your cardiometabolic screening profile, synthesized from your {mod_desc}.\n")
-
-        ans.append("### Relevant Biomarkers & Risk Factors")
+        ans.append("Based on the data you provided, here are the key takeaways:")
+        
         findings = []
         for d, info in disease_outcomes.items():
             prob_pct = info.get("fusion_probability", 0) * 100.0
             is_pos = (info.get("prediction", 0) == 1 or info.get("risk_level") == "POSITIVE")
-            status_text = "Elevated Risk" if is_pos else "Optimal / Low Risk"
-            findings.append(f"- **{d.replace('_', ' ')}**: {prob_pct:.1f}% estimated risk ({status_text})")
-        ans.extend(findings if findings else ["- No active risk factors flagged."])
+            if is_pos:
+                findings.append(f"- **{d.replace('_', ' ')}**: The analysis flagged this as an area to watch (Estimated Risk: {prob_pct:.0f}%).")
+            else:
+                findings.append(f"- **{d.replace('_', ' ')}**: Your levels look optimal right now (Estimated Risk: {prob_pct:.0f}%).")
+        ans.extend(findings if findings else ["- I am analyzing your request directly, though no specific elevated risk factors were found in the current active context."])
         
-        missing_mods = [m.lower() for m in patient_context.get("missing_modalities", [])]
-        if "wearable" in missing_mods or "gut" in missing_mods:
-            unsupplied = [m.capitalize() for m in missing_mods if m in ["wearable", "gut"]]
-            ans.append(f"*(Note: {', '.join(unsupplied)} data was not included in this evaluation.)*")
-        ans.append("")
-
-        # Filter evidence chunks
-        valid_evidence_lines = []
-        seen_texts = set()
-        if retrieved_evidence:
-            for ev in retrieved_evidence[:3]:
-                cleaned_text = clean_evidence_text(ev['text'])
-                if len(cleaned_text) >= 15 and cleaned_text.lower() not in seen_texts:
-                    seen_texts.add(cleaned_text.lower())
-                    valid_evidence_lines.append(f"- **[{ev['citation_id']}]**: {cleaned_text}")
-
-        ans.append("### Medical Guideline Evidence")
-        if not valid_evidence_lines:
-            ans.append("Grounded in general clinical practice guidelines for nutrition and metabolic health.")
+        ans.append("\n**What you can do:**")
+        
+        q_lower = user_question.lower()
+        if "diabet" in q_lower or "sugar" in q_lower or "glucose" in q_lower:
+            ans.append("- **Managing Diabetes Risk**: The most effective way to manage or reverse prediabetes risk is through weight management, a low-glycemic/high-fiber diet, and consistent daily exercise. Small changes add up!")
+        elif "fiber" in q_lower or "diet" in q_lower or "food" in q_lower:
+            ans.append("- **Diet & Fiber**: Aim for 25-35g of dietary fiber daily. Great sources include beans, lentils, oats, chia seeds, and plenty of vegetables. This helps stabilize blood sugar and supports a healthy gut microbiome.")
+        elif "exercise" in q_lower or "activity" in q_lower or "workout" in q_lower:
+            ans.append("- **Physical Activity**: Try to get at least 150 minutes of moderate-intensity exercise per week (like brisk walking, swimming, or cycling). This is excellent for metabolic health and heart function.")
+        elif "sleep" in q_lower or "rest" in q_lower:
+            ans.append("- **Sleep & Recovery**: Aim for 7-9 hours of quality sleep per night. Poor sleep can negatively impact your blood sugar and stress hormones.")
+        elif "lab" in q_lower or "result" in q_lower or "blood" in q_lower:
+            ans.append("- **Lab Results**: Based on the data analyzed, we recommend scheduling a routine follow-up with your doctor to review your complete metabolic panel and HbA1c.")
+        elif "diabet" in q_lower or "sugar" in q_lower or "glucose" in q_lower:
+            ans.append("- **Managing Diabetes**: The most effective way to manage or reverse prediabetes/Type 2 Diabetes risk is through a combination of weight management, a low-glycemic/high-fiber diet, and consistent daily exercise. Small changes add up!")
         else:
-            ans.extend(valid_evidence_lines)
-        ans.append("")
+            if retrieved_evidence:
+                ans.append("- Focus on eating a balanced diet (like fiber-rich foods and vegetables) and try to get a bit of regular physical activity.")
+            else:
+                ans.append("- Continue maintaining a healthy, balanced lifestyle.")
+            
+        ans.append("- It's always best to review these results with your doctor during your next visit to get personalized advice.\n")
 
-        ans.append("### Actionable Next Steps")
-        ans.append("- Review these health insights with your doctor during your next appointment for personalized clinical advice.")
-
-        ans.append(f"\n---\n**DISCLAIMER**: {config.RESEARCH_DISCLAIMER}")
+        ans.append(f"---\n*Note: {config.RESEARCH_DISCLAIMER}*")
         return "\n".join(ans)

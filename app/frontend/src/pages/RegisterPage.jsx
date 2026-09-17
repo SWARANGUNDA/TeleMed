@@ -67,7 +67,7 @@ export default function RegisterPage({ onLoginSuccess, user, onOpenAuth }) {
       if (onLoginSuccess) {
         onLoginSuccess(registeredUser);
       } else {
-        const dashPath = role === 'DOCTOR' ? '/doctor/dashboard' : '/dashboard';
+        const dashPath = role === 'DOCTOR' ? '/doctor/dashboard' : '/intake';
         navigate(dashPath);
       }
     } catch (err) {

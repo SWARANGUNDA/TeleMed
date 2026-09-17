@@ -27,13 +27,34 @@ export default function XAIPage({ session, predictionData, xaiData, setXaiData, 
   const [copied, setCopied] = useState(false);
   const [selectedComparison, setSelectedComparison] = useState('none');
 
-  const diseases = [
+  const diseases = React.useMemo(() => [
     { key: 'Type2_Diabetes', title: 'Type 2 Diabetes' },
     { key: 'Prediabetes', title: 'Prediabetes Risk' },
     { key: 'High_Adiposity_Risk', title: 'Adiposity & Obesity' },
     { key: 'Metabolic_Syndrome', title: 'Metabolic Syndrome' },
     { key: 'NAFLD', title: 'NAFLD Liver Health' },
-  ];
+  ], []);
+
+  const displayDiseases = React.useMemo(() => {
+    if (!predictionData) return diseases;
+    const outcomes = predictionData.disease_outcomes || predictionData.predictions || {};
+    const getProb = (obj, k) => obj[k]?.calibrated_probability ?? obj[k]?.probability ?? (obj[k]?.risk_score || 0);
+    const t2dProb = getProb(outcomes, 'Type2_Diabetes');
+    const preProb = getProb(outcomes, 'Prediabetes');
+    const t2dIsPositive = (outcomes['Type2_Diabetes']?.risk_level?.toLowerCase() === 'positive') || (t2dProb >= 0.4);
+
+    return diseases.filter(d => {
+      if (d.key === 'Prediabetes' && (t2dIsPositive || t2dProb > preProb)) return false;
+      if (d.key === 'Type2_Diabetes' && !t2dIsPositive && preProb > t2dProb) return false;
+      return true;
+    });
+  }, [predictionData, diseases]);
+
+  useEffect(() => {
+    if (predictionData && !displayDiseases.some(d => d.key === selectedDisease)) {
+      setSelectedDisease(displayDiseases[0].key);
+    }
+  }, [predictionData, displayDiseases, selectedDisease]);
 
   useEffect(() => {
     if (targetFromRoute) {
@@ -146,7 +167,7 @@ export default function XAIPage({ session, predictionData, xaiData, setXaiData, 
     return matchesSearch && matchesModality;
   });
 
-  const displayedDrivers = showAllDrivers ? filteredDrivers : filteredDrivers.slice(0, 10);
+  const displayedDrivers = showAllDrivers ? filteredDrivers : filteredDrivers.slice(0, 5);
 
   // Derive prediction meta for active disease
   const diseaseOutcome = predictionData?.disease_outcomes?.[selectedDisease] || predictionData?.predictions?.[selectedDisease] || {};
@@ -208,7 +229,7 @@ export default function XAIPage({ session, predictionData, xaiData, setXaiData, 
 
       {/* Target Disease Selector Tabs */}
       <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-2">
-        {diseases.map((d) => (
+        {displayDiseases.map((d) => (
           <Button
             key={d.key}
             variant={selectedDisease === d.key ? 'primary' : 'outline'}
@@ -268,12 +289,21 @@ export default function XAIPage({ session, predictionData, xaiData, setXaiData, 
                 </Button>
               ))}
             </div>
+          </div>
 
+          <div className="flex justify-between items-center bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-lg p-2 px-4 shadow-sm mb-2 mt-4">
+            <span className="text-xs font-semibold text-[var(--text-muted)]">
+              Showing <strong className="text-[var(--text-main)]">{displayedDrivers.length}</strong> of <strong className="text-[var(--text-main)]">{filteredDrivers.length}</strong> items
+            </span>
             <button
-              className="px-3 py-1.5 rounded-lg text-xs font-semibold border border-[var(--border-subtle)] bg-[var(--bg-surface)] text-[var(--primary)] hover:bg-[var(--primary-light)] transition-all flex items-center gap-1"
               onClick={() => setShowAllDrivers(prev => !prev)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold text-[var(--primary)] bg-[var(--primary)]/5 hover:bg-[var(--primary)]/15 transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/20"
             >
-              {showAllDrivers ? (<><ChevronUp className="w-3.5 h-3.5" /> Show Top 10</>) : (<><ChevronDown className="w-3.5 h-3.5" /> Show All {filteredDrivers.length} Features</>)}
+              {showAllDrivers ? (
+                <>Show Less <ChevronUp className="w-4 h-4" /></>
+              ) : (
+                <>Show All ({filteredDrivers.length - 5} More) <ChevronDown className="w-4 h-4" /></>
+              )}
             </button>
           </div>
 
@@ -316,12 +346,7 @@ export default function XAIPage({ session, predictionData, xaiData, setXaiData, 
             })}
           </div>
 
-          {/* Show count info */}
-          {filteredDrivers.length > 10 && (
-            <p className="text-[10px] text-center font-mono text-[var(--text-muted)] pt-1">
-              Showing {displayedDrivers.length} of {filteredDrivers.length} features
-            </p>
-          )}
+
         </Card>
       </ContentSection>
 
