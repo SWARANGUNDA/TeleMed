@@ -3480,6 +3480,12 @@ def book_appointment(
             if not target_doc_id:
                 raise ValueError("No doctor available to schedule this appointment.")
 
+            # Resolve user_id to actual doctor_profile doctor_id if needed
+            if target_doc_id.startswith("usr_"):
+                resolved = conn.execute("SELECT doctor_id FROM doctor_profiles WHERE user_id = ?", (target_doc_id,)).fetchone()
+                if resolved:
+                    target_doc_id = resolved["doctor_id"]
+
             s_start = slot_start
             if not s_start:
                 s_start = (datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(hours=1)).replace(minute=0, second=0, microsecond=0).isoformat()
