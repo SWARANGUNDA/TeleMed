@@ -146,7 +146,7 @@ export async function parseJsonSafely(res) {
  * - 429: Rate limited -> retry after error
  * - 5xx: Server unavailable fallback without exposing raw HTML tags
  */
-export async function handleApiResponse(res, fallbackMsg = 'Request failed') {
+export async function handleApiResponse(res, fallbackMsg = 'Request failed', _retried = false) {
   const data = await parseJsonSafely(res);
 
   if (res.ok) {
@@ -170,9 +170,23 @@ export async function handleApiResponse(res, fallbackMsg = 'Request failed') {
   }
 
   if (res.status === 401) {
+    const isAuthRoute = res.url && (res.url.includes('/auth/login') || res.url.includes('/auth/register') || res.url.includes('/auth/google') || res.url.includes('/auth/refresh'));
+
     setAuthToken(null);
-    const isAuthRoute = res.url && (res.url.includes('/auth/login') || res.url.includes('/auth/register') || res.url.includes('/auth/google'));
     if (!isAuthRoute && typeof window !== 'undefined' && !window._telemedSessionExpired) {
+      // Attempt one silent token refresh before clearing session
+      try {
+        if (!window._telemedRefreshingPromise) {
+          window._telemedRefreshingPromise = refreshToken().finally(() => { window._telemedRefreshingPromise = null; });
+        }
+        const refreshResult = await window._telemedRefreshingPromise;
+        if (refreshResult && (refreshResult.access_token || refreshResult.token)) {
+          // Refresh succeeded — don't clear session, just throw a retryable error
+          throw new Error('Token refreshed. Please retry your action.');
+        }
+      } catch (refreshErr) {
+        if (refreshErr.message === 'Token refreshed. Please retry your action.') throw refreshErr;
+      }
       window._telemedSessionExpired = true;
       window.dispatchEvent(new CustomEvent('telemed:session-expired', { detail }));
       throw new Error('Session expired. Please log in again.');
@@ -190,6 +204,28 @@ export async function handleApiResponse(res, fallbackMsg = 'Request failed') {
     throw new Error(detail || 'This operation conflicts with an existing resource.');
   }
   throw new Error(detail || fallbackMsg);
+}
+
+/**
+ * Authenticated fetch with automatic 401 retry.
+ * Wraps fetch + handleApiResponse with one retry after silent token refresh.
+ */
+async function authFetch(url, options = {}, fallbackMsg = 'Request failed') {
+  let res = await fetch(url, { ...options, headers: getAuthHeaders(options.headers || {}) });
+  if (res.status === 401) {
+    // Try refreshing the token
+    try {
+      if (!window._telemedRefreshingPromise) {
+        window._telemedRefreshingPromise = refreshToken().finally(() => { window._telemedRefreshingPromise = null; });
+      }
+      const refreshResult = await window._telemedRefreshingPromise;
+      if (refreshResult && (refreshResult.access_token || refreshResult.token)) {
+        // Retry with fresh token
+        res = await fetch(url, { ...options, headers: getAuthHeaders(options.headers || {}) });
+      }
+    } catch (e) { /* refresh failed */ }
+  }
+  return handleApiResponse(res, fallbackMsg);
 }
 
 /**
@@ -924,29 +960,17 @@ export async function configureDoctorAvailability(slots) {
 
 export async function fetchVerifiedDoctors(specialization = '') {
   const url = `${API_BASE}/doctors${specialization ? `?specialization=${encodeURIComponent(specialization)}` : ''}`;
-  const res = await fetch(url, {
-    method: 'GET',
-    headers: getAuthHeaders(),
-  });
-  const data = await handleApiResponse(res, 'Failed to fetch doctors');
+  const data = await authFetch(url, { method: 'GET' }, 'Failed to fetch doctors');
   return data.doctors || (Array.isArray(data) ? data : []);
 }
 
 export async function fetchDoctorAvailability(doctorId) {
-  const res = await fetch(`${API_BASE}/doctors/${doctorId}/availability`, {
-    method: 'GET',
-    headers: getAuthHeaders(),
-  });
-  const data = await handleApiResponse(res, 'Failed to fetch doctor availability slots');
+  const data = await authFetch(`${API_BASE}/doctors/${doctorId}/availability`, { method: 'GET' }, 'Failed to fetch doctor availability slots');
   return data.slots || (Array.isArray(data) ? data : []);
 }
 
 export async function fetchMyDoctorAvailability(availableOnly = false) {
-  const res = await fetch(`${API_BASE}/doctor/my-availability?available_only=${availableOnly ? 'true' : 'false'}`, {
-    method: 'GET',
-    headers: getAuthHeaders(),
-  });
-  const data = await handleApiResponse(res, 'Failed to fetch doctor availability');
+  const data = await authFetch(`${API_BASE}/doctor/my-availability?available_only=${availableOnly ? 'true' : 'false'}`, { method: 'GET' }, 'Failed to fetch doctor availability');
   return data.slots || (Array.isArray(data) ? data : []);
 }
 
@@ -961,21 +985,16 @@ export async function updateDoctorProfile(payload) {
 }
 
 export async function addDoctorAvailabilitySlot(slotStart, slotEnd) {
-  const res = await fetch(`${API_BASE}/doctor/availability/slot`, {
+  const data = await authFetch(`${API_BASE}/doctor/availability/slot`, {
     method: 'POST',
-    headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ slot_start: slotStart, slot_end: slotEnd }),
-  });
-  const data = await handleApiResponse(res, 'Failed to add availability slot');
+  }, 'Failed to add availability slot');
   return data.slot || data;
 }
 
 export async function deleteDoctorAvailabilitySlot(slotId) {
-  const res = await fetch(`${API_BASE}/doctor/availability/${slotId}`, {
-    method: 'DELETE',
-    headers: getAuthHeaders(),
-  });
-  return await handleApiResponse(res, 'Failed to delete availability slot');
+  return await authFetch(`${API_BASE}/doctor/availability/${slotId}`, { method: 'DELETE' }, 'Failed to delete availability slot');
 }
 
 export async function bookAppointment(consultationId, slotId, notes = '', doctorId = null, slotStart = null, slotEnd = null) {
@@ -988,21 +1007,16 @@ export async function bookAppointment(consultationId, slotId, notes = '', doctor
   if (slotStart) payload.slot_start = slotStart;
   if (slotEnd) payload.slot_end = slotEnd;
 
-  const res = await fetch(`${API_BASE}/appointments`, {
+  return await authFetch(`${API_BASE}/appointments`, {
     method: 'POST',
-    headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
-  });
-  return await handleApiResponse(res, 'Failed to book appointment');
+  }, 'Failed to book appointment');
 }
 
 export async function fetchUserAppointments(statusFilter = '') {
   const url = `${API_BASE}/appointments${statusFilter ? `?status_filter=${encodeURIComponent(statusFilter)}` : ''}`;
-  const res = await fetch(url, {
-    method: 'GET',
-    headers: getAuthHeaders(),
-  });
-  const data = await handleApiResponse(res, 'Failed to fetch appointments');
+  const data = await authFetch(url, { method: 'GET' }, 'Failed to fetch appointments');
   return data.appointments || (Array.isArray(data) ? data : []);
 }
 
