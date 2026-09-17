@@ -46,6 +46,8 @@ export default function IntakePage({
   // Gut Search & Composition State
   const [taxaSearchQuery, setTaxaSearchQuery] = useState('');
   const [otherTaxa, setOtherTaxa] = useState(4.5);
+  const [isShowingAllTaxa, setIsShowingAllTaxa] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
   const [patientId, setPatientId] = useState('');
 
   const fileInputRef = useRef(null);
@@ -1007,7 +1009,11 @@ export default function IntakePage({
                 label: 'Gut Microbiome (49)',
                 content: (() => {
                   const filteredTaxa = GUT_V4_TAXA_40.filter(t => t.toLowerCase().includes(featureSearchQuery.toLowerCase()) || t.toLowerCase().includes(taxaSearchQuery.toLowerCase()));
-                  const displayedTaxa = filteredTaxa;
+                  const TAXA_PER_PAGE = 10;
+                  const totalPages = Math.ceil(filteredTaxa.length / TAXA_PER_PAGE);
+                  const displayedTaxa = isShowingAllTaxa
+                    ? filteredTaxa
+                    : filteredTaxa.slice((currentPage - 1) * TAXA_PER_PAGE, currentPage * TAXA_PER_PAGE);
 
                   // Compositional Check Calculation
                   const taxaSum = GUT_V4_TAXA_40.reduce((acc, t) => acc + (parseFloat(formGut[t]) || 0.0), 0.0);
