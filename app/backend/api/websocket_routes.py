@@ -35,12 +35,14 @@ async def websocket_notifications_endpoint(
     """
     user = _authenticate_ws_token(token) if token else None
     if not user:
+        await websocket.accept()
         await websocket.close(code=4001, reason="Authentication failed")
         return
 
     authed_user_id = user.get("user_id")
     authed_role = user.get("role")
     if authed_user_id != user_id and authed_role != "ADMIN":
+        await websocket.accept()
         await websocket.close(code=4003, reason="Unauthorized notification channel access")
         return
 
@@ -80,6 +82,7 @@ async def websocket_chat_endpoint(
     """
     user = _authenticate_ws_token(token) if token else None
     if not user:
+        await websocket.accept()
         await websocket.close(code=4001, reason="Authentication failed")
         return
 
@@ -101,6 +104,7 @@ async def websocket_chat_endpoint(
             is_admin = (role == "ADMIN")
 
             if not (is_patient or is_doctor or is_co_doctor or is_admin):
+                await websocket.accept()
                 await websocket.close(code=4003, reason="Not a participant of this consultation")
                 return
     except Exception as err:
@@ -240,6 +244,7 @@ async def websocket_call_signaling_endpoint(
     # Step 1: Authenticate JWT
     current_user = _authenticate_ws_token(token)
     if not current_user:
+        await websocket.accept()
         await websocket.close(code=4001, reason="Authentication failed")
         return
 
@@ -249,7 +254,8 @@ async def websocket_call_signaling_endpoint(
     # Step 2: Validate consultation participant membership
     participant_info = database.validate_consultation_participant(user_id, consultation_id)
     if not participant_info:
-        await websocket.close(code=4003, reason="Not a participant of this consultation")
+        await websocket.accept()
+        await websocket.close(code=4003, reason="Not a participant of this consultation room")
         return
 
     participant_role = participant_info.get("participant_role", "UNKNOWN")
