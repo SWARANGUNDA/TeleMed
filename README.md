@@ -101,6 +101,7 @@ npm --prefix app/frontend run build
 ## 📚 Project Documentation
 
 - 🚀 **[Final Release Manifest](reports/final/FINAL_RELEASE_MANIFEST.md)**: Release commit metadata, runtime versions, SHA256 model inventory, and reproducibility commands.
+- 🩺 **[Doctor Review Report (V4)](Doctor_Review_Report_v11.docx)**: Concise clinical reference manual for modalities, exact features, units, and mathematical formulas.
 - 📋 **[Final V4 Release Verification Report](reports/final/FINAL_V4_RELEASE_VERIFICATION.md)**: Master release-gate audit scorecard across all 13 dimensions.
 - 🗺️ **[Project Map & Directory Layout](docs/PROJECT_MAP.md)**: Full codebase structure, directory index, and module responsibilities.
 - 🎯 **[Active Components Matrix](docs/ACTIVE_COMPONENTS.md)**: Authoritative index of active production components vs archived research assets.
