@@ -7,7 +7,7 @@ The TeleMed repository has been systematically structured to decouple production
 ```
 TeleMed/
 ├── README.md                          # Primary project overview, quickstart & architecture summary
-├── Doctor_Review_Report_v11.docx      # Concise clinical reference manual for modalities, features & formulas
+├── Doctor_Review_Report_v12.docx      # Concise clinical reference manual for modalities, features & formulas
 ├── .gitignore                         # Comprehensive git ignore rules for artifacts & runtime dirs
 ├── .env.example                       # Environment variables template for development & production
 ├── .env.production.example            # Production environment template
