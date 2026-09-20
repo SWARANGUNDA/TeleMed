@@ -50,7 +50,7 @@ import shap
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s]: %(message)s")
 logger = logging.getLogger("train_v4_experts")
 
-DATA_DIR = Path("data/multimodal_v4")
+DATA_DIR = Path("ai/datasets/final")
 SAVE_DIR = Path("expert_models/v4_artifacts")
 SAVE_DIR.mkdir(parents=True, exist_ok=True)
 

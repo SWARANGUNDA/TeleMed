@@ -34,16 +34,28 @@ export async function fetchWithTimeout(url, options = {}, timeoutMs = 3500) {
  * Pre-warms the Render backend asynchronously.
  * Fires a lightweight, non-blocking ping to wake up the sleeping container
  * while the user browses public pages.
+ * Caches result to avoid redundant console-spamming network errors.
  */
-export function warmupBackend() {
-  try {
-    const healthUrl = API_BASE.replace(/\/api\/v1$/, '/api/health');
-    fetch(healthUrl, { mode: 'cors', cache: 'no-store' }).catch(() => {});
-  } catch (e) {}
+let _backendWarmupAttempted = false;
+let _backendOnline = false;
+
+export function isBackendOnline() {
+  return _backendOnline;
 }
 
-if (typeof window !== 'undefined') {
-  warmupBackend();
+export async function warmupBackend() {
+  if (_backendWarmupAttempted && _backendOnline) return _backendOnline;
+  _backendWarmupAttempted = true;
+
+  try {
+    const healthUrl = API_BASE.replace(/\/api\/v1$/, '/api/health');
+    const res = await fetch(healthUrl, { mode: 'cors', cache: 'no-store' });
+    _backendOnline = res.ok;
+  } catch (e) {
+    _backendOnline = false;
+    _backendWarmupAttempted = false;
+  }
+  return _backendOnline;
 }
 
 export function getCsrfToken() {

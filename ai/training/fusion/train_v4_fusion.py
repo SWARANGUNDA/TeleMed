@@ -45,7 +45,7 @@ from catboost import CatBoostClassifier
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s]: %(message)s")
 logger = logging.getLogger("train_v4_fusion")
 
-DATA_DIR = Path("data/multimodal_v4")
+DATA_DIR = Path("ai/datasets/final")
 EXPERT_DIR = Path("expert_models/v4_artifacts")
 SAVE_DIR = Path("fusion_engine/v4_artifacts")
 SAVE_DIR.mkdir(parents=True, exist_ok=True)

@@ -225,6 +225,9 @@ def generate_v4_cohort():
     P_predia = 1.0 / (1.0 + np.exp(-R_predia))
     Y_Prediabetes = np.random.binomial(1, P_predia)
 
+    # CLINICAL OVERRIDE: Prevent mutually exclusive overlap
+    Y_Prediabetes = np.where(Y_T2D == 1, 0, Y_Prediabetes)
+
     # Severity-Conditioned Stochastic Treatment Response (Reduces direct lab determinism)
     P_tx_glyc = 1.0 / (1.0 + np.exp(-(-2.2 + 3.8 * L_glyc + 1.6 * L_IR + 0.015 * (age - 45))))
     P_tx_bp   = 1.0 / (1.0 + np.exp(-(-2.4 + 3.9 * L_vasc + 1.4 * L_visc + 0.02 * (age - 45))))
@@ -281,6 +284,30 @@ def generate_v4_cohort():
 
     ast = np.exp(np.log(18.0) + 0.95 * L_hep + 0.30 * L_infl) + np.random.normal(0, 2.5, size=N_PATIENTS)
     ast = np.clip(ast, 8.0, 280.0)
+
+    # === CLINICAL DETERMINISTIC CLAMPING ===
+    # Prevent impossible medical contradictions by clamping features to ground truth labels
+    
+    # 1. T2D Clamping
+    hba1c = np.where(Y_T2D == 1, np.maximum(hba1c, np.random.uniform(6.5, 9.5, size=N_PATIENTS)), hba1c)
+    fpg = np.where(Y_T2D == 1, np.maximum(fpg, np.random.uniform(126, 200, size=N_PATIENTS)), fpg)
+    
+    # 2. Prediabetes Clamping
+    hba1c = np.where(Y_Prediabetes == 1, np.clip(hba1c, 5.7, 6.4), hba1c)
+    fpg = np.where(Y_Prediabetes == 1, np.clip(fpg, 100, 125), fpg)
+    
+    # 3. NAFLD Clamping
+    alt = np.where(Y_NAFLD == 1, np.maximum(alt, np.random.uniform(35, 120, size=N_PATIENTS)), alt)
+    ast = np.where(Y_NAFLD == 1, np.maximum(ast, np.random.uniform(35, 120, size=N_PATIENTS)), ast)
+    
+    # 4. Obesity Clamping
+    BMI_obs = np.where(Y_Obesity == 1, np.maximum(BMI_obs, np.random.uniform(30.0, 45.0, size=N_PATIENTS)), BMI_obs)
+    Weight_obs = np.where(Y_Obesity == 1, BMI_obs * ((height / 100.0) ** 2), Weight_obs)
+    
+    # 5. MetS Clamping
+    sbp = np.where(Y_MetS == 1, np.maximum(sbp, np.random.uniform(130, 180, size=N_PATIENTS)), sbp)
+    tg = np.where(Y_MetS == 1, np.maximum(tg, np.random.uniform(150, 300, size=N_PATIENTS)), tg)
+    # =======================================
 
     clinical_df = pd.DataFrame({
         "Patient_ID": patient_ids,

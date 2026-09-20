@@ -257,7 +257,7 @@ export default function DashboardPage({
       const item = clinFeats[k];
       const val = (typeof item === 'object' && item !== null) ? (item.value ?? item.raw_value ?? '') : item;
       const cls = classifyBiomarker ? classifyBiomarker(k, val) : { status: 'NORMAL', category: 'normal', referenceRange: 'Standard' };
-      return { name: k, value: val, unit: cls.unit || 'mg/dL', range: cls.referenceRange, status: cls.status };
+      return { name: k, value: val, unit: cls.unit || '', range: cls.referenceRange, status: cls.status };
     });
   };
 

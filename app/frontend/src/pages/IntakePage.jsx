@@ -15,6 +15,8 @@ import WhyQualityModal from '../components/WhyQualityModal';
 import AnalysisJourneyView from '../components/AnalysisJourneyView';
 import { AnalysisPipeline } from '../components/AnalysisPipeline';
 import ProvenancePopover from '../components/ProvenancePopover';
+import MissingFeatureModal from '../components/MissingFeatureModal';
+import UploadProgressOverlay from '../components/UploadProgressOverlay';
 import {
   CLINICAL_V4_FEATURES, WEARABLE_V4_FEATURES, GUT_V4_TAXA_40, GUT_V4_INDICES_9,
   computeGutDerivedIndices, normalizeRawKey, normalizeExtractedDict,
@@ -80,6 +82,8 @@ export default function IntakePage({
   const [selectedProvenance, setSelectedProvenance] = useState(null);
   const [uploadStage, setUploadStage] = useState(null);
   const [journeyStage, setJourneyStage] = useState('intake');
+  const [showMissingModal, setShowMissingModal] = useState(false);
+  const [pendingMissingFields, setPendingMissingFields] = useState({});
 
   // Reset completely when session is cleared
   const handleFullReset = () => {
@@ -446,6 +450,66 @@ export default function IntakePage({
     setVerifyFlags({});
     setConflictMap({});
     setErrorMsg(null);
+  };
+
+  // Compute missing fields across active modalities for HITL modal
+  const computeMissingFields = () => {
+    const missing = {};
+    if (enableClinical) {
+      const clinMissing = CLINICAL_V4_FEATURES.filter(f => {
+        const v = formClinical[f];
+        return v === '' || v === null || v === undefined;
+      });
+      if (clinMissing.length > 0) missing.clinical = clinMissing;
+    }
+    if (enableWearable) {
+      const wearMissing = WEARABLE_V4_FEATURES.filter(f => {
+        const v = formWearable[f];
+        return v === '' || v === null || v === undefined;
+      });
+      if (wearMissing.length > 0) missing.wearable = wearMissing;
+    }
+    return missing;
+  };
+
+  // HITL: Intercept to check for missing fields before running inference
+  const handlePreConfirmCheck = () => {
+    if (Object.keys(verifyFlags || {}).length > 0 || Object.keys(conflictMap || {}).length > 0) {
+      handleAutoResolveAllAnomalies();
+    }
+    const missing = computeMissingFields();
+    const totalMissing = Object.values(missing).reduce((sum, arr) => sum + arr.length, 0);
+    if (totalMissing > 0) {
+      setPendingMissingFields(missing);
+      setShowMissingModal(true);
+      return;
+    }
+    handleConfirmAndRunML();
+  };
+
+  // HITL: Handle modal confirmation with resolved values
+  const handleMissingModalConfirm = (resolvedValues) => {
+    // Merge resolved values into form state
+    Object.entries(resolvedValues).forEach(([feature, value]) => {
+      if (value === '' || value === null || value === undefined) return;
+      const numVal = parseFloat(value);
+      if (CLINICAL_V4_FEATURES.includes(feature)) {
+        updateClinicalField(feature, isNaN(numVal) ? value : numVal);
+      } else if (WEARABLE_V4_FEATURES.includes(feature)) {
+        updateWearableField(feature, isNaN(numVal) ? value : numVal);
+      }
+    });
+    setShowMissingModal(false);
+    setPendingMissingFields({});
+    // Proceed with inference after a tick to allow state to settle
+    setTimeout(() => handleConfirmAndRunML(), 50);
+  };
+
+  // HITL: Handle skip all (proceed with median imputation)
+  const handleMissingModalSkip = () => {
+    setShowMissingModal(false);
+    setPendingMissingFields({});
+    handleConfirmAndRunML();
   };
 
   // Step 2 -> Step 3: Confirm features and execute ML prediction
@@ -1254,7 +1318,7 @@ export default function IntakePage({
                 size="md"
                 isLoading={loading}
                 rightIcon={<Brain className="w-4 h-4" />}
-                onClick={handleConfirmAndRunML}
+                onClick={handlePreConfirmCheck}
               >
                 Confirm & Run Analysis →
               </Button>
@@ -1288,6 +1352,26 @@ export default function IntakePage({
         score={dqOverall}
         metadata={fileStatuses}
         verifyFlags={verifyFlags}
+      />
+
+      {/* HITL Missing Feature Validation Modal */}
+      <MissingFeatureModal
+        isOpen={showMissingModal}
+        onClose={() => setShowMissingModal(false)}
+        missingFields={pendingMissingFields}
+        allFeatures={{
+          clinical: enableClinical ? CLINICAL_V4_FEATURES : [],
+          wearable: enableWearable ? WEARABLE_V4_FEATURES : [],
+          gut: enableGut ? GUT_V4_TAXA_40 : []
+        }}
+        onConfirm={handleMissingModalConfirm}
+        onSkipAll={handleMissingModalSkip}
+      />
+
+      {/* Progressive Upload Processing Overlay */}
+      <UploadProgressOverlay
+        uploadStage={uploadStage}
+        isVisible={loading && uploadStage !== null && currentStep === 1}
       />
     </PageContainer>
   );

@@ -11,6 +11,7 @@ import {
 } from '../components/ui';
 import { PageContainer, PageHeader, ContentSection } from '../components/layout';
 import { fetchXAIV3 } from '../api/client';
+import ModalityContributionChart from '../components/ModalityContributionChart';
 
 export default function XAIPage({ session, predictionData, xaiData, setXaiData, initialDisease, onNavigateReport }) {
   const location = useLocation();
@@ -270,6 +271,9 @@ export default function XAIPage({ session, predictionData, xaiData, setXaiData, 
         </div>
       </Card>
 
+      {/* SECTION 1.5: ASSESSMENT PROVENANCE — MODALITY CONTRIBUTION */}
+      <ModalityContributionChart attributions={attributions} selectedDisease={selectedDisease} />
+
 
       {/* SECTION 2: GLOBAL FEATURE IMPORTANCE (HORIZONTAL SHAP RANKING BARS) */}
       <ContentSection title="Global Feature Importance Ranking" subtitle="Top statistical feature contributors increasing (red) or decreasing (green) risk score">
@@ -307,11 +311,11 @@ export default function XAIPage({ session, predictionData, xaiData, setXaiData, 
             </button>
           </div>
 
-          {/* Horizontal Bar Chart List */}
+          {/* Bidirectional Bar Chart — Risk (right/red) vs Protective (left/green) */}
           <div className="space-y-3 pt-2">
             {displayedDrivers.map((d, idx) => {
               const maxAbs = Math.max(...allDrivers.map(x => x.absShap), 0.2);
-              const barWidth = Math.min(100, Math.round((d.absShap / maxAbs) * 100));
+              const barWidth = Math.min(50, Math.round((d.absShap / maxAbs) * 50));
               const isRiskIncrease = d.shapVal >= 0;
 
               return (
@@ -334,12 +338,37 @@ export default function XAIPage({ session, predictionData, xaiData, setXaiData, 
                     </div>
                   </div>
 
-                  {/* Custom Horizontal Bar */}
-                  <div className="w-full bg-[var(--border-subtle)] h-2 rounded-full overflow-hidden">
-                    <div
-                      className={`h-full rounded-full transition-all duration-300 ${isRiskIncrease ? 'bg-[var(--danger)]' : 'bg-[var(--success)]'}`}
-                      style={{ width: `${barWidth}%` }}
-                    />
+                  {/* Bidirectional Horizontal Bar — centered on 50% */}
+                  <div className="w-full h-3 rounded-full overflow-hidden relative" style={{ background: 'linear-gradient(to right, rgba(16,185,129,0.08) 0%, rgba(16,185,129,0.08) 50%, rgba(239,68,68,0.08) 50%, rgba(239,68,68,0.08) 100%)' }}>
+                    {/* Center line */}
+                    <div className="absolute left-1/2 top-0 bottom-0 w-px bg-[var(--border-medium)] z-10" />
+                    {isRiskIncrease ? (
+                      /* Risk bar extends RIGHT from center */
+                      <div
+                        className="absolute top-0 bottom-0 rounded-r-full transition-all duration-500"
+                        style={{
+                          left: '50%',
+                          width: `${barWidth}%`,
+                          background: 'linear-gradient(to right, #ef4444, #dc2626)'
+                        }}
+                      />
+                    ) : (
+                      /* Protective bar extends LEFT from center */
+                      <div
+                        className="absolute top-0 bottom-0 rounded-l-full transition-all duration-500"
+                        style={{
+                          right: '50%',
+                          width: `${barWidth}%`,
+                          background: 'linear-gradient(to left, #10b981, #059669)'
+                        }}
+                      />
+                    )}
+                  </div>
+
+                  {/* Labels under bar */}
+                  <div className="flex justify-between text-[9px] text-[var(--text-muted)] font-mono px-1">
+                    <span className="text-[var(--success)]">← Protective</span>
+                    <span className="text-[var(--danger)]">Risk →</span>
                   </div>
                 </div>
               );

@@ -104,6 +104,13 @@ class V3ScientificRouter:
         else:
             overall_confidence_level = "Low"
 
+        # CLINICAL OVERRIDE: Mutually Exclusive Glycemic Spectrum
+        # If Type 2 Diabetes is positive, it logically supersedes Prediabetes.
+        if decision_results.get("Type2_Diabetes", {}).get("predicted_class", 0) == 1:
+            if "Prediabetes" in decision_results:
+                decision_results["Prediabetes"]["predicted_class"] = 0
+                decision_results["Prediabetes"]["clinical_override"] = "Superseded by Type 2 Diabetes"
+
         return {
             "patient_id": patient_id,
             "pipeline_version": "v3.3",

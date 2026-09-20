@@ -10,7 +10,7 @@
 
 export const CLINICAL_STATUS_TYPES = {
   NORMAL: { key: 'NORMAL', label: 'Normal', color: '#10b981', bg: 'rgba(16, 185, 129, 0.15)', badgeClass: 'badge-emerald' },
-  PREDIABETES: { key: 'PREDIABETES', label: 'Prediabetes', color: '#fbbf24', bg: 'rgba(245, 158, 11, 0.15)', badgeClass: 'badge-amber' },
+  AT_RISK: { key: 'AT RISK', label: 'At Risk', color: '#fbbf24', bg: 'rgba(245, 158, 11, 0.15)', badgeClass: 'badge-amber' },
   OVERWEIGHT: { key: 'OVERWEIGHT', label: 'Overweight', color: '#fbbf24', bg: 'rgba(245, 158, 11, 0.15)', badgeClass: 'badge-amber' },
   ELEVATED: { key: 'ELEVATED', label: 'Elevated', color: '#f87171', bg: 'rgba(239, 68, 68, 0.15)', badgeClass: 'badge-rose' },
   OBESITY: { key: 'OBESITY', label: 'Obesity', color: '#f87171', bg: 'rgba(239, 68, 68, 0.15)', badgeClass: 'badge-rose' },
@@ -27,7 +27,7 @@ export const CLINICAL_REFERENCE_RANGES = {
       const num = parseFloat(val);
       if (isNaN(num)) return CLINICAL_STATUS_TYPES.NOT_PROVIDED;
       if (num >= 6.5) return { ...CLINICAL_STATUS_TYPES.ELEVATED, label: 'Elevated' };
-      if (num >= 5.7) return CLINICAL_STATUS_TYPES.PREDIABETES;
+      if (num >= 5.7) return CLINICAL_STATUS_TYPES.AT_RISK;
       return CLINICAL_STATUS_TYPES.NORMAL;
     }
   },
@@ -40,7 +40,7 @@ export const CLINICAL_REFERENCE_RANGES = {
       if (isNaN(num)) return CLINICAL_STATUS_TYPES.NOT_PROVIDED;
       if (num < 70) return CLINICAL_STATUS_TYPES.LOW;
       if (num >= 126) return CLINICAL_STATUS_TYPES.ELEVATED;
-      if (num >= 100) return CLINICAL_STATUS_TYPES.PREDIABETES;
+      if (num >= 100) return CLINICAL_STATUS_TYPES.AT_RISK;
       return CLINICAL_STATUS_TYPES.NORMAL;
     }
   },
@@ -147,7 +147,7 @@ export const CLINICAL_REFERENCE_RANGES = {
       const num = parseFloat(val);
       if (isNaN(num)) return CLINICAL_STATUS_TYPES.NOT_PROVIDED;
       if (num >= 130) return CLINICAL_STATUS_TYPES.ELEVATED;
-      if (num >= 100) return { ...CLINICAL_STATUS_TYPES.PREDIABETES, key: 'BORDERLINE', label: 'Borderline High' };
+      if (num >= 100) return { ...CLINICAL_STATUS_TYPES.AT_RISK, key: 'BORDERLINE', label: 'Borderline High' };
       return CLINICAL_STATUS_TYPES.NORMAL;
     }
   },
@@ -161,6 +161,24 @@ export const CLINICAL_REFERENCE_RANGES = {
       if (num >= 88) return CLINICAL_STATUS_TYPES.ELEVATED;
       return CLINICAL_STATUS_TYPES.NORMAL;
     }
+  },
+  Age: {
+    friendlyName: 'Age',
+    unit: 'years',
+    refRange: 'Standard',
+    classify: (val) => CLINICAL_STATUS_TYPES.NORMAL
+  },
+  Height: {
+    friendlyName: 'Height',
+    unit: 'cm',
+    refRange: 'Standard',
+    classify: (val) => CLINICAL_STATUS_TYPES.NORMAL
+  },
+  Weight: {
+    friendlyName: 'Weight',
+    unit: 'kg',
+    refRange: 'Standard',
+    classify: (val) => CLINICAL_STATUS_TYPES.NORMAL
   }
 };
 

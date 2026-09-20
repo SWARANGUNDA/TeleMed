@@ -208,20 +208,21 @@ export default function App() {
 
   // Check active user session on startup & trigger silent backend warmup
   useEffect(() => {
-    warmupBackend();
-    async function checkAuth() {
-      try {
-        const user = await getCurrentUser();
-        if (user) {
-          setCurrentUser(user);
+    async function initApp() {
+      const online = await warmupBackend();
+      if (online) {
+        try {
+          const user = await getCurrentUser();
+          if (user) {
+            setCurrentUser(user);
+          }
+        } catch (e) {
+          setCurrentUser(null);
         }
-      } catch (e) {
-        setCurrentUser(null);
-      } finally {
-        setAuthChecking(false);
       }
+      setAuthChecking(false);
     }
-    checkAuth();
+    initApp();
   }, []);
 
   // Listen for user profile/verification update & session-expired events
