@@ -110,22 +110,22 @@ FEATURE_ALIASES: Dict[str, str] = {
     "patient id": "Patient_ID", "pid": "Patient_ID", "id": "Patient_ID", "patient_id": "Patient_ID", "patlent id": "Patient_ID", "patient": "Patient_ID", "patlent": "Patient_ID",
     "age": "Age", "years": "Age", "agc": "Age", "age sex": "Age",
     "gender": "Gender", "sex": "Gender", "gcnder": "Gender",
-    "height": "Height", "height (cm)": "Height", "height_cm": "Height", "height cm": "Height", "ht": "Height", "helght": "Height",
-    "weight": "Weight", "weight (kg)": "Weight", "weight_kg": "Weight", "weight kg": "Weight", "wt": "Weight", "welght": "Weight",
+    "height": "Height", "height (cm)": "Height", "height_cm": "Height", "height cm": "Height", "ht": "Height", "helght": "Height", "stature": "Height",
+    "weight": "Weight", "weight (kg)": "Weight", "weight_kg": "Weight", "weight kg": "Weight", "wt": "Weight", "welght": "Weight", "body weight": "Weight", "mass": "Weight",
     "bmi": "BMI", "body mass index": "BMI",
     "waist": "Waist_Circumference", "waist circumference": "Waist_Circumference", "waist_cm": "Waist_Circumference", "waist circumference cm": "Waist_Circumference", "waist_circumference_cm": "Waist_Circumference", "waist_circumference": "Waist_Circumference", "wc": "Waist_Circumference", "walst clrcumference": "Waist_Circumference",
     
     # Vitals & Blood Pressure
-    "blood pressure": "Blood_Pressure", "bp": "Blood_Pressure", "blood pressure reading": "Blood_Pressure", "repeat blood pressure": "Blood_Pressure", "blood pressurc": "Blood_Pressure",
+    "blood pressure": "Blood_Pressure", "bp": "Blood_Pressure", "blood pressure reading": "Blood_Pressure", "repeat blood pressure": "Blood_Pressure", "blood pressurc": "Blood_Pressure", "b.p.": "Blood_Pressure",
     "sbp": "Systolic_BP", "systolic": "Systolic_BP", "systolic bp": "Systolic_BP", "systolic_bp": "Systolic_BP", "systolic blood pressure": "Systolic_BP",
     "dbp": "Diastolic_BP", "diastolic": "Diastolic_BP", "diastolic bp": "Diastolic_BP", "diastolic_bp": "Diastolic_BP", "diastolic blood pressure": "Diastolic_BP",
 
     # Clinical Labs
-    "fpg": "Fasting_Blood_Glucose", "fbg": "Fasting_Blood_Glucose", "fbs": "Fasting_Blood_Glucose", "fasting glucose": "Fasting_Blood_Glucose", "fasting blood glucose": "Fasting_Blood_Glucose", "blood glucose": "Fasting_Blood_Glucose", "fasting_blood_glucose": "Fasting_Blood_Glucose", "fastlng blood glucosc": "Fasting_Blood_Glucose", "repeat fasting blood glucose": "Fasting_Blood_Glucose",
-    "hba1c": "HbA1c", "a1c": "HbA1c", "glycated hemoglobin": "HbA1c", "hemoglobin a1c": "HbA1c", "hba1c %": "HbA1c", "hbalc": "HbA1c", "repeat hba1c": "HbA1c",
-    "ldl": "LDL", "ldl cholesterol": "LDL", "ldl_cholesterol": "LDL", "ldl-c": "LDL", "ldl_c": "LDL", "ldl ch0lesterol": "LDL", "repeat ldl cholesterol": "LDL", "ldl mg dl": "LDL",
-    "hdl": "HDL", "hdl cholesterol": "HDL", "hdl_cholesterol": "HDL", "hdl-c": "HDL", "hdl_c": "HDL", "hdl ch0lesterol": "HDL",
-    "triglycerides": "Triglycerides", "tg": "Triglycerides", "triglyceride": "Triglycerides", "triglycerides mg/dl": "Triglycerides", "trlglycerldes": "Triglycerides", "triglycerides mg dl": "Triglycerides",
+    "fpg": "Fasting_Blood_Glucose", "fbg": "Fasting_Blood_Glucose", "fbs": "Fasting_Blood_Glucose", "fasting glucose": "Fasting_Blood_Glucose", "fasting blood glucose": "Fasting_Blood_Glucose", "blood glucose": "Fasting_Blood_Glucose", "fasting_blood_glucose": "Fasting_Blood_Glucose", "fastlng blood glucosc": "Fasting_Blood_Glucose", "repeat fasting blood glucose": "Fasting_Blood_Glucose", "bsf": "Fasting_Blood_Glucose", "blood sugar fasting": "Fasting_Blood_Glucose", "fasting sugar": "Fasting_Blood_Glucose", "glu (f)": "Fasting_Blood_Glucose",
+    "hba1c": "HbA1c", "a1c": "HbA1c", "glycated hemoglobin": "HbA1c", "hemoglobin a1c": "HbA1c", "hba1c %": "HbA1c", "hbalc": "HbA1c", "repeat hba1c": "HbA1c", "hgb a1c": "HbA1c", "hgb-a1c": "HbA1c", "ha1c": "HbA1c",
+    "ldl": "LDL", "ldl cholesterol": "LDL", "ldl_cholesterol": "LDL", "ldl-c": "LDL", "ldl_c": "LDL", "ldl ch0lesterol": "LDL", "repeat ldl cholesterol": "LDL", "ldl mg dl": "LDL", "low density lipoprotein": "LDL",
+    "hdl": "HDL", "hdl cholesterol": "HDL", "hdl_cholesterol": "HDL", "hdl-c": "HDL", "hdl_c": "HDL", "hdl ch0lesterol": "HDL", "high density lipoprotein": "HDL",
+    "triglycerides": "Triglycerides", "tg": "Triglycerides", "triglyceride": "Triglycerides", "triglycerides mg/dl": "Triglycerides", "trlglycerldes": "Triglycerides", "triglycerides mg dl": "Triglycerides", "trig": "Triglycerides", "tgs": "Triglycerides",
     "alt": "ALT", "sgpt": "ALT", "alt (sgpt)": "ALT", "alt sgpt": "ALT", "alanine aminotransferase": "ALT", "alanine transaminase": "ALT", "sgpt alt": "ALT",
     "ast": "AST", "sgot": "AST", "ast (sgot)": "AST", "ast sgot": "AST", "aspartate aminotransferase": "AST", "aspartate transaminase": "AST", "sgot ast": "AST",
     
@@ -135,10 +135,10 @@ FEATURE_ALIASES: Dict[str, str] = {
     "family history cvd": "Family_History_CVD", "family_history_cvd": "Family_History_CVD", "family history of cvd": "Family_History_CVD", "family history cardiovascular disease": "Family_History_CVD", "family history: cvd": "Family_History_CVD",
 
     # Wearables (V4 Specifications)
-    "steps": "Average_Daily_Steps", "daily steps": "Average_Daily_Steps", "average_daily_steps": "Average_Daily_Steps", "average daily steps": "Average_Daily_Steps",
+    "steps": "Average_Daily_Steps", "daily steps": "Average_Daily_Steps", "average_daily_steps": "Average_Daily_Steps", "average daily steps": "Average_Daily_Steps", "step count": "Average_Daily_Steps",
     "active minutes": "Active_Minutes", "active_minutes": "Active_Minutes", "mvpa": "Active_Minutes",
     "sedentary minutes": "Sedentary_Time_Minutes", "sedentary time": "Sedentary_Time_Minutes", "sedentary_time_minutes": "Sedentary_Time_Minutes", "sedentary time minutes": "Sedentary_Time_Minutes",
-    "resting heart rate": "Resting_Heart_Rate", "rhr": "Resting_Heart_Rate", "resting_heart_rate": "Resting_Heart_Rate",
+    "resting heart rate": "Resting_Heart_Rate", "rhr": "Resting_Heart_Rate", "resting_heart_rate": "Resting_Heart_Rate", "pulse": "Resting_Heart_Rate", "pulse rate": "Resting_Heart_Rate", "hr": "Resting_Heart_Rate",
     "heart rate variability": "Heart_Rate_Variability_RMSSD", "hrv": "Heart_Rate_Variability_RMSSD", "heart_rate_variability_rmssd": "Heart_Rate_Variability_RMSSD",
     "sleep duration": "Sleep_Duration_Hours", "sleep hours": "Sleep_Duration_Hours", "sleep_duration": "Sleep_Duration_Hours", "sleep_duration_hours": "Sleep_Duration_Hours",
     "sleep score": "Sleep_Efficiency_Score", "sleep efficiency": "Sleep_Efficiency_Score", "sleep_efficiency_score": "Sleep_Efficiency_Score",
