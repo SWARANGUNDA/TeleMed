@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   FileText, Send, RefreshCw, Bot, User, ShieldAlert, Sparkles, MessageSquare,
-  ChevronDown, ChevronUp, Stethoscope, CheckCircle2, Clock, Info, ExternalLink,
+  ChevronDown, ChevronUp, ChevronRight, Stethoscope, CheckCircle2, Clock, Info, ExternalLink,
   Activity, BookOpen, AlertCircle, ArrowRight, ShieldCheck, Printer, Download, Share2,
   QrCode, Heart, Watch, Dna, Droplet, ActivitySquare
 } from 'lucide-react';
@@ -448,28 +448,122 @@ export default function ReportPage({ user, session, predictionData, onDiscussWit
       <Drawer
         isOpen={isAssistantOpen}
         onClose={() => setIsAssistantOpen(false)}
-        title="TeleMed Clinical RAG Assistant"
+        title={
+          <div className="flex items-center gap-2">
+            <Bot className="w-5 h-5 text-[var(--primary)]" />
+            <span className="font-bold bg-clip-text text-transparent bg-gradient-to-r from-[var(--primary)] to-[var(--accent)]">
+              TeleMed Clinical Copilot
+            </span>
+          </div>
+        }
       >
-        <div className="space-y-4 p-4 flex flex-col h-full">
-          <div className="flex-1 overflow-y-auto space-y-3 pr-2">
+        <div className="flex flex-col h-full bg-[var(--bg-surface)] dark:bg-[#0B132B]">
+          
+          {/* Chat History Area */}
+          <div className="flex-1 overflow-y-auto p-4 space-y-6">
+            
+            {/* Empty State / Suggested Prompts */}
+            {qaHistory.length === 0 && (
+              <div className="flex flex-col items-center justify-center h-full space-y-6 text-center animate-fade-in py-8">
+                <div className="w-16 h-16 rounded-full bg-gradient-to-tr from-[var(--primary-light)] to-[var(--accent-light)] flex items-center justify-center border border-[var(--primary)]/20 shadow-lg shadow-[var(--primary)]/10">
+                  <Sparkles className="w-8 h-8 text-[var(--primary)]" />
+                </div>
+                <div className="space-y-2">
+                  <h3 className="text-lg font-bold text-[var(--text-main)]">How can I help you understand this report?</h3>
+                  <p className="text-xs text-[var(--text-muted)] max-w-xs mx-auto">
+                    I have full access to your multimodal risk profile and ADA/WHO clinical guidelines.
+                  </p>
+                </div>
+                
+                <div className="w-full space-y-3 pt-4">
+                  {suggestedPrompts.slice(0, 3).map((prompt, i) => (
+                    <button
+                      key={i}
+                      onClick={() => handleAskQuestion(prompt)}
+                      className="w-full p-4 text-left text-xs bg-white dark:bg-slate-800/80 border border-[var(--border-subtle)] hover:border-[var(--primary)] hover:bg-[var(--primary-light)] rounded-2xl transition-all duration-300 text-[var(--text-main)] shadow-sm hover:shadow-md flex items-center gap-3 group animate-slide-up"
+                      style={{ animationDelay: `${i * 100}ms` }}
+                    >
+                      <MessageSquare className="w-4 h-4 text-[var(--primary)] opacity-70 group-hover:opacity-100 transition-opacity flex-shrink-0" />
+                      <span className="flex-1 leading-relaxed font-medium">{prompt}</span>
+                      <ChevronRight className="w-4 h-4 text-[var(--primary)] opacity-0 group-hover:opacity-100 transition-all transform -translate-x-2 group-hover:translate-x-0" />
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Chat Bubbles */}
             {qaHistory.map((msg, idx) => (
-              <div key={idx} className={`p-3 rounded-xl text-xs ${msg.role === 'user' ? 'bg-[var(--primary-light)] text-[var(--primary)] ml-6' : 'bg-[var(--bg-primary)] text-[var(--text-main)] mr-6 border border-[var(--border-subtle)]'}`}>
-                <MarkdownRenderer content={msg.content} />
+              <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'} animate-slide-up`}>
+                
+                {msg.role === 'bot' && (
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[var(--primary)] to-[var(--accent)] flex items-center justify-center mr-3 mt-1 flex-shrink-0 shadow-md">
+                    <Bot className="w-4 h-4 text-white" />
+                  </div>
+                )}
+                
+                <div 
+                  className={`max-w-[85%] p-4 text-sm shadow-sm ${
+                    msg.role === 'user' 
+                      ? 'bg-gradient-to-br from-[var(--primary)] to-blue-600 text-white rounded-t-2xl rounded-bl-2xl rounded-br-sm' 
+                      : 'bg-white dark:bg-slate-800/90 text-[var(--text-main)] border border-[var(--border-subtle)] rounded-t-2xl rounded-br-2xl rounded-bl-sm prose prose-sm dark:prose-invert max-w-none shadow-sm'
+                  }`}
+                >
+                  <MarkdownRenderer content={msg.content} />
+                </div>
               </div>
             ))}
+
+            {/* Loading Indicator */}
+            {loadingQA && (
+              <div className="flex justify-start animate-fade-in">
+                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[var(--primary)] to-[var(--accent)] flex items-center justify-center mr-3 mt-1 flex-shrink-0 shadow-md">
+                  <Bot className="w-4 h-4 text-white" />
+                </div>
+                <div className="bg-white dark:bg-slate-800/90 border border-[var(--border-subtle)] rounded-t-2xl rounded-br-2xl rounded-bl-sm p-4 flex items-center gap-1 shadow-sm h-[44px]">
+                  <div className="typing-dot"></div>
+                  <div className="typing-dot"></div>
+                  <div className="typing-dot"></div>
+                </div>
+              </div>
+            )}
           </div>
 
-          <div className="pt-2 border-t border-[var(--border-subtle)] space-y-2">
-            <div className="flex gap-2">
-              <Input
-                placeholder="Ask about your report findings..."
+          {/* Input Area */}
+          <div className="p-4 bg-white dark:bg-slate-900 border-t border-[var(--border-subtle)] shadow-[0_-10px_40px_-10px_rgba(0,0,0,0.05)]">
+            {qaError && (
+              <div className="mb-3 px-3 py-2 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/50 rounded-lg text-xs text-red-600 dark:text-red-400 flex items-center gap-2 animate-fade-in">
+                <AlertCircle className="w-4 h-4" />
+                {qaError}
+              </div>
+            )}
+            <div className="flex items-center gap-2 bg-[var(--bg-primary)] border border-[var(--border-medium)] rounded-full p-1 pl-4 focus-within:border-[var(--primary)] focus-within:ring-2 focus-within:ring-[var(--primary-light)] transition-all shadow-inner">
+              <input
+                type="text"
+                placeholder="Ask about your metabolic health..."
                 value={question}
                 onChange={(e) => setQuestion(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleAskQuestion()}
+                disabled={loadingQA}
+                className="flex-1 bg-transparent border-none focus:outline-none focus:ring-0 text-sm text-[var(--text-main)] placeholder-[var(--text-muted)]"
               />
-              <Button variant="primary" size="md" isLoading={loadingQA} onClick={() => handleAskQuestion()}>
-                Send
-              </Button>
+              <button 
+                onClick={() => handleAskQuestion()}
+                disabled={loadingQA || !question.trim()}
+                className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 ${
+                  question.trim() && !loadingQA 
+                    ? 'bg-gradient-to-r from-[var(--primary)] to-blue-600 text-white shadow-md hover:shadow-lg hover:scale-105' 
+                    : 'bg-slate-200 dark:bg-slate-800 text-slate-400 dark:text-slate-500 cursor-not-allowed'
+                }`}
+              >
+                <Send className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="text-center mt-3">
+              <span className="text-[10px] text-[var(--text-muted)] flex items-center justify-center gap-1 opacity-70">
+                <ShieldCheck className="w-3 h-3" />
+                Medical RAG Engine. AI may produce inaccurate information.
+              </span>
             </div>
           </div>
         </div>

@@ -91,7 +91,7 @@ class GroundedRAGGenerator:
                 if response and response.text:
                     return response.text
             except Exception as e:
-                logger.error(f"Gemini API generation failed: {e}. Falling back to deterministic mode.")
+                raise ValueError(f"Gemini API rejected the key (Are you sure it starts with AIzaSy?): {str(e)}")
         
         # Fallback to deterministic dummy logic if API key missing or generation fails
         if mode == "REPORT":
