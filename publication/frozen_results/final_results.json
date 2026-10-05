@@ -1,0 +1,1085 @@
+{
+    "expert_performance": [
+        {
+            "auroc": 0.7777208198744445,
+            "auprc": 0.7809783539839038,
+            "f1": 0.7179387834172801,
+            "brier": 0.192126784602001,
+            "Target": "Type2_Diabetes",
+            "Modality": "Clinical",
+            "Model": "LogisticRegression"
+        },
+        {
+            "auroc": 0.6771560722827872,
+            "auprc": 0.6973973485348515,
+            "f1": 0.6474423269809428,
+            "brier": 0.2255185333753147,
+            "Target": "Type2_Diabetes",
+            "Modality": "Wearable",
+            "Model": "LogisticRegression"
+        },
+        {
+            "auroc": 0.5948979263045998,
+            "auprc": 0.608825772702675,
+            "f1": 0.5484871459094355,
+            "brier": 0.2432922158379335,
+            "Target": "Type2_Diabetes",
+            "Modality": "Gut",
+            "Model": "CatBoostClassifier"
+        },
+        {
+            "auroc": 0.5839201239749929,
+            "auprc": 0.241829989716139,
+            "f1": 0.3550436181925976,
+            "brier": 0.2415713220834732,
+            "Target": "Prediabetes",
+            "Modality": "Clinical",
+            "Model": "XGBClassifier"
+        },
+        {
+            "auroc": 0.5429345888715783,
+            "auprc": 0.2221249374255827,
+            "f1": 0.3154962052070323,
+            "brier": 0.2433985066143947,
+            "Target": "Prediabetes",
+            "Modality": "Wearable",
+            "Model": "LGBMClassifier"
+        },
+        {
+            "auroc": 0.5133568735280207,
+            "auprc": 0.2091638054481476,
+            "f1": 0.298390187811422,
+            "brier": 0.2474839906813424,
+            "Target": "Prediabetes",
+            "Modality": "Gut",
+            "Model": "ExtraTreesClassifier"
+        },
+        {
+            "auroc": 0.7531833738408152,
+            "auprc": 0.639025070038094,
+            "f1": 0.6362290611608882,
+            "brier": 0.2024550139904022,
+            "Target": "High_Adiposity_Risk",
+            "Modality": "Clinical",
+            "Model": "XGBClassifier"
+        },
+        {
+            "auroc": 0.6602458778436462,
+            "auprc": 0.5395109449608968,
+            "f1": 0.5508766437069506,
+            "brier": 0.230593675416939,
+            "Target": "High_Adiposity_Risk",
+            "Modality": "Wearable",
+            "Model": "LogisticRegression"
+        },
+        {
+            "auroc": 0.5262672951520515,
+            "auprc": 0.4111196048600986,
+            "f1": 0.4467316998233351,
+            "brier": 0.2493893278913401,
+            "Target": "High_Adiposity_Risk",
+            "Modality": "Gut",
+            "Model": "LogisticRegression"
+        },
+        {
+            "auroc": 0.7581024676867791,
+            "auprc": 0.7930878071172409,
+            "f1": 0.7164270794937954,
+            "brier": 0.2001171671856639,
+            "Target": "Metabolic_Syndrome",
+            "Modality": "Clinical",
+            "Model": "LogisticRegression"
+        },
+        {
+            "auroc": 0.6206947704747001,
+            "auprc": 0.6707986815244167,
+            "f1": 0.6284956605593057,
+            "brier": 0.2388374754947473,
+            "Target": "Metabolic_Syndrome",
+            "Modality": "Wearable",
+            "Model": "LogisticRegression"
+        },
+        {
+            "auroc": 0.5777418238857011,
+            "auprc": 0.632145099372486,
+            "f1": 0.5924164837844428,
+            "brier": 0.2453595642359019,
+            "Target": "Metabolic_Syndrome",
+            "Modality": "Gut",
+            "Model": "LogisticRegression"
+        },
+        {
+            "auroc": 0.7742952369331344,
+            "auprc": 0.8228474522915317,
+            "f1": 0.7378308128544423,
+            "brier": 0.1937734186649322,
+            "Target": "NAFLD",
+            "Modality": "Clinical",
+            "Model": "XGBClassifier"
+        },
+        {
+            "auroc": 0.599511084488372,
+            "auprc": 0.6781187648520591,
+            "f1": 0.6230588235294118,
+            "brier": 0.242246076464653,
+            "Target": "NAFLD",
+            "Modality": "Wearable",
+            "Model": "XGBClassifier"
+        },
+        {
+            "auroc": 0.6487477698833961,
+            "auprc": 0.7179571359905326,
+            "f1": 0.6165763950119663,
+            "brier": 0.2335897199576052,
+            "Target": "NAFLD",
+            "Modality": "Gut",
+            "Model": "LogisticRegression"
+        }
+    ],
+    "fusion_performance": [
+        {
+            "auroc": 0.7777208198744445,
+            "auprc": 0.7809783539839038,
+            "f1": 0.7426978937778016,
+            "brier": 0.1922076144862885,
+            "Target": "Type2_Diabetes",
+            "Pathway": "Clinical_Only"
+        },
+        {
+            "auroc": 0.6771560722827872,
+            "auprc": 0.6973973485348515,
+            "f1": 0.6997414508024782,
+            "brier": 0.2254476207600437,
+            "Target": "Type2_Diabetes",
+            "Pathway": "Wearable_Only"
+        },
+        {
+            "auroc": 0.5948979263045998,
+            "auprc": 0.608825772702675,
+            "f1": 0.6883253170091823,
+            "brier": 0.2432392580220717,
+            "Target": "Type2_Diabetes",
+            "Pathway": "Gut_Only"
+        },
+        {
+            "auroc": 0.7825473249603077,
+            "auprc": 0.786644609123472,
+            "f1": 0.7480271810609382,
+            "brier": 0.1901067861933334,
+            "Target": "Type2_Diabetes",
+            "Pathway": "Clinical_Wearable"
+        },
+        {
+            "auroc": 0.7788279881299445,
+            "auprc": 0.7824841158104717,
+            "f1": 0.7449029789559989,
+            "brier": 0.1917708427166366,
+            "Target": "Type2_Diabetes",
+            "Pathway": "Clinical_Gut"
+        },
+        {
+            "auroc": 0.6893911413993138,
+            "auprc": 0.7078763487855464,
+            "f1": 0.702484058246883,
+            "brier": 0.2222719678596744,
+            "Target": "Type2_Diabetes",
+            "Pathway": "Wearable_Gut"
+        },
+        {
+            "auroc": 0.7833877926452875,
+            "auprc": 0.7880119813044846,
+            "f1": 0.7479383680555556,
+            "brier": 0.1897754259146857,
+            "Target": "Type2_Diabetes",
+            "Pathway": "Full_Multimodal_Fusion"
+        },
+        {
+            "auroc": 0.5839201239749929,
+            "auprc": 0.241829989716139,
+            "f1": 0.3564976171847215,
+            "brier": 0.2449594685556403,
+            "Target": "Prediabetes",
+            "Pathway": "Clinical_Only"
+        },
+        {
+            "auroc": 0.5429345888715783,
+            "auprc": 0.2221249374255827,
+            "f1": 0.3409329626197096,
+            "brier": 0.2487985954120785,
+            "Target": "Prediabetes",
+            "Pathway": "Wearable_Only"
+        },
+        {
+            "auroc": 0.5133568735280207,
+            "auprc": 0.2091638054481476,
+            "f1": 0.3364952571143285,
+            "brier": 0.2501809372693197,
+            "Target": "Prediabetes",
+            "Pathway": "Gut_Only"
+        },
+        {
+            "auroc": 0.5875134160521731,
+            "auprc": 0.2433672142055403,
+            "f1": 0.3565891472868217,
+            "brier": 0.2448450419301429,
+            "Target": "Prediabetes",
+            "Pathway": "Clinical_Wearable"
+        },
+        {
+            "auroc": 0.5840025995644904,
+            "auprc": 0.2413470359470592,
+            "f1": 0.3564821403159243,
+            "brier": 0.2450935427928587,
+            "Target": "Prediabetes",
+            "Pathway": "Clinical_Gut"
+        },
+        {
+            "auroc": 0.5427870140187849,
+            "auprc": 0.2228511685671576,
+            "f1": 0.3405076264544522,
+            "brier": 0.2489681079690791,
+            "Target": "Prediabetes",
+            "Pathway": "Wearable_Gut"
+        },
+        {
+            "auroc": 0.5874505473473909,
+            "auprc": 0.2431450048584711,
+            "f1": 0.3583716814159292,
+            "brier": 0.2449868638838625,
+            "Target": "Prediabetes",
+            "Pathway": "Full_Multimodal_Fusion"
+        },
+        {
+            "auroc": 0.7531833738408152,
+            "auprc": 0.639025070038094,
+            "f1": 0.6473561962016668,
+            "brier": 0.2027837727137771,
+            "Target": "High_Adiposity_Risk",
+            "Pathway": "Clinical_Only"
+        },
+        {
+            "auroc": 0.6602458778436462,
+            "auprc": 0.5395109449608968,
+            "f1": 0.5884838880084522,
+            "brier": 0.2306248537852973,
+            "Target": "High_Adiposity_Risk",
+            "Pathway": "Wearable_Only"
+        },
+        {
+            "auroc": 0.5262672951520515,
+            "auprc": 0.4111196048600986,
+            "f1": 0.56034979819335,
+            "brier": 0.2493530860950472,
+            "Target": "High_Adiposity_Risk",
+            "Pathway": "Gut_Only"
+        },
+        {
+            "auroc": 0.7546922436470104,
+            "auprc": 0.640668510423867,
+            "f1": 0.6457800511508951,
+            "brier": 0.2021366507682595,
+            "Target": "High_Adiposity_Risk",
+            "Pathway": "Clinical_Wearable"
+        },
+        {
+            "auroc": 0.7532128627266186,
+            "auprc": 0.6387457791148519,
+            "f1": 0.6469774519297274,
+            "brier": 0.2027451377691725,
+            "Target": "High_Adiposity_Risk",
+            "Pathway": "Clinical_Gut"
+        },
+        {
+            "auroc": 0.6607091263613716,
+            "auprc": 0.5403649707966638,
+            "f1": 0.5870571891641584,
+            "brier": 0.2304598866304875,
+            "Target": "High_Adiposity_Risk",
+            "Pathway": "Wearable_Gut"
+        },
+        {
+            "auroc": 0.7546873818142209,
+            "auprc": 0.6404447751105822,
+            "f1": 0.6475460332671641,
+            "brier": 0.202108276151042,
+            "Target": "High_Adiposity_Risk",
+            "Pathway": "Full_Multimodal_Fusion"
+        },
+        {
+            "auroc": 0.7581024676867791,
+            "auprc": 0.7930878071172409,
+            "f1": 0.7598095715359559,
+            "brier": 0.2002269134001586,
+            "Target": "Metabolic_Syndrome",
+            "Pathway": "Clinical_Only"
+        },
+        {
+            "auroc": 0.6206947704747001,
+            "auprc": 0.6707986815244167,
+            "f1": 0.7260734609415417,
+            "brier": 0.2387996958563343,
+            "Target": "Metabolic_Syndrome",
+            "Pathway": "Wearable_Only"
+        },
+        {
+            "auroc": 0.5777418238857011,
+            "auprc": 0.632145099372486,
+            "f1": 0.7244958733940271,
+            "brier": 0.2453396316219285,
+            "Target": "Metabolic_Syndrome",
+            "Pathway": "Gut_Only"
+        },
+        {
+            "auroc": 0.7586218338839621,
+            "auprc": 0.7936024221533606,
+            "f1": 0.7594654788418709,
+            "brier": 0.200031203768372,
+            "Target": "Metabolic_Syndrome",
+            "Pathway": "Clinical_Wearable"
+        },
+        {
+            "auroc": 0.7581487639830754,
+            "auprc": 0.7937475779682979,
+            "f1": 0.7594070695553021,
+            "brier": 0.2001997148925318,
+            "Target": "Metabolic_Syndrome",
+            "Pathway": "Clinical_Gut"
+        },
+        {
+            "auroc": 0.633609589636585,
+            "auprc": 0.6835135560490795,
+            "f1": 0.7269384002451732,
+            "brier": 0.2362207214365034,
+            "Target": "Metabolic_Syndrome",
+            "Pathway": "Wearable_Gut"
+        },
+        {
+            "auroc": 0.7586426998203211,
+            "auprc": 0.7941629701912319,
+            "f1": 0.7599797365754812,
+            "brier": 0.200014513560968,
+            "Target": "Metabolic_Syndrome",
+            "Pathway": "Full_Multimodal_Fusion"
+        },
+        {
+            "auroc": 0.7742952369331344,
+            "auprc": 0.8228474522915317,
+            "f1": 0.7849064157741967,
+            "brier": 0.1938959498230897,
+            "Target": "NAFLD",
+            "Pathway": "Clinical_Only"
+        },
+        {
+            "auroc": 0.599511084488372,
+            "auprc": 0.6781187648520591,
+            "f1": 0.7484416182069197,
+            "brier": 0.2424268551563966,
+            "Target": "NAFLD",
+            "Pathway": "Wearable_Only"
+        },
+        {
+            "auroc": 0.6487477698833961,
+            "auprc": 0.7179571359905326,
+            "f1": 0.7487205951920183,
+            "brier": 0.2335612365751887,
+            "Target": "NAFLD",
+            "Pathway": "Gut_Only"
+        },
+        {
+            "auroc": 0.7744509337371115,
+            "auprc": 0.8229658964802418,
+            "f1": 0.7837195484254308,
+            "brier": 0.1938207595007731,
+            "Target": "NAFLD",
+            "Pathway": "Clinical_Wearable"
+        },
+        {
+            "auroc": 0.7771190498640207,
+            "auprc": 0.8238518605077898,
+            "f1": 0.7876865116740197,
+            "brier": 0.1927352945352286,
+            "Target": "NAFLD",
+            "Pathway": "Clinical_Gut"
+        },
+        {
+            "auroc": 0.6620748542682353,
+            "auprc": 0.7284676486019304,
+            "f1": 0.7505643840467443,
+            "brier": 0.2304711990853563,
+            "Target": "NAFLD",
+            "Pathway": "Wearable_Gut"
+        },
+        {
+            "auroc": 0.7771518475996089,
+            "auprc": 0.8238582127448759,
+            "f1": 0.7876535869996036,
+            "brier": 0.1927255526671935,
+            "Target": "NAFLD",
+            "Pathway": "Full_Multimodal_Fusion"
+        }
+    ],
+    "missingness_performance": [
+        {
+            "Target": "Type2_Diabetes",
+            "Level": 0.1,
+            "Mode": "Clinical",
+            "Dynamic_AUC": 0.7748710474969509,
+            "Dynamic_SD": 0.0010526072754085,
+            "Conv_AUC": 0.7728831109289979,
+            "Conv_SD": 0.0005303440643452
+        },
+        {
+            "Target": "Type2_Diabetes",
+            "Level": 0.1,
+            "Mode": "Wearable",
+            "Dynamic_AUC": 0.7829698340298498,
+            "Dynamic_SD": 0.0004422459702027,
+            "Conv_AUC": 0.7828995217912335,
+            "Conv_SD": 0.0003992338453323
+        },
+        {
+            "Target": "Type2_Diabetes",
+            "Level": 0.1,
+            "Mode": "Gut",
+            "Dynamic_AUC": 0.7834290199970951,
+            "Dynamic_SD": 4.142836081455091e-06,
+            "Conv_AUC": 0.7834250576565109,
+            "Conv_SD": 7.465550909585026e-06
+        },
+        {
+            "Target": "Type2_Diabetes",
+            "Level": 0.1,
+            "Mode": "Random",
+            "Dynamic_AUC": 0.7802784780487043,
+            "Dynamic_SD": 0.0004271247624321,
+            "Conv_AUC": 0.7795169720294636,
+            "Conv_SD": 0.0003729455181493
+        },
+        {
+            "Target": "Type2_Diabetes",
+            "Level": 0.2,
+            "Mode": "Clinical",
+            "Dynamic_AUC": 0.7670911343324468,
+            "Dynamic_SD": 0.0008404664600993,
+            "Conv_AUC": 0.7635003389197227,
+            "Conv_SD": 0.0007273225833604
+        },
+        {
+            "Target": "Type2_Diabetes",
+            "Level": 0.2,
+            "Mode": "Wearable",
+            "Dynamic_AUC": 0.7824904027002182,
+            "Dynamic_SD": 0.0003544646025063,
+            "Conv_AUC": 0.7824062787046921,
+            "Conv_SD": 0.0003487558717388
+        },
+        {
+            "Target": "Type2_Diabetes",
+            "Level": 0.2,
+            "Mode": "Gut",
+            "Dynamic_AUC": 0.7834069984130677,
+            "Dynamic_SD": 9.48529201047334e-05,
+            "Conv_AUC": 0.7834033568616761,
+            "Conv_SD": 0.0001091383338188
+        },
+        {
+            "Target": "Type2_Diabetes",
+            "Level": 0.2,
+            "Mode": "Random",
+            "Dynamic_AUC": 0.7776584679602409,
+            "Dynamic_SD": 0.0004203127058017,
+            "Conv_AUC": 0.7763548400863498,
+            "Conv_SD": 0.0006867775356703
+        },
+        {
+            "Target": "Type2_Diabetes",
+            "Level": 0.3,
+            "Mode": "Clinical",
+            "Dynamic_AUC": 0.7584340944068813,
+            "Dynamic_SD": 0.0013440212003846,
+            "Conv_AUC": 0.7531752961810972,
+            "Conv_SD": 0.0014171397996796
+        },
+        {
+            "Target": "Type2_Diabetes",
+            "Level": 0.3,
+            "Mode": "Wearable",
+            "Dynamic_AUC": 0.7818727349906777,
+            "Dynamic_SD": 0.0002216744516826,
+            "Conv_AUC": 0.7816712437343929,
+            "Conv_SD": 0.0001530146061215
+        },
+        {
+            "Target": "Type2_Diabetes",
+            "Level": 0.3,
+            "Mode": "Gut",
+            "Dynamic_AUC": 0.7833816323046788,
+            "Dynamic_SD": 7.886981147464977e-05,
+            "Conv_AUC": 0.7833683611369645,
+            "Conv_SD": 8.70193633999091e-05
+        },
+        {
+            "Target": "Type2_Diabetes",
+            "Level": 0.3,
+            "Mode": "Random",
+            "Dynamic_AUC": 0.7743146802259268,
+            "Dynamic_SD": 0.0008584380690474,
+            "Conv_AUC": 0.7722245188352206,
+            "Conv_SD": 0.0009906016416427
+        },
+        {
+            "Target": "Prediabetes",
+            "Level": 0.1,
+            "Mode": "Clinical",
+            "Dynamic_AUC": 0.5858561936895846,
+            "Dynamic_SD": 0.0025523121913067,
+            "Conv_AUC": 0.5801253197535463,
+            "Conv_SD": 0.0006758074770869
+        },
+        {
+            "Target": "Prediabetes",
+            "Level": 0.1,
+            "Mode": "Wearable",
+            "Dynamic_AUC": 0.5875012994380232,
+            "Dynamic_SD": 0.0006546481026214,
+            "Conv_AUC": 0.5876216761637515,
+            "Conv_SD": 0.0005733810888514
+        },
+        {
+            "Target": "Prediabetes",
+            "Level": 0.1,
+            "Mode": "Gut",
+            "Dynamic_AUC": 0.58759720427487,
+            "Dynamic_SD": 0.0001832203038986,
+            "Conv_AUC": 0.5875502156780267,
+            "Conv_SD": 0.0001333845805431
+        },
+        {
+            "Target": "Prediabetes",
+            "Level": 0.1,
+            "Mode": "Random",
+            "Dynamic_AUC": 0.5863972142802559,
+            "Dynamic_SD": 0.0009841070393941,
+            "Conv_AUC": 0.5841383102325953,
+            "Conv_SD": 0.0006521952063649
+        },
+        {
+            "Target": "Prediabetes",
+            "Level": 0.2,
+            "Mode": "Clinical",
+            "Dynamic_AUC": 0.5811256977092945,
+            "Dynamic_SD": 0.003352539199876,
+            "Conv_AUC": 0.5737907125693579,
+            "Conv_SD": 0.0017050237557229
+        },
+        {
+            "Target": "Prediabetes",
+            "Level": 0.2,
+            "Mode": "Wearable",
+            "Dynamic_AUC": 0.5871200299794408,
+            "Dynamic_SD": 0.0006995740124396,
+            "Conv_AUC": 0.5871554160003103,
+            "Conv_SD": 0.000592050114223
+        },
+        {
+            "Target": "Prediabetes",
+            "Level": 0.2,
+            "Mode": "Gut",
+            "Dynamic_AUC": 0.5876165082442314,
+            "Dynamic_SD": 0.0002123790483444,
+            "Conv_AUC": 0.5876303964542381,
+            "Conv_SD": 0.0001714163274136
+        },
+        {
+            "Target": "Prediabetes",
+            "Level": 0.2,
+            "Mode": "Random",
+            "Dynamic_AUC": 0.5853820944439586,
+            "Dynamic_SD": 0.0008539801250531,
+            "Conv_AUC": 0.5824545460595417,
+            "Conv_SD": 0.0007723639527207
+        },
+        {
+            "Target": "Prediabetes",
+            "Level": 0.3,
+            "Mode": "Clinical",
+            "Dynamic_AUC": 0.5771200689912667,
+            "Dynamic_SD": 0.0035017586033718,
+            "Conv_AUC": 0.567690598585982,
+            "Conv_SD": 0.0022638735102167
+        },
+        {
+            "Target": "Prediabetes",
+            "Level": 0.3,
+            "Mode": "Wearable",
+            "Dynamic_AUC": 0.5863297146422627,
+            "Dynamic_SD": 0.0004967437424083,
+            "Conv_AUC": 0.5862919236570695,
+            "Conv_SD": 0.0003604112813235
+        },
+        {
+            "Target": "Prediabetes",
+            "Level": 0.3,
+            "Mode": "Gut",
+            "Dynamic_AUC": 0.5874964619716164,
+            "Dynamic_SD": 0.0002884623062162,
+            "Conv_AUC": 0.5875320958323208,
+            "Conv_SD": 0.0003026495815022
+        },
+        {
+            "Target": "Prediabetes",
+            "Level": 0.3,
+            "Mode": "Random",
+            "Dynamic_AUC": 0.5833914448901737,
+            "Dynamic_SD": 0.0013651444303563,
+            "Conv_AUC": 0.5789242328381815,
+            "Conv_SD": 0.0010322518438459
+        },
+        {
+            "Target": "High_Adiposity_Risk",
+            "Level": 0.1,
+            "Mode": "Clinical",
+            "Dynamic_AUC": 0.7463945349259576,
+            "Dynamic_SD": 0.0001081780481373,
+            "Conv_AUC": 0.7437221288033519,
+            "Conv_SD": 0.0004539459672539
+        },
+        {
+            "Target": "High_Adiposity_Risk",
+            "Level": 0.1,
+            "Mode": "Wearable",
+            "Dynamic_AUC": 0.7546022872741682,
+            "Dynamic_SD": 8.799361348368664e-05,
+            "Conv_AUC": 0.754498505843471,
+            "Conv_SD": 0.0001052617613399
+        },
+        {
+            "Target": "High_Adiposity_Risk",
+            "Level": 0.1,
+            "Mode": "Gut",
+            "Dynamic_AUC": 0.7547053207305902,
+            "Dynamic_SD": 3.102293877863367e-05,
+            "Conv_AUC": 0.754694057484628,
+            "Conv_SD": 3.594050444527774e-05
+        },
+        {
+            "Target": "High_Adiposity_Risk",
+            "Level": 0.1,
+            "Mode": "Random",
+            "Dynamic_AUC": 0.7522225447861285,
+            "Dynamic_SD": 0.00025427508198,
+            "Conv_AUC": 0.7509116513043659,
+            "Conv_SD": 0.0001820506806252
+        },
+        {
+            "Target": "High_Adiposity_Risk",
+            "Level": 0.2,
+            "Mode": "Clinical",
+            "Dynamic_AUC": 0.7375824785779389,
+            "Dynamic_SD": 0.0011450551579912,
+            "Conv_AUC": 0.732372837750511,
+            "Conv_SD": 0.0007389975487254
+        },
+        {
+            "Target": "High_Adiposity_Risk",
+            "Level": 0.2,
+            "Mode": "Wearable",
+            "Dynamic_AUC": 0.7544932575573061,
+            "Dynamic_SD": 0.0002975959616216,
+            "Conv_AUC": 0.7542499103599579,
+            "Conv_SD": 0.0002422649087717
+        },
+        {
+            "Target": "High_Adiposity_Risk",
+            "Level": 0.2,
+            "Mode": "Gut",
+            "Dynamic_AUC": 0.7546958276904129,
+            "Dynamic_SD": 4.645462813745967e-05,
+            "Conv_AUC": 0.7546869579621317,
+            "Conv_SD": 6.135806068490798e-05
+        },
+        {
+            "Target": "High_Adiposity_Risk",
+            "Level": 0.2,
+            "Mode": "Random",
+            "Dynamic_AUC": 0.7498168226582601,
+            "Dynamic_SD": 0.0003910013335011,
+            "Conv_AUC": 0.747260670437392,
+            "Conv_SD": 0.0006100986080233
+        },
+        {
+            "Target": "High_Adiposity_Risk",
+            "Level": 0.3,
+            "Mode": "Clinical",
+            "Dynamic_AUC": 0.729401531757819,
+            "Dynamic_SD": 0.0008881597676947,
+            "Conv_AUC": 0.7220798546685984,
+            "Conv_SD": 0.0005607246775879
+        },
+        {
+            "Target": "High_Adiposity_Risk",
+            "Level": 0.3,
+            "Mode": "Wearable",
+            "Dynamic_AUC": 0.7542309429789603,
+            "Dynamic_SD": 0.0002762011768557,
+            "Conv_AUC": 0.7539228274424906,
+            "Conv_SD": 0.0001945119448858
+        },
+        {
+            "Target": "High_Adiposity_Risk",
+            "Level": 0.3,
+            "Mode": "Gut",
+            "Dynamic_AUC": 0.754734267335044,
+            "Dynamic_SD": 9.65848656012019e-05,
+            "Conv_AUC": 0.7547197254685085,
+            "Conv_SD": 0.0001220437087329
+        },
+        {
+            "Target": "High_Adiposity_Risk",
+            "Level": 0.3,
+            "Mode": "Random",
+            "Dynamic_AUC": 0.7472400138811559,
+            "Dynamic_SD": 0.0010040534040098,
+            "Conv_AUC": 0.7438020124559532,
+            "Conv_SD": 0.0008738663278337
+        },
+        {
+            "Target": "Metabolic_Syndrome",
+            "Level": 0.1,
+            "Mode": "Clinical",
+            "Dynamic_AUC": 0.7481779980293283,
+            "Dynamic_SD": 0.0004764609851748,
+            "Conv_AUC": 0.7458490431615757,
+            "Conv_SD": 0.0005126708801958
+        },
+        {
+            "Target": "Metabolic_Syndrome",
+            "Level": 0.1,
+            "Mode": "Wearable",
+            "Dynamic_AUC": 0.7586148423462586,
+            "Dynamic_SD": 3.814100713852176e-05,
+            "Conv_AUC": 0.7586055384087791,
+            "Conv_SD": 3.21504773103229e-05
+        },
+        {
+            "Target": "Metabolic_Syndrome",
+            "Level": 0.1,
+            "Mode": "Gut",
+            "Dynamic_AUC": 0.7586346094399041,
+            "Dynamic_SD": 5.3624368509796334e-05,
+            "Conv_AUC": 0.7586276360149925,
+            "Conv_SD": 5.795462721354085e-05
+        },
+        {
+            "Target": "Metabolic_Syndrome",
+            "Level": 0.1,
+            "Mode": "Random",
+            "Dynamic_AUC": 0.7553547571436852,
+            "Dynamic_SD": 0.0003900342447091,
+            "Conv_AUC": 0.7544051517610465,
+            "Conv_SD": 0.0004435213629612
+        },
+        {
+            "Target": "Metabolic_Syndrome",
+            "Level": 0.2,
+            "Mode": "Clinical",
+            "Dynamic_AUC": 0.7389777623215285,
+            "Dynamic_SD": 0.0009181453284517,
+            "Conv_AUC": 0.7339259959620549,
+            "Conv_SD": 0.0006633918520008
+        },
+        {
+            "Target": "Metabolic_Syndrome",
+            "Level": 0.2,
+            "Mode": "Wearable",
+            "Dynamic_AUC": 0.7584823533105354,
+            "Dynamic_SD": 4.954766817050699e-05,
+            "Conv_AUC": 0.7584879139376727,
+            "Conv_SD": 3.259597198959428e-05
+        },
+        {
+            "Target": "Metabolic_Syndrome",
+            "Level": 0.2,
+            "Mode": "Gut",
+            "Dynamic_AUC": 0.7586422409629243,
+            "Dynamic_SD": 2.03857164787511e-05,
+            "Conv_AUC": 0.758639143675496,
+            "Conv_SD": 1.9689892525650576e-05
+        },
+        {
+            "Target": "Metabolic_Syndrome",
+            "Level": 0.2,
+            "Mode": "Random",
+            "Dynamic_AUC": 0.7524560040282848,
+            "Dynamic_SD": 0.0003350517136264,
+            "Conv_AUC": 0.7507256769354121,
+            "Conv_SD": 0.0003409625196673
+        },
+        {
+            "Target": "Metabolic_Syndrome",
+            "Level": 0.3,
+            "Mode": "Clinical",
+            "Dynamic_AUC": 0.7276129121263933,
+            "Dynamic_SD": 0.0017960245646759,
+            "Conv_AUC": 0.7210094711789253,
+            "Conv_SD": 0.0016560062604159
+        },
+        {
+            "Target": "Metabolic_Syndrome",
+            "Level": 0.3,
+            "Mode": "Wearable",
+            "Dynamic_AUC": 0.75848297518306,
+            "Dynamic_SD": 6.207964792580337e-05,
+            "Conv_AUC": 0.7584899727583609,
+            "Conv_SD": 3.874328321110085e-05
+        },
+        {
+            "Target": "Metabolic_Syndrome",
+            "Level": 0.3,
+            "Mode": "Gut",
+            "Dynamic_AUC": 0.7586006902181263,
+            "Dynamic_SD": 8.596608947106615e-05,
+            "Conv_AUC": 0.7586014268050002,
+            "Conv_SD": 8.072294809906715e-05
+        },
+        {
+            "Target": "Metabolic_Syndrome",
+            "Level": 0.3,
+            "Mode": "Random",
+            "Dynamic_AUC": 0.7490122792654418,
+            "Dynamic_SD": 0.0006484673841458,
+            "Conv_AUC": 0.7465451962460635,
+            "Conv_SD": 0.0003164867605909
+        },
+        {
+            "Target": "NAFLD",
+            "Level": 0.1,
+            "Mode": "Clinical",
+            "Dynamic_AUC": 0.7682206951123239,
+            "Dynamic_SD": 0.000554779592525,
+            "Conv_AUC": 0.7658989580771974,
+            "Conv_SD": 0.0007514487756932
+        },
+        {
+            "Target": "NAFLD",
+            "Level": 0.1,
+            "Mode": "Wearable",
+            "Dynamic_AUC": 0.7771424741768674,
+            "Dynamic_SD": 2.308584137509388e-05,
+            "Conv_AUC": 0.7771432198600704,
+            "Conv_SD": 2.3077604535614984e-05
+        },
+        {
+            "Target": "NAFLD",
+            "Level": 0.1,
+            "Mode": "Gut",
+            "Dynamic_AUC": 0.7768901682594089,
+            "Dynamic_SD": 0.0001363311365576,
+            "Conv_AUC": 0.7768759633025262,
+            "Conv_SD": 8.598030400812762e-05
+        },
+        {
+            "Target": "NAFLD",
+            "Level": 0.1,
+            "Mode": "Random",
+            "Dynamic_AUC": 0.7740866551671224,
+            "Dynamic_SD": 0.0004076251876007,
+            "Conv_AUC": 0.7732315660641423,
+            "Conv_SD": 0.0008097088524351
+        },
+        {
+            "Target": "NAFLD",
+            "Level": 0.2,
+            "Mode": "Clinical",
+            "Dynamic_AUC": 0.7582217335224041,
+            "Dynamic_SD": 0.0006273500393966,
+            "Conv_AUC": 0.753578518284337,
+            "Conv_SD": 0.0002468782480681
+        },
+        {
+            "Target": "NAFLD",
+            "Level": 0.2,
+            "Mode": "Wearable",
+            "Dynamic_AUC": 0.7771349926941534,
+            "Dynamic_SD": 1.7344675501760907e-05,
+            "Conv_AUC": 0.7771253234631992,
+            "Conv_SD": 9.157103011202543e-06
+        },
+        {
+            "Target": "NAFLD",
+            "Level": 0.2,
+            "Mode": "Gut",
+            "Dynamic_AUC": 0.7764746439978975,
+            "Dynamic_SD": 0.0003341126394793,
+            "Conv_AUC": 0.7763933522034322,
+            "Conv_SD": 0.0003341857282105
+        },
+        {
+            "Target": "NAFLD",
+            "Level": 0.2,
+            "Mode": "Random",
+            "Dynamic_AUC": 0.7705898200068653,
+            "Dynamic_SD": 0.0003157543447514,
+            "Conv_AUC": 0.7689060858225902,
+            "Conv_SD": 0.0007136018388633
+        },
+        {
+            "Target": "NAFLD",
+            "Level": 0.3,
+            "Mode": "Clinical",
+            "Dynamic_AUC": 0.7471554373555239,
+            "Dynamic_SD": 0.001558108064158,
+            "Conv_AUC": 0.7405420654685201,
+            "Conv_SD": 0.0015279234467252
+        },
+        {
+            "Target": "NAFLD",
+            "Level": 0.3,
+            "Mode": "Wearable",
+            "Dynamic_AUC": 0.7771267593655654,
+            "Dynamic_SD": 3.787836147827145e-05,
+            "Conv_AUC": 0.777112153835061,
+            "Conv_SD": 2.7841822680158107e-05
+        },
+        {
+            "Target": "NAFLD",
+            "Level": 0.3,
+            "Mode": "Gut",
+            "Dynamic_AUC": 0.776259061437517,
+            "Dynamic_SD": 0.0004821371499853,
+            "Conv_AUC": 0.7761163586255518,
+            "Conv_SD": 0.0004456596502379
+        },
+        {
+            "Target": "NAFLD",
+            "Level": 0.3,
+            "Mode": "Random",
+            "Dynamic_AUC": 0.7668129438278694,
+            "Dynamic_SD": 0.0009699439615655,
+            "Conv_AUC": 0.7640703949594281,
+            "Conv_SD": 0.0015878115525052
+        }
+    ],
+    "statistical_tests": [
+        {
+            "Target": "Type2_Diabetes",
+            "Comparison": "P1 vs Clinical_Wearable",
+            "Diff": 0.0048153517364832,
+            "CI_Lower": 0.0034508528465392,
+            "CI_Upper": 0.0062827262212942,
+            "P_Value": 0.0
+        },
+        {
+            "Target": "Type2_Diabetes",
+            "Comparison": "P1 vs Clinical_Gut",
+            "Diff": 0.0011170506964223,
+            "CI_Lower": 0.0004307240609212,
+            "CI_Upper": 0.0018337107113149,
+            "P_Value": 0.0
+        },
+        {
+            "Target": "Type2_Diabetes",
+            "Comparison": "P1 vs Full_Multimodal_Fusion",
+            "Diff": 0.0056630692018926,
+            "CI_Lower": 0.0041691380234177,
+            "CI_Upper": 0.0072278646411705,
+            "P_Value": 0.0
+        },
+        {
+            "Target": "Prediabetes",
+            "Comparison": "P1 vs Clinical_Wearable",
+            "Diff": 0.0035724087428208,
+            "CI_Lower": 0.0006582754746317,
+            "CI_Upper": 0.0065889307375027,
+            "P_Value": 0.014
+        },
+        {
+            "Target": "Prediabetes",
+            "Comparison": "P1 vs Clinical_Gut",
+            "Diff": 0.0001240972269999,
+            "CI_Lower": -0.0012390503748839,
+            "CI_Upper": 0.001514203236375,
+            "P_Value": 0.88
+        },
+        {
+            "Target": "Prediabetes",
+            "Comparison": "P1 vs Full_Multimodal_Fusion",
+            "Diff": 0.0035377377584404,
+            "CI_Lower": 0.0004374945607525,
+            "CI_Upper": 0.0068445259025948,
+            "P_Value": 0.022
+        },
+        {
+            "Target": "High_Adiposity_Risk",
+            "Comparison": "P1 vs Clinical_Wearable",
+            "Diff": 0.0015330447359781,
+            "CI_Lower": 0.0004213020649215,
+            "CI_Upper": 0.0026638775562056,
+            "P_Value": 0.006
+        },
+        {
+            "Target": "High_Adiposity_Risk",
+            "Comparison": "P1 vs Clinical_Gut",
+            "Diff": 1.957998511131742e-05,
+            "CI_Lower": -0.0004228951706928,
+            "CI_Upper": 0.0004495669319826,
+            "P_Value": 0.93
+        },
+        {
+            "Target": "High_Adiposity_Risk",
+            "Comparison": "P1 vs Full_Multimodal_Fusion",
+            "Diff": 0.0015190052032476,
+            "CI_Lower": 0.0003831769257851,
+            "CI_Upper": 0.0027179731719496,
+            "P_Value": 0.014
+        },
+        {
+            "Target": "Metabolic_Syndrome",
+            "Comparison": "P1 vs Clinical_Wearable",
+            "Diff": 0.0005235588055451,
+            "CI_Lower": 0.0001253408170522,
+            "CI_Upper": 0.0009222159494164,
+            "P_Value": 0.01
+        },
+        {
+            "Target": "Metabolic_Syndrome",
+            "Comparison": "P1 vs Clinical_Gut",
+            "Diff": 5.307847995775439e-05,
+            "CI_Lower": -0.0004183359959328,
+            "CI_Upper": 0.0005162349994524,
+            "P_Value": 0.872
+        },
+        {
+            "Target": "Metabolic_Syndrome",
+            "Comparison": "P1 vs Full_Multimodal_Fusion",
+            "Diff": 0.0005503086489075,
+            "CI_Lower": -0.000101745459134,
+            "CI_Upper": 0.0011488126091685,
+            "P_Value": 0.074
+        },
+        {
+            "Target": "NAFLD",
+            "Comparison": "P1 vs Clinical_Wearable",
+            "Diff": 0.0001509503000851,
+            "CI_Lower": -0.000161089750359,
+            "CI_Upper": 0.0004641244625939,
+            "P_Value": 0.314
+        },
+        {
+            "Target": "NAFLD",
+            "Comparison": "P1 vs Clinical_Gut",
+            "Diff": 0.0028328543081657,
+            "CI_Lower": 0.0016404116148052,
+            "CI_Upper": 0.0040435172518076,
+            "P_Value": 0.0
+        },
+        {
+            "Target": "NAFLD",
+            "Comparison": "P1 vs Full_Multimodal_Fusion",
+            "Diff": 0.0028630990786639,
+            "CI_Lower": 0.0016835809476365,
+            "CI_Upper": 0.0040950839707024,
+            "P_Value": 0.0
+        }
+    ]
+}

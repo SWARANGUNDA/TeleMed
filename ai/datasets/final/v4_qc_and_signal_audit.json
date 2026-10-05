@@ -13,71 +13,71 @@
     "labels": 0
   },
   "gut_compositional_sums": {
-    "mean_sum": 92.07500075899999,
+    "mean_sum": 92.033000247,
     "min_sum": 0.0,
     "max_sum": 100.0012,
-    "std_sum": 27.012991024292734
+    "std_sum": 27.078298456691364
   },
   "cgm_compositional_sums": {
-    "mean_sum": 99.99999388316851,
+    "mean_sum": 99.99999283068468,
     "min_sum": 99.98999999999998,
     "max_sum": 100.01000000000002
   },
   "prevalence_by_split": {
     "Train": {
-      "Type2_Diabetes": 0.5263428571428571,
-      "Prediabetes": 0.5569,
-      "High_Adiposity_Risk": 0.3906857142857143,
-      "Metabolic_Syndrome": 0.5714,
-      "NAFLD": 0.5952857142857143
+      "Type2_Diabetes": 0.5261571428571429,
+      "Prediabetes": 0.19947142857142858,
+      "High_Adiposity_Risk": 0.3903142857142857,
+      "Metabolic_Syndrome": 0.5697857142857143,
+      "NAFLD": 0.5963
     },
     "Val": {
-      "Type2_Diabetes": 0.5262666666666667,
-      "Prediabetes": 0.5600666666666667,
-      "High_Adiposity_Risk": 0.39026666666666665,
-      "Metabolic_Syndrome": 0.5736,
-      "NAFLD": 0.5952666666666667
+      "Type2_Diabetes": 0.5293333333333333,
+      "Prediabetes": 0.199,
+      "High_Adiposity_Risk": 0.3914,
+      "Metabolic_Syndrome": 0.5811333333333333,
+      "NAFLD": 0.5964
     },
     "Test": {
-      "Type2_Diabetes": 0.5248,
-      "Prediabetes": 0.5646,
-      "High_Adiposity_Risk": 0.389,
+      "Type2_Diabetes": 0.5226,
+      "Prediabetes": 0.20426666666666668,
+      "High_Adiposity_Risk": 0.3896,
       "Metabolic_Syndrome": 0.568,
-      "NAFLD": 0.598
+      "NAFLD": 0.5921333333333333
     }
   },
   "disease_co_occurrence": {
     "Type2_Diabetes": {
       "Type2_Diabetes": 52610,
-      "Prediabetes": 35841,
+      "Prediabetes": 0,
       "High_Adiposity_Risk": 24070,
       "Metabolic_Syndrome": 34270,
       "NAFLD": 35220
     },
     "Prediabetes": {
-      "Type2_Diabetes": 35841,
-      "Prediabetes": 55853,
-      "High_Adiposity_Risk": 24960,
-      "Metabolic_Syndrome": 35726,
-      "NAFLD": 36635
+      "Type2_Diabetes": 0,
+      "Prediabetes": 20012,
+      "High_Adiposity_Risk": 7421,
+      "Metabolic_Syndrome": 11007,
+      "NAFLD": 11449
     },
     "High_Adiposity_Risk": {
       "Type2_Diabetes": 24070,
-      "Prediabetes": 24960,
+      "Prediabetes": 7421,
       "High_Adiposity_Risk": 39037,
       "Metabolic_Syndrome": 25674,
       "NAFLD": 25691
     },
     "Metabolic_Syndrome": {
       "Type2_Diabetes": 34270,
-      "Prediabetes": 35726,
+      "Prediabetes": 11007,
       "High_Adiposity_Risk": 25674,
       "Metabolic_Syndrome": 57122,
       "NAFLD": 38486
     },
     "NAFLD": {
       "Type2_Diabetes": 35220,
-      "Prediabetes": 36635,
+      "Prediabetes": 11449,
       "High_Adiposity_Risk": 25691,
       "Metabolic_Syndrome": 38486,
       "NAFLD": 59569
@@ -85,25 +85,25 @@
   },
   "baseline_auroc_scores": {
     "clinical": {
-      "Type2_Diabetes": 0.7777,
-      "Prediabetes": 0.7499,
-      "High_Adiposity_Risk": 0.7546,
-      "Metabolic_Syndrome": 0.7582,
-      "NAFLD": 0.7725
+      "Type2_Diabetes": 1.0,
+      "Prediabetes": 0.681,
+      "High_Adiposity_Risk": 0.941,
+      "Metabolic_Syndrome": 0.997,
+      "NAFLD": 0.9751
     },
     "wearable": {
-      "Type2_Diabetes": 0.6772,
-      "Prediabetes": 0.6562,
-      "High_Adiposity_Risk": 0.6603,
-      "Metabolic_Syndrome": 0.6207,
-      "NAFLD": 0.5986
+      "Type2_Diabetes": 0.6723,
+      "Prediabetes": 0.5423,
+      "High_Adiposity_Risk": 0.6673,
+      "Metabolic_Syndrome": 0.6199,
+      "NAFLD": 0.6012
     },
     "gut": {
-      "Type2_Diabetes": 0.5932,
-      "Prediabetes": 0.5967,
-      "High_Adiposity_Risk": 0.5223,
-      "Metabolic_Syndrome": 0.578,
-      "NAFLD": 0.6485
+      "Type2_Diabetes": 0.5899,
+      "Prediabetes": 0.5147,
+      "High_Adiposity_Risk": 0.5302,
+      "Metabolic_Syndrome": 0.5803,
+      "NAFLD": 0.6456
     }
   }
 }

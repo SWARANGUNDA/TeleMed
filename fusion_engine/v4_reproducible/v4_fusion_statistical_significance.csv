@@ -1,0 +1,6 @@
+Disease_Target,Clinical_AUROC,Full_Fusion_AUROC,Absolute_AUROC_Gain,Gain_95CI,p_value,Is_Statistically_Significant
+Type2_Diabetes,0.9999,0.9999,0.0,"[-0.0000, 0.0001]",0.462,NO (p >= 0.05)
+Prediabetes,0.9955,0.9955,-0.0001,"[-0.0006, 0.0005]",0.799,NO (p >= 0.05)
+High_Adiposity_Risk,0.9438,0.944,0.0002,"[-0.0002, 0.0005]",0.264,NO (p >= 0.05)
+Metabolic_Syndrome,0.9975,0.9975,0.0,"[-0.0000, 0.0000]",0.532,NO (p >= 0.05)
+NAFLD,0.9813,0.9812,-0.0001,"[-0.0003, 0.0002]",0.609,NO (p >= 0.05)

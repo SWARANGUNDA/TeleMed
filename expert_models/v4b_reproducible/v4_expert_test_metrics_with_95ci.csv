@@ -1,0 +1,16 @@
+Modality,Disease_Target,Winning_Classifier,Optimal_Threshold,Test_AUROC,Test_AUROC_95CI,Test_AUPRC,Test_AUPRC_95CI,Test_Accuracy,Test_Precision,Test_Sensitivity,Test_Specificity,Test_F1_Score,Test_Brier_Score,Top_Feature_1,Top_Feature_1_Imp,Top_Feature_2,Top_Feature_2_Imp
+Clinical,Type2_Diabetes,LogisticRegression,0.33,0.7777,"[0.7707, 0.7851]",0.781,"[0.7708, 0.7917]",0.68,0.6425,0.88,0.4592,0.7427,0.1921,HbA1c,0.1145,Waist_Circumference,0.0335
+Clinical,Prediabetes,XGBoost,0.45,0.5839,"[0.5747, 0.5950]",0.2418,"[0.2321, 0.2536]",0.3931,0.2269,0.831,0.282,0.3565,0.2416,HbA1c,0.0388,Waist_Circumference,0.0131
+Clinical,High_Adiposity_Risk,XGBoost,0.41,0.7532,"[0.7455, 0.7603]",0.639,"[0.6253, 0.6521]",0.655,0.5373,0.8141,0.5537,0.6474,0.2025,BMI,0.1439,Waist_Circumference,0.0168
+Clinical,Metabolic_Syndrome,LogisticRegression,0.31,0.7581,"[0.7505, 0.7662]",0.7931,"[0.7833, 0.8034]",0.6778,0.6597,0.8939,0.3937,0.7591,0.2001,Waist_Circumference,0.0298,Triglycerides,0.014
+Clinical,NAFLD,XGBoost,0.31,0.7743,"[0.7667, 0.7824]",0.8228,"[0.8145, 0.8322]",0.7048,0.698,0.8925,0.4255,0.7834,0.1938,AST,0.0271,Waist_Circumference,0.0252
+Wearable,Type2_Diabetes,LogisticRegression,0.32,0.6772,"[0.6691, 0.6862]",0.6974,"[0.6860, 0.7085]",0.5752,0.5563,0.9418,0.1703,0.6994,0.2255,Heart_Rate_Variability_RMSSD,0.0341,CGM_Glucose_CV,0.029
+Wearable,Prediabetes,LightGBM,0.44,0.5429,"[0.5318, 0.5540]",0.2221,"[0.2130, 0.2342]",0.2723,0.2088,0.9308,0.1052,0.3411,0.2434,Activity_Energy_Expenditure,0.0111,Heart_Rate_Variability_RMSSD,0.0096
+Wearable,High_Adiposity_Risk,LogisticRegression,0.38,0.6602,"[0.6505, 0.6686]",0.5395,"[0.5254, 0.5530]",0.5273,0.4447,0.8655,0.3121,0.5876,0.2306,Sedentary_Time_Minutes,0.0718,Activity_Energy_Expenditure,0.0095
+Wearable,Metabolic_Syndrome,LogisticRegression,0.28,0.6207,"[0.6114, 0.6301]",0.6708,"[0.6598, 0.6827]",0.5757,0.5732,0.9898,0.0312,0.726,0.2388,CGM_Glucose_CV,0.043,Sedentary_Time_Minutes,0.0368
+Wearable,NAFLD,XGBoost,0.31,0.5995,"[0.5902, 0.6091]",0.6781,"[0.6671, 0.6891]",0.6019,0.6016,0.9893,0.0255,0.7482,0.2422,Heart_Rate_Variability_RMSSD,0.0298,CGM_Glucose_CV,0.0245
+Gut,Type2_Diabetes,CatBoost,0.35,0.5949,"[0.5852, 0.6039]",0.6088,"[0.5976, 0.6200]",0.5248,0.5248,0.9999,0.0001,0.6883,0.2433,Inflammation_Associated_Index,0.0333,Fusobacterium_nucleatum,0.0017
+Gut,Prediabetes,ExtraTrees,0.43,0.5134,"[0.5015, 0.5239]",0.2092,"[0.1999, 0.2193]",0.2027,0.2023,0.999,0.0007,0.3364,0.2475,Bacteroides_vulgatus,0.0057,Lactobacillus_rhamnosus,0.0044
+Gut,High_Adiposity_Risk,LogisticRegression,0.39,0.5263,"[0.5159, 0.5355]",0.4111,"[0.3998, 0.4226]",0.3897,0.3892,0.9993,0.0015,0.5602,0.2494,Shannon_Diversity,0.0135,Ruminococcus_bromii,0.0079
+Gut,Metabolic_Syndrome,LogisticRegression,0.33,0.5777,"[0.5698, 0.5869]",0.6321,"[0.6224, 0.6438]",0.5682,0.5681,0.9995,0.0011,0.7245,0.2454,Pielou_Evenness,0.005,Shannon_Diversity,0.0045
+Gut,NAFLD,LogisticRegression,0.32,0.6487,"[0.6406, 0.6575]",0.718,"[0.7076, 0.7284]",0.6154,0.6147,0.9562,0.1085,0.7483,0.2336,Log_Firmicutes_Bacteroidetes_Ratio,0.0062,Ruminococcus_gnavus,0.0053

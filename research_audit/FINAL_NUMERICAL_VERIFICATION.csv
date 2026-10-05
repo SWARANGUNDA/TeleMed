@@ -1,0 +1,25 @@
+Claim,Reported_Value,Source_File,Source_Value,Match,Status
+"T2D Unimodal Clinical Expert AUROC",0.9998,v4_expert_test_metrics_with_95ci.csv,0.9998,YES,VERIFIED
+"T2D Full Fusion AUROC",0.7047,v4_fusion_statistical_significance.csv,0.7047,YES,VERIFIED
+"Prediabetes Unimodal Clinical Expert AUROC",0.9995,v4_expert_test_metrics_with_95ci.csv,0.9995,YES,VERIFIED
+"Prediabetes Full Fusion AUROC",0.9995,v4_fusion_statistical_significance.csv,0.9995,YES,VERIFIED
+"High Adiposity Risk Unimodal Clinical Expert AUROC",0.9437,v4_expert_test_metrics_with_95ci.csv,0.9437,YES,VERIFIED
+"High Adiposity Risk Full Fusion AUROC",0.6734,v4_fusion_statistical_significance.csv,0.6734,YES,VERIFIED
+"Metabolic Syndrome Unimodal Clinical Expert AUROC",0.9977,v4_expert_test_metrics_with_95ci.csv,0.9977,YES,VERIFIED
+"Metabolic Syndrome Full Fusion AUROC",0.9977,v4_fusion_statistical_significance.csv,0.9977,YES,VERIFIED
+"NAFLD Unimodal Clinical Expert AUROC",0.9814,v4_expert_test_metrics_with_95ci.csv,0.9814,YES,VERIFIED
+"NAFLD Full Fusion AUROC",0.6630,v4_fusion_statistical_significance.csv,0.6630,YES,VERIFIED
+"Wearable Modality Weight (T2D)",74.9%,v4_fusion_modality_weights.json,0.749,YES,VERIFIED
+"Gut Modality Weight (NAFLD)",65.2%,v4_fusion_modality_weights.json,0.6523,YES,VERIFIED
+"T2D KNN Imputation AUROC",0.8984,Table_12_Imputation_Comparison.csv,0.8984,YES,VERIFIED
+"T2D Zero-Imputation AUROC",1.0000,Table_12_Imputation_Comparison.csv,1.0000,YES,VERIFIED
+"Prediabetes KNN AUROC",0.8447,Table_12_Imputation_Comparison.csv,0.8447,YES,VERIFIED
+"Prediabetes Zero-Imputation AUROC",0.9936,Table_12_Imputation_Comparison.csv,0.9936,YES,VERIFIED
+"High Adiposity KNN AUROC",0.8338,Table_12_Imputation_Comparison.csv,0.8338,YES,VERIFIED
+"High Adiposity Zero-Imputation AUROC",0.9123,Table_12_Imputation_Comparison.csv,0.9123,YES,VERIFIED
+"Metabolic Syndrome KNN AUROC",0.8754,Table_12_Imputation_Comparison.csv,0.8754,YES,VERIFIED
+"Metabolic Syndrome Zero-Imputation AUROC",0.9798,Table_12_Imputation_Comparison.csv,0.9798,YES,VERIFIED
+"NAFLD KNN AUROC",0.8341,Table_12_Imputation_Comparison.csv,0.8341,YES,VERIFIED
+"NAFLD Zero-Imputation AUROC",0.9442,Table_12_Imputation_Comparison.csv,0.9442,YES,VERIFIED
+"Synthetic Cohort Size",100000,V4_DATASET_SPECIFICATION.md,100000,YES,VERIFIED
+"Imputation Experiment Cohort Size",10000,run_imputation_comparison.py,10000,YES,VERIFIED

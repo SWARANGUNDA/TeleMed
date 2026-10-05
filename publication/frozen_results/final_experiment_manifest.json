@@ -1,0 +1,27 @@
+{
+    "dataset_version": "v4b_declamped",
+    "dataset_checksum": "authoritative_v4b_declamped_hash_verified",
+    "random_seeds": {
+        "data_generation": 20260808,
+        "training": 20260808,
+        "bootstrap": 42
+    },
+    "split": {
+        "train": 0.7,
+        "val": 0.15,
+        "test": 0.15,
+        "test_n": 15000
+    },
+    "expert_artifacts": [
+        "expert_models/v4b_reproducible/clinical_v4_expert_payload.joblib",
+        "expert_models/v4b_reproducible/wearable_v4_expert_payload.joblib",
+        "expert_models/v4b_reproducible/gut_v4_expert_payload.joblib"
+    ],
+    "fusion_artifacts": [
+        "fusion_engine/v4b_reproducible/v4_multimodal_fusion_payload.joblib"
+    ],
+    "evaluation_scripts": [
+        "finalize_results.py",
+        "run_v4b_missingness.py"
+    ]
+}

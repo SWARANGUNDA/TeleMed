@@ -33,7 +33,7 @@ logger = logging.getLogger("multimodal_v4_generator")
 # Configuration
 SEED = 20260808
 N_PATIENTS = 100000
-OUTPUT_DIR = Path("data/multimodal_v4")
+OUTPUT_DIR = Path("ai/datasets/final")
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 # Exact Feature Lists
@@ -243,9 +243,9 @@ def generate_v4_cohort():
     Tx_lip_resp     = Tx_lip_assigned  * np.random.gamma(shape=6.0, scale=0.04, size=N_PATIENTS)
 
     # ------------------------------------------------------------------
-    # 4. Clinical Observations Generation (X_Clinical, 19 Features)
+    # 4. Clinical Observations Generation (X_Clinical, 18 Features)
     # ------------------------------------------------------------------
-    logger.info("[4/8] Generating Clinical Biomarkers Panel (19 Features)...")
+    logger.info("[4/8] Generating Clinical Biomarkers Panel (18 Features)...")
     height = np.where(gender == 1, np.random.normal(175.0, 7.0, size=N_PATIENTS), np.random.normal(162.0, 6.0, size=N_PATIENTS))
     height = np.clip(height, 135.0, 215.0)
 
@@ -293,8 +293,8 @@ def generate_v4_cohort():
     fpg = np.where(Y_T2D == 1, np.maximum(fpg, np.random.uniform(126, 200, size=N_PATIENTS)), fpg)
     
     # 2. Prediabetes Clamping
-    hba1c = np.where(Y_Prediabetes == 1, np.clip(hba1c, 5.7, 6.4), hba1c)
-    fpg = np.where(Y_Prediabetes == 1, np.clip(fpg, 100, 125), fpg)
+    hba1c = np.where(Y_Prediabetes == 1, np.where((hba1c >= 5.7) & (hba1c <= 6.4), hba1c, np.random.uniform(5.7, 6.4, size=N_PATIENTS)), hba1c)
+    fpg = np.where(Y_Prediabetes == 1, np.where((fpg >= 100) & (fpg <= 125), fpg, np.random.uniform(100, 125, size=N_PATIENTS)), fpg)
     
     # 3. NAFLD Clamping
     alt = np.where(Y_NAFLD == 1, np.maximum(alt, np.random.uniform(35, 120, size=N_PATIENTS)), alt)

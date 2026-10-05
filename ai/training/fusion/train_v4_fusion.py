@@ -150,23 +150,15 @@ def generate_oof_expert_predictions(expert_payload, mod_df, meta_df, lbl_df):
         te_preds[d]  = clf_trained.predict_proba(X_te_in)[:, 1]
 
         # OOF Predictions on Train fold
+        from sklearn.base import clone
         y_tr = lbl_df.loc[tr_mask, d].values
         for tr_idx, fold_val_idx in skf.split(X_tr_imp, y_tr):
-            # Re-fit clone model on 4/5 of train split
-            if clf_type == "LogisticRegression":
-                clf_clone = LogisticRegression(max_iter=500, C=0.5, class_weight="balanced", random_state=SEED)
-                clf_clone.fit(X_tr_scaled.iloc[tr_idx], y_tr[tr_idx])
-                oof_preds[d][fold_val_idx] = clf_clone.predict_proba(X_tr_scaled.iloc[fold_val_idx])[:, 1]
-            elif clf_type == "XGBClassifier":
-                pos_w = (len(tr_idx) - y_tr[tr_idx].sum()) / max(1, y_tr[tr_idx].sum())
-                clf_clone = XGBClassifier(n_estimators=50, learning_rate=0.05, max_depth=4, subsample=0.85, colsample_bytree=0.85, scale_pos_weight=pos_w, random_state=SEED, n_jobs=-1, eval_metric="logloss")
-                clf_clone.fit(X_tr_imp.iloc[tr_idx], y_tr[tr_idx])
-                oof_preds[d][fold_val_idx] = clf_clone.predict_proba(X_tr_imp.iloc[fold_val_idx])[:, 1]
-            elif clf_type == "CatBoostClassifier":
-                pos_w = (len(tr_idx) - y_tr[tr_idx].sum()) / max(1, y_tr[tr_idx].sum())
-                clf_clone = CatBoostClassifier(iterations=50, learning_rate=0.05, depth=4, scale_pos_weight=pos_w, random_seed=SEED, verbose=0, thread_count=-1)
-                clf_clone.fit(X_tr_imp.iloc[tr_idx], y_tr[tr_idx])
-                oof_preds[d][fold_val_idx] = clf_clone.predict_proba(X_tr_imp.iloc[fold_val_idx])[:, 1]
+            # Universal clone to guarantee exact architecture and hyperparameters match
+            clf_clone = clone(clf_trained)
+            X_tr_in = X_tr_scaled if clf_type == "LogisticRegression" else X_tr_imp
+            
+            clf_clone.fit(X_tr_in.iloc[tr_idx], y_tr[tr_idx])
+            oof_preds[d][fold_val_idx] = clf_clone.predict_proba(X_tr_in.iloc[fold_val_idx])[:, 1]
 
     return oof_preds, val_preds, te_preds
 
@@ -205,7 +197,12 @@ def train_and_evaluate_v4_fusion():
 
     meta_comparison_records = []
     final_test_records = []
-    winning_fusion_payload = {"meta_models": {}, "scalers": {}, "thresholds": {}, "disease_metrics": {}}
+    winning_fusion_payload = {
+        "meta_models": {comb[0]: {} for comb in COMBINATIONS},
+        "scalers": {comb[0]: {} for comb in COMBINATIONS},
+        "thresholds": {comb[0]: {} for comb in COMBINATIONS},
+        "disease_metrics": {}
+    }
     modality_weights_summary = {}
     ablation_records = []
     stat_test_records = []
@@ -292,8 +289,9 @@ def train_and_evaluate_v4_fusion():
                 clinical_only_test_probs = test_probs
             elif comb_name == "Full_Multimodal_Fusion":
                 best_full_fusion_test_probs = test_probs
-                winning_fusion_payload["meta_models"][d] = best_meta_obj
-                winning_fusion_payload["scalers"][d] = scaler_meta
+                
+            winning_fusion_payload["meta_models"][comb_name][d] = best_meta_obj
+            winning_fusion_payload["scalers"][comb_name][d] = scaler_meta
 
             # Optimal Decision Threshold on Val set
             X_val_in = X_meta_val_s if best_meta_name == "LogisticRegression" else X_meta_val
@@ -306,8 +304,7 @@ def train_and_evaluate_v4_fusion():
                     best_f1_val = f1_t
                     best_t = thresh
 
-            if comb_name == "Full_Multimodal_Fusion":
-                winning_fusion_payload["thresholds"][d] = float(best_t)
+            winning_fusion_payload["thresholds"][comb_name][d] = float(best_t)
 
             test_preds_binary = (test_probs >= best_t).astype(int)
 
@@ -354,7 +351,7 @@ def train_and_evaluate_v4_fusion():
                 })
 
         # Relative Modality Importance Weights for Full Multimodal Fusion
-        full_meta_model = winning_fusion_payload["meta_models"][d]
+        full_meta_model = winning_fusion_payload["meta_models"]["Full_Multimodal_Fusion"][d]
         if hasattr(full_meta_model, "coef_"):
             weights_raw = np.abs(full_meta_model.coef_[0])
         elif hasattr(full_meta_model, "feature_importances_"):

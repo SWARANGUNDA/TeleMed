@@ -1,0 +1,7 @@
+Reference,DOI_or_Link,In_Text_Citation,Bibliography_Entry,Status
+"Acosta et al., 2022",10.1038/s41591-022-01981-2,"Yes (\cite{acosta2022})","Yes (references.bib)",VERIFIED
+"Lundberg et al., 2020",10.1038/s42256-019-0138-9,"Yes (\cite{lundberg2020})","Yes (references.bib)",VERIFIED
+"Van Buuren, 2018",10.1201/9780429492259,"Yes (\cite{vanbuuren2018})","Yes (references.bib)",VERIFIED
+"Yoon et al., GAIN, 2018",http://proceedings.mlr.press/v80/yoon18a.html,"Yes (\cite{yoon2018})","Yes (references.bib)",VERIFIED
+"Sharma et al., 2023",10.1177/20552076231154546,"Yes (\cite{sharma2023})","Yes (references.bib)",VERIFIED
+"Collins et al., TRIPOD, 2015",10.1136/bmj.g7594,"Yes (\cite{collins2015})","Yes (references.bib)",VERIFIED

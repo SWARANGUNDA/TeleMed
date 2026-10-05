@@ -1,0 +1,11 @@
+Disease_1,Disease_2,Co_occurrence_Count,Co_occurrence_Pct
+Type2_Diabetes,Prediabetes,0,0.0
+Type2_Diabetes,High_Adiposity_Risk,24070,24.07
+Type2_Diabetes,Metabolic_Syndrome,34270,34.27
+Type2_Diabetes,NAFLD,35220,35.22
+Prediabetes,High_Adiposity_Risk,7421,7.42
+Prediabetes,Metabolic_Syndrome,11007,11.01
+Prediabetes,NAFLD,11449,11.45
+High_Adiposity_Risk,Metabolic_Syndrome,25674,25.67
+High_Adiposity_Risk,NAFLD,25691,25.69
+Metabolic_Syndrome,NAFLD,38486,38.49

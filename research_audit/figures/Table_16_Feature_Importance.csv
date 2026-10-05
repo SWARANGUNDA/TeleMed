@@ -1,0 +1,16 @@
+Modality,Disease,Feature_1,Importance_1,Feature_2,Importance_2
+Clinical,Type2_Diabetes,Fasting_Blood_Glucose,0.2545,Gender,0.0
+Clinical,Prediabetes,HbA1c,0.135,Fasting_Blood_Glucose,0.0536
+Clinical,High_Adiposity_Risk,BMI,0.38,Waist_Circumference,0.0315
+Clinical,Metabolic_Syndrome,Systolic_BP,0.2415,Triglycerides,0.0739
+Clinical,NAFLD,AST,0.223,ALT,0.161
+Wearable,Type2_Diabetes,CGM_Glucose_CV,0.0257,Heart_Rate_Variability_RMSSD,0.0256
+Wearable,Prediabetes,Heart_Rate_Variability_RMSSD,0.0022,Sleep_Efficiency_Score,0.0013
+Wearable,High_Adiposity_Risk,Sedentary_Time_Minutes,0.0934,CGM_Glucose_CV,0.0118
+Wearable,Metabolic_Syndrome,CGM_Glucose_CV,0.0578,Sedentary_Time_Minutes,0.0312
+Wearable,NAFLD,CGM_Glucose_CV,0.0489,Heart_Rate_Variability_RMSSD,0.0161
+Gut,Type2_Diabetes,Log_Firmicutes_Bacteroidetes_Ratio,0.0094,Enterococcus_faecalis,0.0077
+Gut,Prediabetes,Klebsiella_pneumoniae,0.0036,Eubacterium_rectale,0.0035
+Gut,High_Adiposity_Risk,Prevotella_copri,0.0086,Log_Firmicutes_Bacteroidetes_Ratio,0.0083
+Gut,Metabolic_Syndrome,Ruminococcus_gnavus,0.0036,Escherichia_coli,0.0034
+Gut,NAFLD,Escherichia_coli,0.0054,Inflammation_Associated_Index,0.0048

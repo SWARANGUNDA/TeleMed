@@ -1,0 +1,1082 @@
+{
+  "Clinical.Type2_Diabetes": {
+    "modality": "Clinical",
+    "disease": "Type2_Diabetes",
+    "winning_classifier": "LogisticRegression",
+    "threshold_used": 0.33,
+    "val_aucroc": 0.7723,
+    "val_aucpr": 0.7777,
+    "test_aucroc": 0.7777,
+    "test_aucroc_95ci": [
+      0.7707,
+      0.7851
+    ],
+    "test_aucpr": 0.781,
+    "test_aucpr_95ci": [
+      0.7708,
+      0.7917
+    ],
+    "test_accuracy": 0.68,
+    "test_precision": 0.6425,
+    "test_recall_sensitivity": 0.88,
+    "test_specificity": 0.4592,
+    "test_f1_score": 0.7427,
+    "test_brier_score": 0.1921,
+    "confusion_matrix": {
+      "TN": 3273,
+      "FP": 3855,
+      "FN": 945,
+      "TP": 6927
+    },
+    "top_10_features": [
+      {
+        "feature": "HbA1c",
+        "importance": 0.1145
+      },
+      {
+        "feature": "Waist_Circumference",
+        "importance": 0.0335
+      },
+      {
+        "feature": "ALT",
+        "importance": 0.0104
+      },
+      {
+        "feature": "HDL",
+        "importance": 0.0078
+      },
+      {
+        "feature": "Fasting_Blood_Glucose",
+        "importance": 0.0035
+      },
+      {
+        "feature": "Age",
+        "importance": 0.0005
+      },
+      {
+        "feature": "Systolic_BP",
+        "importance": 0.0003
+      },
+      {
+        "feature": "Family_History_Diabetes",
+        "importance": 0.0001
+      },
+      {
+        "feature": "Family_History_CVD",
+        "importance": 0.0
+      },
+      {
+        "feature": "Family_History_Hypertension",
+        "importance": 0.0
+      }
+    ]
+  },
+  "Clinical.Prediabetes": {
+    "modality": "Clinical",
+    "disease": "Prediabetes",
+    "winning_classifier": "XGBoost",
+    "threshold_used": 0.45,
+    "val_aucroc": 0.5825,
+    "val_aucpr": 0.2444,
+    "test_aucroc": 0.5839,
+    "test_aucroc_95ci": [
+      0.5747,
+      0.595
+    ],
+    "test_aucpr": 0.2418,
+    "test_aucpr_95ci": [
+      0.2321,
+      0.2536
+    ],
+    "test_accuracy": 0.3931,
+    "test_precision": 0.2269,
+    "test_recall_sensitivity": 0.831,
+    "test_specificity": 0.282,
+    "test_f1_score": 0.3565,
+    "test_brier_score": 0.2416,
+    "confusion_matrix": {
+      "TN": 3374,
+      "FP": 8591,
+      "FN": 513,
+      "TP": 2522
+    },
+    "top_10_features": [
+      {
+        "feature": "HbA1c",
+        "importance": 0.0388
+      },
+      {
+        "feature": "Waist_Circumference",
+        "importance": 0.0131
+      },
+      {
+        "feature": "Fasting_Blood_Glucose",
+        "importance": 0.0075
+      },
+      {
+        "feature": "HDL",
+        "importance": 0.0068
+      },
+      {
+        "feature": "ALT",
+        "importance": 0.0062
+      },
+      {
+        "feature": "Age",
+        "importance": 0.0023
+      },
+      {
+        "feature": "Systolic_BP",
+        "importance": 0.0012
+      },
+      {
+        "feature": "BMI",
+        "importance": 0.0007
+      },
+      {
+        "feature": "Gender",
+        "importance": 0.0003
+      },
+      {
+        "feature": "Family_History_CVD",
+        "importance": 0.0001
+      }
+    ]
+  },
+  "Clinical.High_Adiposity_Risk": {
+    "modality": "Clinical",
+    "disease": "High_Adiposity_Risk",
+    "winning_classifier": "XGBoost",
+    "threshold_used": 0.41,
+    "val_aucroc": 0.7555,
+    "val_aucpr": 0.6396,
+    "test_aucroc": 0.7532,
+    "test_aucroc_95ci": [
+      0.7455,
+      0.7603
+    ],
+    "test_aucpr": 0.639,
+    "test_aucpr_95ci": [
+      0.6253,
+      0.6521
+    ],
+    "test_accuracy": 0.655,
+    "test_precision": 0.5373,
+    "test_recall_sensitivity": 0.8141,
+    "test_specificity": 0.5537,
+    "test_f1_score": 0.6474,
+    "test_brier_score": 0.2025,
+    "confusion_matrix": {
+      "TN": 5075,
+      "FP": 4090,
+      "FN": 1085,
+      "TP": 4750
+    },
+    "top_10_features": [
+      {
+        "feature": "BMI",
+        "importance": 0.1439
+      },
+      {
+        "feature": "Waist_Circumference",
+        "importance": 0.0168
+      },
+      {
+        "feature": "Weight",
+        "importance": 0.0016
+      },
+      {
+        "feature": "HDL",
+        "importance": 0.0006
+      },
+      {
+        "feature": "LDL",
+        "importance": 0.0005
+      },
+      {
+        "feature": "ALT",
+        "importance": 0.0002
+      },
+      {
+        "feature": "Triglycerides",
+        "importance": 0.0002
+      },
+      {
+        "feature": "Diastolic_BP",
+        "importance": 0.0002
+      },
+      {
+        "feature": "Family_History_Diabetes",
+        "importance": 0.0002
+      },
+      {
+        "feature": "AST",
+        "importance": 0.0
+      }
+    ]
+  },
+  "Clinical.Metabolic_Syndrome": {
+    "modality": "Clinical",
+    "disease": "Metabolic_Syndrome",
+    "winning_classifier": "LogisticRegression",
+    "threshold_used": 0.31,
+    "val_aucroc": 0.7513,
+    "val_aucpr": 0.7913,
+    "test_aucroc": 0.7581,
+    "test_aucroc_95ci": [
+      0.7505,
+      0.7662
+    ],
+    "test_aucpr": 0.7931,
+    "test_aucpr_95ci": [
+      0.7833,
+      0.8034
+    ],
+    "test_accuracy": 0.6778,
+    "test_precision": 0.6597,
+    "test_recall_sensitivity": 0.8939,
+    "test_specificity": 0.3937,
+    "test_f1_score": 0.7591,
+    "test_brier_score": 0.2001,
+    "confusion_matrix": {
+      "TN": 2551,
+      "FP": 3929,
+      "FN": 904,
+      "TP": 7616
+    },
+    "top_10_features": [
+      {
+        "feature": "Waist_Circumference",
+        "importance": 0.0298
+      },
+      {
+        "feature": "Triglycerides",
+        "importance": 0.014
+      },
+      {
+        "feature": "Diastolic_BP",
+        "importance": 0.0078
+      },
+      {
+        "feature": "HbA1c",
+        "importance": 0.0068
+      },
+      {
+        "feature": "HDL",
+        "importance": 0.005
+      },
+      {
+        "feature": "Weight",
+        "importance": 0.0046
+      },
+      {
+        "feature": "Systolic_BP",
+        "importance": 0.0035
+      },
+      {
+        "feature": "LDL",
+        "importance": 0.0024
+      },
+      {
+        "feature": "ALT",
+        "importance": 0.0017
+      },
+      {
+        "feature": "AST",
+        "importance": 0.0016
+      }
+    ]
+  },
+  "Clinical.NAFLD": {
+    "modality": "Clinical",
+    "disease": "NAFLD",
+    "winning_classifier": "XGBoost",
+    "threshold_used": 0.31,
+    "val_aucroc": 0.7748,
+    "val_aucpr": 0.8276,
+    "test_aucroc": 0.7743,
+    "test_aucroc_95ci": [
+      0.7667,
+      0.7824
+    ],
+    "test_aucpr": 0.8228,
+    "test_aucpr_95ci": [
+      0.8145,
+      0.8322
+    ],
+    "test_accuracy": 0.7048,
+    "test_precision": 0.698,
+    "test_recall_sensitivity": 0.8925,
+    "test_specificity": 0.4255,
+    "test_f1_score": 0.7834,
+    "test_brier_score": 0.1938,
+    "confusion_matrix": {
+      "TN": 2566,
+      "FP": 3464,
+      "FN": 964,
+      "TP": 8006
+    },
+    "top_10_features": [
+      {
+        "feature": "AST",
+        "importance": 0.0271
+      },
+      {
+        "feature": "Waist_Circumference",
+        "importance": 0.0252
+      },
+      {
+        "feature": "Triglycerides",
+        "importance": 0.0244
+      },
+      {
+        "feature": "ALT",
+        "importance": 0.0221
+      },
+      {
+        "feature": "HDL",
+        "importance": 0.0057
+      },
+      {
+        "feature": "BMI",
+        "importance": 0.0044
+      },
+      {
+        "feature": "LDL",
+        "importance": 0.0008
+      },
+      {
+        "feature": "Weight",
+        "importance": 0.0006
+      },
+      {
+        "feature": "HbA1c",
+        "importance": 0.0002
+      },
+      {
+        "feature": "Age",
+        "importance": 0.0001
+      }
+    ]
+  },
+  "Wearable.Type2_Diabetes": {
+    "modality": "Wearable",
+    "disease": "Type2_Diabetes",
+    "winning_classifier": "LogisticRegression",
+    "threshold_used": 0.32,
+    "val_aucroc": 0.6717,
+    "val_aucpr": 0.6874,
+    "test_aucroc": 0.6772,
+    "test_aucroc_95ci": [
+      0.6691,
+      0.6862
+    ],
+    "test_aucpr": 0.6974,
+    "test_aucpr_95ci": [
+      0.686,
+      0.7085
+    ],
+    "test_accuracy": 0.5752,
+    "test_precision": 0.5563,
+    "test_recall_sensitivity": 0.9418,
+    "test_specificity": 0.1703,
+    "test_f1_score": 0.6994,
+    "test_brier_score": 0.2255,
+    "confusion_matrix": {
+      "TN": 1214,
+      "FP": 5914,
+      "FN": 458,
+      "TP": 7414
+    },
+    "top_10_features": [
+      {
+        "feature": "Heart_Rate_Variability_RMSSD",
+        "importance": 0.0341
+      },
+      {
+        "feature": "CGM_Glucose_CV",
+        "importance": 0.029
+      },
+      {
+        "feature": "Resting_Heart_Rate",
+        "importance": 0.0267
+      },
+      {
+        "feature": "Autonomic_Stress_Score",
+        "importance": 0.0256
+      },
+      {
+        "feature": "Activity_Energy_Expenditure",
+        "importance": 0.0253
+      },
+      {
+        "feature": "CGM_Average_Glucose",
+        "importance": 0.0068
+      },
+      {
+        "feature": "Sedentary_Time_Minutes",
+        "importance": 0.0038
+      },
+      {
+        "feature": "Sleep_Duration_Hours",
+        "importance": 0.003
+      },
+      {
+        "feature": "Active_Minutes",
+        "importance": 0.0013
+      },
+      {
+        "feature": "Sleep_Efficiency_Score",
+        "importance": 0.001
+      }
+    ]
+  },
+  "Wearable.Prediabetes": {
+    "modality": "Wearable",
+    "disease": "Prediabetes",
+    "winning_classifier": "LightGBM",
+    "threshold_used": 0.44,
+    "val_aucroc": 0.5452,
+    "val_aucpr": 0.229,
+    "test_aucroc": 0.5429,
+    "test_aucroc_95ci": [
+      0.5318,
+      0.554
+    ],
+    "test_aucpr": 0.2221,
+    "test_aucpr_95ci": [
+      0.213,
+      0.2342
+    ],
+    "test_accuracy": 0.2723,
+    "test_precision": 0.2088,
+    "test_recall_sensitivity": 0.9308,
+    "test_specificity": 0.1052,
+    "test_f1_score": 0.3411,
+    "test_brier_score": 0.2434,
+    "confusion_matrix": {
+      "TN": 1259,
+      "FP": 10706,
+      "FN": 210,
+      "TP": 2825
+    },
+    "top_10_features": [
+      {
+        "feature": "Activity_Energy_Expenditure",
+        "importance": 0.0111
+      },
+      {
+        "feature": "Heart_Rate_Variability_RMSSD",
+        "importance": 0.0096
+      },
+      {
+        "feature": "CGM_Glucose_CV",
+        "importance": 0.0077
+      },
+      {
+        "feature": "CGM_Average_Glucose",
+        "importance": 0.0066
+      },
+      {
+        "feature": "CGM_Time_Above_Range",
+        "importance": 0.004
+      },
+      {
+        "feature": "Autonomic_Stress_Score",
+        "importance": 0.0034
+      },
+      {
+        "feature": "CGM_Time_In_Range",
+        "importance": 0.0006
+      },
+      {
+        "feature": "CGM_Time_Below_Range",
+        "importance": 0.0003
+      },
+      {
+        "feature": "Sleep_Efficiency_Score",
+        "importance": -0.0
+      },
+      {
+        "feature": "Sleep_Duration_Hours",
+        "importance": -0.0001
+      }
+    ]
+  },
+  "Wearable.High_Adiposity_Risk": {
+    "modality": "Wearable",
+    "disease": "High_Adiposity_Risk",
+    "winning_classifier": "LogisticRegression",
+    "threshold_used": 0.38,
+    "val_aucroc": 0.6721,
+    "val_aucpr": 0.5547,
+    "test_aucroc": 0.6602,
+    "test_aucroc_95ci": [
+      0.6505,
+      0.6686
+    ],
+    "test_aucpr": 0.5395,
+    "test_aucpr_95ci": [
+      0.5254,
+      0.553
+    ],
+    "test_accuracy": 0.5273,
+    "test_precision": 0.4447,
+    "test_recall_sensitivity": 0.8655,
+    "test_specificity": 0.3121,
+    "test_f1_score": 0.5876,
+    "test_brier_score": 0.2306,
+    "confusion_matrix": {
+      "TN": 2860,
+      "FP": 6305,
+      "FN": 785,
+      "TP": 5050
+    },
+    "top_10_features": [
+      {
+        "feature": "Sedentary_Time_Minutes",
+        "importance": 0.0718
+      },
+      {
+        "feature": "Activity_Energy_Expenditure",
+        "importance": 0.0095
+      },
+      {
+        "feature": "Resting_Heart_Rate",
+        "importance": 0.0088
+      },
+      {
+        "feature": "CGM_Glucose_CV",
+        "importance": 0.0078
+      },
+      {
+        "feature": "Sleep_Duration_Hours",
+        "importance": 0.0072
+      },
+      {
+        "feature": "Autonomic_Stress_Score",
+        "importance": 0.0061
+      },
+      {
+        "feature": "Heart_Rate_Variability_RMSSD",
+        "importance": 0.0053
+      },
+      {
+        "feature": "Average_Daily_Steps",
+        "importance": 0.0012
+      },
+      {
+        "feature": "Active_Minutes",
+        "importance": 0.001
+      },
+      {
+        "feature": "Sleep_Efficiency_Score",
+        "importance": 0.0004
+      }
+    ]
+  },
+  "Wearable.Metabolic_Syndrome": {
+    "modality": "Wearable",
+    "disease": "Metabolic_Syndrome",
+    "winning_classifier": "LogisticRegression",
+    "threshold_used": 0.28,
+    "val_aucroc": 0.6109,
+    "val_aucpr": 0.667,
+    "test_aucroc": 0.6207,
+    "test_aucroc_95ci": [
+      0.6114,
+      0.6301
+    ],
+    "test_aucpr": 0.6708,
+    "test_aucpr_95ci": [
+      0.6598,
+      0.6827
+    ],
+    "test_accuracy": 0.5757,
+    "test_precision": 0.5732,
+    "test_recall_sensitivity": 0.9898,
+    "test_specificity": 0.0312,
+    "test_f1_score": 0.726,
+    "test_brier_score": 0.2388,
+    "confusion_matrix": {
+      "TN": 202,
+      "FP": 6278,
+      "FN": 87,
+      "TP": 8433
+    },
+    "top_10_features": [
+      {
+        "feature": "CGM_Glucose_CV",
+        "importance": 0.043
+      },
+      {
+        "feature": "Sedentary_Time_Minutes",
+        "importance": 0.0368
+      },
+      {
+        "feature": "Heart_Rate_Variability_RMSSD",
+        "importance": 0.0183
+      },
+      {
+        "feature": "Sleep_Duration_Hours",
+        "importance": 0.0114
+      },
+      {
+        "feature": "Autonomic_Stress_Score",
+        "importance": 0.0015
+      },
+      {
+        "feature": "CGM_Time_Above_Range",
+        "importance": 0.0011
+      },
+      {
+        "feature": "Sleep_Efficiency_Score",
+        "importance": 0.0011
+      },
+      {
+        "feature": "CGM_Average_Glucose",
+        "importance": 0.0009
+      },
+      {
+        "feature": "CGM_Time_In_Range",
+        "importance": 0.0005
+      },
+      {
+        "feature": "Resting_Heart_Rate",
+        "importance": 0.0001
+      }
+    ]
+  },
+  "Wearable.NAFLD": {
+    "modality": "Wearable",
+    "disease": "NAFLD",
+    "winning_classifier": "XGBoost",
+    "threshold_used": 0.31,
+    "val_aucroc": 0.5995,
+    "val_aucpr": 0.6767,
+    "test_aucroc": 0.5995,
+    "test_aucroc_95ci": [
+      0.5902,
+      0.6091
+    ],
+    "test_aucpr": 0.6781,
+    "test_aucpr_95ci": [
+      0.6671,
+      0.6891
+    ],
+    "test_accuracy": 0.6019,
+    "test_precision": 0.6016,
+    "test_recall_sensitivity": 0.9893,
+    "test_specificity": 0.0255,
+    "test_f1_score": 0.7482,
+    "test_brier_score": 0.2422,
+    "confusion_matrix": {
+      "TN": 154,
+      "FP": 5876,
+      "FN": 96,
+      "TP": 8874
+    },
+    "top_10_features": [
+      {
+        "feature": "Heart_Rate_Variability_RMSSD",
+        "importance": 0.0298
+      },
+      {
+        "feature": "CGM_Glucose_CV",
+        "importance": 0.0245
+      },
+      {
+        "feature": "Sleep_Duration_Hours",
+        "importance": 0.0099
+      },
+      {
+        "feature": "Sleep_Efficiency_Score",
+        "importance": 0.0053
+      },
+      {
+        "feature": "Autonomic_Stress_Score",
+        "importance": 0.0051
+      },
+      {
+        "feature": "CGM_Time_In_Range",
+        "importance": 0.0024
+      },
+      {
+        "feature": "Resting_Heart_Rate",
+        "importance": 0.0021
+      },
+      {
+        "feature": "Sedentary_Time_Minutes",
+        "importance": 0.0015
+      },
+      {
+        "feature": "Average_Daily_Steps",
+        "importance": 0.0004
+      },
+      {
+        "feature": "CGM_Time_Above_Range",
+        "importance": 0.0003
+      }
+    ]
+  },
+  "Gut.Type2_Diabetes": {
+    "modality": "Gut",
+    "disease": "Type2_Diabetes",
+    "winning_classifier": "CatBoost",
+    "threshold_used": 0.35,
+    "val_aucroc": 0.5936,
+    "val_aucpr": 0.6043,
+    "test_aucroc": 0.5949,
+    "test_aucroc_95ci": [
+      0.5852,
+      0.6039
+    ],
+    "test_aucpr": 0.6088,
+    "test_aucpr_95ci": [
+      0.5976,
+      0.62
+    ],
+    "test_accuracy": 0.5248,
+    "test_precision": 0.5248,
+    "test_recall_sensitivity": 0.9999,
+    "test_specificity": 0.0001,
+    "test_f1_score": 0.6883,
+    "test_brier_score": 0.2433,
+    "confusion_matrix": {
+      "TN": 1,
+      "FP": 7127,
+      "FN": 1,
+      "TP": 7871
+    },
+    "top_10_features": [
+      {
+        "feature": "Inflammation_Associated_Index",
+        "importance": 0.0333
+      },
+      {
+        "feature": "Fusobacterium_nucleatum",
+        "importance": 0.0017
+      },
+      {
+        "feature": "Sutterella_wadsworthensis",
+        "importance": 0.0008
+      },
+      {
+        "feature": "Bilophila_wadsworthia",
+        "importance": 0.0007
+      },
+      {
+        "feature": "Shannon_Diversity",
+        "importance": 0.0006
+      },
+      {
+        "feature": "Parabacteroides_distasonis",
+        "importance": 0.0006
+      },
+      {
+        "feature": "Blautia_wexlerae",
+        "importance": 0.0006
+      },
+      {
+        "feature": "Roseburia_intestinalis",
+        "importance": 0.0005
+      },
+      {
+        "feature": "Escherichia_coli",
+        "importance": 0.0004
+      },
+      {
+        "feature": "Barrier_Associated_Index",
+        "importance": 0.0004
+      }
+    ]
+  },
+  "Gut.Prediabetes": {
+    "modality": "Gut",
+    "disease": "Prediabetes",
+    "winning_classifier": "ExtraTrees",
+    "threshold_used": 0.43,
+    "val_aucroc": 0.5204,
+    "val_aucpr": 0.2104,
+    "test_aucroc": 0.5134,
+    "test_aucroc_95ci": [
+      0.5015,
+      0.5239
+    ],
+    "test_aucpr": 0.2092,
+    "test_aucpr_95ci": [
+      0.1999,
+      0.2193
+    ],
+    "test_accuracy": 0.2027,
+    "test_precision": 0.2023,
+    "test_recall_sensitivity": 0.999,
+    "test_specificity": 0.0007,
+    "test_f1_score": 0.3364,
+    "test_brier_score": 0.2475,
+    "confusion_matrix": {
+      "TN": 8,
+      "FP": 11957,
+      "FN": 3,
+      "TP": 3032
+    },
+    "top_10_features": [
+      {
+        "feature": "Bacteroides_vulgatus",
+        "importance": 0.0057
+      },
+      {
+        "feature": "Lactobacillus_rhamnosus",
+        "importance": 0.0044
+      },
+      {
+        "feature": "Alistipes_putredinis",
+        "importance": 0.004
+      },
+      {
+        "feature": "Akkermansia_muciniphila",
+        "importance": 0.004
+      },
+      {
+        "feature": "Enterococcus_faecalis",
+        "importance": 0.0029
+      },
+      {
+        "feature": "Faecalibacterium_prausnitzii",
+        "importance": 0.0027
+      },
+      {
+        "feature": "Inflammation_Associated_Index",
+        "importance": 0.0022
+      },
+      {
+        "feature": "Bacteroides_fragilis",
+        "importance": 0.0021
+      },
+      {
+        "feature": "Eubacterium_hallii",
+        "importance": 0.0021
+      },
+      {
+        "feature": "Blautia_hansenii",
+        "importance": 0.0019
+      }
+    ]
+  },
+  "Gut.High_Adiposity_Risk": {
+    "modality": "Gut",
+    "disease": "High_Adiposity_Risk",
+    "winning_classifier": "LogisticRegression",
+    "threshold_used": 0.39,
+    "val_aucroc": 0.53,
+    "val_aucpr": 0.4139,
+    "test_aucroc": 0.5263,
+    "test_aucroc_95ci": [
+      0.5159,
+      0.5355
+    ],
+    "test_aucpr": 0.4111,
+    "test_aucpr_95ci": [
+      0.3998,
+      0.4226
+    ],
+    "test_accuracy": 0.3897,
+    "test_precision": 0.3892,
+    "test_recall_sensitivity": 0.9993,
+    "test_specificity": 0.0015,
+    "test_f1_score": 0.5602,
+    "test_brier_score": 0.2494,
+    "confusion_matrix": {
+      "TN": 14,
+      "FP": 9151,
+      "FN": 4,
+      "TP": 5831
+    },
+    "top_10_features": [
+      {
+        "feature": "Shannon_Diversity",
+        "importance": 0.0135
+      },
+      {
+        "feature": "Ruminococcus_bromii",
+        "importance": 0.0079
+      },
+      {
+        "feature": "Pielou_Evenness",
+        "importance": 0.0057
+      },
+      {
+        "feature": "Eubacterium_rectale",
+        "importance": 0.0053
+      },
+      {
+        "feature": "Roseburia_intestinalis",
+        "importance": 0.0051
+      },
+      {
+        "feature": "Simpson_Diversity",
+        "importance": 0.0039
+      },
+      {
+        "feature": "Prevotella_copri",
+        "importance": 0.0037
+      },
+      {
+        "feature": "Barnesiella_intestinihominis",
+        "importance": 0.0034
+      },
+      {
+        "feature": "Bifidobacterium_longum",
+        "importance": 0.0028
+      },
+      {
+        "feature": "Bacteroides_vulgatus",
+        "importance": 0.0027
+      }
+    ]
+  },
+  "Gut.Metabolic_Syndrome": {
+    "modality": "Gut",
+    "disease": "Metabolic_Syndrome",
+    "winning_classifier": "LogisticRegression",
+    "threshold_used": 0.33,
+    "val_aucroc": 0.5717,
+    "val_aucpr": 0.6342,
+    "test_aucroc": 0.5777,
+    "test_aucroc_95ci": [
+      0.5698,
+      0.5869
+    ],
+    "test_aucpr": 0.6321,
+    "test_aucpr_95ci": [
+      0.6224,
+      0.6438
+    ],
+    "test_accuracy": 0.5682,
+    "test_precision": 0.5681,
+    "test_recall_sensitivity": 0.9995,
+    "test_specificity": 0.0011,
+    "test_f1_score": 0.7245,
+    "test_brier_score": 0.2454,
+    "confusion_matrix": {
+      "TN": 7,
+      "FP": 6473,
+      "FN": 4,
+      "TP": 8516
+    },
+    "top_10_features": [
+      {
+        "feature": "Pielou_Evenness",
+        "importance": 0.005
+      },
+      {
+        "feature": "Shannon_Diversity",
+        "importance": 0.0045
+      },
+      {
+        "feature": "Simpson_Diversity",
+        "importance": 0.0031
+      },
+      {
+        "feature": "Escherichia_coli",
+        "importance": 0.0028
+      },
+      {
+        "feature": "Enterococcus_faecalis",
+        "importance": 0.0014
+      },
+      {
+        "feature": "Fusobacterium_nucleatum",
+        "importance": 0.0013
+      },
+      {
+        "feature": "Barrier_Associated_Index",
+        "importance": 0.0012
+      },
+      {
+        "feature": "Bifidobacterium_longum",
+        "importance": 0.0009
+      },
+      {
+        "feature": "Inflammation_Associated_Index",
+        "importance": 0.0008
+      },
+      {
+        "feature": "Bacteroides_fragilis",
+        "importance": 0.0007
+      }
+    ]
+  },
+  "Gut.NAFLD": {
+    "modality": "Gut",
+    "disease": "NAFLD",
+    "winning_classifier": "LogisticRegression",
+    "threshold_used": 0.32,
+    "val_aucroc": 0.6479,
+    "val_aucpr": 0.7171,
+    "test_aucroc": 0.6487,
+    "test_aucroc_95ci": [
+      0.6406,
+      0.6575
+    ],
+    "test_aucpr": 0.718,
+    "test_aucpr_95ci": [
+      0.7076,
+      0.7284
+    ],
+    "test_accuracy": 0.6154,
+    "test_precision": 0.6147,
+    "test_recall_sensitivity": 0.9562,
+    "test_specificity": 0.1085,
+    "test_f1_score": 0.7483,
+    "test_brier_score": 0.2336,
+    "confusion_matrix": {
+      "TN": 654,
+      "FP": 5376,
+      "FN": 393,
+      "TP": 8577
+    },
+    "top_10_features": [
+      {
+        "feature": "Log_Firmicutes_Bacteroidetes_Ratio",
+        "importance": 0.0062
+      },
+      {
+        "feature": "Ruminococcus_gnavus",
+        "importance": 0.0053
+      },
+      {
+        "feature": "Escherichia_coli",
+        "importance": 0.0044
+      },
+      {
+        "feature": "Simpson_Diversity",
+        "importance": 0.0036
+      },
+      {
+        "feature": "SCFA_Producer_Index",
+        "importance": 0.0032
+      },
+      {
+        "feature": "Enterococcus_faecalis",
+        "importance": 0.0026
+      },
+      {
+        "feature": "Klebsiella_pneumoniae",
+        "importance": 0.0025
+      },
+      {
+        "feature": "Inflammation_Associated_Index",
+        "importance": 0.0022
+      },
+      {
+        "feature": "Barrier_Associated_Index",
+        "importance": 0.0017
+      },
+      {
+        "feature": "Bacteroides_uniformis",
+        "importance": 0.0012
+      }
+    ]
+  }
+}
