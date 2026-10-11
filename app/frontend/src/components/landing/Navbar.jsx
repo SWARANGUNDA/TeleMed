@@ -48,17 +48,13 @@ export default function Navbar({ user, onOpenAuth }) {
     <header className={`sticky top-0 z-50 transition-all duration-300 ${scrolled ? 'bg-white/85 backdrop-blur-md shadow-sm border-b border-slate-200/60 py-3' : 'bg-transparent py-4'}`}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between">
         
-        {/* LOGO + TAGLINE */}
-        <Link to="/" className="flex items-center gap-3 group">
-          <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-purple-600 p-0.5 shadow-md shadow-blue-500/20 group-hover:scale-105 transition-transform">
-            <div className="w-full h-full bg-white rounded-[14px] flex items-center justify-center text-blue-600">
-              <Heart className="w-5 h-5 fill-blue-600 text-blue-600" />
-            </div>
-          </div>
-          <div>
-            <span className="text-lg font-black text-slate-900 tracking-tight block leading-none">TeleMed AI</span>
-            <span className="text-[10px] font-bold text-slate-400 tracking-wider">AI-Powered. Patient-Centered.</span>
-          </div>
+        {/* LOGO */}
+        <Link to="/" className="flex items-center group py-1">
+          <img
+            src="/assets/healthprism_logo.png"
+            alt="Health Prism"
+            className="h-10 sm:h-11 w-auto max-w-[210px] object-contain group-hover:scale-105 transition-transform"
+          />
         </Link>
 
         {/* DESKTOP NAV LINKS */}

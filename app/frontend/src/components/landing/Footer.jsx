@@ -11,15 +11,13 @@ export default function Footer() {
           
           {/* Col 1: Brand */}
           <div className="space-y-3 md:col-span-1">
-            <Link to="/" className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-blue-500 to-indigo-500 p-0.5 shadow-md flex items-center justify-center">
-                <div className="w-full h-full bg-slate-900 rounded-[10px] flex items-center justify-center text-blue-400">
-                  <Heart className="w-4 h-4 fill-blue-400" />
-                </div>
-              </div>
-              <div>
-                <span className="text-base font-black text-white tracking-tight block leading-none">TeleMed AI</span>
-                <span className="text-[9.5px] font-bold text-slate-400 tracking-wider">AI-Powered. Patient-Centered.</span>
+            <Link to="/" className="flex items-center">
+              <div className="h-10 bg-white/95 rounded-xl px-2.5 py-1 flex items-center shadow-xs">
+                <img
+                  src="/assets/healthprism_logo.png"
+                  alt="Health Prism"
+                  className="h-full w-auto object-contain"
+                />
               </div>
             </Link>
             <p className="text-xs text-slate-400 leading-relaxed pt-1">

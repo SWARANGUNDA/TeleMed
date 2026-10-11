@@ -189,12 +189,18 @@ export default function RegisterPage({ onLoginSuccess, user, onOpenAuth }) {
             <div className="w-full max-w-[390px] sm:max-w-[400px] rounded-[28px] bg-white border border-slate-200/90 p-5 sm:p-6 shadow-[0_20px_50px_rgba(15,23,42,0.06)] space-y-3">
               
               {/* Card Header Icon & Titles */}
-              <div className="text-center space-y-1">
-                <div className="w-10 h-10 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white flex items-center justify-center mx-auto shadow-md shadow-blue-500/20">
-                  <Activity className="w-5 h-5" />
+              <div className="text-center space-y-2">
+                <div className="flex justify-center">
+                  <div className="h-11 bg-white/95 rounded-2xl px-2 py-1 flex items-center justify-center">
+                    <img
+                      src="/assets/healthprism_logo.png"
+                      alt="Health Prism"
+                      className="h-full w-auto object-contain max-w-[190px]"
+                    />
+                  </div>
                 </div>
                 <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
-                  Create TeleMed AI Account
+                  Create Health Prism Account
                 </h2>
                 <p className="text-xs text-slate-500 font-medium">
                   Get started with explainable multimodal AI risk prediction.
