@@ -459,25 +459,86 @@ export default function AppointmentsPage({ user, onNavigate }) {
     return slots;
   }, [availabilitySlots, slotFilter]);
 
+  const tomorrowStr = useMemo(() => {
+    const tm = new Date();
+    tm.setDate(tm.getDate() + 1);
+    const y = tm.getFullYear();
+    const m = String(tm.getMonth() + 1).padStart(2, '0');
+    const d = String(tm.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  }, []);
+
+  const selectedDayAppointments = useMemo(() => {
+    if (!selectedCalendarDate) return [];
+    return normalizedAppointments.filter(a => a.date_str === selectedCalendarDate);
+  }, [normalizedAppointments, selectedCalendarDate]);
+
   const calendarCells = useMemo(() => {
     const firstDay = new Date(calYear, calMonth, 1);
     const lastDay = new Date(calYear, calMonth + 1, 0);
     const startDayOfWeek = firstDay.getDay();
     const totalDays = lastDay.getDate();
+    const prevMonthLastDay = new Date(calYear, calMonth, 0).getDate();
 
     const cells = [];
-    for (let i = 0; i < startDayOfWeek; i++) {
-      cells.push({ day: '', current: false });
+
+    // Fill preceding days from previous month
+    for (let i = startDayOfWeek - 1; i >= 0; i--) {
+      const pDay = prevMonthLastDay - i;
+      const prevDate = new Date(calYear, calMonth - 1, pDay);
+      const mm = String(prevDate.getMonth() + 1).padStart(2, '0');
+      const dd = String(pDay).padStart(2, '0');
+      const dateStr = `${prevDate.getFullYear()}-${mm}-${dd}`;
+      const dayApts = normalizedAppointments.filter(a => a.date_str === dateStr);
+      cells.push({
+        day: pDay,
+        dateStr,
+        current: false,
+        isToday: dateStr === todayStr,
+        apts: dayApts,
+        hasApt: dayApts.length > 0,
+        aptCount: dayApts.length
+      });
     }
+
+    // Fill days of current month
     for (let d = 1; d <= totalDays; d++) {
       const mm = String(calMonth + 1).padStart(2, '0');
       const dd = String(d).padStart(2, '0');
       const dateStr = `${calYear}-${mm}-${dd}`;
-      const hasApt = normalizedAppointments.some(a => a.date_str === dateStr);
-      cells.push({ day: d, dateStr, current: true, hasApt });
+      const dayApts = normalizedAppointments.filter(a => a.date_str === dateStr);
+      cells.push({
+        day: d,
+        dateStr,
+        current: true,
+        isToday: dateStr === todayStr,
+        apts: dayApts,
+        hasApt: dayApts.length > 0,
+        aptCount: dayApts.length
+      });
     }
+
+    // Fill trailing days from next month
+    const remaining = (7 - (cells.length % 7)) % 7;
+    for (let n = 1; n <= remaining; n++) {
+      const nextDate = new Date(calYear, calMonth + 1, n);
+      const mm = String(nextDate.getMonth() + 1).padStart(2, '0');
+      const dd = String(n).padStart(2, '0');
+      const dateStr = `${nextDate.getFullYear()}-${mm}-${dd}`;
+      const dayApts = normalizedAppointments.filter(a => a.date_str === dateStr);
+      cells.push({
+        day: n,
+        dateStr,
+        current: false,
+        isToday: dateStr === todayStr,
+        apts: dayApts,
+        hasApt: dayApts.length > 0,
+        aptCount: dayApts.length
+      });
+    }
+
     return cells;
-  }, [calYear, calMonth, normalizedAppointments]);
+  }, [calYear, calMonth, normalizedAppointments, todayStr]);
 
   // ── Handlers & Actions ──────────────────────────────────────────────────
   const handleBookAppointment = async (bookingData) => {
@@ -1208,20 +1269,41 @@ export default function AppointmentsPage({ user, onNavigate }) {
               </div>
             </div>
 
-            {/* Widget 2: Mini Month Calendar Picker */}
-            <div className="bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-2xl p-4 space-y-3 shadow-lg">
+            {/* Widget 2: Highly Interactive Month Calendar Picker */}
+            <div className="bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-2xl p-4 space-y-3.5 shadow-lg transition-all">
+              {/* Header with Month Title & Quick Jump Controls */}
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-2">
-                  <Calendar className="w-4 h-4 text-[var(--primary)]" />
-                  <h3 className="text-xs font-bold text-[var(--text-main)]">{MONTH_NAMES[calMonth]} {calYear}</h3>
+                  <div className="w-7 h-7 rounded-lg bg-[var(--primary)]/10 text-[var(--primary)] flex items-center justify-center">
+                    <Calendar className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h3 className="text-xs font-black text-[var(--text-main)] tracking-tight">
+                      {MONTH_NAMES[calMonth]} {calYear}
+                    </h3>
+                  </div>
                 </div>
+
                 <div className="flex items-center space-x-1">
+                  <button
+                    onClick={() => {
+                      const now = new Date();
+                      setCalMonth(now.getMonth());
+                      setCalYear(now.getFullYear());
+                      setSelectedCalendarDate(todayStr);
+                    }}
+                    className="px-2 py-1 text-[10px] font-bold rounded-lg bg-[var(--primary)]/10 text-[var(--primary)] hover:bg-[var(--primary)]/20 transition-colors cursor-pointer"
+                    title="Jump to Today"
+                  >
+                    Today
+                  </button>
                   <button
                     onClick={() => {
                       if (calMonth === 0) { setCalMonth(11); setCalYear(y => y - 1); }
                       else setCalMonth(m => m - 1);
                     }}
-                    className="p-1 text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--bg-surface-hover)] rounded-lg cursor-pointer"
+                    className="p-1 text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--bg-surface-hover)] rounded-lg cursor-pointer transition-colors"
+                    title="Previous Month"
                   >
                     <ChevronLeft size={16} />
                   </button>
@@ -1230,39 +1312,194 @@ export default function AppointmentsPage({ user, onNavigate }) {
                       if (calMonth === 11) { setCalMonth(0); setCalYear(y => y + 1); }
                       else setCalMonth(m => m + 1);
                     }}
-                    className="p-1 text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--bg-surface-hover)] rounded-lg cursor-pointer"
+                    className="p-1 text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--bg-surface-hover)] rounded-lg cursor-pointer transition-colors"
+                    title="Next Month"
                   >
                     <ChevronRight size={16} />
                   </button>
                 </div>
               </div>
 
-              <div className="grid grid-cols-7 gap-1 text-center text-[10px] font-bold text-[var(--text-dim)]">
+              {/* Day of Week Labels */}
+              <div className="grid grid-cols-7 gap-1 text-center text-[10px] font-extrabold uppercase tracking-wider text-[var(--text-dim)]">
                 {DAY_SHORT.map(d => <span key={d}>{d}</span>)}
               </div>
 
+              {/* Interactive Calendar Days Grid */}
               <div className="grid grid-cols-7 gap-1 text-center text-xs">
                 {calendarCells.map((c, i) => {
                   const isSelected = selectedCalendarDate === c.dateStr;
+                  const isToday = c.dateStr === todayStr;
+
                   return (
                     <button
                       key={i}
-                      disabled={!c.current}
-                      onClick={() => c.dateStr && setSelectedCalendarDate(c.dateStr)}
-                      className={`py-1.5 rounded-lg transition-all relative flex flex-col items-center justify-center cursor-pointer ${
-                        !c.current ? 'text-slate-300 opacity-40 cursor-default' :
-                        isSelected ? 'bg-blue-600 text-white font-bold shadow-sm' :
-                        'text-slate-700 hover:bg-slate-100 font-medium'
+                      onClick={() => {
+                        if (!c.dateStr) return;
+                        if (isSelected) {
+                          setSelectedCalendarDate(null);
+                        } else {
+                          if (!c.current) {
+                            const cellDate = new Date(c.dateStr + 'T00:00:00');
+                            setCalMonth(cellDate.getMonth());
+                            setCalYear(cellDate.getFullYear());
+                          }
+                          setSelectedCalendarDate(c.dateStr);
+                        }
+                      }}
+                      title={
+                        c.dateStr
+                          ? `${c.dateStr}${c.aptCount ? ` (${c.aptCount} booking${c.aptCount > 1 ? 's' : ''})` : ''}`
+                          : undefined
+                      }
+                      className={`py-1.5 px-0.5 rounded-xl transition-all relative flex flex-col items-center justify-center cursor-pointer group ${
+                        !c.current
+                          ? 'text-[var(--text-dim)] opacity-40 hover:opacity-90'
+                          : isSelected
+                          ? 'bg-gradient-to-tr from-blue-600 to-indigo-600 text-white font-black shadow-md shadow-blue-500/30 scale-105 z-10'
+                          : isToday
+                          ? 'bg-blue-50 dark:bg-blue-950/40 text-[var(--primary)] font-extrabold ring-1 ring-[var(--primary)]/50 hover:bg-blue-100 dark:hover:bg-blue-900/60'
+                          : 'text-[var(--text-main)] hover:bg-[var(--bg-surface-hover)] font-semibold'
                       }`}
                     >
-                      <span>{c.day}</span>
-                      {c.hasApt && (
-                        <span className={`w-1 h-1 rounded-full mt-0.5 ${isSelected ? 'bg-white' : 'bg-blue-600'}`} />
-                      )}
+                      <span className="leading-tight text-[11px]">{c.day}</span>
+                      <div className="h-2 flex items-center justify-center gap-0.5 mt-0.5">
+                        {c.aptCount === 1 && (
+                          <span
+                            className={`w-1.5 h-1.5 rounded-full transition-colors ${
+                              isSelected ? 'bg-white' : isToday ? 'bg-[var(--primary)]' : 'bg-blue-500'
+                            }`}
+                          />
+                        )}
+                        {c.aptCount > 1 && (
+                          <span
+                            className={`px-1 text-[8px] font-black rounded-full leading-none flex items-center justify-center ${
+                              isSelected
+                                ? 'bg-white text-blue-600'
+                                : 'bg-indigo-600 text-white'
+                            }`}
+                          >
+                            {c.aptCount}
+                          </span>
+                        )}
+                      </div>
                     </button>
                   );
                 })}
               </div>
+
+              {/* Interactive Day Agenda / Schedule Peek Drawer */}
+              {selectedCalendarDate ? (
+                <div className="pt-3 border-t border-[var(--border-subtle)] space-y-2.5 animate-fadeIn">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <span className="text-xs font-extrabold text-[var(--text-main)] truncate">
+                        {formatDateFull(selectedCalendarDate)}
+                      </span>
+                      <span className={`text-[10px] font-extrabold px-1.5 py-0.5 rounded-full shrink-0 ${
+                        selectedDayAppointments.length > 0
+                          ? 'bg-blue-50 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300'
+                          : 'bg-slate-100 dark:bg-slate-800 text-[var(--text-dim)]'
+                      }`}>
+                        {selectedDayAppointments.length} {selectedDayAppointments.length === 1 ? 'Slot' : 'Slots'}
+                      </span>
+                    </div>
+                    <button
+                      onClick={() => setSelectedCalendarDate(null)}
+                      className="text-[11px] font-bold text-[var(--primary)] hover:underline flex items-center gap-0.5 cursor-pointer shrink-0 ml-1"
+                      title="Clear date filter"
+                    >
+                      <X size={12} /> Clear
+                    </button>
+                  </div>
+
+                  {selectedDayAppointments.length > 0 ? (
+                    <div className="space-y-1.5 max-h-[190px] overflow-y-auto custom-scrollbar pr-0.5">
+                      {selectedDayAppointments.map(apt => (
+                        <div
+                          key={apt.id}
+                          onClick={() => setSelectedAppointmentDetails(apt)}
+                          className="p-2.5 rounded-xl bg-[var(--bg-primary)] hover:bg-[var(--bg-surface-hover)] border border-[var(--border-subtle)] hover:border-[var(--primary)] transition-all cursor-pointer flex items-center justify-between group shadow-xs"
+                          title="Click to view full appointment details"
+                        >
+                          <div className="min-w-0 flex-1 pr-2">
+                            <div className="flex items-center gap-1.5">
+                              <Clock className="w-3 h-3 text-[var(--primary)] shrink-0" />
+                              <span className="text-[11px] font-extrabold text-[var(--text-main)] font-mono">
+                                {formatTimeOnly(apt.time_str)}
+                              </span>
+                              <span className={`text-[9px] font-extrabold px-1 rounded uppercase ${
+                                apt.status === 'CONFIRMED'
+                                  ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300'
+                                  : 'bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300'
+                              }`}>
+                                {apt.status}
+                              </span>
+                            </div>
+                            <p className="text-[11px] font-medium text-[var(--text-muted)] truncate mt-0.5">
+                              {isDoctor ? (apt.patient_name || 'Patient') : (apt.doctor_name || 'Attending Doctor')}
+                            </p>
+                          </div>
+                          <div className="p-1 rounded-lg bg-[var(--primary)]/10 text-[var(--primary)] group-hover:scale-110 transition-transform shrink-0">
+                            {apt.appointment_type === 'video' ? <Video size={13} /> : <Phone size={13} />}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="p-3 bg-[var(--bg-primary)] rounded-xl border border-dashed border-[var(--border-subtle)] text-center space-y-2">
+                      <p className="text-[11px] text-[var(--text-muted)] font-medium">No appointments scheduled for this date</p>
+                      <button
+                        onClick={() => {
+                          if (isDoctor) setShowAddAvailabilityModal(true);
+                          else setShowBookModal(true);
+                        }}
+                        className="px-3 py-1 bg-[var(--primary)] hover:opacity-90 text-white text-[11px] font-bold rounded-lg transition-all inline-flex items-center gap-1 cursor-pointer shadow-xs"
+                      >
+                        <Plus size={12} /> {isDoctor ? 'Add Availability Slot' : 'Book Appointment'}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="pt-2.5 border-t border-[var(--border-subtle)] flex items-center justify-between text-[11px]">
+                  <div className="flex items-center gap-1.5 text-[var(--text-dim)]">
+                    <span className="w-1.5 h-1.5 rounded-full bg-blue-500 shrink-0" />
+                    <span className="text-[10px]">Active bookings</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => {
+                        const now = new Date();
+                        setCalMonth(now.getMonth());
+                        setCalYear(now.getFullYear());
+                        setSelectedCalendarDate(todayStr);
+                      }}
+                      className="px-2 py-1 rounded-lg text-[10px] font-bold bg-[var(--bg-primary)] hover:bg-[var(--bg-surface-hover)] text-[var(--text-main)] border border-[var(--border-subtle)] transition-colors cursor-pointer"
+                    >
+                      Today
+                    </button>
+                    <button
+                      onClick={() => {
+                        const tm = new Date();
+                        tm.setDate(tm.getDate() + 1);
+                        setCalMonth(tm.getMonth());
+                        setCalYear(tm.getFullYear());
+                        setSelectedCalendarDate(tomorrowStr);
+                      }}
+                      className="px-2 py-1 rounded-lg text-[10px] font-bold bg-[var(--bg-primary)] hover:bg-[var(--bg-surface-hover)] text-[var(--text-main)] border border-[var(--border-subtle)] transition-colors cursor-pointer"
+                    >
+                      Tomorrow
+                    </button>
+                    <button
+                      onClick={() => setActiveTab('calendar')}
+                      className="px-2 py-1 rounded-lg text-[10px] font-bold bg-[var(--primary)]/10 hover:bg-[var(--primary)]/20 text-[var(--primary)] transition-colors cursor-pointer flex items-center gap-0.5"
+                    >
+                      <CalendarDays size={10} /> Full
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Widget 3: Support Card */}
@@ -1393,16 +1630,40 @@ export default function AppointmentsPage({ user, onNavigate }) {
 
       {/* 3. FULL MONTH CALENDAR TAB */}
       {activeTab === 'calendar' && (
-        <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-lg shadow-slate-100/60 space-y-4">
-          <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-            <h2 className="text-base font-extrabold text-slate-900">Schedule Calendar ({MONTH_NAMES[calMonth]} {calYear})</h2>
+        <div className="bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-3xl p-6 shadow-xl space-y-5 animate-fadeIn">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[var(--border-subtle)] pb-4">
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 rounded-2xl bg-[var(--primary)]/10 text-[var(--primary)] flex items-center justify-center font-bold shadow-xs">
+                <CalendarDays className="w-5 h-5" />
+              </div>
+              <div>
+                <h2 className="text-lg font-black text-[var(--text-main)] tracking-tight">
+                  Schedule Calendar & Overview
+                </h2>
+                <p className="text-xs text-[var(--text-muted)] font-medium">
+                  {MONTH_NAMES[calMonth]} {calYear} • Click any day to inspect and filter appointments
+                </p>
+              </div>
+            </div>
+
             <div className="flex items-center space-x-2">
+              <button
+                onClick={() => {
+                  const now = new Date();
+                  setCalMonth(now.getMonth());
+                  setCalYear(now.getFullYear());
+                  setSelectedCalendarDate(todayStr);
+                }}
+                className="px-3 py-1.5 text-xs font-bold rounded-xl bg-[var(--primary)]/10 text-[var(--primary)] hover:bg-[var(--primary)]/20 transition-colors cursor-pointer"
+              >
+                Today
+              </button>
               <button
                 onClick={() => {
                   if (calMonth === 0) { setCalMonth(11); setCalYear(y => y - 1); }
                   else setCalMonth(m => m - 1);
                 }}
-                className="px-3 py-1.5 text-xs font-bold rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 cursor-pointer"
+                className="px-3 py-1.5 text-xs font-bold rounded-xl bg-[var(--bg-primary)] hover:bg-[var(--bg-surface-hover)] text-[var(--text-main)] border border-[var(--border-subtle)] cursor-pointer transition-colors"
               >
                 Prev Month
               </button>
@@ -1411,44 +1672,99 @@ export default function AppointmentsPage({ user, onNavigate }) {
                   if (calMonth === 11) { setCalMonth(0); setCalYear(y => y + 1); }
                   else setCalMonth(m => m + 1);
                 }}
-                className="px-3 py-1.5 text-xs font-bold rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 cursor-pointer"
+                className="px-3 py-1.5 text-xs font-bold rounded-xl bg-[var(--bg-primary)] hover:bg-[var(--bg-surface-hover)] text-[var(--text-main)] border border-[var(--border-subtle)] cursor-pointer transition-colors"
               >
                 Next Month
               </button>
             </div>
           </div>
 
-          <div className="grid grid-cols-7 gap-2 text-center text-xs font-bold text-slate-500">
-            {DAY_SHORT.map(d => <span key={d} className="py-2 bg-slate-50 rounded-xl">{d}</span>)}
+          <div className="grid grid-cols-7 gap-2 text-center text-xs font-extrabold uppercase tracking-wider text-[var(--text-dim)]">
+            {DAY_SHORT.map(d => (
+              <span key={d} className="py-2 bg-[var(--bg-primary)] border border-[var(--border-subtle)] rounded-xl">
+                {d}
+              </span>
+            ))}
           </div>
 
           <div className="grid grid-cols-7 gap-2 text-xs">
-            {calendarCells.map((c, i) => (
-              <div
-                key={i}
-                className={`min-h-[100px] p-2.5 rounded-2xl border border-slate-200 flex flex-col justify-between transition-all ${
-                  !c.current ? 'bg-slate-50/40 opacity-40' : 'bg-slate-50/60 hover:bg-white hover:shadow-sm'
-                }`}
-              >
-                <span className="font-extrabold text-slate-800">{c.day}</span>
-                {c.dateStr && (
-                  <div className="space-y-1">
-                    {normalizedAppointments
-                      .filter(a => a.date_str === c.dateStr)
-                      .slice(0, 2)
-                      .map(apt => (
-                        <div
-                          key={apt.id}
-                          onClick={() => setSelectedAppointmentDetails(apt)}
-                          className="p-1 rounded-lg text-[10px] font-bold bg-blue-100 text-blue-900 truncate cursor-pointer hover:bg-blue-200"
-                        >
-                          {formatTimeOnly(apt.time_str)} - {isDoctor ? apt.patient_name : apt.doctor_name}
-                        </div>
-                      ))}
+            {calendarCells.map((c, i) => {
+              const isToday = c.dateStr === todayStr;
+              const isSelected = selectedCalendarDate === c.dateStr;
+
+              return (
+                <div
+                  key={i}
+                  onClick={() => {
+                    if (c.dateStr) {
+                      setSelectedCalendarDate(isSelected ? null : c.dateStr);
+                      setActiveTab('upcoming');
+                    }
+                  }}
+                  className={`min-h-[115px] p-2.5 rounded-2xl border transition-all flex flex-col justify-between cursor-pointer group ${
+                    !c.current
+                      ? 'bg-[var(--bg-primary)]/40 border-[var(--border-subtle)] opacity-40 hover:opacity-75'
+                      : isSelected
+                      ? 'bg-[var(--primary-light)] border-[var(--primary)] shadow-md ring-2 ring-[var(--primary)]/30'
+                      : isToday
+                      ? 'bg-blue-50/70 dark:bg-blue-950/30 border-blue-400 dark:border-blue-600 shadow-xs'
+                      : 'bg-[var(--bg-primary)] border-[var(--border-subtle)] hover:bg-[var(--bg-surface)] hover:border-[var(--primary)] hover:shadow-md'
+                  }`}
+                  title={c.dateStr ? `Click to filter appointments for ${c.dateStr}` : undefined}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className={`text-xs font-extrabold ${
+                      isToday
+                        ? 'w-6 h-6 rounded-full bg-[var(--primary)] text-white flex items-center justify-center shadow-xs'
+                        : isSelected
+                        ? 'text-[var(--primary)] font-black text-sm'
+                        : 'text-[var(--text-main)]'
+                    }`}>
+                      {c.day}
+                    </span>
+
+                    {c.aptCount > 0 && (
+                      <span className="text-[9px] font-black px-1.5 py-0.5 rounded-full bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300">
+                        {c.aptCount}
+                      </span>
+                    )}
                   </div>
-                )}
-              </div>
-            ))}
+
+                  {c.dateStr && (
+                    <div className="space-y-1 my-1">
+                      {normalizedAppointments
+                        .filter(a => a.date_str === c.dateStr)
+                        .slice(0, 2)
+                        .map(apt => (
+                          <div
+                            key={apt.id}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedAppointmentDetails(apt);
+                            }}
+                            className="p-1 rounded-lg text-[10px] font-bold bg-[var(--bg-surface)] hover:bg-[var(--bg-surface-hover)] border border-[var(--border-subtle)] text-[var(--text-main)] truncate cursor-pointer shadow-xs flex items-center gap-1"
+                            title={`${formatTimeOnly(apt.time_str)} - ${isDoctor ? apt.patient_name : apt.doctor_name}`}
+                          >
+                            <span className="w-1.5 h-1.5 rounded-full bg-[var(--primary)] shrink-0" />
+                            <span className="truncate font-mono">{formatTimeOnly(apt.time_str)}</span>
+                            <span className="truncate text-[var(--text-muted)]">- {isDoctor ? apt.patient_name : apt.doctor_name}</span>
+                          </div>
+                        ))}
+                      {c.aptCount > 2 && (
+                        <div className="text-[9px] font-bold text-[var(--primary)] text-center">
+                          +{c.aptCount - 2} more
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  <div className="text-[10px] font-bold text-[var(--text-dim)] group-hover:text-[var(--primary)] transition-colors flex items-center justify-between">
+                    <span>{c.dateStr ? 'View Day' : ''}</span>
+                    {c.dateStr && <ChevronRight size={12} className="opacity-0 group-hover:opacity-100 transition-opacity" />}
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
       )}
