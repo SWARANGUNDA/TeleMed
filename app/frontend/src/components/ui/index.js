@@ -24,3 +24,4 @@ export { Alert } from './Alert';
 export { Divider } from './Divider';
 export { Breadcrumb } from './Breadcrumb';
 export { Pagination } from './Pagination';
+export { HighlightMatch } from './HighlightMatch';

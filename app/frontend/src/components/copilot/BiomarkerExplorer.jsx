@@ -2,8 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { Card, Badge, Input, Button } from '../ui';
 import {
   Search, Activity, ChevronDown, ChevronUp, TrendingDown, TrendingUp, CheckCircle2,
-  HelpCircle, FileText, Watch, Dna, Sparkles, Filter, Database, RefreshCw, Eye
+  HelpCircle, FileText, Watch, Dna, Sparkles, Filter, Database, RefreshCw, Eye, X
 } from 'lucide-react';
+import HighlightMatch from '../ui/HighlightMatch';
 import { fetchPatientRecords } from '../../api/client';
 import { classifyBiomarker } from '../../utils/clinicalRanges';
 
@@ -115,11 +116,40 @@ export default function BiomarkerExplorer({ predictionData, user }) {
   const wearCount = extractedBiomarkers.filter(b => b.modality === 'Wearable').length;
   const gutCount = extractedBiomarkers.filter(b => b.modality === 'Gut').length;
 
-  const filteredBiomarkers = extractedBiomarkers.filter(b => {
-    const matchesSearch = b.name.toLowerCase().includes(searchQuery.toLowerCase()) || b.id.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesMod = selectedModality === 'ALL' || b.modality.toLowerCase() === selectedModality.toLowerCase();
-    return matchesSearch && matchesMod;
-  });
+  // Elasticsearch-style multi-token live scoring & ranking
+  const filteredBiomarkers = React.useMemo(() => {
+    let list = extractedBiomarkers;
+    if (selectedModality !== 'ALL') {
+      list = list.filter(b => b.modality.toLowerCase() === selectedModality.toLowerCase());
+    }
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return list;
+    const tokens = q.split(/\s+/).filter(Boolean);
+
+    return list
+      .map(b => {
+        const targetStr = `${b.name} ${b.id} ${b.modality} ${b.refRange} ${b.current} ${b.status}`.toLowerCase();
+        let score = 0;
+        let allMatch = true;
+
+        for (const token of tokens) {
+          if (targetStr.includes(token)) {
+            score += 10;
+            if (b.name.toLowerCase().includes(token)) score += 20;
+            if (b.name.toLowerCase().startsWith(token)) score += 15;
+          } else {
+            allMatch = false;
+          }
+        }
+
+        if (!allMatch) return null;
+        if (targetStr.includes(q)) score += 50;
+        return { item: b, score };
+      })
+      .filter(Boolean)
+      .sort((a, b) => b.score - a.score)
+      .map(entry => entry.item);
+  }, [extractedBiomarkers, selectedModality, searchQuery]);
 
   const visibleBiomarkers = showAll ? filteredBiomarkers : filteredBiomarkers.slice(0, 12);
   const hasMore = filteredBiomarkers.length > 12;
@@ -143,10 +173,22 @@ export default function BiomarkerExplorer({ predictionData, user }) {
 
       {/* Controls Bar: Search & Modality Filters */}
       <div className="flex flex-col sm:flex-row gap-3 items-center justify-between">
-        <div className="w-full sm:w-80">
+        <div className="w-full sm:w-80 relative">
           <Input
             placeholder="Search by biomarker name (e.g. glucose, cholesterol)..."
-            leftIcon={<Search className="w-4 h-4" />}
+            leftIcon={<Search className="w-4 h-4 text-[var(--accent)]" />}
+            rightIcon={
+              searchQuery ? (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery('')}
+                  className="p-1 hover:bg-[var(--bg-surface-hover)] rounded-full text-[var(--text-muted)] hover:text-[var(--text-main)] transition-colors"
+                  title="Clear Search"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              ) : null
+            }
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
@@ -208,8 +250,12 @@ export default function BiomarkerExplorer({ predictionData, user }) {
             <div key={b.id} className="p-4 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-subtle)] space-y-2.5 hover:shadow-md transition-all hover:border-[var(--accent)]">
               <div className="flex justify-between items-start">
                 <div>
-                  <strong className="text-xs text-[var(--text-main)] font-extrabold block">{b.emoji} {b.name}</strong>
-                  <span className="text-[10px] font-mono text-[var(--text-muted)]">{b.modality} • Target Range: {b.refRange}</span>
+                  <strong className="text-xs text-[var(--text-main)] font-extrabold block">
+                    {b.emoji} <HighlightMatch text={b.name} query={searchQuery} />
+                  </strong>
+                  <span className="text-[10px] font-mono text-[var(--text-muted)]">
+                    {b.modality} • Target Range: <HighlightMatch text={b.refRange} query={searchQuery} />
+                  </span>
                 </div>
                 <Badge variant={b.statusVariant} size="sm">{b.status}</Badge>
               </div>

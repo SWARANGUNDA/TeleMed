@@ -1,12 +1,18 @@
-// High-Resolution Studio Ghibli Indian Anime Avatars Catalog
-// Supports Role-Gated Avatars: Patients (Boy, Girl, Men, Women, Old Man, Old Woman), Doctors, & Administrator.
+// High-Resolution Studio Ghibli Indian Anime Avatars & Clinical Profile Emoji Catalog
+// Supports Role-Gated Avatars & Emojis: Patients (Boy, Girl, Men, Women, Old Man, Old Woman), Doctors, & Administrator.
+// Allows dynamic auto-suggestion based on patient age and gender.
 
 export const AVATAR_CATALOG = [
-  // --- PATIENT AVATARS (INDIAN GHIBLI ANIME ART STYLE) ---
+  // --- PATIENT AVATARS (INDIAN GHIBLI ANIME ART STYLE + EMOJIS) ---
   {
     id: 'boy',
     label: 'Boy Patient',
     role: 'Boy',
+    emoji: '👦',
+    gender: 'Male',
+    ageRange: '< 18 yrs',
+    minAge: 0,
+    maxAge: 17,
     category: 'PATIENT',
     color: 'from-sky-500 to-cyan-600',
     ring: 'ring-sky-400',
@@ -20,6 +26,11 @@ export const AVATAR_CATALOG = [
     id: 'girl',
     label: 'Girl Patient',
     role: 'Girl',
+    emoji: '👧',
+    gender: 'Female',
+    ageRange: '< 18 yrs',
+    minAge: 0,
+    maxAge: 17,
     category: 'PATIENT',
     color: 'from-fuchsia-500 to-pink-600',
     ring: 'ring-fuchsia-400',
@@ -31,8 +42,13 @@ export const AVATAR_CATALOG = [
   },
   {
     id: 'male',
-    label: 'Male Patient',
+    label: 'Male Patient (Adult)',
     role: 'Men',
+    emoji: '👨',
+    gender: 'Male',
+    ageRange: '18–59 yrs',
+    minAge: 18,
+    maxAge: 59,
     category: 'PATIENT',
     color: 'from-emerald-600 to-teal-700',
     ring: 'ring-emerald-400',
@@ -44,8 +60,13 @@ export const AVATAR_CATALOG = [
   },
   {
     id: 'female',
-    label: 'Female Patient',
+    label: 'Female Patient (Adult)',
     role: 'Women',
+    emoji: '👩',
+    gender: 'Female',
+    ageRange: '18–59 yrs',
+    minAge: 18,
+    maxAge: 59,
     category: 'PATIENT',
     color: 'from-rose-500 to-red-600',
     ring: 'ring-rose-400',
@@ -57,8 +78,13 @@ export const AVATAR_CATALOG = [
   },
   {
     id: 'old_man',
-    label: 'Senior Man',
+    label: 'Senior Man (60+)',
     role: 'Old Man',
+    emoji: '👴',
+    gender: 'Male',
+    ageRange: '60+ yrs',
+    minAge: 60,
+    maxAge: 120,
     category: 'PATIENT',
     color: 'from-amber-600 to-yellow-700',
     ring: 'ring-amber-400',
@@ -70,8 +96,13 @@ export const AVATAR_CATALOG = [
   },
   {
     id: 'old_woman',
-    label: 'Senior Woman',
+    label: 'Senior Woman (60+)',
     role: 'Old Woman',
+    emoji: '👵',
+    gender: 'Female',
+    ageRange: '60+ yrs',
+    minAge: 60,
+    maxAge: 120,
     category: 'PATIENT',
     color: 'from-teal-600 to-cyan-700',
     ring: 'ring-teal-400',
@@ -82,11 +113,14 @@ export const AVATAR_CATALOG = [
     </svg>`
   },
 
-  // --- DOCTOR AVATARS (INDIAN GHIBLI ANIME ART STYLE) ---
+  // --- DOCTOR AVATARS (INDIAN GHIBLI ANIME ART STYLE + EMOJIS) ---
   {
     id: 'doctor_male',
     label: 'Doctor (Male)',
     role: 'Doctor - Male',
+    emoji: '👨‍⚕️',
+    gender: 'Male',
+    ageRange: 'Physician',
     category: 'DOCTOR',
     color: 'from-blue-600 to-indigo-700',
     ring: 'ring-blue-400',
@@ -100,6 +134,9 @@ export const AVATAR_CATALOG = [
     id: 'doctor_female',
     label: 'Doctor (Female)',
     role: 'Doctor - Female',
+    emoji: '👩‍⚕️',
+    gender: 'Female',
+    ageRange: 'Physician',
     category: 'DOCTOR',
     color: 'from-purple-600 to-pink-700',
     ring: 'ring-purple-400',
@@ -110,11 +147,14 @@ export const AVATAR_CATALOG = [
     </svg>`
   },
 
-  // --- ADMIN AVATAR (INDIAN GHIBLI ANIME ART STYLE) ---
+  // --- ADMIN AVATAR (INDIAN GHIBLI ANIME ART STYLE + EMOJI) ---
   {
     id: 'admin',
     label: 'Administrator',
     role: 'Administrator',
+    emoji: '🛡️',
+    gender: 'All',
+    ageRange: 'System Admin',
     category: 'ADMIN',
     color: 'from-slate-700 to-blue-900',
     ring: 'ring-slate-400',
@@ -134,7 +174,12 @@ export function svgToDataUri(svgString) {
 export function getAvatarById(id) {
   if (!id) return AVATAR_CATALOG[2]; // Default to 'male' / Men
   const searchId = String(id).toLowerCase();
-  const found = AVATAR_CATALOG.find(a => a.id === searchId || a.role.toLowerCase() === searchId || a.label.toLowerCase() === searchId);
+  const found = AVATAR_CATALOG.find(a => 
+    a.id === searchId || 
+    a.role.toLowerCase() === searchId || 
+    a.label.toLowerCase() === searchId ||
+    a.emoji === id
+  );
   return found || AVATAR_CATALOG[2]; // Default to 'male' / Men
 }
 
@@ -149,6 +194,39 @@ export function getAvailableAvatarsForRole(role = 'PATIENT') {
   }
   // PATIENT Role: STRICTLY Patients ONLY (Boy, Girl, Men, Women, Old Man, Old Woman)
   return AVATAR_CATALOG.filter(a => a.category === 'PATIENT');
+}
+
+/**
+ * Intelligently suggests an avatar and emoji based on user demographic parameters (age & gender)
+ * @param {number|string} age - Patient age in years
+ * @param {string} gender - Male, Female, or Other
+ * @param {string} role - PATIENT, DOCTOR, or ADMIN
+ * @returns {object} Avatar definition
+ */
+export function suggestAvatarByDemographics(age, gender, role = 'PATIENT') {
+  const r = (role || 'PATIENT').toUpperCase();
+  const g = String(gender || '').trim().toLowerCase();
+  const isFemale = g === 'female' || g === 'f' || g === 'woman' || g === 'girl';
+
+  if (r === 'DOCTOR') {
+    return isFemale ? getAvatarById('doctor_female') : getAvatarById('doctor_male');
+  }
+  if (r === 'ADMIN') {
+    return getAvatarById('admin');
+  }
+
+  const numAge = parseInt(age, 10);
+  if (!isNaN(numAge)) {
+    if (numAge < 18) {
+      return isFemale ? getAvatarById('girl') : getAvatarById('boy');
+    }
+    if (numAge >= 60) {
+      return isFemale ? getAvatarById('old_woman') : getAvatarById('old_man');
+    }
+  }
+
+  // Adult range (18-59 or age unsupplied)
+  return isFemale ? getAvatarById('female') : getAvatarById('male');
 }
 
 // Helper to check if user has updated their profile/avatar preferences
@@ -166,7 +244,7 @@ export function hasUserUpdatedProfile(user) {
   return false;
 }
 
-// Helper to get active user's avatar image URL or SVG Data URI
+// Helper to get active user's avatar image URL, SVG, and emoji
 export function getActiveUserAvatar(user) {
   let savedId = null;
   const userId = user?.user_id || 'guest';

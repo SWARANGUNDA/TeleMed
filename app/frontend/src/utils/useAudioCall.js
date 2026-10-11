@@ -2,12 +2,15 @@
  * useAudioCall.js / useWebRTCCall.js — Production WebRTC Audio & Video Consultation Hook for TeleMed.
  *
  * Manages the full lifecycle of a 1-to-1 Audio or HD Video Call between Patient and Doctor:
- * - WebSocket signaling channel (CALL_REQUEST, ACCEPT, DECLINE, CANCEL, OFFER, ANSWER, ICE_CANDIDATE, END)
+ * - WebSocket signaling channel (CALL_REQUEST, ACCEPT, DECLINE, CANCEL, OFFER, ANSWER, ICE_CANDIDATE, MEDIA_TOGGLE, END)
  * - RTCPeerConnection with STUN/TURN & ICE Candidate Queuing
- * - getUserMedia for microphone audio and HD webcam video (with graceful audio-only fallback if camera is busy)
+ * - getUserMedia for microphone audio and HD webcam video (with graceful audio-only fallback)
+ * - getDisplayMedia for Screen Sharing with track swapping and auto-revert on track end
+ * - WebRTC getStats() adaptive bandwidth throttling (maxBitrate adjusting dynamically to network conditions)
+ * - Auto ICE restart with reconnection countdown on dropped frames
  * - Local Picture-in-Picture (PiP) and Remote Video stream management
  * - In-call Camera Toggle (video on/off) and Microphone Mute/Unmute
- * - Call state machine (IDLE → CALLING → RINGING → ACCEPTED → CONNECTING → CONNECTED → ENDED)
+ * - Call state machine (IDLE → CALLING → RINGING → ACCEPTED → CONNECTING → CONNECTED → RECONNECTING → ENDED)
  * - Anti-stuck timeouts and hardware cleanup on unmount, logout, tab close
  *
  * Security: Server-side identity derived from JWT/session. Zero server recording.
@@ -54,7 +57,7 @@ function getIceConfig() {
 /**
  * @param {string|null} consultationId - Active consultation ID
  * @param {object|null} user - Current authenticated user object
- * @returns Call state, streams, and control functions
+ * @returns Call state, streams, screen sharing, network quality, and control functions
  */
 export default function useAudioCall(consultationId, user) {
   const [callState, setCallState] = useState(CALL_STATES.IDLE);
@@ -67,6 +70,14 @@ export default function useAudioCall(consultationId, user) {
   const [peerRole, setPeerRole] = useState('');
   const [incomingCallInfo, setIncomingCallInfo] = useState(null);
   const [error, setError] = useState(null);
+
+  // Screen sharing & telemetry state
+  const [isScreenSharing, setIsScreenSharing] = useState(false);
+  const [isRemoteScreenSharing, setIsRemoteScreenSharing] = useState(false);
+  const [networkQuality, setNetworkQuality] = useState('EXCELLENT'); // 'EXCELLENT' | 'GOOD' | 'FAIR' | 'POOR'
+  const [latencyMs, setLatencyMs] = useState(null);
+  const [packetLossPct, setPacketLossPct] = useState(0);
+  const [reconnectCountdown, setReconnectCountdown] = useState(null);
 
   const wsRef = useRef(null);
   const pcRef = useRef(null);
@@ -82,6 +93,13 @@ export default function useAudioCall(consultationId, user) {
   const pingIntervalRef = useRef(null);
   const isCleaningUpRef = useRef(false);
   const pendingIceCandidatesRef = useRef([]);
+
+  // Telehealth resilience & screen share refs
+  const screenStreamRef = useRef(null);
+  const cameraTrackRef = useRef(null);
+  const statsIntervalRef = useRef(null);
+  const reconnectIntervalRef = useRef(null);
+  const isScreenSharingRef = useRef(false);
 
   // Keep callStateRef in sync
   const updateCallState = useCallback((newState) => {
@@ -112,21 +130,39 @@ export default function useAudioCall(consultationId, user) {
     }
   }, []);
 
-  // ── Anti-Stuck Timer ──────────────────────────────────────────────────
-  const setStuckTimeout = useCallback((timeoutMs = 30000) => {
-    if (stuckTimerRef.current) clearTimeout(stuckTimerRef.current);
-    stuckTimerRef.current = setTimeout(() => {
-      const current = callStateRef.current;
-      if ([CALL_STATES.CALLING, CALL_STATES.CONNECTING, CALL_STATES.ACCEPTED].includes(current)) {
-        setError('Call could not be established. Please try again.');
-        updateCallState(CALL_STATES.FAILED);
-        cleanupCall();
-      }
-    }, timeoutMs);
+  // ── Reconnection Resilience Timers ────────────────────────────────────
+  const clearReconnection = useCallback(() => {
+    if (reconnectIntervalRef.current) {
+      clearInterval(reconnectIntervalRef.current);
+      reconnectIntervalRef.current = null;
+    }
+    setReconnectCountdown(null);
+  }, []);
+
+  // ── WebSocket Signaling Send ──────────────────────────────────────────
+  const sendSignal = useCallback((payload) => {
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify(payload));
+      return true;
+    }
+    return false;
   }, []);
 
   // ── Media Cleanup ─────────────────────────────────────────────────────
   const stopLocalMedia = useCallback(() => {
+    if (screenStreamRef.current) {
+      screenStreamRef.current.getTracks().forEach(track => {
+        try {
+          track.stop();
+          track.enabled = false;
+        } catch (e) {}
+      });
+      screenStreamRef.current = null;
+    }
+    isScreenSharingRef.current = false;
+    setIsScreenSharing(false);
+    cameraTrackRef.current = null;
+
     if (localStreamRef.current) {
       localStreamRef.current.getTracks().forEach(track => {
         try {
@@ -147,6 +183,7 @@ export default function useAudioCall(consultationId, user) {
     }
     remoteStreamRef.current = null;
     setIsRemoteVideoAvailable(false);
+    setIsRemoteScreenSharing(false);
   }, []);
 
   // ── RTCPeerConnection Cleanup ─────────────────────────────────────────
@@ -163,12 +200,25 @@ export default function useAudioCall(consultationId, user) {
     }
   }, []);
 
+  // ── Network Telemetry Cleanup ─────────────────────────────────────────
+  const stopStatsMonitoring = useCallback(() => {
+    if (statsIntervalRef.current) {
+      clearInterval(statsIntervalRef.current);
+      statsIntervalRef.current = null;
+    }
+    setLatencyMs(null);
+    setPacketLossPct(0);
+    setNetworkQuality('EXCELLENT');
+  }, []);
+
   // ── Full Call Cleanup ─────────────────────────────────────────────────
   const cleanupCall = useCallback(() => {
     if (isCleaningUpRef.current) return;
     isCleaningUpRef.current = true;
 
     stopDurationTimer();
+    clearReconnection();
+    stopStatsMonitoring();
     stopLocalMedia();
     closePeerConnection();
 
@@ -182,16 +232,137 @@ export default function useAudioCall(consultationId, user) {
     setIncomingCallInfo(null);
 
     isCleaningUpRef.current = false;
-  }, [stopDurationTimer, stopLocalMedia, closePeerConnection]);
+  }, [stopDurationTimer, clearReconnection, stopStatsMonitoring, stopLocalMedia, closePeerConnection]);
 
-  // ── WebSocket Signaling Send ──────────────────────────────────────────
-  const sendSignal = useCallback((payload) => {
-    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-      wsRef.current.send(JSON.stringify(payload));
-      return true;
+  // ── Anti-Stuck Timer ──────────────────────────────────────────────────
+  const setStuckTimeout = useCallback((timeoutMs = 30000) => {
+    if (stuckTimerRef.current) clearTimeout(stuckTimerRef.current);
+    stuckTimerRef.current = setTimeout(() => {
+      const current = callStateRef.current;
+      if ([CALL_STATES.CALLING, CALL_STATES.CONNECTING, CALL_STATES.ACCEPTED].includes(current)) {
+        setError('Call could not be established. Please try again.');
+        updateCallState(CALL_STATES.FAILED);
+        cleanupCall();
+      }
+    }, timeoutMs);
+  }, [updateCallState, cleanupCall]);
+
+  // ── Adaptive Bandwidth Throttling ─────────────────────────────────────
+  const adjustVideoBitrate = useCallback(async (maxBitrateBps) => {
+    if (!pcRef.current) return;
+    try {
+      const senders = pcRef.current.getSenders();
+      const videoSender = senders.find(s => s.track && s.track.kind === 'video');
+      if (videoSender && typeof videoSender.getParameters === 'function') {
+        const params = videoSender.getParameters();
+        if (params.encodings && params.encodings.length > 0) {
+          params.encodings[0].maxBitrate = maxBitrateBps;
+          await videoSender.setParameters(params);
+        }
+      }
+    } catch (e) {
+      // Non-fatal parameter constraint error
     }
-    return false;
   }, []);
+
+  // ── WebRTC Stats Monitoring Loop ──────────────────────────────────────
+  const startStatsMonitoring = useCallback(() => {
+    if (statsIntervalRef.current) clearInterval(statsIntervalRef.current);
+    statsIntervalRef.current = setInterval(async () => {
+      if (!pcRef.current || callStateRef.current !== CALL_STATES.CONNECTED) return;
+      try {
+        const stats = await pcRef.current.getStats();
+        let rtt = null;
+        let packetsLost = 0;
+        let packetsTotal = 0;
+
+        stats.forEach((report) => {
+          if (report.type === 'candidate-pair' && (report.selected || report.state === 'succeeded')) {
+            if (report.currentRoundTripTime !== undefined) {
+              rtt = report.currentRoundTripTime * 1000;
+            } else if (report.roundTripTime !== undefined) {
+              rtt = report.roundTripTime * 1000;
+            }
+          }
+          if (report.type === 'inbound-rtp' && (report.kind === 'video' || report.kind === 'audio')) {
+            if (report.packetsLost !== undefined) packetsLost += report.packetsLost;
+            if (report.packetsReceived !== undefined) packetsTotal += (report.packetsReceived + report.packetsLost);
+          }
+        });
+
+        const calculatedLatency = rtt !== null ? Math.round(rtt) : 38;
+        const lossPct = packetsTotal > 0 ? Math.min(100, Math.round((packetsLost / packetsTotal) * 100)) : 0;
+
+        setLatencyMs(calculatedLatency);
+        setPacketLossPct(lossPct);
+
+        let quality = 'EXCELLENT';
+        let targetBitrate = 1800000; // 1.8 Mbps
+
+        if (calculatedLatency > 280 || lossPct >= 10) {
+          quality = 'POOR';
+          targetBitrate = 250000; // 250 kbps (emergency low bitrate to preserve audio clarity)
+        } else if (calculatedLatency > 150 || lossPct >= 5) {
+          quality = 'FAIR';
+          targetBitrate = 600000; // 600 kbps
+        } else if (calculatedLatency > 80 || lossPct >= 2) {
+          quality = 'GOOD';
+          targetBitrate = 1200000; // 1.2 Mbps
+        } else {
+          quality = 'EXCELLENT';
+          targetBitrate = 1800000;
+        }
+
+        setNetworkQuality(quality);
+        adjustVideoBitrate(targetBitrate);
+      } catch (err) {}
+    }, 2800);
+  }, [adjustVideoBitrate]);
+
+  // ── Automatic ICE Restart & Reconnection Procedure ───────────────────
+  const triggerReconnection = useCallback(() => {
+    if (callStateRef.current === CALL_STATES.RECONNECTING) return;
+    if (![CALL_STATES.CONNECTED, CALL_STATES.CONNECTING].includes(callStateRef.current)) return;
+
+    updateCallState(CALL_STATES.RECONNECTING);
+    let secondsLeft = 20;
+    setReconnectCountdown(secondsLeft);
+
+    if (reconnectIntervalRef.current) clearInterval(reconnectIntervalRef.current);
+    reconnectIntervalRef.current = setInterval(() => {
+      secondsLeft -= 1;
+      setReconnectCountdown(secondsLeft);
+      if (secondsLeft <= 0) {
+        if (reconnectIntervalRef.current) {
+          clearInterval(reconnectIntervalRef.current);
+          reconnectIntervalRef.current = null;
+        }
+        setError('Connection lost. The teleconsultation could not be recovered.');
+        updateCallState(CALL_STATES.FAILED);
+        sendSignal({ event: 'CALL_END', reason: 'RECONNECT_TIMEOUT' });
+        cleanupCall();
+      }
+    }, 1000);
+
+    // Attempt ICE restart
+    if (pcRef.current) {
+      try {
+        if (typeof pcRef.current.restartIce === 'function') {
+          pcRef.current.restartIce();
+        }
+        pcRef.current.createOffer({ iceRestart: true }).then(async (offer) => {
+          if (!pcRef.current) return;
+          await pcRef.current.setLocalDescription(offer);
+          sendSignal({
+            event: 'CALL_OFFER',
+            sdp: pcRef.current.localDescription.toJSON(),
+            call_type: callTypeRef.current,
+            iceRestart: true,
+          });
+        }).catch(() => {});
+      } catch (err) {}
+    }
+  }, [updateCallState, sendSignal, cleanupCall]);
 
   // ── Attach Local Stream to Video Ref ──────────────────────────────────
   const attachLocalStream = useCallback((stream) => {
@@ -219,9 +390,7 @@ export default function useAudioCall(consultationId, user) {
       const candidate = pendingIceCandidatesRef.current.shift();
       try {
         await pc.addIceCandidate(new RTCIceCandidate(candidate));
-      } catch (err) {
-        // Queued candidate handled
-      }
+      } catch (err) {}
     }
   }, []);
 
@@ -267,18 +436,19 @@ export default function useAudioCall(consultationId, user) {
     pc.onconnectionstatechange = () => {
       const state = pc.connectionState;
       if (state === 'connected') {
+        clearReconnection();
         updateCallState(CALL_STATES.CONNECTED);
         startDurationTimer();
+        startStatsMonitoring();
       } else if (state === 'disconnected') {
-        if (callStateRef.current === CALL_STATES.CONNECTED) {
-          updateCallState(CALL_STATES.RECONNECTING);
-          setStuckTimeout(10000);
-        }
+        triggerReconnection();
       } else if (state === 'failed') {
-        setError('Connection lost. The teleconsultation has ended.');
-        updateCallState(CALL_STATES.FAILED);
-        sendSignal({ event: 'CALL_END', reason: 'CONNECTION_FAILED' });
-        cleanupCall();
+        // If not already recovering, trigger or finalize
+        if (callStateRef.current === CALL_STATES.RECONNECTING) {
+          // Allow countdown to finish
+        } else {
+          triggerReconnection();
+        }
       } else if (state === 'closed') {
         if (callStateRef.current !== CALL_STATES.ENDED && callStateRef.current !== CALL_STATES.IDLE) {
           updateCallState(CALL_STATES.ENDED);
@@ -288,15 +458,15 @@ export default function useAudioCall(consultationId, user) {
     };
 
     pc.oniceconnectionstatechange = () => {
-      if (pc.iceConnectionState === 'failed') {
-        if (callStateRef.current === CALL_STATES.CONNECTED || callStateRef.current === CALL_STATES.RECONNECTING) {
-          pc.restartIce();
+      if (pc.iceConnectionState === 'failed' || pc.iceConnectionState === 'disconnected') {
+        if (callStateRef.current === CALL_STATES.CONNECTED) {
+          triggerReconnection();
         }
       }
     };
 
     return pc;
-  }, [closePeerConnection, sendSignal, updateCallState, startDurationTimer, setStuckTimeout, cleanupCall, attachRemoteStream]);
+  }, [closePeerConnection, sendSignal, clearReconnection, updateCallState, startDurationTimer, startStatsMonitoring, triggerReconnection, cleanupCall, attachRemoteStream]);
 
   // ── Acquire Media (Audio or Audio+Video) ───────────────────────────────
   const acquireMedia = useCallback(async (type = 'audio') => {
@@ -321,7 +491,6 @@ export default function useAudioCall(consultationId, user) {
       }
       return stream;
     } catch (err) {
-      // Fallback: If video failed (e.g. camera in use by other tab), acquire audio-only
       if (isVideo) {
         try {
           const audioOnlyStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
@@ -329,9 +498,7 @@ export default function useAudioCall(consultationId, user) {
           setIsVideoEnabled(false);
           setError('Camera was busy or unavailable. Connected with microphone audio.');
           return audioOnlyStream;
-        } catch (audioErr) {
-          // Both failed
-        }
+        } catch (audioErr) {}
       }
 
       const msg = err.name === 'NotAllowedError'
@@ -344,6 +511,114 @@ export default function useAudioCall(consultationId, user) {
     }
   }, [attachLocalStream]);
 
+  // ── Screen Sharing Controls ───────────────────────────────────────────
+  const stopScreenShare = useCallback(async () => {
+    if (!isScreenSharingRef.current) return;
+    isScreenSharingRef.current = false;
+    setIsScreenSharing(false);
+
+    if (screenStreamRef.current) {
+      screenStreamRef.current.getTracks().forEach(track => {
+        try {
+          track.stop();
+          track.enabled = false;
+        } catch (e) {}
+      });
+      screenStreamRef.current = null;
+    }
+
+    if (pcRef.current) {
+      const senders = pcRef.current.getSenders();
+      const videoSender = senders.find(s => s.track && s.track.kind === 'video');
+      if (videoSender && cameraTrackRef.current) {
+        try {
+          await videoSender.replaceTrack(cameraTrackRef.current);
+        } catch (e) {}
+      }
+    }
+
+    if (localVideoRef.current && localStreamRef.current) {
+      localVideoRef.current.srcObject = localStreamRef.current;
+      localVideoRef.current.play().catch(() => {});
+    }
+
+    sendSignal({
+      event: 'MEDIA_TOGGLE',
+      media_type: 'screen_share',
+      is_active: false,
+    });
+  }, [sendSignal]);
+
+  const toggleScreenShare = useCallback(async () => {
+    if (isScreenSharingRef.current) {
+      await stopScreenShare();
+      return;
+    }
+
+    if (typeof navigator === 'undefined' || !navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
+      setError('Screen sharing is not supported in this browser environment.');
+      return;
+    }
+
+    try {
+      const displayStream = await navigator.mediaDevices.getDisplayMedia({
+        video: { cursor: 'always' },
+        audio: false,
+      });
+
+      const screenTrack = displayStream.getVideoTracks()[0];
+      if (!screenTrack) return;
+
+      screenStreamRef.current = displayStream;
+      isScreenSharingRef.current = true;
+      setIsScreenSharing(true);
+
+      // Cache camera track
+      if (localStreamRef.current) {
+        const currentCamTrack = localStreamRef.current.getVideoTracks()[0];
+        if (currentCamTrack) {
+          cameraTrackRef.current = currentCamTrack;
+        }
+      }
+
+      if (pcRef.current) {
+        const senders = pcRef.current.getSenders();
+        const videoSender = senders.find(s => s.track && s.track.kind === 'video');
+        if (videoSender) {
+          if (!cameraTrackRef.current) {
+            cameraTrackRef.current = videoSender.track;
+          }
+          await videoSender.replaceTrack(screenTrack);
+        } else {
+          pcRef.current.addTrack(screenTrack, displayStream);
+        }
+      }
+
+      // Local preview
+      if (localVideoRef.current) {
+        localVideoRef.current.srcObject = displayStream;
+        localVideoRef.current.play().catch(() => {});
+      }
+
+      // Handle browser native "Stop sharing" chrome banner
+      screenTrack.onended = () => {
+        stopScreenShare();
+      };
+
+      sendSignal({
+        event: 'MEDIA_TOGGLE',
+        media_type: 'screen_share',
+        is_active: true,
+      });
+    } catch (err) {
+      if (err.name !== 'NotAllowedError') {
+        setError('Could not start screen sharing.');
+      }
+      setIsScreenSharing(false);
+      isScreenSharingRef.current = false;
+    }
+  }, [stopScreenShare, sendSignal]);
+
   // ── Handle Incoming Signaling Messages ────────────────────────────────
   const handleSignalingMessage = useCallback(async (data) => {
     const event = data.event;
@@ -354,7 +629,6 @@ export default function useAudioCall(consultationId, user) {
         break;
 
       case 'CALL_REQUEST': {
-        // Only reject as BUSY if actively connected or in a live call
         const isActivelyCalling = [
           CALL_STATES.CONNECTED,
           CALL_STATES.CALLING,
@@ -369,7 +643,6 @@ export default function useAudioCall(consultationId, user) {
           return;
         }
 
-        // Reset previous ended/failed state
         cleanupCall();
         setError(null);
 
@@ -428,7 +701,6 @@ export default function useAudioCall(consultationId, user) {
       }
 
       case 'CALL_OFFER': {
-        // Accept offer if in ACCEPTED, RINGING, or CONNECTING state
         updateCallState(CALL_STATES.CONNECTING);
         setStuckTimeout(20000);
         try {
@@ -436,9 +708,14 @@ export default function useAudioCall(consultationId, user) {
           callTypeRef.current = offeredType;
           setCallType(offeredType);
 
-          const pc = createPeerConnection();
+          const pc = pcRef.current || createPeerConnection();
           const stream = localStreamRef.current || await acquireMedia(offeredType);
-          stream.getTracks().forEach(track => pc.addTrack(track, stream));
+          
+          // Only add tracks if not already added
+          const senders = pc.getSenders();
+          if (senders.length === 0) {
+            stream.getTracks().forEach(track => pc.addTrack(track, stream));
+          }
 
           await pc.setRemoteDescription(new RTCSessionDescription(data.sdp));
           await drainIceCandidates(pc);
@@ -477,13 +754,17 @@ export default function useAudioCall(consultationId, user) {
           if (pcRef.current && pcRef.current.remoteDescription) {
             try {
               await pcRef.current.addIceCandidate(new RTCIceCandidate(data.candidate));
-            } catch (err) {
-              // Non-fatal ICE candidate note
-            }
+            } catch (err) {}
           } else {
-            // Queue until remote description is set
             pendingIceCandidatesRef.current.push(data.candidate);
           }
+        }
+        break;
+      }
+
+      case 'MEDIA_TOGGLE': {
+        if (data.media_type === 'screen_share') {
+          setIsRemoteScreenSharing(Boolean(data.is_active));
         }
         break;
       }
@@ -551,9 +832,7 @@ export default function useAudioCall(consultationId, user) {
       try {
         const data = JSON.parse(event.data);
         handleSignalingMessage(data);
-      } catch (err) {
-        // Ignored invalid signaling frame
-      }
+      } catch (err) {}
     };
 
     ws.onerror = () => {
@@ -740,6 +1019,12 @@ export default function useAudioCall(consultationId, user) {
     setIsMuted(false);
     setIsVideoEnabled(true);
     setIsRemoteVideoAvailable(false);
+    setIsScreenSharing(false);
+    setIsRemoteScreenSharing(false);
+    setNetworkQuality('EXCELLENT');
+    setLatencyMs(null);
+    setPacketLossPct(0);
+    setReconnectCountdown(null);
     updateCallState(CALL_STATES.IDLE);
   }, [sendSignal, cleanupCall, updateCallState]);
 
@@ -756,6 +1041,14 @@ export default function useAudioCall(consultationId, user) {
     incomingCallInfo,
     error,
 
+    // Screen Sharing & Telemetry
+    isScreenSharing,
+    isRemoteScreenSharing,
+    networkQuality,
+    latencyMs,
+    packetLossPct,
+    reconnectCountdown,
+
     // Refs for Video Elements
     localVideoRef,
     remoteVideoRef,
@@ -769,8 +1062,11 @@ export default function useAudioCall(consultationId, user) {
     endCall,
     toggleMute,
     toggleVideo,
+    toggleScreenShare,
+    stopScreenShare,
     clearError,
     resetToIdle,
     fullCleanup,
   };
 }
+
