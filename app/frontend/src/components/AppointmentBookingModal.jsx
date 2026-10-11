@@ -182,7 +182,7 @@ export default function AppointmentBookingModal({
       onClose={onClose}
       title="Schedule Teleconsultation & Doctor Visit"
       className="max-w-5xl w-full bg-white text-slate-900 shadow-2xl border border-slate-200 rounded-3xl"
-      contentClassName="overflow-hidden"
+      contentClassName="overflow-y-auto max-h-[calc(88vh-130px)] pr-2 custom-scrollbar"
       footer={modalFooter}
     >
       <form onSubmit={handleFormSubmit} className="space-y-4">
@@ -200,7 +200,7 @@ export default function AppointmentBookingModal({
           </div>
         )}
 
-        {/* ── EXPANSIVE 2-COLUMN NO-SCROLL BOOKING GRID ─────────────────── */}
+        {/* ── EXPANSIVE 2-COLUMN BOOKING GRID ─────────────────── */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch">
 
           {/* ── LEFT COLUMN: Doctor Selection Grid (5 cols) ───────────── */}
@@ -227,8 +227,8 @@ export default function AppointmentBookingModal({
                 </div>
               </div>
 
-              {/* Doctors List - Fit Grid without scrollbar */}
-              <div className="space-y-2.5">
+              {/* Doctors List - Scrollable with custom scrollbar */}
+              <div className="space-y-2.5 max-h-[380px] overflow-y-auto custom-scrollbar pr-1">
                 {filteredDoctors.length === 0 ? (
                   <div className="text-center p-6 border border-dashed border-slate-200 rounded-2xl text-xs text-slate-500 bg-white">
                     No verified physicians found for the selected specialty.
@@ -330,7 +330,7 @@ export default function AppointmentBookingModal({
                 ))}
               </div>
 
-              <div className="p-3 bg-slate-50 border border-slate-200/80 rounded-2xl">
+              <div className="p-3 bg-slate-50 border border-slate-200/80 rounded-2xl max-h-[190px] overflow-y-auto custom-scrollbar">
                 {loadingSlots ? (
                   <div className="py-4 text-center text-xs text-slate-400 flex items-center justify-center gap-2">
                     <RefreshCw size={14} className="animate-spin text-blue-600" />
@@ -407,18 +407,18 @@ export default function AppointmentBookingModal({
             </div>
 
             {/* STEP 4: Consultation Reason & Symptoms */}
-            <div className="space-y-1.5">
+            <div className="space-y-1.5 pb-2">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <span className="w-5 h-5 rounded-full bg-blue-600 text-white font-black text-[11px] flex items-center justify-center shadow-xs">4</span>
-                  <label className="text-xs font-black text-slate-900 uppercase tracking-wider">Reason for Consultation</label>
+                  <label className="text-xs font-black text-slate-900 uppercase tracking-wider">Reason for Consultation & Clinical Details</label>
                 </div>
                 <span className="text-[10px] text-slate-400 font-medium">Quick Tags Below</span>
               </div>
 
               {/* Quick Tags */}
               <div className="flex items-center space-x-1.5 overflow-x-auto pb-0.5 custom-scrollbar">
-                {['HbA1c Follow Up', 'Routine Checkup', 'Lab Report Review', 'Metabolic Symptoms', 'Medication Refill'].map((tag) => (
+                {['HbA1c Follow Up', 'Routine Checkup', 'Lab Report Review', 'Metabolic Symptoms', 'Medication Refill', 'Cardiology Consult'].map((tag) => (
                   <button
                     key={tag}
                     type="button"
@@ -431,12 +431,12 @@ export default function AppointmentBookingModal({
               </div>
 
               <textarea
-                rows={2}
+                rows={3}
                 placeholder="Describe your health concerns, symptoms, or reason for doctor review..."
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}
                 required
-                className="w-full p-2.5 text-xs rounded-2xl bg-slate-50 border border-slate-200 text-slate-900 placeholder-slate-400 focus:outline-none focus:border-blue-600 focus:bg-white focus:ring-2 focus:ring-blue-500/20 transition-all font-medium resize-none"
+                className="w-full p-3 text-xs rounded-2xl bg-slate-50 border border-slate-200 text-slate-900 placeholder-slate-400 focus:outline-none focus:border-blue-600 focus:bg-white focus:ring-2 focus:ring-blue-500/20 transition-all font-medium resize-none shadow-xs"
               />
             </div>
 

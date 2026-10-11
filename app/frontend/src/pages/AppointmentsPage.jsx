@@ -9,10 +9,12 @@ import {
 import {
   fetchUserAppointments, fetchMyDoctorAvailability, addDoctorAvailabilitySlot,
   deleteDoctorAvailabilitySlot, updateAppointmentStatus, joinAppointment,
-  fetchVerifiedDoctors, bookAppointment, fetchPatientConsultations, configureDoctorAvailability,
+  fetchVerifiedDoctors, bookAppointment, fetchPatientConsultations,
+  fetchDoctorConsultations, fetchOpenConsultations, configureDoctorAvailability,
   getAuthToken, getWsBaseUrl
 } from '../api/client';
 import AppointmentBookingModal from '../components/AppointmentBookingModal';
+import { HighlightMatch } from '../components/ui';
 
 // ── Date & Time Formatting Helpers ─────────────────────────────────────────
 const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December'];
@@ -69,6 +71,8 @@ export default function AppointmentsPage({ user, onNavigate }) {
   // Navigation & View States
   const [activeTab, setActiveTab] = useState('upcoming'); // 'upcoming', 'today', 'past', 'availability', 'calendar'
   const [searchQuery, setSearchQuery] = useState('');
+  const [isSuggestionsOpen, setIsSuggestionsOpen] = useState(false);
+  const searchContainerRef = useRef(null);
   const [sortBy, setSortBy] = useState('date');
   const [selectedCalendarDate, setSelectedCalendarDate] = useState(null);
   const [slotFilter, setSlotFilter] = useState('all'); // 'all', 'available', 'booked'
@@ -131,10 +135,60 @@ export default function AppointmentsPage({ user, onNavigate }) {
       const [aptsData, docsData, consData] = await Promise.all([
         fetchUserAppointments().catch(() => []),
         fetchVerifiedDoctors().catch(() => []),
-        isPatient ? fetchPatientConsultations().catch(() => ({ consultations: [] })) : Promise.resolve({ consultations: [] })
+        isDoctor
+          ? Promise.all([
+              fetchDoctorConsultations('').catch(() => ({ consultations: [] })),
+              fetchOpenConsultations().catch(() => ({ consultations: [] }))
+            ]).then(([assigned, open]) => {
+              const a = assigned?.consultations || (Array.isArray(assigned) ? assigned : []);
+              const o = open?.consultations || (Array.isArray(open) ? open : []);
+              const allMap = new Map();
+              a.forEach(c => allMap.set(c.consultation_id || c.id, c));
+              o.forEach(c => {
+                const k = c.consultation_id || c.id;
+                if (!allMap.has(k)) allMap.set(k, c);
+              });
+              return { consultations: Array.from(allMap.values()) };
+            }).catch(() => ({ consultations: [] }))
+          : fetchPatientConsultations().catch(() => ({ consultations: [] }))
       ]);
 
-      setAppointments(aptsData || []);
+      const baseApts = Array.isArray(aptsData) ? aptsData : (aptsData?.appointments || []);
+      const consList = consData?.consultations || (Array.isArray(consData) ? consData : []);
+      const aptConsultationIds = new Set(baseApts.map(a => a.consultation_id).filter(Boolean));
+
+      // Synthesize any consultations that don't yet have dedicated appointment rows
+      const synthesizedFromCons = consList
+        .filter(c => !aptConsultationIds.has(c.consultation_id || c.id))
+        .map(c => {
+          const cStatus = (c.status || 'UPCOMING').toUpperCase();
+          let aptStatus = 'UPCOMING';
+          if (['ASSIGNED', 'ACCEPTED', 'CONFIRMED'].includes(cStatus)) aptStatus = 'CONFIRMED';
+          else if (['ACTIVE', 'IN_PROGRESS', 'IN_CONSULTATION'].includes(cStatus)) aptStatus = 'IN_CONSULTATION';
+          else if (['COMPLETED', 'CLOSED'].includes(cStatus)) aptStatus = 'COMPLETED';
+          else if (['CANCELLED', 'REJECTED'].includes(cStatus)) aptStatus = 'CANCELLED';
+
+          return {
+            id: `apt_syn_${c.consultation_id || c.id}`,
+            appointment_id: `apt_syn_${c.consultation_id || c.id}`,
+            consultation_id: c.consultation_id || c.id,
+            patient_id: c.patient_id || user?.user_id || 'PAT-10001',
+            patient_name: c.patient_name || (isPatient ? userName : 'Patient'),
+            doctor_id: c.assigned_doctor_id || c.doctor_id,
+            doctor_name: c.assigned_doctor_name || c.doctor_name || (isDoctor ? userName : (c.assigned_doctor_id ? 'Assigned Specialist' : 'Pending Specialist')),
+            doctor_specialization: c.specialization || 'General Medicine',
+            consultation_category: c.category || 'General Consultation',
+            urgency: c.urgency || 'ROUTINE',
+            status: aptStatus,
+            slot_start: c.created_at || new Date().toISOString(),
+            slot_end: new Date(new Date(c.created_at || Date.now()).getTime() + 30 * 60000).toISOString(),
+            notes: c.reason || c.message || 'Clinical Consultation',
+            created_at: c.created_at,
+            updated_at: c.updated_at
+          };
+        });
+
+      setAppointments([...baseApts, ...synthesizedFromCons]);
       setVerifiedDoctors((docsData || []).map(d => ({
         id: d.doctor_profile?.doctor_id || d.user_id,
         userId: d.user_id,
@@ -143,7 +197,7 @@ export default function AppointmentsPage({ user, onNavigate }) {
         experience: d.doctor_profile?.experience_years ? `${d.doctor_profile.experience_years}+ Years Exp.` : null,
         avatar: (d.doctor_profile?.full_name || d.full_name || 'D').split(' ').filter(Boolean).map(n => n[0]).join('').slice(0, 2).toUpperCase()
       })));
-      setConsultationsList(consData?.consultations || []);
+      setConsultationsList(consList);
 
       if (isDoctor) {
         const slotsData = await fetchMyDoctorAvailability(false).catch(() => []);
@@ -155,7 +209,7 @@ export default function AppointmentsPage({ user, onNavigate }) {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [isDoctor, isPatient]);
+  }, [isDoctor, isPatient, userName, user]);
 
   useEffect(() => {
     loadWorkspaceData();
@@ -205,11 +259,14 @@ export default function AppointmentsPage({ user, onNavigate }) {
     };
   }, [user, loadWorkspaceData]);
 
-  // Outside click listener for dropdown menus
+  // Outside click listener for dropdown menus and search overlay
   useEffect(() => {
     const handleClickOutside = (e) => {
       if (!e.target.closest('.dropdown-container')) {
         setActiveDropdownId(null);
+      }
+      if (searchContainerRef.current && !searchContainerRef.current.contains(e.target)) {
+        setIsSuggestionsOpen(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -305,12 +362,21 @@ export default function AppointmentsPage({ user, onNavigate }) {
   }, [appointments]);
 
   // Today & Filter Calculations
-  const todayStr = useMemo(() => new Date().toISOString().split('T')[0], []);
+  const { todayStr, utcTodayStr } = useMemo(() => {
+    const now = new Date();
+    const y = now.getFullYear();
+    const m = String(now.getMonth() + 1).padStart(2, '0');
+    const d = String(now.getDate()).padStart(2, '0');
+    return {
+      todayStr: `${y}-${m}-${d}`,
+      utcTodayStr: now.toISOString().split('T')[0]
+    };
+  }, []);
 
   const kpiCounts = useMemo(() => {
-    const upcoming = normalizedAppointments.filter(a => ['UPCOMING', 'CONFIRMED', 'REQUESTED', 'BOOKED'].includes(a.status));
-    const todayApts = normalizedAppointments.filter(a => a.date_str === todayStr);
-    const completed = normalizedAppointments.filter(a => a.status === 'COMPLETED');
+    const upcoming = normalizedAppointments.filter(a => ['UPCOMING', 'CONFIRMED', 'REQUESTED', 'BOOKED', 'ASSIGNED', 'ACCEPTED', 'ACTIVE', 'IN_PROGRESS'].includes(a.status));
+    const todayApts = normalizedAppointments.filter(a => a.date_str === todayStr || a.date_str === utcTodayStr);
+    const completed = normalizedAppointments.filter(a => ['COMPLETED', 'CLOSED'].includes(a.status));
     const cancelled = normalizedAppointments.filter(a => ['CANCELLED', 'REJECTED', 'NO_SHOW'].includes(a.status));
     const patientIds = new Set(normalizedAppointments.map(a => a.patient_id || a.patient_user_id));
 
@@ -321,27 +387,27 @@ export default function AppointmentsPage({ user, onNavigate }) {
       cancelledCount: cancelled.length,
       totalPatientsCount: isDoctor ? (patientIds.size || normalizedAppointments.length) : normalizedAppointments.length
     };
-  }, [normalizedAppointments, todayStr, isDoctor]);
+  }, [normalizedAppointments, todayStr, utcTodayStr, isDoctor]);
 
   const todaySummary = useMemo(() => {
-    const todayApts = normalizedAppointments.filter(a => a.date_str === todayStr);
+    const todayApts = normalizedAppointments.filter(a => a.date_str === todayStr || a.date_str === utcTodayStr);
     const scheduled = todayApts.length;
-    const completedToday = todayApts.filter(a => a.status === 'COMPLETED').length;
-    const inProgressNow = todayApts.filter(a => a.status === 'IN_CONSULTATION').length;
-    const pendingReview = todayApts.filter(a => ['CONFIRMED', 'UPCOMING', 'REQUESTED', 'BOOKED'].includes(a.status)).length;
+    const completedToday = todayApts.filter(a => ['COMPLETED', 'CLOSED'].includes(a.status)).length;
+    const inProgressNow = todayApts.filter(a => ['IN_CONSULTATION', 'IN_PROGRESS', 'ACTIVE'].includes(a.status)).length;
+    const pendingReview = normalizedAppointments.filter(a => ['CONFIRMED', 'UPCOMING', 'REQUESTED', 'BOOKED', 'ASSIGNED', 'ACCEPTED'].includes(a.status)).length;
 
     return { scheduled, completedToday, inProgressNow, pendingReview };
-  }, [normalizedAppointments, todayStr]);
+  }, [normalizedAppointments, todayStr, utcTodayStr]);
 
   const filteredAppointments = useMemo(() => {
     let list = [...normalizedAppointments];
 
     if (activeTab === 'upcoming') {
-      list = list.filter(a => ['UPCOMING', 'CONFIRMED', 'REQUESTED', 'BOOKED', 'IN_CONSULTATION'].includes(a.status));
+      list = list.filter(a => ['UPCOMING', 'CONFIRMED', 'REQUESTED', 'BOOKED', 'IN_CONSULTATION', 'ASSIGNED', 'ACCEPTED', 'ACTIVE', 'IN_PROGRESS'].includes(a.status));
     } else if (activeTab === 'today') {
-      list = list.filter(a => a.date_str === todayStr);
+      list = list.filter(a => a.date_str === todayStr || a.date_str === utcTodayStr);
     } else if (activeTab === 'past') {
-      list = list.filter(a => ['COMPLETED', 'CANCELLED', 'REJECTED', 'NO_SHOW'].includes(a.status));
+      list = list.filter(a => ['COMPLETED', 'CLOSED', 'CANCELLED', 'REJECTED', 'NO_SHOW'].includes(a.status));
     }
 
     if (selectedCalendarDate) {
@@ -350,23 +416,38 @@ export default function AppointmentsPage({ user, onNavigate }) {
 
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase().trim();
-      list = list.filter(a =>
-        a.patient_name.toLowerCase().includes(q) ||
-        a.doctor_name.toLowerCase().includes(q) ||
-        a.patient_id.toLowerCase().includes(q) ||
-        a.consultation_id.toLowerCase().includes(q) ||
-        a.appointment_id.toLowerCase().includes(q) ||
-        a.specialty.toLowerCase().includes(q) ||
-        a.status.toLowerCase().includes(q)
-      );
+      const tokens = q.split(/\s+/).filter(Boolean);
+      list = list
+        .map((a) => {
+          const haystack = `${a.patient_name} ${a.doctor_name} ${a.patient_id} ${a.consultation_id} ${a.appointment_id} ${a.specialty} ${a.status} ${a.notes}`.toLowerCase();
+          const allMatch = tokens.every((tok) => haystack.includes(tok));
+          if (!allMatch) return null;
+          let score = 0;
+          tokens.forEach((tok) => {
+            if (a.patient_name.toLowerCase().startsWith(tok) || a.doctor_name.toLowerCase().startsWith(tok)) score += 30;
+            else if (a.patient_name.toLowerCase().includes(tok) || a.doctor_name.toLowerCase().includes(tok)) score += 15;
+            if (a.consultation_id.toLowerCase().includes(tok) || a.patient_id.toLowerCase().includes(tok)) score += 20;
+            if (a.specialty.toLowerCase().includes(tok)) score += 10;
+          });
+          return { item: a, score };
+        })
+        .filter(Boolean)
+        .sort((a, b) => {
+          if (b.score !== a.score) return b.score - a.score;
+          if (sortBy === 'patient') return a.item.patient_name.localeCompare(b.item.patient_name);
+          if (sortBy === 'status') return a.item.status.localeCompare(b.item.status);
+          if (sortBy === 'type') return a.item.consultation_category.localeCompare(b.item.consultation_category);
+          return new Date(a.item.slot_start) - new Date(b.item.slot_start);
+        })
+        .map((x) => x.item);
+    } else {
+      list.sort((a, b) => {
+        if (sortBy === 'patient') return a.patient_name.localeCompare(b.patient_name);
+        if (sortBy === 'status') return a.status.localeCompare(b.status);
+        if (sortBy === 'type') return a.consultation_category.localeCompare(b.consultation_category);
+        return new Date(a.slot_start) - new Date(b.slot_start);
+      });
     }
-
-    list.sort((a, b) => {
-      if (sortBy === 'patient') return a.patient_name.localeCompare(b.patient_name);
-      if (sortBy === 'status') return a.status.localeCompare(b.status);
-      if (sortBy === 'type') return a.consultation_category.localeCompare(b.consultation_category);
-      return new Date(a.slot_start) - new Date(b.slot_start);
-    });
 
     return list;
   }, [normalizedAppointments, activeTab, todayStr, selectedCalendarDate, searchQuery, sortBy]);
@@ -597,9 +678,10 @@ export default function AppointmentsPage({ user, onNavigate }) {
         );
       case 'CONFIRMED':
       case 'ACCEPTED':
+      case 'ASSIGNED':
         return (
           <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-extrabold bg-emerald-100 text-emerald-700 border border-emerald-200">
-            CONFIRMED
+            {status === 'ASSIGNED' ? 'ASSIGNED' : 'CONFIRMED'}
           </span>
         );
       case 'IN_CONSULTATION':
@@ -671,7 +753,7 @@ export default function AppointmentsPage({ user, onNavigate }) {
   };
 
   return (
-    <div className="max-w-[1560px] mx-auto px-4 sm:px-6 py-6 space-y-6">
+    <div className="space-y-6">
       
       {/* Toast Notification */}
       {toastMsg && (
@@ -845,19 +927,79 @@ export default function AppointmentsPage({ user, onNavigate }) {
             
             {/* Search & Sort Controls Bar */}
             <div className="p-4 border-b border-[var(--border-subtle)] flex flex-col sm:flex-row items-center justify-between gap-3 bg-[var(--bg-primary)]">
-              <div className="relative w-full sm:w-72">
-                <Search className="w-4 h-4 absolute left-3 top-2.5 text-[var(--text-dim)]" />
+              <div ref={searchContainerRef} className="relative w-full sm:w-80">
+                <Search className="w-4 h-4 absolute left-3 top-2.5 text-[var(--primary)]" />
                 <input
                   type="text"
                   value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Search patient, ID, or doctor..."
-                  className="w-full pl-9 pr-3 py-2 text-xs bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-xl focus:outline-none focus:border-[var(--primary)] text-[var(--text-main)] placeholder:text-[var(--text-dim)] transition-all"
+                  onChange={(e) => {
+                    setSearchQuery(e.target.value);
+                    setIsSuggestionsOpen(e.target.value.trim().length > 0);
+                  }}
+                  onFocus={() => {
+                    if (searchQuery.trim()) setIsSuggestionsOpen(true);
+                  }}
+                  placeholder="Live search patient, ID, or doctor..."
+                  className="w-full pl-9 pr-14 py-2 text-xs bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-xl focus:outline-none focus:border-[var(--primary)] text-[var(--text-main)] placeholder:text-[var(--text-dim)] transition-all shadow-xs"
                 />
+                {searchQuery.trim() && (
+                  <span className="absolute right-7 top-1/2 -translate-y-1/2 text-[10px] font-mono px-1.5 py-0.5 rounded bg-[var(--primary)]/10 text-[var(--primary)] font-bold pointer-events-none">
+                    {filteredAppointments.length}
+                  </span>
+                )}
                 {searchQuery && (
-                  <button onClick={() => setSearchQuery('')} className="absolute right-2.5 top-2.5 text-[var(--text-muted)] hover:text-[var(--text-main)]">
+                  <button
+                    onClick={() => {
+                      setSearchQuery('');
+                      setIsSuggestionsOpen(false);
+                    }}
+                    className="absolute right-2.5 top-2.5 text-[var(--text-muted)] hover:text-[var(--danger)]"
+                    title="Clear Search"
+                  >
                     <X className="w-3.5 h-3.5" />
                   </button>
+                )}
+
+                {/* Floating Autocomplete Dropdown */}
+                {isSuggestionsOpen && searchQuery.trim().length > 0 && (
+                  <div className="absolute top-full left-0 right-0 mt-2 z-50 bg-[var(--bg-surface)] border border-[var(--primary)]/40 rounded-2xl shadow-2xl backdrop-blur-xl max-h-64 overflow-y-auto custom-scrollbar p-2 animate-fadeIn">
+                    <div className="px-3 py-1.5 border-b border-[var(--border-subtle)] flex items-center justify-between text-[11px] font-bold text-[var(--text-muted)]">
+                      <span className="flex items-center gap-1.5">
+                        <Sparkles className="w-3 h-3 text-[var(--primary)]" />
+                        Elasticsearch Matches
+                      </span>
+                      <span>{filteredAppointments.length} appointments</span>
+                    </div>
+
+                    {filteredAppointments.length > 0 ? (
+                      filteredAppointments.slice(0, 5).map((apt, idx) => (
+                        <div
+                          key={`sugg_${apt.id || idx}`}
+                          onClick={() => {
+                            setSearchQuery(isDoctor ? apt.patient_name : apt.doctor_name);
+                            setIsSuggestionsOpen(false);
+                          }}
+                          className="p-2.5 hover:bg-[var(--primary)]/10 rounded-xl cursor-pointer transition-colors flex items-center justify-between gap-3 text-left"
+                        >
+                          <div className="min-w-0">
+                            <p className="text-xs font-bold text-[var(--text-main)] truncate">
+                              <HighlightMatch text={isDoctor ? apt.patient_name : apt.doctor_name} query={searchQuery} />
+                            </p>
+                            <p className="text-[10px] text-[var(--text-muted)] font-mono truncate">
+                              <HighlightMatch text={apt.consultation_id} query={searchQuery} /> • {apt.relative_display}
+                            </p>
+                          </div>
+                          <span className="text-[10px] px-2 py-0.5 rounded-full font-bold bg-[var(--primary)]/10 text-[var(--primary)] shrink-0">
+                            {apt.status}
+                          </span>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="p-3 text-center text-xs text-[var(--text-muted)]">
+                        No appointments match "{searchQuery}"
+                      </div>
+                    )}
+                  </div>
                 )}
               </div>
 
@@ -933,10 +1075,14 @@ export default function AppointmentsPage({ user, onNavigate }) {
                             </div>
                             <div>
                               <span className="block text-xs font-bold text-slate-900">
-                                {isDoctor ? apt.patient_name : apt.doctor_name}
+                                <HighlightMatch text={isDoctor ? apt.patient_name : apt.doctor_name} query={searchQuery} />
                               </span>
                               <span className="text-[10px] font-semibold text-slate-400">
-                                {isDoctor ? `PID: ${apt.patient_id}` : apt.specialty}
+                                {isDoctor ? (
+                                  <>PID: <HighlightMatch text={apt.patient_id} query={searchQuery} /></>
+                                ) : (
+                                  <HighlightMatch text={apt.specialty} query={searchQuery} />
+                                )}
                               </span>
                             </div>
                           </div>
@@ -945,7 +1091,9 @@ export default function AppointmentsPage({ user, onNavigate }) {
                         {/* Details */}
                         <td className="py-3.5 px-4 whitespace-nowrap">
                           <span className="block text-xs font-semibold text-slate-800">Consultation ID</span>
-                          <span className="text-[10px] font-mono text-slate-500 block">{apt.consultation_id}</span>
+                          <span className="text-[10px] font-mono text-slate-500 block">
+                            <HighlightMatch text={apt.consultation_id} query={searchQuery} />
+                          </span>
                         </td>
 
                         {/* Type */}
