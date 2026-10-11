@@ -160,45 +160,7 @@ export function Sidebar({ isCollapsed, onToggleCollapse, userRole = 'PATIENT', u
         ))}
       </nav>
 
-      {/* Empty Space Telemetry Card: Fills space, looks high-tech and clinical */}
-      {!isCollapsed && (
-        <div className="p-3 mx-3 mb-2 rounded-2xl bg-gradient-to-br from-blue-50/90 via-indigo-50/50 to-cyan-50/60 dark:from-slate-900/90 dark:to-indigo-950/50 border border-blue-100/90 dark:border-indigo-900/50 shadow-xs space-y-2 shrink-0">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-1.5">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-              <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-800 dark:text-slate-200">
-                HealthPrism Live
-              </span>
-            </div>
-            <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-600 dark:text-blue-400 font-bold border border-blue-500/20">
-              v4.0
-            </span>
-          </div>
 
-          <div className="grid grid-cols-2 gap-1.5 text-[10px]">
-            <div className="p-1.5 rounded-lg bg-white/80 dark:bg-slate-800/70 border border-slate-200/60 dark:border-slate-700/60">
-              <span className="text-slate-400 block text-[9px] font-medium">Diagnostic</span>
-              <span className="font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
-                <ShieldCheck className="w-3 h-3" /> Online
-              </span>
-            </div>
-            <div className="p-1.5 rounded-lg bg-white/80 dark:bg-slate-800/70 border border-slate-200/60 dark:border-slate-700/60">
-              <span className="text-slate-400 block text-[9px] font-medium">Encryption</span>
-              <span className="font-bold text-blue-600 dark:text-blue-400 flex items-center gap-1">
-                <Lock className="w-3 h-3" /> HIPAA 256b
-              </span>
-            </div>
-          </div>
-
-          <button
-            onClick={() => navigate(userRole === 'DOCTOR' ? '/doctor/consultations' : '/intake')}
-            className="w-full py-1.5 px-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold text-[11px] flex items-center justify-center space-x-1.5 transition-all shadow-xs cursor-pointer hover:scale-[1.01]"
-          >
-            <Sparkles className="w-3.5 h-3.5" />
-            <span>{userRole === 'DOCTOR' ? 'Consultation Queue' : 'New Health Intake'}</span>
-          </button>
-        </div>
-      )}
 
       {/* Footer User Profile Card */}
       <div className="p-3 border-t border-[var(--border-subtle)] shrink-0 bg-[var(--bg-sidebar)]">
