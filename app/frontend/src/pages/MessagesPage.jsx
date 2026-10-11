@@ -1,14 +1,14 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PageContainer } from '../components/layout';
 import MarkdownRenderer from '../components/MarkdownRenderer';
-import { Badge, Button, Modal } from '../components/ui';
+import { Badge, Button, Modal, HighlightMatch } from '../components/ui';
 import {
   MessageSquare, Send, Search, CheckCheck, UserCheck, ShieldCheck,
   FileText, Clock, RefreshCw, Sparkles, User, Bot, Calendar,
   Activity, ExternalLink, Archive, AlertCircle, Lock, Phone, Video,
   Paperclip, Filter, Plus, UploadCloud, Trash2, CheckCircle2,
-  Stethoscope, FileSpreadsheet, MoreVertical, Info, X, Zap, ChevronRight,
+  Stethoscope, MoreVertical, Info, X, Zap, ChevronDown,
   Shield, HeartPulse, HelpCircle, CornerDownLeft
 } from 'lucide-react';
 import {
@@ -50,16 +50,45 @@ export default function MessagesPage({ user }) {
   const [showAiInfoModal, setShowAiInfoModal] = useState(false);
   const [showMenuDropdown, setShowMenuDropdown] = useState(false);
 
-  const chatEndRef = useRef(null);
+  // Flexible Instagram-style Auto-Scroll System
+  const messagesContainerRef = useRef(null);
+  const [showScrollBottomBtn, setShowScrollBottomBtn] = useState(false);
+  const isAtBottomRef = useRef(true);
 
-  // Auto-scroll chat feed to bottom
-  const scrollToBottom = useCallback(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  // Directly scroll the messages container so it NEVER touches or shifts the window scroll
+  const scrollToBottom = useCallback((smooth = true) => {
+    if (messagesContainerRef.current) {
+      const container = messagesContainerRef.current;
+      if (smooth) {
+        container.scrollTo({
+          top: container.scrollHeight,
+          behavior: 'smooth'
+        });
+      } else {
+        container.scrollTop = container.scrollHeight;
+      }
+      isAtBottomRef.current = true;
+      setShowScrollBottomBtn(false);
+    }
   }, []);
 
+  // Detect whether user scrolled up to read older messages
+  const handleScroll = useCallback(() => {
+    if (!messagesContainerRef.current) return;
+    const { scrollTop, scrollHeight, clientHeight } = messagesContainerRef.current;
+    const distanceToBottom = scrollHeight - scrollTop - clientHeight;
+    const atBottom = distanceToBottom < 100;
+    isAtBottomRef.current = atBottom;
+    setShowScrollBottomBtn(!atBottom);
+  }, []);
+
+  // When switching conversation: jump to bottom without delay
   useEffect(() => {
-    scrollToBottom();
-  }, [messagesHistory, selectedConversationId, scrollToBottom]);
+    const timer = setTimeout(() => {
+      scrollToBottom(false);
+    }, 60);
+    return () => clearTimeout(timer);
+  }, [selectedConversationId, scrollToBottom]);
 
   const loadConversations = useCallback(async () => {
     setLoadingConversations(true);
@@ -287,23 +316,47 @@ export default function MessagesPage({ user }) {
   };
 
   // Filter Conversations
-  const filteredConversations = conversations.filter(c => {
-    const isArchived = archivedIds.has(c.id);
-    if (activeTab === 'archived') return isArchived;
-    if (isArchived) return false;
+  const filteredConversations = useMemo(() => {
+    let list = conversations.filter(c => {
+      const isArchived = archivedIds.has(c.id);
+      if (activeTab === 'archived') return isArchived;
+      if (isArchived) return false;
 
-    if (activeTab === 'doctors' && c.isAi) return false;
-    if (activeTab === 'ai' && !c.isAi) return false;
+      if (activeTab === 'doctors' && c.isAi) return false;
+      if (activeTab === 'ai' && !c.isAi) return false;
+      return true;
+    });
 
-    if (!searchQuery.trim()) return true;
-    const q = searchQuery.toLowerCase();
-    return (
-      c.doctorName?.toLowerCase().includes(q) ||
-      c.specialty?.toLowerCase().includes(q) ||
-      c.title?.toLowerCase().includes(q) ||
-      c.consultation_id?.toLowerCase().includes(q)
-    );
-  });
+    if (!searchQuery.trim()) return list;
+    const q = searchQuery.toLowerCase().trim();
+    const tokens = q.split(/\s+/).filter(Boolean);
+
+    return list
+      .map(c => {
+        const dName = (c.doctorName || '').toLowerCase();
+        const spec = (c.specialty || '').toLowerCase();
+        const title = (c.title || '').toLowerCase();
+        const cId = (c.consultation_id || '').toLowerCase();
+        const lastMsg = (c.lastMessage || '').toLowerCase();
+
+        const haystack = `${dName} ${spec} ${title} ${cId} ${lastMsg}`;
+        const allMatch = tokens.every(tok => haystack.includes(tok));
+        if (!allMatch) return null;
+
+        let score = 0;
+        tokens.forEach(tok => {
+          if (dName.startsWith(tok)) score += 30;
+          else if (dName.includes(tok)) score += 15;
+          if (spec.includes(tok)) score += 20;
+          if (cId.includes(tok)) score += 20;
+          if (title.includes(tok)) score += 15;
+        });
+        return { c, score };
+      })
+      .filter(Boolean)
+      .sort((a, b) => b.score - a.score)
+      .map(x => x.c);
+  }, [conversations, archivedIds, activeTab, searchQuery]);
   
   let displayConversations = [...filteredConversations];
   if (activeTab === 'all' || activeTab === 'ai') {
@@ -315,11 +368,41 @@ export default function MessagesPage({ user }) {
   const activeConv = displayConversations.find(c => c.id === selectedConversationId) || aiThread;
   const currentMessages = messagesHistory[selectedConversationId] || [];
 
+  // When messages update:
+  // If user was near bottom or just sent a message, auto-scroll down smoothly.
+  // If user scrolled up, stay where they are and show the "Latest Messages ↓" button.
+  const prevCountRef = useRef(currentMessages.length);
+  useEffect(() => {
+    const isNew = currentMessages.length > prevCountRef.current;
+    prevCountRef.current = currentMessages.length;
+
+    if (!isNew && currentMessages.length === 0) return;
+
+    const lastMsg = currentMessages[currentMessages.length - 1];
+    const isMyMessage = lastMsg && (lastMsg.sender_user_id === userId || lastMsg.sender_role === 'PATIENT');
+
+    if (isAtBottomRef.current || isMyMessage) {
+      const timer = setTimeout(() => {
+        scrollToBottom(true);
+      }, 50);
+      return () => clearTimeout(timer);
+    } else {
+      setShowScrollBottomBtn(true);
+    }
+  }, [currentMessages, userId, scrollToBottom]);
+
+  // Auto-scroll when AI is thinking
+  useEffect(() => {
+    if (isAiThinking && isAtBottomRef.current) {
+      scrollToBottom(true);
+    }
+  }, [isAiThinking, scrollToBottom]);
+
   return (
-    <div className="max-w-[1600px] w-full mx-auto p-2 flex flex-col h-full overflow-hidden space-y-2">
+    <div className="max-w-[1600px] w-full mx-auto p-2 sm:p-3 flex flex-col h-full max-h-full overflow-hidden space-y-2 sm:space-y-3 min-h-0">
       
       {/* ── TOP MODERN HEADER BAR ────────────────────────────────────────────── */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 p-4 bg-gradient-to-r from-slate-900 via-slate-800 to-indigo-950 text-white rounded-2xl shadow-xl border border-slate-700/50">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 p-3.5 bg-gradient-to-r from-slate-900 via-slate-800 to-indigo-950 text-white rounded-2xl shadow-xl border border-slate-700/50 shrink-0">
         <div className="flex items-center space-x-3.5">
           <div className="w-11 h-11 rounded-xl bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center shadow-lg shadow-cyan-500/20 text-white flex-shrink-0">
             <MessageSquare className="w-5 h-5" />
@@ -348,7 +431,7 @@ export default function MessagesPage({ user }) {
       </div>
 
       {errorMsg && (
-        <div className="p-3.5 bg-rose-50 border border-rose-200 text-rose-800 rounded-xl text-xs flex items-center justify-between shadow-sm animate-fade-in">
+        <div className="p-3.5 bg-rose-50 border border-rose-200 text-rose-800 rounded-xl text-xs flex items-center justify-between shadow-sm animate-fade-in shrink-0">
           <div className="flex items-center space-x-2.5">
             <AlertCircle className="w-4 h-4 text-rose-600 flex-shrink-0" />
             <span className="font-medium">{errorMsg}</span>
@@ -357,11 +440,11 @@ export default function MessagesPage({ user }) {
         </div>
       )}
 
-      {/* ── 3-COLUMN CLINICAL WORKSPACE GRID ─────────────────────────────────── */}
-      <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-3 min-h-0">
+      {/* ── 2-COLUMN CLINICAL WORKSPACE ─────────────────────────────────── */}
+      <div className="flex-1 min-h-0 flex flex-col lg:flex-row gap-3 overflow-hidden h-full max-h-full">
 
-        {/* ── LEFT COLUMN: Care Communications (3 cols) ─────────────────────── */}
-        <div className="lg:col-span-3 bg-white border border-slate-200/90 rounded-2xl p-4 space-y-3.5 shadow-lg shadow-slate-100/60 flex flex-col h-full overflow-hidden">
+        {/* ── LEFT COLUMN: Care Channels (Fixed width on desktop, flexible list) ── */}
+        <div className="w-full lg:w-[320px] xl:w-[350px] shrink-0 bg-white border border-slate-200/90 rounded-2xl p-3.5 space-y-3 shadow-lg shadow-slate-100/60 flex flex-col h-full max-h-full overflow-hidden min-h-0">
           
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2">
@@ -404,23 +487,28 @@ export default function MessagesPage({ user }) {
 
           {/* Search Box */}
           <div className="relative">
-            <Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-slate-400" />
+            <Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-blue-500" />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search care team & channels..."
-              className="w-full pl-8 pr-3 py-2 text-xs bg-slate-50/80 border border-slate-200/90 rounded-xl focus:outline-none focus:border-blue-500 focus:bg-white text-slate-800 placeholder-slate-400 transition-all"
+              placeholder="Live search care team & channels..."
+              className="w-full pl-8 pr-14 py-2 text-xs bg-slate-50/80 border border-slate-200/90 rounded-xl focus:outline-none focus:border-blue-500 focus:bg-white text-slate-800 placeholder-slate-400 transition-all shadow-xs"
             />
+            {searchQuery.trim() && (
+              <span className="absolute right-7 top-1/2 -translate-y-1/2 text-[10px] font-mono px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-600 font-bold pointer-events-none">
+                {displayConversations.length}
+              </span>
+            )}
             {searchQuery && (
-              <button onClick={() => setSearchQuery('')} className="absolute right-2.5 top-2.5 text-slate-400 hover:text-slate-600">
+              <button onClick={() => setSearchQuery('')} className="absolute right-2.5 top-2.5 text-slate-400 hover:text-rose-500" title="Clear Search">
                 <X className="w-3.5 h-3.5" />
               </button>
             )}
           </div>
 
           {/* Care Communications List */}
-          <div className="flex-1 overflow-y-auto space-y-2 pr-1 custom-scrollbar">
+          <div className="flex-1 overflow-y-auto space-y-2 pr-1 custom-scrollbar min-h-0">
             {loadingConversations ? (
               <div className="py-12 text-center text-xs text-slate-400 space-y-2">
                 <RefreshCw className="w-5 h-5 animate-spin mx-auto text-blue-600" />
@@ -431,8 +519,12 @@ export default function MessagesPage({ user }) {
                 <div className="w-10 h-10 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center mx-auto">
                   <MessageSquare className="w-5 h-5" />
                 </div>
-                <p className="text-xs font-bold text-slate-700">No active conversations</p>
-                <p className="text-[11px] text-slate-500 leading-relaxed">Book a consultation with a specialist to initiate direct physician care communications.</p>
+                <p className="text-xs font-bold text-slate-700">
+                  {searchQuery ? `No channels matching "${searchQuery}"` : "No active conversations"}
+                </p>
+                <p className="text-[11px] text-slate-500 leading-relaxed">
+                  {searchQuery ? "Try searching by physician name, specialty, or case ID." : "Book a consultation with a specialist to initiate direct physician care communications."}
+                </p>
               </div>
             ) : (
               displayConversations.map((conv, idx) => {
@@ -457,7 +549,7 @@ export default function MessagesPage({ user }) {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between mb-0.5">
                           <h4 className="text-xs font-bold text-slate-900 truncate">
-                            {conv.doctorName || conv.title}
+                            <HighlightMatch text={conv.doctorName || conv.title} query={searchQuery} />
                           </h4>
                           <span className="text-[10px] text-slate-400 flex-shrink-0 font-medium">
                             {conv.lastMessageTime}
@@ -465,12 +557,12 @@ export default function MessagesPage({ user }) {
                         </div>
 
                         <p className="text-[11px] font-semibold text-slate-500 truncate mb-1">
-                          {conv.specialty}
+                          <HighlightMatch text={conv.specialty} query={searchQuery} />
                         </p>
 
                         <div className="flex items-center justify-between">
                           <p className="text-[11px] text-slate-600 truncate pr-2">
-                            {conv.lastMessage}
+                            <HighlightMatch text={conv.lastMessage} query={searchQuery} />
                           </p>
                           {conv.unreadCount > 0 && (
                             <span className="w-2.5 h-2.5 rounded-full bg-blue-600 flex-shrink-0 ring-2 ring-blue-100" />
@@ -484,7 +576,7 @@ export default function MessagesPage({ user }) {
             )}
           </div>
 
-          <div className="pt-2 border-t border-slate-100">
+          <div className="pt-2 border-t border-slate-100 shrink-0">
             <button
               className="w-full py-2.5 px-3 rounded-xl border border-blue-200 bg-blue-50/60 hover:bg-blue-100/80 text-blue-700 font-bold text-xs flex items-center justify-center space-x-2 transition-all cursor-pointer shadow-xs"
               onClick={() => navigate('/appointments')}
@@ -495,11 +587,11 @@ export default function MessagesPage({ user }) {
           </div>
         </div>
 
-        {/* ── CENTER COLUMN: Clinical Communication Workspace (6 cols) ──────── */}
-        <div className="lg:col-span-6 bg-white border border-slate-200/90 rounded-2xl flex flex-col h-full overflow-hidden shadow-lg shadow-slate-100/60 relative">
+        {/* ── MAIN COLUMN: Clinical Communication Workspace (Locked to viewport) ── */}
+        <div className="flex-1 min-w-0 h-full max-h-full bg-white border border-slate-200/90 rounded-2xl flex flex-col overflow-hidden shadow-lg shadow-slate-100/60 relative min-h-0">
           
           {/* Active Header */}
-          <div className="p-3.5 px-5 border-b border-slate-100 flex items-center justify-between bg-white flex-shrink-0 shadow-2xs">
+          <div className="p-3.5 px-5 border-b border-slate-100 flex items-center justify-between bg-white shrink-0 shadow-2xs">
             <div className="flex items-center space-x-3.5 min-w-0">
               <div className="w-10 h-10 rounded-xl flex items-center justify-center text-xs font-bold flex-shrink-0 shadow-md bg-gradient-to-tr from-blue-600 to-cyan-600 text-white">
                 <UserCheck className="w-5 h-5" />
@@ -564,7 +656,12 @@ export default function MessagesPage({ user }) {
           </div>
 
           {/* Clinical Communication Timeline Feed */}
-          <div className="flex-1 overflow-y-auto p-5 space-y-4 custom-scrollbar bg-slate-50/40">
+          <div
+            ref={messagesContainerRef}
+            onScroll={handleScroll}
+            style={{ overscrollBehavior: 'contain' }}
+            className="flex-1 min-h-0 overflow-y-auto p-4 md:p-5 space-y-3.5 custom-scrollbar bg-slate-50/40"
+          >
             
             {/* System Activity Timeline Marker */}
             <div className="text-center my-2">
@@ -653,9 +750,20 @@ export default function MessagesPage({ user }) {
                 );
               })
             )}
-
-            <div ref={chatEndRef} />
           </div>
+
+          {/* Instagram-style Floating Jump to Latest Button */}
+          {showScrollBottomBtn && (
+            <button
+              type="button"
+              onClick={() => scrollToBottom(true)}
+              className="absolute bottom-24 right-6 z-30 px-3.5 py-2 bg-white/95 hover:bg-white text-slate-800 hover:text-blue-600 border border-slate-200/90 shadow-xl shadow-slate-400/20 rounded-full text-xs font-bold flex items-center space-x-1.5 backdrop-blur-md transition-all hover:scale-105 cursor-pointer animate-fade-in group"
+              title="Jump to latest messages"
+            >
+              <ChevronDown className="w-4 h-4 text-blue-600 group-hover:translate-y-0.5 transition-transform" />
+              <span>Latest Messages</span>
+            </button>
+          )}
 
           {activeConv?.isAi && (
             <div className="px-4 py-2 bg-slate-50/80 border-t border-slate-100 flex flex-wrap items-center gap-2 flex-shrink-0">
@@ -725,118 +833,6 @@ export default function MessagesPage({ user }) {
               <span className="font-medium">256-bit Encrypted Telehealth Communication Session</span>
             </div>
           </form>
-        </div>
-
-        {/* ── RIGHT COLUMN: Context & Care Actions (3 cols) ────────────────── */}
-        <div className="lg:col-span-3 space-y-4 h-full overflow-y-auto custom-scrollbar">
-          
-          {/* Care Context Card */}
-          <div className="bg-white border border-slate-200/90 rounded-2xl p-4 space-y-3 shadow-lg shadow-slate-100/60">
-            <div className="flex items-center space-x-2">
-              <div className="w-7 h-7 rounded-lg bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600">
-                <Activity className="w-4 h-4" />
-              </div>
-              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700">
-                {activeConv?.isAi ? 'Care Context' : 'Consultation Details'}
-              </h3>
-            </div>
-
-            <div className="p-3 bg-gradient-to-br from-slate-50 to-indigo-50/30 border border-slate-200/70 rounded-xl space-y-2 text-xs">
-              {activeConv?.isAi ? (
-                <>
-                  <div className="flex justify-between">
-                    <span className="text-slate-500">Session Type:</span>
-                    <span className="font-bold text-slate-800">AI Assistant Session</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-500">RAG Engine:</span>
-                    <span className="font-bold text-purple-700">TeleMed AI v4.0</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-slate-500">Status:</span>
-                    <span className="bg-emerald-100 text-emerald-700 text-[10px] font-extrabold px-2.5 py-0.5 rounded-full flex items-center gap-1">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                      Active
-                    </span>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div className="flex justify-between">
-                    <span className="text-slate-500">Specialist:</span>
-                    <span className="font-bold text-slate-800 truncate max-w-[130px]">{activeConv?.doctorName}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-500">Specialty:</span>
-                    <span className="font-bold text-slate-800">{activeConv?.specialty}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-500">ID:</span>
-                    <span className="font-mono font-bold text-blue-600">{activeConv?.consultation_id}</span>
-                  </div>
-                  {activeConv?.appointment_date && (
-                    <div className="flex justify-between">
-                      <span className="text-slate-500">Slot:</span>
-                      <span className="font-bold text-slate-800">{activeConv?.appointment_date}</span>
-                    </div>
-                  )}
-                  <div className="flex justify-between items-center">
-                    <span className="text-slate-500">Status:</span>
-                    <span className="bg-emerald-100 text-emerald-700 text-[10px] font-extrabold px-2 py-0.5 rounded-full">
-                      {activeConv?.status || 'Active'}
-                    </span>
-                  </div>
-                </>
-              )}
-            </div>
-
-            {!activeConv?.isAi && activeConv?.consultation_id && (
-              <button
-                className="w-full py-2 px-3 border border-slate-200 bg-slate-50 hover:bg-slate-100 rounded-xl text-slate-700 font-bold text-xs flex items-center justify-center space-x-1.5 transition-all cursor-pointer"
-                onClick={() => navigate('/consultations')}
-              >
-                <ExternalLink className="w-3.5 h-3.5 text-blue-600" />
-                <span>View Full Consultation</span>
-              </button>
-            )}
-          </div>
-
-          {/* Care Actions Hub */}
-          <div className="bg-white border border-slate-200/90 rounded-2xl p-4 space-y-3 shadow-lg shadow-slate-100/60">
-            <div className="flex items-center space-x-2">
-              <div className="w-7 h-7 rounded-lg bg-purple-50 border border-purple-100 flex items-center justify-center text-purple-600">
-                <Sparkles className="w-4 h-4" />
-              </div>
-              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700">Quick Care Actions</h3>
-            </div>
-
-            <div className="space-y-2">
-              <button
-                onClick={() => navigate('/records')}
-                className="w-full p-2.5 bg-slate-50 hover:bg-blue-50/70 border border-slate-200 hover:border-blue-300 rounded-xl text-xs font-bold text-slate-700 hover:text-blue-700 flex items-center justify-between transition-all cursor-pointer shadow-2xs group"
-              >
-                <div className="flex items-center space-x-2.5">
-                  <FileText className="w-4 h-4 text-blue-600" />
-                  <span>View Health Records</span>
-                </div>
-                <ChevronRight className="w-4 h-4 text-slate-400 group-hover:translate-x-0.5 transition-transform" />
-              </button>
-
-              <button
-                onClick={() => navigate('/report')}
-                className="w-full p-2.5 bg-slate-50 hover:bg-emerald-50/70 border border-slate-200 hover:border-emerald-300 rounded-xl text-xs font-bold text-slate-700 hover:text-emerald-700 flex items-center justify-between transition-all cursor-pointer shadow-2xs group"
-              >
-                <div className="flex items-center space-x-2.5">
-                  <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
-                  <span>View AI Health Report</span>
-                </div>
-                <ChevronRight className="w-4 h-4 text-slate-400 group-hover:translate-x-0.5 transition-transform" />
-              </button>
-
-
-            </div>
-          </div>
-
         </div>
 
       </div>

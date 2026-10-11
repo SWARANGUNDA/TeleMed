@@ -4,11 +4,12 @@ import {
   Stethoscope, Clock, AlertTriangle, CheckCircle, CheckCircle2, ShieldAlert,
   PlusCircle, FileText, User, RefreshCw, X, Eye, Send,
   MessageCircle, Edit3, Lock, Shield, Video, VideoOff, Camera, CameraOff, Calendar, Sparkles, Brain,
-  Activity, ArrowRight, Save, Check, Paperclip, ChevronRight,
+  Activity, ArrowRight, Save, Check, Paperclip, ChevronRight, ChevronDown,
   Pill, Download, Printer, UserCheck, Star, MessageSquare, ExternalLink,
   ArrowLeft, BadgeCheck, Phone, PhoneCall, PhoneOff, ShieldCheck, Zap, Search, AlertCircle,
   FileCheck, Heart, Sparkle, Mic, MicOff,
-  Volume2, VolumeX, Minimize2, Maximize2, Radio, Wifi, Sliders, Waves, Headphones
+  Volume2, VolumeX, Minimize2, Maximize2, Radio, Wifi, Sliders, Waves, Headphones,
+  Monitor, MonitorUp
 } from 'lucide-react';
 import { PageContainer } from '../components/layout';
 import {
@@ -28,6 +29,7 @@ import {
   getWsBaseUrl
 } from '../api/client';
 import useAudioCall, { CALL_STATES } from '../utils/useAudioCall';
+import { HighlightMatch } from '../components/ui';
 
 // ── Risk Score Gauge Component ─────────────────────────────────────
 function RiskScoreGauge({ score = 32, maxScore = 100 }) {
@@ -172,7 +174,19 @@ export default function ConsultationWorkspacePage({ user, consultationContext, i
   // Search & Filter State
   const [queueFilter, setQueueFilter] = useState('ALL'); // 'ALL', 'ACTIVE', 'PENDING', 'COMPLETED'
   const [searchQuery, setSearchQuery] = useState('');
+  const [isSuggestionsOpen, setIsSuggestionsOpen] = useState(false);
+  const searchContainerRef = useRef(null);
   const [workspaceTab, setWorkspaceTab] = useState('chat'); // 'chat', 'soap', 'records'
+
+  useEffect(() => {
+    const handleOutside = (e) => {
+      if (searchContainerRef.current && !searchContainerRef.current.contains(e.target)) {
+        setIsSuggestionsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleOutside);
+    return () => document.removeEventListener('mousedown', handleOutside);
+  }, []);
 
   // Live Audio Call UI Enhancements
   const [isCallMinimized, setIsCallMinimized] = useState(false);
@@ -214,6 +228,35 @@ export default function ConsultationWorkspacePage({ user, consultationContext, i
 
   const socketRef = useRef(null);
   const chatEndRef = useRef(null);
+  const consultationMessagesContainerRef = useRef(null);
+  const [showConsultationScrollBottomBtn, setShowConsultationScrollBottomBtn] = useState(false);
+  const isConsultationAtBottomRef = useRef(true);
+
+  // Directly scroll messages container so window is never shifted
+  const scrollConsultationToBottom = useCallback((smooth = true) => {
+    if (consultationMessagesContainerRef.current) {
+      const container = consultationMessagesContainerRef.current;
+      if (smooth) {
+        container.scrollTo({
+          top: container.scrollHeight,
+          behavior: 'smooth'
+        });
+      } else {
+        container.scrollTop = container.scrollHeight;
+      }
+      isConsultationAtBottomRef.current = true;
+      setShowConsultationScrollBottomBtn(false);
+    }
+  }, []);
+
+  const handleConsultationScroll = useCallback(() => {
+    if (!consultationMessagesContainerRef.current) return;
+    const { scrollTop, scrollHeight, clientHeight } = consultationMessagesContainerRef.current;
+    const distanceToBottom = scrollHeight - scrollTop - clientHeight;
+    const atBottom = distanceToBottom < 100;
+    isConsultationAtBottomRef.current = atBottom;
+    setShowConsultationScrollBottomBtn(!atBottom);
+  }, []);
 
   // Trigger Toast Notification
   const notify = (msg) => {
@@ -424,10 +467,39 @@ export default function ConsultationWorkspacePage({ user, consultationContext, i
     };
   }, [selectedConsultation, consultations, loadMessages, user]);
 
-  // Auto-scroll chat feed
+  // Flexible Instagram-style Auto-scroll for Consultation Chat
   useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messagesThread, isOtherTyping]);
+    const timer = setTimeout(() => {
+      scrollConsultationToBottom(false);
+    }, 60);
+    return () => clearTimeout(timer);
+  }, [selectedConsultation, scrollConsultationToBottom]);
+
+  const prevThreadCountRef = useRef(messagesThread.length);
+  useEffect(() => {
+    const isNew = messagesThread.length > prevThreadCountRef.current;
+    prevThreadCountRef.current = messagesThread.length;
+
+    if (!isNew && messagesThread.length === 0) return;
+
+    const lastMsg = messagesThread[messagesThread.length - 1];
+    const isSelf = lastMsg && (lastMsg.role === role || lastMsg.sender === (user?.full_name || user?.name));
+
+    if (isConsultationAtBottomRef.current || isSelf) {
+      const timer = setTimeout(() => {
+        scrollConsultationToBottom(true);
+      }, 50);
+      return () => clearTimeout(timer);
+    } else {
+      setShowConsultationScrollBottomBtn(true);
+    }
+  }, [messagesThread, role, user, scrollConsultationToBottom]);
+
+  useEffect(() => {
+    if (isOtherTyping && isConsultationAtBottomRef.current) {
+      scrollConsultationToBottom(true);
+    }
+  }, [isOtherTyping, scrollConsultationToBottom]);
 
   // Handle Messaging Actions
   const handleInputChange = (e) => {
@@ -557,13 +629,27 @@ export default function ConsultationWorkspacePage({ user, consultationContext, i
 
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase().trim();
-      list = list.filter(c =>
-        (c.patient_name || '').toLowerCase().includes(q) ||
-        (c.doctor_name || '').toLowerCase().includes(q) ||
-        (c.consultation_id || '').toLowerCase().includes(q) ||
-        (c.category || c.specialization || '').toLowerCase().includes(q) ||
-        (c.reason || '').toLowerCase().includes(q)
-      );
+      const tokens = q.split(/\s+/).filter(Boolean);
+      list = list
+        .map(c => {
+          const haystack = `${c.patient_name || ''} ${c.doctor_name || ''} ${c.assigned_doctor_name || ''} ${c.consultation_id || ''} ${c.category || ''} ${c.specialization || ''} ${c.reason || ''} ${c.status || ''}`.toLowerCase();
+          const allMatch = tokens.every(tok => haystack.includes(tok));
+          if (!allMatch) return null;
+          let score = 0;
+          tokens.forEach(tok => {
+            const pName = (c.patient_name || '').toLowerCase();
+            const dName = (c.doctor_name || c.assigned_doctor_name || '').toLowerCase();
+            const cId = (c.consultation_id || '').toLowerCase();
+            if (pName.startsWith(tok) || dName.startsWith(tok)) score += 30;
+            else if (pName.includes(tok) || dName.includes(tok)) score += 15;
+            if (cId.includes(tok)) score += 20;
+            if ((c.category || c.specialization || '').toLowerCase().includes(tok)) score += 10;
+          });
+          return { item: c, score };
+        })
+        .filter(Boolean)
+        .sort((a, b) => b.score - a.score)
+        .map(x => x.item);
     }
 
     return list;
@@ -808,15 +894,83 @@ export default function ConsultationWorkspacePage({ user, consultationContext, i
             </div>
 
             {/* Search Input */}
-            <div className="relative min-w-[240px]">
-              <Search className="w-4 h-4 text-[var(--text-dim)] absolute left-3 top-1/2 -translate-y-1/2" />
+            <div ref={searchContainerRef} className="relative min-w-[280px]">
+              <Search className="w-4 h-4 text-[var(--primary)] absolute left-3 top-1/2 -translate-y-1/2" />
               <input
                 type="text"
-                placeholder="Search doctor name or specialty..."
+                placeholder="Live search doctor, ID, or specialty..."
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-9 pr-3 py-1.5 bg-[var(--bg-primary)] border border-[var(--border-subtle)] rounded-xl text-xs text-[var(--text-main)] focus:outline-none focus:border-[var(--primary)] placeholder:text-[var(--text-dim)]"
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  setIsSuggestionsOpen(e.target.value.trim().length > 0);
+                }}
+                onFocus={() => {
+                  if (searchQuery.trim()) setIsSuggestionsOpen(true);
+                }}
+                className="w-full pl-9 pr-14 py-2 bg-[var(--bg-primary)] border border-[var(--border-subtle)] rounded-xl text-xs text-[var(--text-main)] focus:outline-none focus:border-[var(--primary)] placeholder:text-[var(--text-dim)] shadow-xs"
               />
+              {searchQuery.trim() && (
+                <span className="absolute right-7 top-1/2 -translate-y-1/2 text-[10px] font-mono px-1.5 py-0.5 rounded bg-[var(--primary)]/10 text-[var(--primary)] font-bold pointer-events-none">
+                  {filteredConsultations.length}
+                </span>
+              )}
+              {searchQuery && (
+                <button
+                  onClick={() => {
+                    setSearchQuery('');
+                    setIsSuggestionsOpen(false);
+                  }}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[var(--text-muted)] hover:text-[var(--danger)]"
+                  title="Clear Search"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+
+              {/* Floating Autocomplete Dropdown */}
+              {isSuggestionsOpen && searchQuery.trim().length > 0 && (
+                <div className="absolute top-full left-0 right-0 mt-2 z-50 bg-[var(--bg-surface)] border border-[var(--primary)]/40 rounded-2xl shadow-2xl backdrop-blur-xl max-h-60 overflow-y-auto custom-scrollbar p-2 animate-fadeIn">
+                  <div className="px-3 py-1 border-b border-[var(--border-subtle)] flex items-center justify-between text-[10px] font-bold text-[var(--text-muted)]">
+                    <span className="flex items-center gap-1">
+                      <Sparkles className="w-3 h-3 text-[var(--primary)]" />
+                      Consultation Matches
+                    </span>
+                    <span>{filteredConsultations.length} cases</span>
+                  </div>
+
+                  {filteredConsultations.length > 0 ? (
+                    filteredConsultations.slice(0, 5).map((c, idx) => {
+                      const dName = c.doctor_name || c.assigned_doctor_name || 'Specialist';
+                      return (
+                        <div
+                          key={`cons_sugg_${c.id || idx}`}
+                          onClick={() => {
+                            setSearchQuery(dName);
+                            setIsSuggestionsOpen(false);
+                          }}
+                          className="p-2 hover:bg-[var(--primary)]/10 rounded-xl cursor-pointer transition-colors flex items-center justify-between gap-2 text-left"
+                        >
+                          <div className="min-w-0">
+                            <p className="text-xs font-bold text-[var(--text-main)] truncate">
+                              <HighlightMatch text={dName} query={searchQuery} />
+                            </p>
+                            <p className="text-[10px] text-[var(--text-muted)] font-mono truncate">
+                              <HighlightMatch text={c.consultation_id} query={searchQuery} /> • {c.category || c.specialization}
+                            </p>
+                          </div>
+                          <span className="text-[9px] px-2 py-0.5 rounded-full font-bold bg-[var(--primary)]/10 text-[var(--primary)] shrink-0">
+                            {c.status || 'ACTIVE'}
+                          </span>
+                        </div>
+                      );
+                    })
+                  ) : (
+                    <div className="p-3 text-center text-xs text-[var(--text-muted)]">
+                      No consultations match "{searchQuery}"
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
 
@@ -866,9 +1020,11 @@ export default function ConsultationWorkspacePage({ user, consultationContext, i
                             {docName.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
                           </div>
                           <div>
-                            <h3 className="text-sm font-extrabold text-[var(--text-main)]">{docName}</h3>
+                            <h3 className="text-sm font-extrabold text-[var(--text-main)]">
+                              <HighlightMatch text={docName} query={searchQuery} />
+                            </h3>
                             <p className="text-xs text-[var(--text-muted)] font-medium">
-                              {c.category || c.specialization || 'General Consultation'}
+                              <HighlightMatch text={c.category || c.specialization || 'General Consultation'} query={searchQuery} />
                             </p>
                           </div>
                         </div>
@@ -885,11 +1041,15 @@ export default function ConsultationWorkspacePage({ user, consultationContext, i
                       <div className="p-3 bg-[var(--bg-primary)] border border-[var(--border-subtle)] rounded-2xl space-y-1.5 text-xs">
                         <div className="flex items-center justify-between text-[var(--text-muted)]">
                           <span className="font-semibold">Consultation ID:</span>
-                          <span className="font-mono text-[var(--text-main)] font-bold">{c.consultation_id}</span>
+                          <span className="font-mono text-[var(--text-main)] font-bold">
+                            <HighlightMatch text={c.consultation_id} query={searchQuery} />
+                          </span>
                         </div>
                         <div className="flex items-center justify-between text-[var(--text-muted)]">
                           <span className="font-semibold">Primary Reason:</span>
-                          <span className="text-[var(--text-main)] font-medium truncate max-w-[180px]">{c.reason || 'General Health Check'}</span>
+                          <span className="text-[var(--text-main)] font-medium truncate max-w-[180px]">
+                            <HighlightMatch text={c.reason || 'General Health Check'} query={searchQuery} />
+                          </span>
                         </div>
                         <div className="flex items-center justify-between text-[var(--text-muted)]">
                           <span className="font-semibold">Urgency:</span>
@@ -948,7 +1108,7 @@ export default function ConsultationWorkspacePage({ user, consultationContext, i
         {/* ── REQUEST NEW CONSULTATION MODAL ───────────────────────────────── */}
         {isNewModalOpen && (
           <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4">
-            <div className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-slate-200 space-y-5 animate-scale-up">
+            <div className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-slate-200 space-y-5 animate-scale-up max-h-[90vh] overflow-y-auto custom-scrollbar">
               <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                 <div className="flex items-center space-x-2">
                   <div className="w-9 h-9 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold">
@@ -1103,7 +1263,7 @@ export default function ConsultationWorkspacePage({ user, consultationContext, i
   // RENDER: LIVE CHAT WORKSPACE (PATIENT ATTEND MODE & DOCTOR PORTAL)
   // ═══════════════════════════════════════════════════════════════════════
   return (
-    <PageContainer className="max-w-[1480px] mx-auto px-4 py-4 space-y-4">
+    <div className="max-w-[1600px] w-full mx-auto p-3 flex flex-col h-[calc(100vh-65px)] overflow-hidden space-y-3">
       
       {/* Toast Alert */}
       {toastMsg && (
@@ -1114,7 +1274,7 @@ export default function ConsultationWorkspacePage({ user, consultationContext, i
       )}
 
       {/* ── TOP HEADER BANNER ──────────────────────────────────────────────── */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-5 bg-gradient-to-r from-slate-900 via-slate-800 to-indigo-950 text-white rounded-2xl shadow-xl border border-slate-700/50">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 p-3.5 bg-gradient-to-r from-slate-900 via-slate-800 to-indigo-950 text-white rounded-2xl shadow-xl border border-slate-700/50 shrink-0">
         <div className="flex items-center space-x-3.5">
           {isPatient && (
             <button
@@ -1217,8 +1377,8 @@ export default function ConsultationWorkspacePage({ user, consultationContext, i
                   <span>{audioCall.callType === 'video' ? '256-Bit Encrypted HD Video' : '256-Bit Encrypted VoIP'}</span>
                 </div>
                 <div className="hidden sm:flex items-center space-x-1 px-2.5 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 text-[10px] font-mono">
-                  <Wifi className="w-3 h-3 text-emerald-400" />
-                  <span>{audioCall.callType === 'video' ? 'WebRTC HD • 720p 30fps' : 'HD Voice • 48 kHz'}</span>
+                  <Wifi className={`w-3 h-3 ${audioCall.networkQuality === 'POOR' ? 'text-rose-400 animate-pulse' : audioCall.networkQuality === 'FAIR' ? 'text-amber-400' : 'text-emerald-400'}`} />
+                  <span>{audioCall.latencyMs ? `${audioCall.latencyMs}ms` : '38ms'} • {audioCall.networkQuality} • {audioCall.callType === 'video' ? 'HD 720p' : 'VoIP'}</span>
                 </div>
               </div>
 
@@ -1247,6 +1407,25 @@ export default function ConsultationWorkspacePage({ user, consultationContext, i
                     audioCall.isRemoteVideoAvailable && audioCall.callState === 'CONNECTED' ? 'opacity-100' : 'opacity-0 absolute'
                   }`}
                 />
+
+                {/* Remote Screen Share Badge */}
+                {audioCall.isRemoteScreenSharing && (
+                  <div className="absolute top-4 right-4 z-20 flex items-center space-x-1.5 bg-indigo-600/90 backdrop-blur-md px-3 py-1.5 rounded-xl border border-indigo-400/40 text-xs text-white shadow-xl animate-pulse">
+                    <Monitor className="w-3.5 h-3.5 text-indigo-200" />
+                    <span className="font-bold text-[11px]">{isDoctor ? patientDisplayName : doctorDisplayName} is sharing screen</span>
+                  </div>
+                )}
+
+                {/* In-Call Reconnection Overlay */}
+                {audioCall.callState === 'RECONNECTING' && (
+                  <div className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4 text-center space-y-2">
+                    <RefreshCw className="w-10 h-10 animate-spin text-amber-400" />
+                    <div className="text-white text-base font-extrabold">Reconnecting Video Stream...</div>
+                    <div className="text-amber-200 text-xs font-semibold">
+                      Restoring WebRTC peer connection • Attempting ICE restart {audioCall.reconnectCountdown !== null ? `(${audioCall.reconnectCountdown}s)` : ''}
+                    </div>
+                  </div>
+                )}
 
                 {/* Remote Video Fallback (When remote camera is off or connecting) */}
                 {(!audioCall.isRemoteVideoAvailable || audioCall.callState !== 'CONNECTED') && (
@@ -1302,8 +1481,9 @@ export default function ConsultationWorkspacePage({ user, consultationContext, i
                       <span className="text-[10px] font-bold">Camera Off</span>
                     </div>
                   )}
-                  <div className="absolute bottom-1 left-2 px-1.5 py-0.5 rounded bg-black/60 backdrop-blur-xs text-[9px] font-bold text-white">
-                    You {audioCall.isMuted && '• Muted'}
+                  <div className="absolute bottom-1 left-2 px-1.5 py-0.5 rounded bg-black/60 backdrop-blur-xs text-[9px] font-bold text-white flex items-center gap-1">
+                    {audioCall.isScreenSharing && <Monitor className="w-2.5 h-2.5 text-indigo-300" />}
+                    <span>You {audioCall.isScreenSharing ? '(Screen)' : ''} {audioCall.isMuted && '• Muted'}</span>
                   </div>
                 </div>
 
@@ -1404,9 +1584,9 @@ export default function ConsultationWorkspacePage({ user, consultationContext, i
                     </div>
                   )}
                   {audioCall.callState === 'RECONNECTING' && (
-                    <div className="inline-flex items-center space-x-2 px-4 py-1.5 rounded-full bg-amber-500/20 border border-amber-400/30 text-amber-200 text-xs font-bold animate-pulse">
+                    <div className="inline-flex items-center space-x-2 px-4 py-1.5 rounded-full bg-amber-500/20 border border-amber-400/40 text-amber-200 text-xs font-bold animate-pulse shadow-md">
                       <RefreshCw className="w-3.5 h-3.5 animate-spin text-amber-400" />
-                      <span>Signal dropped • Reconnecting...</span>
+                      <span>Signal dropped • ICE Reconnecting {audioCall.reconnectCountdown !== null ? `(${audioCall.reconnectCountdown}s)` : ''}...</span>
                     </div>
                   )}
                   {audioCall.callState === 'DECLINED' && (
@@ -1516,6 +1696,22 @@ export default function ConsultationWorkspacePage({ user, consultationContext, i
                     </button>
                   )}
 
+                  {/* Screen Share Toggle (For Video Calls) */}
+                  {audioCall.callType === 'video' && (
+                    <button
+                      onClick={audioCall.toggleScreenShare}
+                      className={`w-14 h-14 rounded-2xl flex flex-col items-center justify-center transition-all cursor-pointer ${
+                        audioCall.isScreenSharing
+                          ? 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-xl shadow-indigo-600/40 ring-2 ring-indigo-400/50 scale-105'
+                          : 'bg-slate-800/90 hover:bg-slate-700 text-slate-200 border border-slate-700/80 shadow-md'
+                      }`}
+                      title={audioCall.isScreenSharing ? 'Stop Screen Sharing' : 'Share Screen'}
+                    >
+                      <MonitorUp className={`w-5 h-5 ${audioCall.isScreenSharing ? 'text-white' : 'text-indigo-400'}`} />
+                      <span className="text-[10px] font-bold mt-0.5">{audioCall.isScreenSharing ? 'Sharing' : 'Share'}</span>
+                    </button>
+                  )}
+
                   {/* Speaker Output Toggle */}
                   <button
                     onClick={() => setIsSpeakerOn(!isSpeakerOn)}
@@ -1607,12 +1803,18 @@ export default function ConsultationWorkspacePage({ user, consultationContext, i
           <div className="text-left min-w-[130px]">
             <div className="text-xs font-black text-white flex items-center space-x-1.5 truncate max-w-[140px]">
               <span className="truncate">{isDoctor ? patientDisplayName : doctorDisplayName}</span>
-              <span className="text-[9px] px-1.5 py-0.2 bg-indigo-500/30 text-indigo-300 rounded font-mono font-bold">HD</span>
+              <span className={`text-[9px] px-1.5 py-0.2 rounded font-mono font-bold ${
+                audioCall.networkQuality === 'POOR' ? 'bg-rose-500/30 text-rose-300' :
+                audioCall.networkQuality === 'FAIR' ? 'bg-amber-500/30 text-amber-300' :
+                'bg-indigo-500/30 text-indigo-300'
+              }`}>
+                {audioCall.latencyMs ? `${audioCall.latencyMs}ms` : 'HD'}
+              </span>
             </div>
             <div className="flex items-center space-x-1.5 text-[11px] font-mono font-bold text-emerald-400 mt-0.5">
               <span>{formatDuration(audioCall.callDuration)}</span>
               <span className="text-slate-600">•</span>
-              <span className="text-slate-400 text-[10px]">{audioCall.isMuted ? 'Muted' : 'Active'}</span>
+              <span className="text-slate-400 text-[10px]">{audioCall.isScreenSharing ? 'Screen' : audioCall.isMuted ? 'Muted' : 'Active'}</span>
             </div>
           </div>
 
@@ -1646,10 +1848,10 @@ export default function ConsultationWorkspacePage({ user, consultationContext, i
       )}
 
       {/* ── 2-COLUMN CLINICAL WORKSPACE GRID ───────────────────────────────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start h-[calc(100vh-170px)] min-h-[640px] max-h-[880px]">
+      <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-3 min-h-0">
 
-        {/* ── LEFT COLUMN: Case Queue / Consultations List (3.5 cols) ───────── */}
-        <div className="lg:col-span-4 bg-white border border-slate-200/90 rounded-2xl p-4 space-y-3.5 shadow-lg shadow-slate-100/60 flex flex-col h-full overflow-hidden">
+        {/* ── LEFT COLUMN: Case Queue / Consultations List (4 cols) ───────── */}
+        <div className="lg:col-span-4 bg-white border border-slate-200/90 rounded-2xl p-3.5 space-y-3 shadow-lg shadow-slate-100/60 flex flex-col h-full overflow-hidden">
           {/* Queue Header & Filters */}
           <div className="space-y-2 shrink-0">
             <div className="flex items-center justify-between">
@@ -1744,7 +1946,9 @@ export default function ConsultationWorkspacePage({ user, consultationContext, i
 
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between mb-0.5">
-                          <h4 className="text-xs font-bold text-slate-900 truncate">{displayName}</h4>
+                          <h4 className="text-xs font-bold text-slate-900 truncate">
+                            <HighlightMatch text={displayName} query={searchQuery} />
+                          </h4>
                           <span className={`text-[9px] font-extrabold px-2 py-0.5 rounded-full ${
                             urgencyUpper === 'URGENT' || urgencyUpper === 'HIGH' ? 'bg-rose-100 text-rose-700' :
                             urgencyUpper === 'SOON' ? 'bg-amber-100 text-amber-800' : 'bg-blue-100 text-blue-700'
@@ -1754,11 +1958,11 @@ export default function ConsultationWorkspacePage({ user, consultationContext, i
                         </div>
 
                         <p className="text-[11px] font-semibold text-slate-500 truncate mb-1">
-                          {c.category || c.specialization || 'Clinical Evaluation'}
+                          <HighlightMatch text={c.category || c.specialization || 'Clinical Evaluation'} query={searchQuery} />
                         </p>
 
                         <div className="flex items-center justify-between text-[10px]">
-                          <span className="text-slate-400 font-mono">ID: {c.consultation_id}</span>
+                          <span className="text-slate-500 font-mono font-medium">ID: <HighlightMatch text={c.consultation_id} query={searchQuery} /></span>
                           <span className={`font-bold ${statusUpper === 'COMPLETED' ? 'text-emerald-600' : 'text-blue-600'}`}>
                             {statusUpper}
                           </span>
@@ -1801,42 +2005,42 @@ export default function ConsultationWorkspacePage({ user, consultationContext, i
           ) : (
             <>
               {/* Active Workspace Header Bar */}
-              <div className="p-4 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white shrink-0 shadow-2xs">
-                <div className="flex items-center space-x-3.5">
-                  <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white font-bold flex items-center justify-center text-sm shadow-md shrink-0">
+              <div className="p-3.5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white shrink-0 shadow-2xs">
+                <div className="flex items-center space-x-3 min-w-0 flex-1">
+                  <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white font-bold flex items-center justify-center text-sm shadow-md shrink-0">
                     {(isDoctor ? patientDisplayName : doctorDisplayName).split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
                   </div>
 
-                  <div>
-                    <div className="flex items-center space-x-2.5">
-                      <h3 className="text-sm font-extrabold text-slate-900">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center space-x-2 flex-wrap gap-y-1">
+                      <h3 className="text-sm font-extrabold text-slate-900 truncate">
                         {isDoctor ? patientDisplayName : doctorDisplayName}
                       </h3>
                       {isDoctor && (
-                        <span className="text-[10px] font-mono font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md">
+                        <span className="text-[11px] font-mono font-semibold text-slate-600 bg-slate-100 border border-slate-200/80 px-2 py-0.5 rounded-md whitespace-nowrap tracking-normal shrink-0">
                           {patientDisplayId}
                         </span>
                       )}
-                      <span className="bg-emerald-100 text-emerald-800 text-[10px] font-extrabold px-2.5 py-0.5 rounded-full flex items-center gap-1">
+                      <span className="bg-emerald-100 text-emerald-800 text-[10px] font-extrabold px-2.5 py-0.5 rounded-full flex items-center gap-1 whitespace-nowrap shrink-0">
                         <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
                         {(activeConsultation?.status || 'ACTIVE').toUpperCase()}
                       </span>
                     </div>
 
-                    <p className="text-xs text-slate-500 mt-0.5">
+                    <p className="text-xs text-slate-500 mt-0.5 truncate">
                       {activeConsultation?.category || activeConsultation?.specialization || 'Clinical Assessment'} • {isDoctor ? 'Registered Patient' : 'Attending Physician'}
                     </p>
                   </div>
                 </div>
 
                 {/* Header Right Action Buttons */}
-                <div className="flex items-center space-x-2 shrink-0">
+                <div className="flex items-center space-x-2 shrink-0 flex-wrap justify-end gap-y-1">
                   <ConsultationTimer isActive={activeConsultation?.status !== 'COMPLETED'} />
 
                   {isDoctor && (activeConsultation?.status === 'ASSIGNED' || activeConsultation?.status === 'REQUESTED') && (
                     <button
                       onClick={handleAcceptAssignment}
-                      className="px-3.5 py-2 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl transition-all cursor-pointer flex items-center space-x-1.5 shadow-md shadow-emerald-600/20"
+                      className="px-3.5 py-2 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl transition-all cursor-pointer flex items-center space-x-1.5 shadow-md shadow-emerald-600/20 whitespace-nowrap shrink-0"
                     >
                       <Check size={14} />
                       <span>Accept Case</span>
@@ -1847,7 +2051,7 @@ export default function ConsultationWorkspacePage({ user, consultationContext, i
                     <button
                       onClick={handleCompleteConsultation}
                       disabled={completing}
-                      className="px-3.5 py-2 text-xs font-bold text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 rounded-xl transition-all cursor-pointer flex items-center space-x-1.5 shadow-md shadow-blue-500/20"
+                      className="px-3.5 py-2 text-xs font-bold text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 rounded-xl transition-all cursor-pointer flex items-center space-x-1.5 shadow-md shadow-blue-500/20 whitespace-nowrap shrink-0"
                     >
                       {completing ? <RefreshCw size={14} className="animate-spin" /> : <CheckCircle size={14} />}
                       <span>Sign & Complete</span>
@@ -1906,9 +2110,13 @@ export default function ConsultationWorkspacePage({ user, consultationContext, i
 
               {/* TAB 1: LIVE CHAT AREA */}
               {workspaceTab === 'chat' && (
-                <div className="flex-1 flex flex-col justify-between overflow-hidden bg-slate-50/40">
+                <div className="flex-1 flex flex-col justify-between overflow-hidden bg-slate-50/40 min-h-0 relative">
                   {/* Messages Feed */}
-                  <div className="flex-1 p-4 overflow-y-auto space-y-3 custom-scrollbar">
+                  <div
+                    ref={consultationMessagesContainerRef}
+                    onScroll={handleConsultationScroll}
+                    className="flex-1 p-4 overflow-y-auto space-y-3 custom-scrollbar min-h-0 scroll-smooth"
+                  >
                     {loadingMessages ? (
                       <div className="py-12 text-center text-xs text-slate-400 space-y-2">
                         <RefreshCw className="w-5 h-5 animate-spin mx-auto text-blue-600" />
@@ -1918,7 +2126,7 @@ export default function ConsultationWorkspacePage({ user, consultationContext, i
                       <div className="py-12 text-center space-y-2 text-slate-400">
                         <MessageCircle className="w-8 h-8 text-slate-300 mx-auto" />
                         <p className="text-xs font-bold text-slate-600">No messages sent yet in this consultation session.</p>
-                        <p className="text-[11px]">Type a message below to communicate directly with your attending physician.</p>
+                        <p className="text-[11px]">{isDoctor ? 'Type a message below to communicate directly with your patient.' : 'Type a message below to communicate directly with your attending physician.'}</p>
                       </div>
                     ) : (
                       messagesThread.map((msg, i) => {
@@ -1953,17 +2161,30 @@ export default function ConsultationWorkspacePage({ user, consultationContext, i
                           <span className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-bounce [animation-delay:0.2s]" />
                           <span className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-bounce [animation-delay:0.4s]" />
                         </div>
-                        <span>Attending physician is typing...</span>
+                        <span>{isDoctor ? 'Patient is typing...' : 'Attending physician is typing...'}</span>
                       </div>
                     )}
                     <div ref={chatEndRef} />
                   </div>
 
+                  {/* Floating Scroll-to-Bottom Button */}
+                  {showConsultationScrollBottomBtn && (
+                    <button
+                      type="button"
+                      onClick={() => scrollConsultationToBottom(true)}
+                      className="absolute bottom-20 right-6 z-30 px-3.5 py-1.5 bg-white/95 hover:bg-white text-slate-800 hover:text-blue-600 border border-slate-200/90 shadow-xl shadow-slate-400/20 rounded-full text-xs font-bold flex items-center space-x-1.5 backdrop-blur-md transition-all hover:scale-105 cursor-pointer animate-fade-in group"
+                      title="Jump to latest messages"
+                    >
+                      <ChevronDown className="w-3.5 h-3.5 text-blue-600 group-hover:translate-y-0.5 transition-transform" />
+                      <span>Latest Messages</span>
+                    </button>
+                  )}
+
                   {/* Chat Input Bar */}
                   <form onSubmit={handleSendMessage} className="p-3 bg-white border-t border-slate-200/80 flex items-center space-x-2 shrink-0">
                     <input
                       type="text"
-                      placeholder={activeConsultation?.status === 'COMPLETED' ? 'Consultation completed (read only).' : 'Type message to attending doctor...'}
+                      placeholder={activeConsultation?.status === 'COMPLETED' ? 'Consultation completed (read only).' : (isDoctor ? 'Type message to patient...' : 'Type message to attending doctor...')}
                       disabled={activeConsultation?.status === 'COMPLETED' || messageSending}
                       value={patientNewMessage}
                       onChange={handleInputChange}
@@ -1972,7 +2193,7 @@ export default function ConsultationWorkspacePage({ user, consultationContext, i
                     <button
                       type="submit"
                       disabled={!patientNewMessage.trim() || activeConsultation?.status === 'COMPLETED' || messageSending}
-                      className="px-4 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white text-xs font-bold rounded-xl disabled:opacity-50 transition-all cursor-pointer shadow-md shadow-blue-500/20 flex items-center space-x-1.5"
+                      className="px-4 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white text-xs font-bold rounded-xl disabled:opacity-50 transition-all cursor-pointer shadow-md shadow-blue-500/20 flex items-center space-x-1.5 shrink-0"
                     >
                       {messageSending ? <RefreshCw size={14} className="animate-spin" /> : <Send size={14} />}
                       <span>Send</span>
@@ -1983,7 +2204,7 @@ export default function ConsultationWorkspacePage({ user, consultationContext, i
 
               {/* TAB 2: SOAP CLINICAL NOTES (DOCTOR PORTAL) */}
               {workspaceTab === 'soap' && (
-                <div className="flex-1 p-5 overflow-y-auto custom-scrollbar space-y-4 bg-slate-50/30">
+                <div className="flex-1 p-5 overflow-y-auto custom-scrollbar space-y-4 bg-slate-50/30 min-h-0">
                   <div className="flex items-center justify-between">
                     <h4 className="text-xs font-extrabold text-slate-900 uppercase tracking-wider">SOAP Clinical Documentation</h4>
                     {isDoctor && (
@@ -2048,7 +2269,7 @@ export default function ConsultationWorkspacePage({ user, consultationContext, i
 
               {/* TAB 3: BIOMARKERS & RECORDS HUB */}
               {workspaceTab === 'records' && (
-                <div className="flex-1 p-5 overflow-y-auto custom-scrollbar space-y-4 bg-slate-50/30">
+                <div className="flex-1 p-5 overflow-y-auto custom-scrollbar space-y-4 bg-slate-50/30 min-h-0">
                   <RiskScoreGauge score={38} maxScore={100} />
 
                   <div className="p-4 bg-white border border-slate-200/90 rounded-2xl space-y-3 shadow-xs">
@@ -2091,6 +2312,6 @@ export default function ConsultationWorkspacePage({ user, consultationContext, i
 
       </div>
 
-    </PageContainer>
+    </div>
   );
 }
