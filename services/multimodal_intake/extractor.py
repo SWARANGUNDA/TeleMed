@@ -232,7 +232,7 @@ def extract_key_value_pairs_from_text(text: str, source_file: str = "text_input"
     if csv_headers:
         for orig_header, headers, delim in csv_headers:
             header_idx = raw_lines.index(orig_header)
-            for r_idx in range(header_idx + 1, min(header_idx + 5, len(raw_lines))):
+            for r_idx in range(header_idx + 1, min(header_idx + 150, len(raw_lines))):
                 val_line = raw_lines[r_idx]
                 if delim in val_line:
                     val_parts = [p.strip() for p in val_line.split(delim)]

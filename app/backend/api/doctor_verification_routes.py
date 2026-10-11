@@ -58,7 +58,7 @@ async def upload_doctor_credential(
     doctor_id = doctor_profile["doctor_id"]
     verification_status = doctor_profile.get("verification_status", "PENDING")
 
-    if verification_status in ("UNDER_REVIEW", "VERIFIED", "SUSPENDED"):
+    if verification_status in ("VERIFIED", "SUSPENDED"):
         raise HTTPException(
             status_code=400,
             detail=f"Cannot upload credentials while application status is '{verification_status}'."

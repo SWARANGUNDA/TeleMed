@@ -17,7 +17,7 @@ class ExpertInferenceEngine:
         self.is_loaded: bool = False
 
     def load(self) -> "ExpertInferenceEngine":
-        v4_path = config.BASE_DIR / "expert_models" / "v4_artifacts" / f"v4_{self.expert_name}_expert_payload.joblib"
+        v4_path = config.BASE_DIR / "expert_models" / "v4_artifacts" / f"{self.expert_name}_v4_expert_payload.joblib"
         if not v4_path.exists():
             raise FileNotFoundError(f"V4 Expert Payload missing: {v4_path}")
         self.artifacts = joblib.load(v4_path)

@@ -27,7 +27,7 @@ connect_args = {}
 if db_url.startswith("postgresql"):
     try:
         pg_fast_url = db_url.replace("localhost", "127.0.0.1") if "localhost" in db_url else db_url
-        test_engine = create_engine(pg_fast_url, connect_args={"connect_timeout": 10})
+        test_engine = create_engine(pg_fast_url, connect_args={"connect_timeout": 1})
         with test_engine.connect() as conn:
             conn.execute(text("SELECT 1"))
         test_engine.dispose()

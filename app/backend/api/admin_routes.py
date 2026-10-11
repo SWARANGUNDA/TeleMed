@@ -14,7 +14,9 @@ router = APIRouter(prefix="/api/v1/admin", tags=["Admin Portal & Verification Ma
 
 
 class UpdateDoctorStatusRequest(BaseModel):
-    status: str = Field(..., description="Target status: PENDING, UNDER_REVIEW, VERIFIED, REJECTED, RESUBMISSION_REQUIRED, SUSPENDED")
+    status: Optional[str] = Field(None, description="Target status: PENDING, UNDER_REVIEW, VERIFIED, REJECTED, RESUBMISSION_REQUIRED, SUSPENDED")
+    target_status: Optional[str] = Field(None, description="Target status alias")
+    new_status: Optional[str] = Field(None, description="Target status alias")
     notes: Optional[str] = Field(None, description="Admin verification notes / audit log details")
     reason: Optional[str] = Field(None, description="Detailed reason for rejection or resubmission request")
 
@@ -27,6 +29,23 @@ def get_admin_dashboard_stats(admin_user: Dict[str, Any] = Depends(require_role(
         "admin_user": admin_user["email"],
         "stats": stats
     }
+
+
+class CreateUserRequest(BaseModel):
+    email: str = Field(..., description="User email address")
+    password: str = Field(..., min_length=6, description="Password")
+    role: str = Field(..., description="PATIENT, DOCTOR, or ADMIN")
+    full_name: str = Field(..., description="Full Name")
+    specialization: Optional[str] = None
+    registration_number: Optional[str] = None
+
+
+class UpdateUserStatusRequest(BaseModel):
+    is_active: bool = Field(..., description="True for ACTIVE, False for SUSPENDED")
+
+
+class ResetPasswordRequest(BaseModel):
+    new_password: Optional[str] = None
 
 
 @router.get("/users", status_code=status.HTTP_200_OK)
@@ -43,17 +62,106 @@ def list_system_users(
     }
 
 
+@router.post("/users", status_code=status.HTTP_201_CREATED)
+def admin_create_user(
+    req: CreateUserRequest,
+    admin_user: Dict[str, Any] = Depends(require_role(["ADMIN"]))
+):
+    """Admin creates a new user account with immediate persistence."""
+    try:
+        profile_data = {
+            "full_name": req.full_name,
+            "specialization": req.specialization,
+            "registration_number": req.registration_number
+        }
+        new_u = database.create_user(
+            email=req.email,
+            password=req.password,
+            role=req.role,
+            profile_data=profile_data
+        )
+        database.log_audit_event(
+            actor_user_id=admin_user["user_id"],
+            role="ADMIN",
+            action="USER_CREATED_BY_ADMIN",
+            resource_type="USER_ACCOUNT",
+            resource_id=new_u["user_id"],
+            context={"email": req.email, "role": req.role}
+        )
+        return {
+            "status": "SUCCESS",
+            "message": f"User account '{req.email}' created successfully.",
+            "user": new_u
+        }
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+
+
+@router.put("/users/{user_id}/status", status_code=status.HTTP_200_OK)
+def admin_update_user_status(
+    user_id: str,
+    req: UpdateUserStatusRequest,
+    admin_user: Dict[str, Any] = Depends(require_role(["ADMIN"]))
+):
+    """Admin suspends or activates a user account."""
+    updated = database.update_user_status(user_id, req.is_active)
+    if not updated:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found.")
+    database.log_audit_event(
+        actor_user_id=admin_user["user_id"],
+        role="ADMIN",
+        action="USER_STATUS_UPDATED",
+        resource_type="USER_ACCOUNT",
+        resource_id=user_id,
+        context={"is_active": req.is_active}
+    )
+    return {
+        "status": "SUCCESS",
+        "message": f"User status set to {'ACTIVE' if req.is_active else 'SUSPENDED'}.",
+        "user": updated
+    }
+
+
+@router.post("/users/{user_id}/reset-password", status_code=status.HTTP_200_OK)
+def admin_reset_password(
+    user_id: str,
+    req: ResetPasswordRequest,
+    admin_user: Dict[str, Any] = Depends(require_role(["ADMIN"]))
+):
+    """Admin triggers password reset for a user."""
+    import secrets
+    temp_pwd = req.new_password or f"TeleMed#{secrets.token_hex(4).upper()}!"
+    h, s = database.hash_password(temp_pwd)
+    database.update_user_password(user_id, h, s)
+    database.log_audit_event(
+        actor_user_id=admin_user["user_id"],
+        role="ADMIN",
+        action="USER_PASSWORD_RESET_BY_ADMIN",
+        resource_type="USER_ACCOUNT",
+        resource_id=user_id
+    )
+    return {
+        "status": "SUCCESS",
+        "message": f"Password reset successfully. Temporary password: {temp_pwd}",
+        "temporary_password": temp_pwd
+    }
+
+
 @router.get("/doctors", status_code=status.HTTP_200_OK)
 @router.get("/doctor-applications", status_code=status.HTTP_200_OK)
 def list_doctor_applications(
     verification_status: Optional[str] = None,
+    status: Optional[str] = None,
     specialization: Optional[str] = None,
     search: Optional[str] = None,
     admin_user: Dict[str, Any] = Depends(require_role(["ADMIN"]))
 ):
     """List doctor applications with status, specialization, and search filtering."""
+    effective_status = verification_status or status
     applications = database.list_doctor_applications(
-        status_filter=verification_status,
+        status_filter=effective_status,
         specialization_filter=specialization,
         search_query=search
     )
@@ -91,7 +199,10 @@ def update_doctor_verification_status(
     Validates state machine and logs an explicit audit trail.
     """
     try:
-        new_status_clean = req.status.strip().upper()
+        status_candidate = req.status or req.target_status or req.new_status
+        if not status_candidate:
+            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Field 'status' or 'target_status' is required.")
+        new_status_clean = status_candidate.strip().upper()
         existing_doc = database.get_doctor_application_detail(doctor_id)
         if existing_doc and existing_doc.get("verification_status") == new_status_clean:
             return {

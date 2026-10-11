@@ -6,7 +6,7 @@ import re
 import secrets
 import time
 from typing import Any, Dict, Optional
-from fastapi import APIRouter, Cookie, Depends, Header, HTTPException, Request, Response, status
+from fastapi import APIRouter, BackgroundTasks, Cookie, Depends, Header, HTTPException, Request, Response, status
 from pydantic import BaseModel, Field, field_validator
 
 from .. import config, database
@@ -243,7 +243,7 @@ def register_doctor(req: DoctorRegisterRequest, response: Response):
 
 
 @router.post("/login", status_code=status.HTTP_200_OK)
-def login(req: LoginRequest, request: Request, response: Response):
+def login(req: LoginRequest, request: Request, response: Response, background_tasks: BackgroundTasks):
     """Authenticate user with email and password, returning JWT access and refresh tokens after role validation."""
     client_ip = request.client.host if request.client else "unknown"
     if client_ip not in ("testclient", "testserver"):
@@ -251,7 +251,8 @@ def login(req: LoginRequest, request: Request, response: Response):
 
     user = database.authenticate_user(req.email, req.password)
     if not user:
-        database.log_audit_event(
+        background_tasks.add_task(
+            database.log_audit_event,
             actor_user_id="ANONYMOUS",
             role="ANONYMOUS",
             action="AUTH_LOGIN_FAILED",
@@ -269,7 +270,8 @@ def login(req: LoginRequest, request: Request, response: Response):
     actual_role = (user.get("role") or "").strip().upper()
     
     if requested_portal and requested_portal in ("PATIENT", "DOCTOR", "ADMIN") and requested_portal != actual_role:
-        database.log_audit_event(
+        background_tasks.add_task(
+            database.log_audit_event,
             actor_user_id=user["user_id"],
             role=actual_role,
             action="AUTH_PORTAL_MISMATCH",
@@ -288,7 +290,8 @@ def login(req: LoginRequest, request: Request, response: Response):
     session_token = database.create_auth_session(user["user_id"])
     _set_auth_cookies(response, access_token, refresh_token)
 
-    database.log_audit_event(
+    background_tasks.add_task(
+        database.log_audit_event,
         actor_user_id=user["user_id"],
         role=user["role"],
         action="AUTH_LOGIN_SUCCESS",

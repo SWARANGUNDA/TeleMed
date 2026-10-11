@@ -268,8 +268,13 @@ def bootstrap_admin(
         session.close()
 
 
-def ensure_demo_users_seeded():
+_demo_users_seeded = False
+
+def ensure_demo_users_seeded(force: bool = False):
     """Ensure essential demo accounts exist in the database with verified password hashes."""
+    global _demo_users_seeded
+    if _demo_users_seeded and not force:
+        return
     session = SessionLocal()
     try:
         now = datetime.datetime.now(datetime.timezone.utc).isoformat()
@@ -279,11 +284,12 @@ def ensure_demo_users_seeded():
             ("usr_admin", getattr(config, "DEMO_ADMIN_EMAIL", "admin@telemed.ai"), getattr(config, "DEMO_ADMIN_PASSWORD", "Password123!"), "ADMIN", "System Admin"),
             ("usr_ramu", "ramu@telemed.ai", "Password123!", "PATIENT", "Ramu Patient")
         ]
+        any_added = False
         for u_id, email, pwd, role, full_name in demo_accounts:
             email_clean = email.lower()
             existing = session.query(pg_models.User).filter_by(email=email_clean).first()
-            pwd_h, salt = hash_password(pwd)
             if not existing:
+                pwd_h, salt = hash_password(pwd)
                 new_u = pg_models.User(
                     user_id=u_id,
                     email=email_clean,
@@ -313,11 +319,10 @@ def ensure_demo_users_seeded():
                         created_at=now
                     )
                     session.add(d_prof)
-            else:
-                existing.password_hash = pwd_h
-                existing.salt = salt
-                existing.updated_at = now
-        session.commit()
+                any_added = True
+        if any_added:
+            session.commit()
+        _demo_users_seeded = True
     except Exception as e:
         session.rollback()
         logger.warning(f"Demo user auto-seeding warning: {e}")
@@ -544,6 +549,37 @@ def get_user_by_email(email: str) -> Optional[Dict[str, Any]]:
         session.close()
 
 
+def update_user_status(user_id: str, is_active: bool) -> Optional[Dict[str, Any]]:
+    """Update active/suspended status for a user."""
+    session = SessionLocal()
+    try:
+        u = session.query(pg_models.User).filter_by(user_id=user_id).first()
+        if not u:
+            return None
+        try:
+            if hasattr(u, "is_active"):
+                u.is_active = is_active
+                session.commit()
+        except Exception:
+            session.rollback()
+        
+        conn = get_db_connection()
+        try:
+            with conn:
+                conn.execute("UPDATE users SET is_active = ? WHERE user_id = ?", (1 if is_active else 0, user_id))
+        except Exception:
+            pass
+        finally:
+            conn.close()
+
+        res = get_user_by_id(user_id)
+        if res:
+            res["is_active"] = bool(is_active)
+        return res
+    finally:
+        session.close()
+
+
 def list_users(role: Optional[str] = None, search: Optional[str] = None) -> List[Dict[str, Any]]:
     """List users with optional role filtering and search (name/email) from PostgreSQL 17."""
     session = SessionLocal()
@@ -552,18 +588,103 @@ def list_users(role: Optional[str] = None, search: Optional[str] = None) -> List
         if role and role.upper() != "ALL":
             query = query.filter(pg_models.User.role == role.upper())
         if search and search.strip():
+            from sqlalchemy import or_
             s_clean = f"%{search.strip().lower()}%"
-            query = query.filter(pg_models.User.email.ilike(s_clean))
+            query = query.outerjoin(pg_models.PatientProfile, pg_models.User.user_id == pg_models.PatientProfile.user_id)\
+                         .outerjoin(pg_models.DoctorProfile, pg_models.User.user_id == pg_models.DoctorProfile.user_id)\
+                         .filter(
+                             or_(
+                                 pg_models.User.email.ilike(s_clean),
+                                 pg_models.User.user_id.ilike(s_clean),
+                                 pg_models.PatientProfile.full_name.ilike(s_clean),
+                                 pg_models.DoctorProfile.full_name.ilike(s_clean)
+                             )
+                         ).distinct()
 
-        users_list = query.order_by(pg_models.User.created_at.desc()).all()
+        users_list = query.order_by(pg_models.User.created_at.desc()).limit(100).all()
         res = []
         for u in users_list:
-            ud = get_user_by_id(u.user_id)
-            if ud:
-                res.append(ud)
+            is_act = getattr(u, "is_active", True)
+            if is_act is None:
+                is_act = True
+            
+            user_dict = {
+                "user_id": u.user_id,
+                "email": u.email,
+                "role": u.role,
+                "is_active": bool(is_act),
+                "created_at": u.created_at,
+                "updated_at": u.updated_at
+            }
+            email_clean = (u.email or "").strip().lower()
+            u_role = u.role
+
+            if u_role == "PATIENT":
+                p = session.query(pg_models.PatientProfile).filter_by(user_id=u.user_id).first()
+                if p:
+                    user_dict["patient_profile"] = {
+                        "patient_id": p.patient_id,
+                        "user_id": p.user_id,
+                        "full_name": p.full_name,
+                        "age": p.age,
+                        "gender": p.gender,
+                        "height_cm": p.height_cm,
+                        "weight_kg": p.weight_kg,
+                        "contact_number": p.contact_number,
+                        "created_at": p.created_at
+                    }
+                    user_dict["full_name"] = (p.full_name.strip() if p.full_name and p.full_name.strip() and p.full_name.strip().lower() not in ["anonymous patient", "patient"] else email_clean.split("@")[0].replace(".", " ").replace("_", " ").title())
+                else:
+                    user_dict["patient_profile"] = None
+                    user_dict["full_name"] = email_clean.split("@")[0].replace(".", " ").replace("_", " ").title()
+            elif u_role == "DOCTOR":
+                d = session.query(pg_models.DoctorProfile).filter_by(user_id=u.user_id).first()
+                if d:
+                    user_dict["doctor_profile"] = {
+                        "doctor_id": d.doctor_id,
+                        "user_id": d.user_id,
+                        "full_name": d.full_name,
+                        "specialization": d.specialization,
+                        "qualification": d.qualification,
+                        "registration_number": d.registration_number,
+                        "registration_council": d.registration_council,
+                        "experience_years": d.experience_years,
+                        "contact_number": d.contact_number,
+                        "hospital_affiliation": d.hospital_affiliation,
+                        "verification_status": d.verification_status,
+                        "credential_notes": d.credential_notes,
+                        "created_at": d.created_at
+                    }
+                    user_dict["full_name"] = (d.full_name.strip() if d.full_name and d.full_name.strip() else email_clean.split("@")[0].replace(".", " ").replace("_", " ").title())
+                else:
+                    user_dict["doctor_profile"] = None
+                    user_dict["full_name"] = email_clean.split("@")[0].replace(".", " ").replace("_", " ").title()
+            elif u_role == "ADMIN":
+                admin_name = "System Administrator" if email_clean.startswith("admin") else email_clean.split("@")[0].replace(".", " ").replace("_", " ").title()
+                user_dict["admin_profile"] = {
+                    "admin_id": f"adm_{u.user_id}",
+                    "user_id": u.user_id,
+                    "full_name": admin_name,
+                    "department": "Platform Security & Administration",
+                    "access_level": "SUPER_ADMIN",
+                    "created_at": u.created_at
+                }
+                user_dict["full_name"] = admin_name
+            else:
+                user_dict["full_name"] = email_clean.split("@")[0].replace(".", " ").replace("_", " ").title()
+
+            res.append(user_dict)
+            
         if search and search.strip():
             s_upper = search.strip().upper()
-            res = [u for u in res if s_upper in (u.get("email") or "").upper() or s_upper in (u.get("full_name") or "").upper()]
+            res = [
+                u for u in res
+                if s_upper in (u.get("email") or "").upper()
+                or s_upper in (u.get("full_name") or "").upper()
+                or s_upper in (u.get("user_id") or "").upper()
+                or s_upper in (u.get("role") or "").upper()
+                or (u.get("doctor_profile") and s_upper in (u["doctor_profile"].get("specialization") or "").upper())
+            ]
         return res
     finally:
         session.close()
@@ -1250,11 +1371,11 @@ def delete_patient_health_record(user_id: str, record_id: str) -> bool:
 # ------------------------------------------------------------------
 
 ALLOWED_DOCTOR_STATUS_TRANSITIONS = {
-    "PENDING": {"UNDER_REVIEW"},
-    "UNDER_REVIEW": {"VERIFIED", "REJECTED", "RESUBMISSION_REQUIRED"},
-    "RESUBMISSION_REQUIRED": {"UNDER_REVIEW"},
-    "VERIFIED": {"SUSPENDED"},
-    "SUSPENDED": {"VERIFIED", "REJECTED"}
+    "PENDING": {"UNDER_REVIEW", "VERIFIED", "REJECTED", "RESUBMISSION_REQUIRED"},
+    "UNDER_REVIEW": {"VERIFIED", "REJECTED", "RESUBMISSION_REQUIRED", "PENDING"},
+    "RESUBMISSION_REQUIRED": {"UNDER_REVIEW", "PENDING", "VERIFIED"},
+    "VERIFIED": {"SUSPENDED", "UNDER_REVIEW"},
+    "SUSPENDED": {"VERIFIED", "REJECTED", "UNDER_REVIEW"}
 }
 
 
@@ -2009,6 +2130,23 @@ def create_consultation_request(
                 ) VALUES (?, ?, ?, NULL, ?, 'PATIENT', 'CREATED', NULL, 'REQUESTED', ?, ?)
             """, (log_id, c_id, patient_id, user_id, f"Consultation requested for specialization '{specialization}' ({urgency_clean})", now))
 
+            # Auto-provision unified appointment entry so it immediately appears in Upcoming list & Calendar
+            apt_id = f"apt_{c_id[5:]}"
+            slot_id = f"slot_{c_id[5:]}"
+            slot_start = now
+            try:
+                dt_now = datetime.datetime.fromisoformat(now.replace('Z', '+00:00'))
+                slot_end = (dt_now + datetime.timedelta(minutes=30)).isoformat()
+            except Exception:
+                slot_end = now
+
+            conn.execute("""
+                INSERT OR IGNORE INTO appointments (
+                    appointment_id, consultation_id, doctor_id, patient_id, patient_user_id,
+                    slot_id, slot_start, slot_end, status, notes, created_at, updated_at
+                ) VALUES (?, ?, NULL, ?, ?, ?, ?, ?, 'UPCOMING', ?, ?, ?)
+            """, (apt_id, c_id, patient_id, user_id, slot_id, slot_start, slot_end, f"{specialization} - {reason}".strip(), now, now))
+
         return get_patient_consultation_detail(user_id, c_id)
     finally:
         conn.close()
@@ -2268,6 +2406,8 @@ def cancel_patient_consultation(user_id: str, consultation_id: str, reason: Opti
             conn.execute("UPDATE consultations SET status = 'CANCELLED', updated_at = ? WHERE consultation_id = ?", (now, consultation_id))
             # Revoke all shared records for this consultation
             conn.execute("UPDATE consultation_shared_records SET status = 'REVOKED', revoked_at = ? WHERE consultation_id = ?", (now, consultation_id))
+            # Sync linked appointment status
+            conn.execute("UPDATE appointments SET status = 'CANCELLED', updated_at = ? WHERE consultation_id = ?", (now, consultation_id))
 
             # Audit log
             log_id = f"aud_c_{secrets.token_hex(6)}"
@@ -2423,13 +2563,14 @@ def assign_doctor_to_consultation(admin_user_id: str, consultation_id: str, doct
             raise ValueError(f"Cannot assign doctor to consultation in status '{cur_status}'.")
 
         # Verify target doctor eligibility
-        doc_row = conn.execute("SELECT doctor_id, full_name, verification_status FROM doctor_profiles WHERE doctor_id = ?", (doctor_id,)).fetchone()
+        doc_row = conn.execute("SELECT doctor_id, full_name, verification_status FROM doctor_profiles WHERE doctor_id = ? OR user_id = ?", (doctor_id, doctor_id)).fetchone()
         if not doc_row:
             raise ValueError(f"Doctor '{doctor_id}' not found.")
 
         if doc_row["verification_status"] != "VERIFIED":
             raise ValueError(f"Doctor '{doc_row['full_name']}' status is '{doc_row['verification_status']}'. Only VERIFIED doctors can be assigned to consultations.")
 
+        target_doc_id = doc_row["doctor_id"]
         old_doc_id = c_row["assigned_doctor_id"]
         action_name = "REASSIGNED" if old_doc_id else "ASSIGNED"
 
@@ -2440,7 +2581,16 @@ def assign_doctor_to_consultation(admin_user_id: str, consultation_id: str, doct
                     status = 'ASSIGNED',
                     updated_at = ?
                 WHERE consultation_id = ?
-            """, (doctor_id, now, consultation_id))
+            """, (target_doc_id, now, consultation_id))
+
+            # Synchronize linked appointment row
+            conn.execute("""
+                UPDATE appointments SET
+                    doctor_id = ?,
+                    status = 'CONFIRMED',
+                    updated_at = ?
+                WHERE consultation_id = ?
+            """, (target_doc_id, now, consultation_id))
 
             # Audit log
             log_id = f"aud_c_{secrets.token_hex(6)}"
@@ -2448,7 +2598,21 @@ def assign_doctor_to_consultation(admin_user_id: str, consultation_id: str, doct
                 INSERT INTO consultation_audit_logs (
                     log_id, consultation_id, patient_id, doctor_id, actor_user_id, actor_role, action, old_status, new_status, reason, timestamp
                 ) VALUES (?, ?, ?, ?, ?, 'ADMIN', ?, ?, 'ASSIGNED', ?, ?)
-            """, (log_id, consultation_id, c_row["patient_id"], doctor_id, admin_user_id, action_name, cur_status, notes or f"Admin assigned Dr. {doc_row['full_name']}", now))
+            """, (log_id, consultation_id, c_row["patient_id"], target_doc_id, admin_user_id, action_name, cur_status, notes or f"Admin assigned Dr. {doc_row['full_name']}", now))
+
+        # Synchronize PostgreSQL / SQLAlchemy ORM session if available
+        try:
+            session = SessionLocal()
+            try:
+                db_c = session.query(pg_models.Consultation).filter(pg_models.Consultation.consultation_id == consultation_id).first()
+                if db_c:
+                    db_c.assigned_doctor_id = target_doc_id
+                    db_c.status = 'ASSIGNED'
+                    session.commit()
+            finally:
+                session.close()
+        except Exception:
+            pass
 
         # Retrieve summary for admin
         res_list = list_admin_consultations()
@@ -2490,6 +2654,15 @@ def claim_open_consultation(doctor_user_id: str, consultation_id: str) -> Dict[s
                 UPDATE consultations SET
                     assigned_doctor_id = ?,
                     status = 'ACCEPTED',
+                    updated_at = ?
+                WHERE consultation_id = ?
+            """, (doctor_id, now, consultation_id))
+
+            # Synchronize linked appointment row
+            conn.execute("""
+                UPDATE appointments SET
+                    doctor_id = ?,
+                    status = 'CONFIRMED',
                     updated_at = ?
                 WHERE consultation_id = ?
             """, (doctor_id, now, consultation_id))
@@ -2838,6 +3011,14 @@ def complete_consultation(user_id_or_admin_id: str, consultation_id: str, actor_
                     completed_at = ?
                 WHERE consultation_id = ?
             """, (now, now, consultation_id))
+
+            # Synchronize linked appointment row
+            conn.execute("""
+                UPDATE appointments SET
+                    status = 'COMPLETED',
+                    updated_at = ?
+                WHERE consultation_id = ?
+            """, (now, consultation_id))
 
             # Audit log
             log_id = f"aud_c_{secrets.token_hex(6)}"
@@ -3610,17 +3791,115 @@ def get_appointment_detail(user_id: str, appointment_id: str) -> Dict[str, Any]:
         conn.close()
 
 
+def sync_consultations_to_appointments(conn=None):
+    """
+    Ensure every consultation record has a corresponding appointment record,
+    so that appointments and consultations remain unified across all portals.
+    """
+    close_at_end = False
+    if conn is None:
+        conn = get_db_connection()
+        close_at_end = True
+    try:
+        try:
+            conn.row_factory = sqlite3.Row
+        except Exception:
+            pass
+
+        now = datetime.datetime.now(datetime.timezone.utc).isoformat()
+        unlinked = conn.execute("""
+            SELECT c.consultation_id, c.patient_id, c.user_id, c.assigned_doctor_id,
+                   c.specialization, c.category, c.reason, c.status, c.created_at, c.updated_at
+            FROM consultations c
+            WHERE c.consultation_id NOT IN (
+                SELECT consultation_id FROM appointments WHERE consultation_id IS NOT NULL
+            )
+        """).fetchall()
+
+        for c in unlinked:
+            if hasattr(c, "keys"):
+                c_id = c["consultation_id"]
+                p_id = c["patient_id"]
+                u_id = c["user_id"]
+                d_id = c["assigned_doctor_id"]
+                spec = c["specialization"]
+                reas = c["reason"]
+                stat = c["status"]
+                c_at = c["created_at"]
+                u_at = c["updated_at"]
+            else:
+                c_id, p_id, u_id, d_id, spec, _, reas, stat, c_at, u_at = c
+
+            apt_id = f"apt_{c_id[5:]}"
+            slot_id = f"slot_{c_id[5:]}"
+            c_status = (stat or "UPCOMING").upper()
+            if c_status in ("REQUESTED", "PENDING"):
+                apt_status = "UPCOMING"
+            elif c_status in ("ASSIGNED", "ACCEPTED"):
+                apt_status = "CONFIRMED"
+            elif c_status in ("ACTIVE", "IN_PROGRESS", "IN_CONSULTATION"):
+                apt_status = "IN_CONSULTATION"
+            elif c_status in ("COMPLETED", "CLOSED"):
+                apt_status = "COMPLETED"
+            elif c_status in ("CANCELLED", "REJECTED"):
+                apt_status = "CANCELLED"
+            else:
+                apt_status = "UPCOMING"
+
+            s_start = c_at or now
+            try:
+                dt = datetime.datetime.fromisoformat(s_start.replace("Z", "+00:00"))
+                s_end = (dt + datetime.timedelta(minutes=30)).isoformat()
+            except Exception:
+                s_end = s_start
+
+            notes = reas or f"{spec or 'General'} consultation"
+
+            conn.execute("""
+                INSERT OR IGNORE INTO appointments (
+                    appointment_id, consultation_id, doctor_id, patient_id, patient_user_id, slot_id, slot_start, slot_end, status, notes, created_at, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                apt_id, c_id, d_id, p_id,
+                u_id, slot_id, s_start, s_end, apt_status, notes,
+                c_at or now, u_at or now
+            ))
+
+        # Synchronize any doctor_id or status updates from consultations into appointments
+        conn.execute("""
+            UPDATE appointments
+            SET doctor_id = (SELECT assigned_doctor_id FROM consultations WHERE consultations.consultation_id = appointments.consultation_id),
+                status = CASE
+                    WHEN (SELECT status FROM consultations WHERE consultations.consultation_id = appointments.consultation_id) IN ('REQUESTED', 'PENDING') AND status NOT IN ('CANCELLED', 'COMPLETED') THEN 'UPCOMING'
+                    WHEN (SELECT status FROM consultations WHERE consultations.consultation_id = appointments.consultation_id) IN ('ASSIGNED', 'ACCEPTED') AND status NOT IN ('CANCELLED', 'COMPLETED') THEN 'CONFIRMED'
+                    WHEN (SELECT status FROM consultations WHERE consultations.consultation_id = appointments.consultation_id) IN ('ACTIVE', 'IN_PROGRESS', 'IN_CONSULTATION') THEN 'IN_CONSULTATION'
+                    WHEN (SELECT status FROM consultations WHERE consultations.consultation_id = appointments.consultation_id) IN ('COMPLETED', 'CLOSED') THEN 'COMPLETED'
+                    WHEN (SELECT status FROM consultations WHERE consultations.consultation_id = appointments.consultation_id) IN ('CANCELLED', 'REJECTED') THEN 'CANCELLED'
+                    ELSE appointments.status
+                END
+            WHERE consultation_id IS NOT NULL
+              AND EXISTS (SELECT 1 FROM consultations WHERE consultations.consultation_id = appointments.consultation_id AND (consultations.assigned_doctor_id != appointments.doctor_id OR appointments.doctor_id IS NULL))
+        """)
+        conn.commit()
+    finally:
+        if close_at_end:
+            conn.close()
+
+
 def list_user_appointments(user_id: str, role: str, status_filter: Optional[str] = None) -> List[Dict[str, Any]]:
     """List appointments for Patient, Doctor, or Admin."""
     conn = get_db_connection()
     try:
+        # Sync existing consultations so newly requested consultations always appear as appointments
+        sync_consultations_to_appointments(conn)
+
         sql = """
             SELECT a.*, COALESCE(p.full_name, u_p.email, 'Patient') AS patient_name, p.patient_id AS patient_profile_id, u_p.email AS patient_email,
                    COALESCE(d.full_name, 'Physician') AS doctor_name, d.specialization AS doctor_specialization,
                    c.category AS consultation_category, c.urgency AS consultation_urgency, c.reason AS consultation_reason
             FROM appointments a
             LEFT JOIN users u_p ON a.patient_user_id = u_p.user_id
-            LEFT JOIN patient_profiles p ON a.patient_user_id = p.user_id
+            LEFT JOIN patient_profiles p ON (a.patient_user_id = p.user_id OR a.patient_id = p.patient_id)
             LEFT JOIN doctor_profiles d ON (a.doctor_id = d.doctor_id OR a.doctor_id = d.user_id)
             LEFT JOIN consultations c ON a.consultation_id = c.consultation_id
             WHERE 1=1
@@ -3628,18 +3907,30 @@ def list_user_appointments(user_id: str, role: str, status_filter: Optional[str]
         params = []
 
         if role == "PATIENT":
-            sql += " AND a.patient_user_id = ?"
-            params.append(user_id)
+            p_check = conn.execute("SELECT patient_id FROM patient_profiles WHERE user_id = ?", (user_id,)).fetchone()
+            p_id = p_check["patient_id"] if p_check else ""
+            sql += " AND (a.patient_user_id = ? OR a.patient_id = ?)"
+            params.extend([user_id, p_id])
         elif role == "DOCTOR":
             doc_row = conn.execute("SELECT doctor_id, user_id FROM doctor_profiles WHERE user_id = ? OR doctor_id = ?", (user_id, user_id)).fetchone()
             if not doc_row:
                 return []
-            sql += " AND (a.doctor_id = ? OR a.doctor_id = ?)"
+            sql += " AND (a.doctor_id = ? OR a.doctor_id = ? OR a.doctor_id IS NULL OR a.status IN ('REQUESTED', 'UPCOMING'))"
             params.extend([doc_row["doctor_id"], doc_row["user_id"]])
 
         if status_filter and status_filter.upper() != "ALL":
-            sql += " AND a.status = ?"
-            params.append(status_filter.strip().upper())
+            status_clean = status_filter.strip().upper()
+            if status_clean in ('UPCOMING', 'CONFIRMED'):
+                sql += " AND a.status IN ('UPCOMING', 'CONFIRMED', 'REQUESTED', 'BOOKED', 'ASSIGNED', 'ACCEPTED')"
+            elif status_clean in ('IN_CONSULTATION', 'IN_PROGRESS'):
+                sql += " AND a.status IN ('IN_CONSULTATION', 'IN_PROGRESS', 'ACTIVE')"
+            elif status_clean == 'COMPLETED':
+                sql += " AND a.status IN ('COMPLETED', 'CLOSED')"
+            elif status_clean in ('CANCELLED', 'REJECTED'):
+                sql += " AND a.status IN ('CANCELLED', 'REJECTED', 'NO_SHOW')"
+            else:
+                sql += " AND a.status = ?"
+                params.append(status_clean)
 
         sql += " ORDER BY a.slot_start DESC"
         rows = conn.execute(sql, params).fetchall()
@@ -3786,7 +4077,9 @@ ALLOWED_NON_SCIENTIFIC_SETTINGS = {
     "maintenance_mode",
     "maintenance_message",
     "system_announcement",
-    "support_contact"
+    "support_contact",
+    "support_email",
+    "system_notice"
 }
 
 FORBIDDEN_SCIENTIFIC_SETTINGS = {
@@ -3928,7 +4221,7 @@ def get_detailed_system_health() -> Dict[str, Any]:
     # 2. Expert Models (v4.0 Pipeline)
     try:
         from ai.inference.fusion_inference import FusionInferenceEngine
-        services["clinical_expert"] = {"status": "HEALTHY", "version": "v4.0 (18D)", "last_check": now}
+        services["clinical_expert"] = {"status": "HEALTHY", "version": "v4.0 (19D)", "last_check": now}
         services["wearable_expert"] = {"status": "HEALTHY", "version": "v4.0 (15D)", "last_check": now}
         services["gut_expert"] = {"status": "HEALTHY", "version": "v4.0 (49D)", "last_check": now}
         services["fusion_engine"] = {"status": "HEALTHY", "pathway": "C+W+G Logistic Stacker", "last_check": now}
