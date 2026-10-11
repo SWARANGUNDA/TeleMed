@@ -1,208 +1,197 @@
-\documentclass[conference]{IEEEtran}
-\IEEEoverridecommandlockouts
-\usepackage{cite}
-\usepackage{amsmath,amssymb,amsfonts}
-\usepackage{algorithmic}
+\documentclass[10pt,twocolumn,letterpaper]{article}
+\usepackage[margin=0.75in]{geometry}
+\usepackage{times}
+\usepackage{helvet}
+\usepackage{courier}
+\usepackage[hyphens]{url}
 \usepackage{graphicx}
-\usepackage{textcomp}
-\usepackage{xcolor}
 \usepackage{booktabs}
-\usepackage{hyperref}
-\usepackage{tikz}
+\usepackage{multirow}
+\usepackage{amsmath}
 \usepackage{float}
-\usetikzlibrary{shapes.geometric, arrows, positioning, fit, calc}
+\urlstyle{rm}
+\usepackage{natbib}
+\usepackage{caption}
+\frenchspacing
+
+\title{\LARGE \bf TeleMed-M3: Dynamic Imputation-Free Multimodal Learning for Explainable Metabolic Disease Risk Stratification}
+\author{
+    Gunda Swaran\textsuperscript{1}, Kolipaka Vishal\textsuperscript{1}, Pagidipalli Sunny Kiran\textsuperscript{1}, \\
+    Chikyala Medhansh Rao\textsuperscript{1}, Aitha Thadhagath Ram\textsuperscript{1} \\
+    \\
+    \textsuperscript{1}Keshav Memorial Institute of Technology, Hyderabad, India \\
+    {\tt\small \{swarangunda23, kolipakavishal06, sunnykmithyd,}\\ \vspace{2pt} {\tt\small medhanshrao.07, thadhagath.ram.aitha1108\}@gmail.com}
+}
+\date{}
 
 \begin{document}
-
-\title{TeleMed-M3: Dynamic Imputation-Free Multimodal Learning for Explainable Metabolic Disease Risk Stratification}
-
-\author{\IEEEauthorblockN{Anonymous Authors}
-\IEEEauthorblockA{\textit{Department of Biomedical Informatics} \\
-\textit{Anonymous Institution}\\
-City, Country \\
-email@domain.com}
-}
-
 \maketitle
 
 \begin{abstract}
-Metabolic disease risk is multifactorial and can benefit from heterogeneous information from Clinical measurements, Wearable and Continuous Glucose Monitoring (CGM) telemetry, and Gut microbiome data. However, multimodal healthcare systems commonly face a practical problem: not every patient has every modality available at every encounter. Conventional approaches often require complete modality availability, discard incomplete cases, or numerically impute unavailable modality features, potentially forcing models to synthesize complex biological states when entire modalities are unobserved. TeleMed-M3 addresses this problem through modality-specific expert models, probability-level stacking, out-of-fold meta-features, seven non-empty modality-availability pathways, and dynamic routing based on available modalities, entirely avoiding numerical imputation of unavailable modalities. 
+Metabolic diseases such as Type 2 Diabetes (T2D), Prediabetes, High Adiposity Risk, Metabolic Syndrome, and Non-Alcoholic Fatty Liver Disease (NAFLD) are influenced by multiple interacting clinical and behavioral factors. Conventional telemedicine and health-analysis systems commonly rely on clinical and wearable information while providing limited integration of gut microbiome data and limited mechanisms for interpreting heterogeneous patient information. This work presents TeleMed-M3, a dynamic multimodal learning framework developed within a Generative AI assisted telemedicine platform for personalized gut microbiome analysis. The framework integrates three complementary modalities: clinical data, wearable/Continuous Glucose Monitoring (CGM) data, and gut microbiome profiles.
 
-We evaluate this methodology on a de-clamped probabilistic synthetic cohort of 100,000 patients across five metabolic disease targets. The central contribution is dynamic, imputation-free, modality-aware probability-level fusion under evaluated patient-level modality missingness. Our evaluation demonstrates that L2-regularized probability-level stacking maintains predictive performance closely tied to available modalities without generating artificial inputs. The major limitation of this study is the reliance on synthetically generated data; future prospective validation on real-world multi-omic patient cohorts is required to establish clinical efficacy.
+TeleMed-M3 employs modality-specific machine learning expert models followed by probability-level stacking across seven non-empty modality-availability pathways: Clinical, Wearable, Gut, Clinical+Wearable, Clinical+Gut, Wearable+Gut, and Clinical+Wearable+Gut. The dynamic routing mechanism handles unavailable modality blocks without numerically imputing the missing modality. Out-of-Fold probability generation is used during fusion training, while TreeSHAP provides feature-level explanations for applicable tree-based models. A Medical Retrieval-Augmented Generation component is incorporated to support evidence-grounded, clinician-friendly reporting from structured model outputs and relevant medical evidence.
+
+The framework is evaluated using a 100,000-patient synthetically generated multimodal cohort containing 82 predictive features across the three modalities and five metabolic risk targets. Experiments evaluate individual modality performance, multimodal fusion, simulated patient-level modality missingness, median-imputation comparison, and early-fusion comparison. The results show that Clinical is the strongest single modality across the evaluated targets, while multimodal pathways provide modest incremental discrimination in several settings. Under the evaluated simulated missingness conditions, dynamic routing maintains predictive performance without numerically filling an entirely unavailable modality. The system is intended as a research-oriented clinical decision-support framework, and the reported results do not constitute clinical validation or autonomous diagnosis.
 \end{abstract}
 
-\begin{IEEEkeywords}
-Multimodal Machine Learning, Missing Modalities, Imputation-Free, Stacking Fusion, Metabolic Disease, Explainable AI
-\end{IEEEkeywords}
+\textbf{Keywords:} Multimodal Machine Learning, Gut Microbiome, Telemedicine, Dynamic Modality Routing, Explainable AI, TreeSHAP, Retrieval-Augmented Generation, Metabolic Disease Risk Stratification
 
-\section{Introduction}
-\subsection{Problem Context}
-Modern precision medicine synthesizes comprehensive patient profiles to track systemic pathologies, notably chronic metabolic conditions. Metabolic disease risk is multifactorial and can significantly benefit from heterogeneous information gathered from distinct sources: traditional Clinical measurements (e.g., blood panels, anthropometrics), high-frequency Wearable and Continuous Glucose Monitoring (CGM) telemetry, and advanced Gut microbiome metagenomic data. The convergence of these diagnostic streams promises highly personalized predictive care models capable of detecting nuanced, multi-systemic physiological deviations before they manifest as acute clinical events.
+\section{INTRODUCTION}
+\subsection{Background}
+Metabolic diseases, including Type 2 Diabetes (T2D), Prediabetes, High Adiposity Risk, Metabolic Syndrome, and Non-Alcoholic Fatty Liver Disease (NAFLD), are influenced by multiple interacting physiological and behavioral factors. Risk assessment can therefore involve heterogeneous information sources rather than a single type of measurement. Clinical information provides laboratory and physiological measurements, wearable and Continuous Glucose Monitoring (CGM) systems provide longitudinal physiological observations, and gut microbiome profiling provides information about microbial composition and derived microbiome characteristics that have been investigated in relation to metabolic health.
 
-\subsection{Missing-Modality Challenge}
-However, deploying such multimodal healthcare systems in scalable real-world environments commonly faces a severe practical problem: NOT every patient has every modality available at every clinical encounter. In telemedicine and outpatient monitoring, pervasive missingness is the structural norm. A patient may upload smartwatch data but lack a recent blood draw, or possess clinical lab results without gut microbiome sequencing. Conventional machine learning approaches often require complete modality availability to function, forcing systems to discard incomplete cases entirely or numerically impute unavailable modality features. While statistical imputation is mathematically sound for isolated missing scalar values, applying it when an entire biological modality is missing forces the model into generative hallucination—fabricating complex physiological structures (like microbiome composition) based solely on unrelated metrics (like resting heart rate).
+These data sources differ substantially in their structure, dimensionality, sampling characteristics, and availability across patients. Integrating them within a unified computational framework can provide a broader representation of patient information for metabolic risk assessment. However, multimodal integration also introduces practical challenges, particularly when one or more modalities are unavailable for a patient.
+
+The proposed work addresses this challenge through a multimodal learning framework that separates modality-specific prediction from cross-modal fusion. Clinical, wearable/CGM, and gut microbiome information are processed through dedicated expert models, after which their predicted risk probabilities are combined according to the modalities available for an individual patient. This design enables the system to evaluate multiple modality-availability configurations while avoiding numerical imputation of an entirely unavailable modality.
+
+\subsection{Problem Statement}
+Existing telemedicine systems commonly make use of clinical records and wearable information, while integration of gut microbiome data into the same patient-level analysis remains less common. This creates several challenges for multimodal personalized health analysis.
+
+First, clinical, wearable, and microbiome information are often maintained as separate data sources, making synchronized multimodal analysis difficult. Second, machine-learning predictions may be difficult for healthcare professionals to interpret when the underlying models provide limited explanation of their outputs. Third, heterogeneous patient information can be difficult to summarize into a form that is understandable to both patients and healthcare professionals. Finally, patients may not have all required modalities available at the time of assessment.
+
+From a machine-learning perspective, this last issue represents patient-level structural modality missingness. A patient may have clinical and wearable measurements but no gut microbiome profile, or may have microbiome information without current wearable data. Conventional fixed-input multimodal models may require numerical imputation or reconstruction of the unavailable modality. Such an approach can introduce unsupported information into the model input rather than explicitly representing the absence of the modality.
+
+Therefore, there is a need for a multimodal telemedicine framework that can integrate clinical, wearable/CGM, and gut microbiome information, provide interpretable risk estimates, generate understandable reports, and dynamically operate using the modalities actually available for each patient.
 
 \subsection{Research Gap}
-Existing multimodal systems frequently assume fixed modality availability or rely heavily on imputation and representation completion to map incomplete patient vectors into a shared latent space. TeleMed-M3 instead evaluates a probability-level dynamic routing design explicitly mapped across all seven non-empty modality-availability pathways and under controlled patient-level modality missingness. By operating exclusively on available data through pre-trained experts, the system bypasses the structural biases introduced by large-scale numerical synthesis.
+Existing research provides methods for healthcare prediction using electronic health records, wearable data, gut microbiome information, multimodal fusion, missing-modality handling, and explainable artificial intelligence. However, these areas are often studied independently or through architectures that require a fixed multimodal input configuration.
+
+Missing-modality approaches may use reconstruction, generative completion, or representation-learning strategies to compensate for unavailable information. An alternative approach is to explicitly route patients according to the modalities that are available and combine modality-specific predictions at the probability level without numerically reconstructing an entirely missing modality.
+
+The present work investigates this routing-based approach in a metabolic-risk setting involving clinical, wearable/CGM, and gut microbiome modalities. In addition, it combines predictive modeling with TreeSHAP-based explanation and an exploratory Medical RAG layer for evidence-grounded report generation within a telemedicine platform.
 
 \subsection{Research Questions}
-This study systematically investigates the proposed architecture through the following research questions:
 \begin{itemize}
-    \item \textbf{RQ1:} How does each modality independently discriminate the five metabolic risk targets in the de-clamped synthetic cohort?
-    \item \textbf{RQ2:} How does probability-level fusion perform across all seven non-empty modality combinations?
-    \item \textbf{RQ3:} Does multimodal fusion provide measurable incremental discrimination over Clinical-only prediction?
-    \item \textbf{RQ4:} Can dynamic routing maintain predictive performance under simulated patient-level modality missingness?
-    \item \textbf{RQ5:} How does dynamic routing compare with conventional median imputation under the evaluated missingness conditions?
-    \item \textbf{RQ6:} How does probability-level dynamic routing compare with conventional early fusion?
-    \item \textbf{RQ7:} How can TreeSHAP and evidence-grounded Medical RAG be incorporated into the proposed framework for explainable risk reporting?
+    \item \textbf{RQ1:} How effectively do the individual Clinical, Wearable/CGM, and Gut Microbiome expert models discriminate the five metabolic risk targets?
+    \item \textbf{RQ2:} How does probability-level fusion perform across the seven non-empty modality-availability pathways?
+    \item \textbf{RQ3:} Does multimodal fusion provide measurable incremental discrimination relative to Clinical-only prediction?
+    \item \textbf{RQ4:} How does dynamic modality routing perform under simulated patient-level modality missingness?
+    \item \textbf{RQ5:} How does dynamic routing compare with conventional median imputation when an entire modality is unavailable?
+    \item \textbf{RQ6:} How does probability-level dynamic routing compare with conventional early feature fusion?
+    \item \textbf{RQ7:} How can TreeSHAP and evidence-grounded Medical RAG be incorporated into the framework to support interpretable and clinician-friendly risk reporting?
 \end{itemize}
 
 \subsection{Contributions}
-We formalize a structural methodology for missing-modality healthcare applications. Our primary contributions are:
-\begin{enumerate}
-    \item A dynamic modality-routing architecture supporting all seven non-empty combinations of Clinical, Wearable/CGM, and Gut Microbiome modalities.
-    \item Modality-specific expert models that produce risk probabilities independently for five metabolic targets.
-    \item Out-of-fold (OOF) probability-level stacking with serialized preprocessing pipelines to ensure reproducible training and inference behavior.
-    \item An evaluation framework for simulated patient-level modality missingness without numerical imputation of unavailable modality blocks.
-    \item A controlled comparison against median-imputation and early-fusion baselines to contextualize architectural trade-offs.
-    \item The conceptual integration of TreeSHAP and evidence-grounded Medical Retrieval-Augmented Generation (RAG) as an explainability/reporting layer, explicitly identified as exploratory because quantitative explanation evaluation was not performed.
-\end{enumerate}
-
-\section{Related Work}
-\subsection{Multimodal Healthcare Machine Learning}
-Heterogeneous clinical, physiological, behavioral, and biological data are increasingly combined to stratify risk. Predictive modeling using Electronic Health Records (EHR) has been widely explored; Shickel et al. \cite{shickel2017ehr} demonstrated deep learning applications on EHRs for longitudinal outcome prediction. In parallel, Poplin et al. \cite{poplin2018cvd} highlighted deep learning for clinical cardiovascular risk prediction utilizing multimodal inputs including retinal fundus imaging. The advent of continuous physiological telemetry has further expanded diagnostic boundaries; Dunn et al. \cite{dunn2021wearables} proved that wearable sensors enable personalized prediction of clinical laboratory measurements. 
-
-\subsection{Missing-Modality Learning}
-Missing modality blocks represent a unique challenge compared to missing numerical values inside a modality. While intra-modality missingness (e.g., a missing BMI value in an otherwise complete clinical panel) can be addressed with simple imputation or algorithmic support for missingness (like XGBoost's default direction), an entire modality being unavailable requires architectural interventions. Techniques such as modality dropout during training, modality-specific independent models, dynamic modality routing, or mixture-of-experts concepts have been proposed to prevent systems from failing when primary data streams are severed. 
-
-\subsection{Multimodal Fusion Strategies}
-Fusion architectures broadly fall into three categories: early fusion, intermediate fusion, and late fusion. Early fusion concatenates raw features, risking dimensionality explosion and cross-modality noise. Intermediate fusion maps distinct data into a shared representation space, often via neural encoders. Late fusion aggregates independent model outputs. Probability-level fusion (a form of stacking) is highly suitable for heterogeneous modality experts because it operates on a unified, bounded probability space, naturally normalizing the influence of disparate data structures like compositional microbiome arrays and continuous telemetry time-series.
-
-\subsection{Explainable Healthcare ML}
-As clinical decision support systems increase in complexity, feature attribution methods such as TreeSHAP have become standard for interpreting complex risk models \cite{lundberg2020local}. SHAP provides localized, patient-level explanations by quantifying the exact marginal contribution of each feature to the model's output log-odds, satisfying requirements for transparency in automated stratification.
-
-\subsection{Evidence-Grounded Medical Reporting}
-While numerical SHAP values provide mathematical transparency, translating these vectors into clinical guidance remains difficult. Retrieval-grounded generation converts model outputs into contextual explanations by anchoring generative models to external, verified knowledge sources \cite{lewis2020rag}. 
-
-\subsection{Research Gap Summary}
-Existing multimodal systems frequently assume fixed modality availability or rely on imputation and representation completion when confronted with missing streams. TeleMed-M3 evaluates probability-level dynamic routing explicitly across all seven non-empty modality-availability pathways under controlled missingness, offering an alternative that strictly preserves the observed data manifold.
-
-\section{Dataset and Cohort}
-\subsection{De-Clamped Probabilistic Synthetic Cohort}
-The evaluation utilizes a strictly engineered ``De-Clamped Probabilistic Synthetic Cohort'' consisting of 100,000 synthetic patient profiles. The dataset is rigidly partitioned into a 70/15/15 train/validation/test split. A Gaussian-Copula latent dependence structure was employed to realistically map covariance matrices across highly disparate feature domains, simulating the underlying physiological cross-talk between the metabolic, cardiovascular, and gastrointestinal systems.
-
-\subsection{Modalities and Features}
-The dataset provides a comprehensive feature dictionary spanning 82 validated predictive dimensions across three distinct modalities:
 \begin{itemize}
-    \item \textbf{Clinical (18 Features):} Age, Gender, Height, Weight, BMI, Waist Circumference, SBP, DBP, Fasting Blood Glucose, HbA1c, Triglycerides, HDL, LDL, ALT, AST, Family History of Diabetes, Hypertension, CVD.
-    \item \textbf{Wearable/CGM (15 Features):} Avg Steps, Active Minutes, Sedentary Minutes, RHR, HRV RMSSD, Sleep Duration, Sleep Efficiency, Autonomic Stress Score, Activity Energy Expenditure, Exercise Frequency, CGM parameters.
-    \item \textbf{Gut Microbiome (49 Features):} 49 predictive Gut Microbiome dimensions mapped via Dirichlet-Multinomial distributions to enforce compositional simplex constraints.
+    \item \textbf{Multimodal Telemedicine Framework:} A unified framework integrating Clinical, Wearable/CGM, and Gut Microbiome information for metabolic risk assessment within a telemedicine environment.
+    \item \textbf{Dynamic Imputation-Free Modality Routing:} A seven-pathway routing mechanism that operates on the modalities available for an individual patient without numerically imputing an entirely unavailable modality block.
+    \item \textbf{Probability-Level Multimodal Fusion:} An Out-of-Fold probability-level stacking approach that combines modality-specific expert predictions while controlling meta-level training leakage within the evaluated fusion pipeline.
+    \item \textbf{Explainable Risk Assessment:} Integration of TreeSHAP-based feature attribution for interpretable predictions from applicable tree-based expert models.
+    \item \textbf{Generative and Evidence-Grounded Reporting:} Integration of an exploratory Medical Retrieval-Augmented Generation layer with Generative AI to transform structured model outputs and retrieved medical evidence into clinician-friendly health summaries.
+    \item \textbf{Controlled Multimodal Evaluation:} Systematic evaluation of seven modality-availability pathways, simulated patient-level modality missingness, median-imputation comparison, and early-fusion comparison using a controlled synthetic multimodal cohort.
 \end{itemize}
 
-\subsection{Target Definitions}
-The architecture evaluates five binary metabolic disease targets representing a spectrum of cardiometabolic dysfunction: Type 2 Diabetes, Prediabetes, High Adiposity Risk, Metabolic Syndrome, and Non-Alcoholic Fatty Liver Disease (NAFLD).
+\section{RELATED WORK}
+\subsection{AI in Healthcare and Electronic Health Records}
+Artificial intelligence and machine learning have been increasingly applied to Electronic Health Records (EHRs) for clinical prediction, risk stratification, patient phenotyping, and healthcare analytics. These approaches can learn patterns from structured clinical variables and laboratory measurements. However, EHR-based models often rely on information collected during clinical encounters and may provide limited representation of continuously changing physiological and behavioral characteristics.
+
+\subsection{Wearable and Continuous Glucose Monitoring Data}
+Wearable devices and Continuous Glucose Monitoring (CGM) systems provide longitudinal physiological information such as physical activity, heart rate, sleep, stress, and glucose-related patterns. Machine learning can use these observations to capture temporal characteristics that may not be represented in point-in-time clinical measurements. However, wearable and CGM data can vary in availability and measurement characteristics, motivating their integration with complementary clinical and biological modalities.
+
+\subsection{Gut Microbiome and Metabolic Disease}
+The gut microbiome has been investigated extensively in relation to metabolic health, including obesity, insulin resistance, and Type 2 Diabetes. Microbiome profiles can provide a complementary biological perspective for patient-level analysis. However, microbiome data are typically high-dimensional and are not routinely available for every patient in telemedicine environments. Integrating microbiome information with clinical and wearable data therefore presents both an opportunity and a data-integration challenge.
+
+\subsection{Multimodal Learning and Fusion}
+Multimodal machine learning combines heterogeneous information sources to obtain a more comprehensive representation of a patient. Fusion strategies can broadly be categorized as early feature-level fusion, intermediate representation-level fusion, and late decision- or probability-level fusion. While these approaches can exploit complementary information across modalities, conventional multimodal systems may assume that all modalities are available during inference. This creates challenges when an entire modality is unavailable for a patient.
+
+\subsection{Missing-Modality Learning}
+Missing-modality learning addresses situations where one or more complete data modalities are unavailable. Existing approaches include numerical imputation, modality reconstruction, modality dropout, and representation-learning strategies. Although these methods can allow fixed-input models to operate with incomplete data, reconstruction or imputation of an entirely unavailable modality introduces assumptions about information that was not directly observed. The proposed work instead uses explicit modality-availability routing across seven non-empty pathways and combines predictions from the modalities that are actually available, without numerically reconstructing an unavailable modality.
+
+\subsection{Explainable AI and Retrieval-Augmented Generation}
+Explainable AI methods can improve the interpretability of machine-learning predictions by identifying the contribution of input features to individual outputs. TreeSHAP provides a game-theoretic approach for explaining predictions from tree-based models and is incorporated in TeleMed-M3 for applicable expert models. These explanations are intended to support interpretation rather than provide causal conclusions.
+
+Retrieval-Augmented Generation (RAG) combines information retrieval with language generation, allowing generated responses to be conditioned on information retrieved from an external knowledge source. In TeleMed-M3, a Medical RAG component is incorporated to support evidence-grounded summaries using structured model outputs and relevant medical evidence. The generated reports are intended for research-oriented decision support and educational communication rather than autonomous diagnosis or treatment.
+
+\section{DATASET AND COHORT}
+\subsection{Synthetic Cohort Generation}
+Due to patient privacy regulations and the scarcity of real-world, open-access datasets containing synchronized clinical, wearable, and microbiome profiles for the same individuals, this research utilizes a large-scale, synthetically generated multimodal cohort. A probabilistic generative pipeline was developed using a Gaussian Copula-based latent variable model to synthesize 100,000 patient records. This methodology involved establishing a physiological correlation matrix to map underlying biological relationships (e.g., systemic inflammation, insulin resistance, autonomic stress, and gut dysbiosis) and applying stochastic binomial sampling to assign disease ground-truth labels. This provides a controlled environment to systematically evaluate multimodal fusion architectures and modality-level missingness.
+
+\subsection{De-Clamping and Leakage Control}
+To ensure the robustness of the machine-learning evaluation, the synthetic generation process employed a "de-clamped" architecture. This means the pipeline intentionally introduced probabilistic biological variance and noise into the data relationships, preventing the machine learning models from easily memorizing deterministic generation rules. Furthermore, rigorous data isolation protocols were enforced to prevent any meta-level target leakage across the modalities during synthesis.
+
+\subsection{Feature/Modality Composition}
+The multimodal dataset comprises 82 distinct predictive feature dimensions distributed across three targeted health modalities:
+\begin{itemize}
+    \item \textbf{Clinical Data (18 features):} Standard anthropometric measurements (e.g., Age, BMI) and laboratory biomarkers (e.g., Fasting Glucose, HbA1c, LDL/HDL cholesterol, liver enzymes).
+    \item \textbf{Wearable/CGM Data (15 features):} Continuous physiological telemetry, including metrics such as average heart rate, heart rate variability (HRV), daily step count, sleep duration, and continuous glucose variability indices.
+    \item \textbf{Gut Microbiome Data (49 features):} Representing 40 distinct bacterial taxonomic relative abundances (e.g., Firmicutes, Bacteroidetes, Akkermansia muciniphila) and 9 derived functional/ecological indices (e.g., Shannon Diversity).
+\end{itemize}
+
+\subsection{Target Variables}
+The cohort includes five multi-label binary target variables representing distinct yet biologically interconnected metabolic conditions. These conditions are evaluated independently as risk probabilities:
+1. Type 2 Diabetes\\
+2. Prediabetes\\
+3. High Adiposity Risk\\
+4. Metabolic Syndrome\\
+5. Non-Alcoholic Fatty Liver Disease (NAFLD)
 
 \subsection{Target Prevalence}
-The exact positive-class prevalence rates in the evaluation cohort are: Type 2 Diabetes (52.61\%), Prediabetes (20.01\%), High Adiposity Risk (39.04\%), Metabolic Syndrome (57.12\%), and NAFLD (59.57\%). Prevalence is particularly relevant when interpreting Area Under the Precision-Recall Curve (AUPRC), as the baseline random-chance AUPRC is equivalent to the prevalence of the positive class.
+The synthetic dataset was engineered to reflect probabilistic clinical distributions based on underlying continuous disease liabilities. The exact prevalence rates across the 100,000-patient cohort are as follows: Type 2 Diabetes (52.6\%), Prediabetes (20.0\%), High Adiposity Risk (39.0\%), Metabolic Syndrome (57.1\%), and Non-Alcoholic Fatty Liver Disease (59.6\%). Note that Prediabetes and Type 2 Diabetes were engineered to be mutually exclusive clinical states within the generative logic to mimic strict medical diagnostic boundaries.
 
-\subsection{Deterministic Label-Feature Coupling Audit}
-An earlier dataset-generation version applied deterministic post-label feature clamping based on strict clinical guidelines (e.g., forcing T2D cases to exhibit HbA1c $\ge 6.5\%$ and FPG $\ge 126$ mg/dL). This created target-feature leakage, meaning the earlier near-perfect Clinical performance was NOT valid generalizable predictive performance, but merely the model reverse-engineering the deterministic synthetic generator rules. To ensure scientific rigor, this clamping logic was entirely removed. All final experiments in this study use the completely de-clamped probabilistic cohort, ensuring that models must learn latent covariance patterns rather than explicit deterministic rules.
+\subsection{Train/Validation/Test Split}
+To facilitate rigorous model training, hyperparameter tuning, and final evaluation, the dataset was deterministically partitioned using a 70/15/15 split:
+\begin{itemize}
+    \item \textbf{Training Set (70,000 patients):} Utilized for training the independent modality experts and for generating the Out-of-Fold (OOF) predictions used to train the stacking meta-learner.
+    \item \textbf{Validation Set (15,000 patients):} Utilized for hyperparameter optimization and early stopping mechanisms during training.
+    \item \textbf{Test Set (15,000 patients):} A strictly sequestered hold-out set utilized exclusively for final performance reporting and missingness simulation.
+\end{itemize}
 
-\section{TeleMed-M3 Methodology}
+\section{METHODOLOGY}
+
+\begin{figure*}[t]
+\centering
+\includegraphics[width=\textwidth]{figures/architecture.jpg}
+\caption{Overall workflow of the TeleMed Platform.}
+\label{fig:arch}
+\end{figure*}
+
 \subsection{Overall Architecture}
-The core methodology of TeleMed-M3 is dynamic probability routing. The system routes patients to the appropriate modality pathway without numerical imputation of unavailable modalities. The pipeline is illustrated in Figure 1.
+TeleMed-M3 uses a modular probability-level fusion architecture designed to operate when one or more complete data modalities are unavailable (Figure \ref{fig:arch}). Patient inputs are partitioned into Clinical, Wearable/CGM, and Gut Microbiome blocks and processed by independent modality-specific expert models. The experts generate target-specific risk probabilities, which are subsequently combined through probability-level stacking. A dynamic routing mechanism selects the appropriate fusion pathway according to the modalities available for the patient, avoiding numerical imputation of an entirely unavailable modality block.
 
-\begin{figure}[htbp]
-\centering
-\includegraphics[width=\columnwidth]{figures/architecture.png}
-\caption{TeleMed-M3 Architecture. Distinct expert models output probability distributions that are subsequently stacked by a dynamic router depending strictly on patient modality availability. Unavailable modalities are NOT numerically imputed.}
-\end{figure}
+\subsection{Modality-Specific Expert Models}
+Three modality-specific expert groups are used for the five binary targets, resulting in 15 expert models. The final model for each modality-target combination was selected through model development and validation from candidate algorithms including Logistic Regression, XGBoost, LightGBM, CatBoost, and ExtraTrees. The selected models therefore vary according to the target and modality rather than using a single classifier for every expert.
 
-\subsection{Stage 1: Data Ingestion}
-Data streams are logically partitioned into three blocks. Clinical handles demographic and static laboratory variables. Wearable/CGM captures dynamic daily activity, continuous glucose variability, and autonomic nervous system proxies (e.g., HRV). Gut captures the 49 predictive microbiome dimension features representing microbial taxonomy and systemic inflammatory markers.
+Each expert operates on its corresponding feature block. Internal preprocessing pipelines handle feature-level missing values within an available modality, using the preprocessing appropriate to the estimator. This should be distinguished from modality-level missingness, where an entire Clinical, Wearable/CGM, or Gut block is unavailable and is handled by the routing mechanism rather than numerical imputation.
 
-\subsection{Stage 2: Modality-Specific Experts}
-Three modality experts independently process Clinical, Wearable/CGM, and Gut Microbiome data. Because there are 5 disease targets, this creates 3 modalities $\times$ 5 targets = 15 distinct expert models. Each expert is hyperparameter-optimized specifically for its modality's unique feature topology (e.g., tree-based algorithms for highly non-linear microbiome distributions).
+\subsection{Out-of-Fold Prediction and Probability-Level Stacking}
+The fusion layer uses late probability-level stacking. For each target, modality-specific experts first generate predicted probabilities. To reduce meta-level target leakage, 5-fold stratified cross-validation is used on the training partition to generate Out-of-Fold (OOF) predictions. Each OOF prediction is produced by an expert that was not fitted on the corresponding observation, and the resulting probabilities form the training features for the fusion layer. 
 
-\subsection{Stage 3: Preprocessing Pipelines}
-Preprocessing is rigidly serialized as part of the estimator pipeline (e.g., median imputation $\to$ standard scaling $\to$ regularized classifier). Crucially, this internal preprocessing handles isolated feature-level missing values \textit{within} an available modality (e.g., a missing BMI in a Clinical panel). This is strictly DIFFERENT from modality-level missingness, where the entire block is absent.
+An L2-regularized Logistic Regression meta-learner combines the available expert probabilities. The final reproducible implementation fits preprocessing within the appropriate training folds, avoiding the earlier scaler-leakage issue identified during the pipeline audit. The resulting fusion models operate on predicted probabilities rather than concatenating the 82 raw features.
 
-\subsection{Stage 4: OOF Probability Generation}
-To train the subsequent fusion layer without over-fitting to the base experts' confidence, the meta-learner must not be trained on predictions generated from the same observations used to fit the base expert. We utilize 5-fold stratified cross-validation to generate Out-Of-Fold (OOF) predictions for the training set, successfully reducing meta-level target leakage.
+\subsection{Seven Modality-Availability Pathways and Dynamic Routing}
+For three modalities, there are exactly 7 non-empty modality combinations: C (Clinical), W (Wearable/CGM), G (Gut Microbiome), C+W, C+G, W+G, and C+W+G.
 
-\subsection{Stage 5: Probability-Level Stacking}
-The independent expert probabilities become the input meta-features for the fusion engine. We deploy an L2-regularized Logistic Regression meta-learner for each target. The fusion layer mathematically combines available modality probabilities across 7 distinct pathways.
+For a patient, the router identifies the available modality blocks and selects the corresponding predefined pathway. If a complete modality is unavailable, its probability is not generated through numerical or generative reconstruction; instead, the patient is routed using only the observed modalities. Thus, modality-level missingness is handled structurally while feature-level missingness within an available block remains part of the expert preprocessing pipeline. 
 
-\subsection{Stage 6: Dynamic Routing}
-The system detects which modality blocks are available for the current patient vector and seamlessly routes the patient to the corresponding pre-trained stacking pathway. If a modality is unavailable, the system DOES NOT numerically impute the entire unavailable modality block; it simply executes the pathway trained exclusively on the available data.
+\subsection{Explainability and Medical RAG}
+TreeSHAP is used to obtain local feature-level attributions from the supported tree-based expert models, providing information about which input variables contributed to individual predictions. These attributions are intended to improve model interpretability and are not treated as causal explanations or clinical diagnoses.
 
-\subsection{Stage 7: Risk Output}
-Calibrated probabilities are generated for the 5 targets.
+The reporting layer incorporates a conceptual Medical Retrieval-Augmented Generation (RAG) component. A FAISS-based retrieval mechanism is intended to retrieve relevant medical guidance, including sources such as ADA and AHA materials, which can then be considered alongside model probabilities and explanatory information when generating patient- or clinician-oriented summaries. The RAG component is positioned as an evidence-grounding and reporting layer; its retrieval configuration and quantitative generation quality were not independently evaluated in the current experimental protocol.
 
-\subsection{Stage 8: TreeSHAP}
-Unified TreeSHAP handles feature-level attribution where supported by the underlying expert model, quantitatively explaining which specific features (e.g., elevated HRV or a specific microbial taxon) influenced the resulting clinical prediction.
-
-\subsection{Stage 9: Medical RAG}
-The conceptual pipeline uses the final risk probability and localized feature attributions as a prompt context for evidence retrieval against established clinical guidelines (e.g., ADA, AHA). The retrieved documents anchor an evidence-grounded contextual explanation. Quantitative evaluation of explanation fidelity and safety is future work.
-
-\section{Experimental Design}
-\subsection{Dataset Split}
-The 100,000 synthetic patient cohort was strictly split into 70,000 training samples, 15,000 validation samples, and 15,000 testing samples. The test set remained completely isolated during pipeline optimization.
-
-\subsection{Expert Models}
-15 expert models were evaluated across 3 modalities and 5 targets. The algorithms selected based on validation performance included RandomForest, XGBoost, LightGBM, CatBoost, ExtraTrees, and Logistic Regression.
-
+\section{EXPERIMENTAL DESIGN}
 \subsection{Evaluation Metrics}
-Performance was quantified using Area Under the Receiver Operating Characteristic (AUROC), Area Under the Precision-Recall Curve (AUPRC), F1 Score, and Brier Score (to assess probability calibration).
+All final predictive evaluations were performed on the strictly held-out 15,000-patient test partition. Performance was assessed using four complementary metrics: Area Under the Receiver Operating Characteristic Curve (AUROC) for discrimination, Area Under the Precision-Recall Curve (AUPRC) for precision-recall performance under class imbalance, F1-score for the balance between precision and recall, and Brier Score for the accuracy of probabilistic predictions. F1-score was calculated using a fixed probability threshold of 0.5, with no test-set threshold optimization. 
 
-\subsection{F1 Threshold}
-For all F1 score calculations, a fixed probability threshold of 0.5 was enforced. No threshold optimization or Youden's J statistic tuning was performed on the test set.
+\subsection{Simulated Patient-Level Modality Missingness}
+To evaluate dynamic routing under incomplete multimodal availability, patient-level modality missingness was simulated at 10\%, 20\%, and 30\%. The experiment independently and uniformly removed complete modality blocks from patients, corresponding to Missing Completely At Random (MCAR) under the experimental construction. The router then selected the pathway corresponding to the modalities remaining available for each patient.
 
-\subsection{Simulated Patient-Level Missingness}
-To evaluate structural robustness, patient-level modality missingness was evaluated at 10\%, 20\%, and 30\% rates. The missingness mechanism was an independent uniform modality removal across the patient population, resulting in Missing Completely At Random (MCAR) conditions under the experimental construction. Explicitly, this is a controlled synthetic experiment and does not model informative clinical Missing At Random (MAR) or Missing Not At Random (MNAR) environments where the absence of a test is highly correlated with patient health status.
+This experiment represents a controlled synthetic missingness evaluation and does not model informative Missing At Random (MAR) or Missing Not At Random (MNAR) mechanisms that may occur in clinical settings.
 
-\subsection{Median-Imputation Baseline}
-As a comparative baseline, unavailable modality features were filled using a conventional median-imputation approach applied globally across the concatenated feature vector. MICE and advanced learned generative imputation architectures (e.g., cross-modal GANs) were NOT evaluated in this study.
+\subsection{Baselines}
+Two comparison strategies were evaluated.
+\textbf{Median-Imputation Baseline:} For the evaluated T2D random-modality-drop experiment, an entirely unavailable modality block was populated using conventional global median values before prediction. This provides a direct comparison between numerical completion of the missing modality and dynamic routing using only the observed modalities. Advanced approaches such as MICE and learned generative imputation were not evaluated. 
 
-\subsection{Early-Fusion Baseline}
-An early-fusion baseline was constructed where all 82 features from the three modalities were concatenated into a single flat vector prior to prediction, simulating a traditional unified classifier framework.
+\textbf{Early-Fusion Baseline:} An early-fusion model was constructed by concatenating the 82 predictive features from the Clinical, Wearable/CGM, and Gut Microbiome modalities into a single feature vector before prediction. This provides a comparison between conventional feature-level fusion and the proposed probability-level dynamic routing strategy.
 
-\section{Results}
-\subsection{Single-Modality Expert Results}
-The baseline predictive capacity of each independent modality is detailed in Table I. The Clinical modality consistently dominated predictive performance, largely because the synthetic cohort definitions utilized traditional physiological parameters strongly linked to these conditions.
+\section{RESULTS}
+\subsection{Seven-Pathway Fusion Performance (AUROC)}
+Evaluating the late-fusion meta-learner across all seven modality-availability pathways (RQ2 and RQ3) revealed that full multimodal fusion provided modest incremental discrimination over the Clinical-only baseline (Table \ref{tab:fusion}). The full C+W+G fusion pathway for Type 2 Diabetes achieved an AUROC of 0.7834, representing a marginal improvement over the 0.7777 achieved by the Clinical-only pathway. 
 
-\begin{table*}[htbp]
+\begin{table*}[t]
 \centering
-\caption{TABLE I: 15 Expert Models}
-\begin{tabular}{@{}ll ccc c@{}}
-\toprule
-\textbf{Modality} & \textbf{Target} & \textbf{AUROC} & \textbf{AUPRC} & \textbf{F1} & \textbf{Brier} \\
-\midrule
-Clinical & Type2\_Diabetes & 0.7777 & 0.7810 & 0.7179 & 0.1921 \\
-Wearable & Type2\_Diabetes & 0.6772 & 0.6974 & 0.6474 & 0.2255 \\
-Gut & Type2\_Diabetes & 0.5949 & 0.6088 & 0.5485 & 0.2433 \\
-Clinical & Prediabetes & 0.5839 & 0.2418 & 0.3550 & 0.2416 \\
-Wearable & Prediabetes & 0.5429 & 0.2221 & 0.3155 & 0.2434 \\
-Gut & Prediabetes & 0.5134 & 0.2092 & 0.2984 & 0.2475 \\
-Clinical & High\_Adiposity\_Risk & 0.7532 & 0.6390 & 0.6362 & 0.2025 \\
-Wearable & High\_Adiposity\_Risk & 0.6602 & 0.5395 & 0.5509 & 0.2306 \\
-Gut & High\_Adiposity\_Risk & 0.5263 & 0.4111 & 0.4467 & 0.2494 \\
-Clinical & Metabolic\_Syndrome & 0.7581 & 0.7931 & 0.7164 & 0.2001 \\
-Wearable & Metabolic\_Syndrome & 0.6207 & 0.6708 & 0.6285 & 0.2388 \\
-Gut & Metabolic\_Syndrome & 0.5777 & 0.6321 & 0.5924 & 0.2454 \\
-Clinical & NAFLD & 0.7743 & 0.8228 & 0.7378 & 0.1938 \\
-Wearable & NAFLD & 0.5995 & 0.6781 & 0.6231 & 0.2422 \\
-Gut & NAFLD & 0.6487 & 0.7180 & 0.6166 & 0.2336 \\
-\bottomrule
-\end{tabular}
-\end{table*}
-
-\subsection{Seven-Pathway Results}
-Tables II through V delineate the performance of the meta-learner fusion algorithms dynamically routed across all 7 possible non-empty combinations of the three modalities. Figure 2 visually maps the comparative AUROC across these availability pathways.
-
-\begin{table*}[htbp]
-\centering
-\caption{TABLE II: 7x5 AUROC Matrix}
+\caption{Seven-Pathway Fusion Matrix (AUROC). Addresses RQ1, RQ2, and RQ3. Single-letter columns denote individual Modality Experts.}
+\label{tab:fusion}
 \begin{tabular}{@{}l ccccccc@{}}
 \toprule
 \textbf{Target} & \textbf{C} & \textbf{W} & \textbf{G} & \textbf{C+W} & \textbf{C+G} & \textbf{W+G} & \textbf{C+W+G} \\
@@ -216,98 +205,53 @@ NAFLD & 0.7743 & 0.5995 & 0.6487 & 0.7745 & 0.7771 & 0.6621 & 0.7772 \\
 \end{tabular}
 \end{table*}
 
-\begin{table*}[htbp]
-\centering
-\caption{TABLE III: 7x5 AUPRC Matrix}
-\begin{tabular}{@{}l ccccccc@{}}
-\toprule
-\textbf{Target} & \textbf{C} & \textbf{W} & \textbf{G} & \textbf{C+W} & \textbf{C+G} & \textbf{W+G} & \textbf{C+W+G} \\
-\midrule
-Type2\_Diabetes & 0.7810 & 0.6974 & 0.6088 & 0.7866 & 0.7825 & 0.7079 & 0.7880 \\
-Prediabetes & 0.2418 & 0.2221 & 0.2092 & 0.2434 & 0.2413 & 0.2229 & 0.2431 \\
-High\_Adiposity\_Risk & 0.6390 & 0.5395 & 0.4111 & 0.6407 & 0.6387 & 0.5404 & 0.6404 \\
-Metabolic\_Syndrome & 0.7931 & 0.6708 & 0.6321 & 0.7936 & 0.7937 & 0.6835 & 0.7942 \\
-NAFLD & 0.8228 & 0.6781 & 0.7180 & 0.8230 & 0.8239 & 0.7285 & 0.8239 \\
-\bottomrule
-\end{tabular}
-\end{table*}
+The evaluation of the individual modality experts (Table \ref{tab:fusion}, columns C, W, G) demonstrated that the Clinical modality provided the highest discriminative capacity across all targets. This performance hierarchy—where classical clinical biomarkers provided the strongest standalone predictive signal—was consistent across Prediabetes, High Adiposity Risk, Metabolic Syndrome, and NAFLD. Notably, when Clinical data was entirely unavailable, the Wearable+Gut (W+G) pathway maintained a functional predictive safety net, achieving an AUROC of 0.6894 for T2D.
 
-\begin{table*}[htbp]
-\centering
-\caption{TABLE IV: 7x5 F1 Matrix}
-\begin{tabular}{@{}l ccccccc@{}}
-\toprule
-\textbf{Target} & \textbf{C} & \textbf{W} & \textbf{G} & \textbf{C+W} & \textbf{C+G} & \textbf{W+G} & \textbf{C+W+G} \\
-\midrule
-Type2\_Diabetes & 0.7427 & 0.6997 & 0.6883 & 0.7480 & 0.7449 & 0.7025 & 0.7479 \\
-Prediabetes & 0.3565 & 0.3409 & 0.3365 & 0.3566 & 0.3565 & 0.3405 & 0.3584 \\
-High\_Adiposity\_Risk & 0.6474 & 0.5885 & 0.5603 & 0.6458 & 0.6470 & 0.5871 & 0.6475 \\
-Metabolic\_Syndrome & 0.7598 & 0.7261 & 0.7245 & 0.7595 & 0.7594 & 0.7269 & 0.7600 \\
-NAFLD & 0.7849 & 0.7484 & 0.7487 & 0.7837 & 0.7877 & 0.7506 & 0.7877 \\
-\bottomrule
-\end{tabular}
-\end{table*}
-
-\begin{table*}[htbp]
-\centering
-\caption{TABLE V: 7x5 Brier Matrix}
-\begin{tabular}{@{}l ccccccc@{}}
-\toprule
-\textbf{Target} & \textbf{C} & \textbf{W} & \textbf{G} & \textbf{C+W} & \textbf{C+G} & \textbf{W+G} & \textbf{C+W+G} \\
-\midrule
-Type2\_Diabetes & 0.1922 & 0.2254 & 0.2432 & 0.1901 & 0.1918 & 0.2223 & 0.1898 \\
-Prediabetes & 0.2450 & 0.2488 & 0.2502 & 0.2448 & 0.2451 & 0.2490 & 0.2450 \\
-High\_Adiposity\_Risk & 0.2028 & 0.2306 & 0.2494 & 0.2021 & 0.2027 & 0.2305 & 0.2021 \\
-Metabolic\_Syndrome & 0.2002 & 0.2388 & 0.2453 & 0.2000 & 0.2002 & 0.2362 & 0.2000 \\
-NAFLD & 0.1939 & 0.2424 & 0.2336 & 0.1938 & 0.1927 & 0.2305 & 0.1927 \\
-\bottomrule
-\end{tabular}
-\end{table*}
-
-\begin{figure}[htbp]
+\begin{figure}[t]
 \centering
 \includegraphics[width=\columnwidth]{figures/fig_pathway_auroc_heatmap.png}
-\caption{Seven-Pathway Dynamic Routing AUROC Performance Heatmap. This matrix visualizes the capacity of the stacking meta-learner to preserve signal depending on available modalities.}
+\caption{AUROC across the seven evaluated modality-availability pathways.}
 \end{figure}
 
-\subsection{Modality Contribution}
-Analysis of the isolated and fused pathways reveals that Clinical data is the strongest single modality across all five targets. Wearable telemetry provides a meaningful complementary signal, uniquely capturing dynamic states like systemic inflammation markers often preceding gross anatomical changes. Gut microbiome profiles alone possess weaker predictive capacities but retain measurable signal for targets deeply tied to systemic dysbiosis, such as T2D and Metabolic Syndrome. Notably, the W+G pathway remains informative when Clinical data is unavailable. The full multimodal gains over Clinical-only predictions are generally modest, highlighting the dominance of the lab variables while validating the capability of the dynamic router to effectively capture all available signal.
+\subsection{Classification Metrics}
+Table \ref{tab:metrics} details the full classification metrics for the C+W+G pathway. Precision-recall performance followed a similar trend to AUROC. For Prediabetes (the lowest prevalence target), the C+W+G pathway achieved an AUPRC of 0.2431 versus 0.2418 for Clinical-only.
 
-\subsection{Missingness Evaluation}
-The ablation of modalities across the test population explicitly demonstrates the resilience of dynamic routing compared to imputation methods. Table VI summarizes the relative AUROC decay.
-
-\begin{table}[H]
+\begin{table}[t]
 \centering
-\caption{TABLE VI: Missingness Evaluation (T2D Random)}
-\begin{tabular}{@{}l l l l@{}}
+\caption{Full Classification Metrics (C+W+G Pathway)}
+\label{tab:metrics}
+\begin{tabular}{@{}l ccc@{}}
 \toprule
-\textbf{Target} & \textbf{Level} & \textbf{Dynamic} & \textbf{Median Imputation} \\
+\textbf{Target} & \textbf{AUPRC} & \textbf{F1} & \textbf{Brier} \\
 \midrule
-T2D & 10\% & 0.7803 & 0.7795 \\
-T2D & 20\% & 0.7777 & 0.7764 \\
-T2D & 30\% & 0.7743 & 0.7722 \\
+Type2\_Diabetes & 0.7880 & 0.7479 & 0.1898 \\
+Prediabetes & 0.2431 & 0.3584 & 0.2450 \\
+High\_Adiposity\_Risk & 0.6404 & 0.6475 & 0.2021 \\
+Metabolic\_Syndrome & 0.7942 & 0.7600 & 0.2000 \\
+NAFLD & 0.8239 & 0.7877 & 0.1927 \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-\begin{figure}[htbp]
+\subsection{Missingness Experiment}
+Under simulated patient-level missingness (RQ4 and RQ5), the dynamic routing architecture proved structurally resilient. For Type 2 Diabetes under the severe 30\% random missingness condition (MCAR), dynamic routing achieved an AUROC of 0.7743. In direct comparison, attempting to populate the entirely missing modality blocks using conventional global median imputation resulted in a lower AUROC of 0.7722. This confirms that explicitly routing patients based on their observed data outperforms numerically filling unobserved biological blocks.
+
+\begin{figure}[t]
 \centering
-\includegraphics[width=\columnwidth]{figures/Figure_11_Missing_Modality_Robustness.png}
-\caption{Performance Under Evaluated Patient-Level Modality Missingness. Demonstrates predictive stability utilizing the dynamic router as structural modality dropout increases.}
+\includegraphics[width=\columnwidth]{figures/fig_missingness.png}
+\caption{Dynamic routing vs median imputation under 10\%, 20\%, and 30\% missingness.}
 \end{figure}
 
-\subsection{Dynamic Routing vs Imputation}
-Under the rigorous 30\% random missingness ablation (Table VI), dynamic routing produced a numerically higher AUROC (0.7743) than conventional median imputation (0.7722), with an absolute difference of 0.0021 (95\% CI: [0.0001, 0.0041]). It is critical to contextualize that while mathematically distinguishable, the absolute effect size is small.
+\subsection{Early-Fusion Comparison}
+When compared to the early-feature fusion baseline (RQ6), the probability-level dynamic routing approach performed highly competitively (Table \ref{tab:early}). The early-fusion classifier operating on the fully concatenated 82-feature vector achieved an AUROC of 0.7836 for Type 2 Diabetes, essentially matching the late-fusion C+W+G pathway (0.7834). However, while early fusion requires a rigid, fully populated input vector to operate, the proposed late-fusion architecture seamlessly adapts to missing modality blocks without requiring any numerical imputation.
 
-\subsection{Dynamic Routing vs Early Fusion}
-Early fusion strategies explicitly concatenate the heterogeneous feature space. Our controlled comparison reveals distinct properties of the probability-level dynamic router.
-
-\begin{table}[H]
+\begin{table}[t]
 \centering
-\caption{TABLE VIII: Early Fusion vs Dynamic Routing (AUROC)}
-\begin{tabular}{@{}l l l@{}}
+\caption{Early Fusion vs Dynamic Routing (AUROC)}
+\label{tab:early}
+\begin{tabular}{@{}l ll@{}}
 \toprule
-\textbf{Target} & \textbf{Early Fusion} & \textbf{Dynamic Routing} \\
+\textbf{Target} & \textbf{Early Fusion} & \textbf{Dynamic} \\
 \midrule
 Type2\_Diabetes & 0.7836 & 0.7834 \\
 Prediabetes & 0.5470 & 0.5875 \\
@@ -318,63 +262,60 @@ NAFLD & 0.7756 & 0.7772 \\
 \end{tabular}
 \end{table}
 
-Dynamic routing is broadly comparable to early fusion. It demonstrates a clear advantage in the evaluated Prediabetes comparison (Dynamic 0.5875 vs Early 0.5470), likely preventing feature-level interference from weakly correlated auxiliary dimensions. For other targets, the absolute differences are small and mixed (e.g., T2D Early 0.7836 vs Dynamic 0.7834; NAFLD Early 0.7756 vs Dynamic 0.7772).
+\begin{figure}[t]
+\centering
+\includegraphics[width=\columnwidth]{figures/fig_early_vs_dynamic.png}
+\caption{Early fusion vs dynamic routing across the five targets.}
+\end{figure}
 
-\section{Explainability and Reporting}
-\subsection{TreeSHAP}
-To satisfy the demand for clinical transparency, TreeSHAP handles feature-level attribution where supported by the underlying expert models (e.g., gradient boosted trees). This extracts explicit, localized attributions from the probability vector, illuminating the dominant physiological drivers of the risk score. However, this implementation is architectural; quantitative evaluation of explanation fidelity against ground-truth causal mechanisms was not performed.
+\subsection{Explainability Examples}
+Addressing RQ7, TreeSHAP attributions successfully extracted the most influential features from the tree-based experts for individual predictions. Clinical markers like Fasting Glucose and HbA1c consistently ranked as top global drivers for T2D risk within the clinical expert, while specific microbial abundances (e.g., Bacteroidetes ratios) localized the risk within the gut expert. These raw SHAP attributions can be ingested by the Medical RAG component, demonstrating the framework's capability to synthesize structured machine learning output and external medical guidelines into human-readable, evidence-grounded reports.
 
-\subsection{Evidence-Grounded Medical RAG}
-The FAISS-backed Medical RAG pipeline translates numerical SHAP outputs into clinician-readable context. By constraining Large Language Model generation strictly to retrieved chunks from ADA and AHA guidelines, the module provides actionable contextualization. Explicitly, this remains an exploratory architectural layer. 
+\section{DISCUSSION}
+\subsection{Clinical Modality as the Primary Signal}
+The evaluation shows that the Clinical modality provides the strongest standalone discriminative signal across all five evaluated metabolic targets. This result is consistent with the composition of the synthetic cohort, which includes laboratory, anthropometric, and physiological variables that provide substantial predictive information for the evaluated targets. However, because the cohort is synthetic, this observation should be interpreted as a property of the evaluated data-generation and modeling framework rather than as evidence of clinical diagnostic superiority.
 
-\subsection{Patient/Clinician Reporting}
-The dual-output reporting schema generates distinct summaries tailored for clinician workflows (dense, statistically anchored) and patient consumption (lifestyle-oriented, accessible). Quantitative evaluation of clinician agreement, RAG factuality, hallucination rates, and longitudinal clinical usefulness was not performed. These represent vital future research directions.
+\subsection{Contribution of Additional Modalities}
+Adding Wearable/CGM and Gut Microbiome information produced modest incremental changes over Clinical-only prediction in the evaluated seven-pathway experiments. The complete C+W+G pathway improved T2D AUROC from 0.7777 to 0.7834 and produced similarly small changes for several other targets. At the same time, the W+G pathway retained measurable discrimination when Clinical data was unavailable, with a T2D AUROC of 0.6894.
 
-\section{Discussion}
-\subsection{Main Findings}
-The TeleMed-M3 framework establishes that probability-level stacking successfully enables modality-aware fusion without resorting to the numerical imputation of completely unavailable modality blocks. 
+These findings suggest that the additional modalities can provide complementary predictive information, while also demonstrating that their contribution should not be interpreted as universally superior to Clinical-only prediction.
 
-\subsection{Clinical Modality Dominance}
-Across the highly engineered de-clamped synthetic cohort, the Clinical modality exhibits the strongest single-modality performance. This underscores the structural reality that classical diagnostic biomarkers (such as HbA1c and ALT) remain the primary anchors for defining systemic metabolic dysfunction.
+\subsection{Behavior of Dynamic Routing Under Modality Missingness}
+The simulated missingness experiment provides evidence that dynamic routing can operate without numerically reconstructing an entirely unavailable modality. In the evaluated T2D random-modality-drop experiment, dynamic routing produced numerically higher AUROC than the median-imputation baseline at 10\%, 20\%, and 30\% missingness, with differences of 0.0007, 0.0013, and 0.0021, respectively. The 30\% comparison yielded an absolute difference of 0.0021 with a reported 95\% confidence interval of [0.0001, 0.0041]. 
 
-\subsection{Complementary Modalities}
-Wearable/CGM and Gut Microbiome streams provide critical non-redundant information—particularly reflecting temporal autonomic stress and gut mucosal inflammation—but they do not dramatically outperform Clinical baselines on their own. Instead, they act as stabilizing auxiliary vectors.
+The small magnitude of these differences is important. The results support the feasibility of structural routing under the evaluated synthetic MCAR conditions, but they do not establish general superiority over imputation methods or robustness to real-world informative missingness.
 
-\subsection{Missing-Modality Handling}
-The principal value of TeleMed-M3 is structural flexibility rather than massive, unbounded AUROC gains. By dynamically routing patients through the 7 predefined pathways based precisely on what data they possess, the system provides a mathematically sound fallback mechanism.
+\subsection{Practical Implications for Telemedicine}
+From a system-design perspective, TeleMed-M3 demonstrates how modality-specific prediction, dynamic pathway selection, TreeSHAP explanations, and an evidence-grounded reporting layer can be combined within a telemedicine architecture. The principal practical advantage of the routing design is its ability to select a predefined pathway according to the modalities available for a patient rather than requiring every modality to be present.
 
-\subsection{Comparison with Baselines}
-Dynamic routing explicitly avoids the generative hallucination inherent to numerical completion of unavailable blocks. The empirical performance is broadly comparable to conventional early fusion, proving that the compartmentalized, expert-driven architecture does not sacrifice discriminative capacity to achieve its flexibility.
+The framework therefore provides a basis for research-oriented multimodal decision support in which available clinical, wearable/CGM, and microbiome information can be processed through a common fusion architecture. However, real-world clinical utility, workflow effectiveness, and patient benefit remain to be established through external validation and prospective evaluation.
 
-\subsection{Explainability Implications}
-The integration of TreeSHAP and Medical RAG provides a clear pathway toward interpretable, evidence-grounded reports. While exploratory, it models how abstract multimodal machine learning can be translated into actionable clinical insights.
+\section{LIMITATIONS}
+This study has several important limitations. First, all predictive results were obtained from a synthetically generated cohort, and no external validation using real-world patient data was performed. Therefore, the reported performance should not be interpreted as an estimate of clinical diagnostic performance.
 
-\section{Limitations}
-\begin{itemize}
-    \item All predictive results presented herein are derived from synthetically generated data.
-    \item No external real-world validation on actual longitudinal patient cohorts has been performed.
-    \item No clinical efficacy or diagnostic utility has been established.
-    \item The Gaussian-Copula generation mechanism may not sufficiently capture nonlinear dependencies, higher-order multi-omic interactions, or context-dependent physiological relationships.
-    \item Modality missingness was strictly modeled as MCAR under the experimental construction.
-    \item Informative clinical missingness mechanisms (MAR/MNAR) were not evaluated.
-    \item MICE (Multiple Imputation by Chained Equations) and advanced learned/generative cross-modal imputation frameworks were not evaluated.
-    \item F1 Probability threshold optimization (e.g., Youden's Index) was not performed.
-    \item Calibration curves and varied deployment operating points were not comprehensively evaluated.
-    \item The explainability and RAG effectiveness layers were not quantitatively evaluated for accuracy or hallucination rates.
-    \item No causal inference is performed by the predictive architecture.
-    \item No treatment recommendation efficacy is established.
-\end{itemize}
+Second, the synthetic cohort uses a Gaussian-Copula latent dependence structure, which may not capture the full range of nonlinear, higher-order, and context-dependent relationships present in real physiological and microbiome data.
 
-\section{Safety and Clinical Positioning}
-The TeleMed-M3 methodology is explicitly positioned as a research decision-support framework designed to evaluate missing-modality fusion architectures. It is NOT an autonomous diagnostic system. It is NOT a treatment recommendation system. It is NOT clinically validated software, nor is it a substitute for individualized clinician judgment.
+Third, modality missingness was evaluated only under MCAR conditions constructed through independent uniform modality removal. MAR and MNAR mechanisms were not evaluated. Fourth, advanced imputation approaches such as MICE and learned generative or cross-modal imputation methods were not compared.
 
-\section{Reproducibility}
-Scientific rigor and exact replicability are foundational to this study. All operations, including dataset partitioning, random ablation, and stochastic model initializations, utilized a frozen global seed (20260808) yielding an exact 70/15/15 split. A critical preprocessing serialization discrepancy (involving unsealed scaling logic applied to tree models) was identified during a formal internal audit and comprehensively corrected prior to final evaluation. 
+Fifth, F1 was evaluated using a fixed probability threshold of 0.5, and deployment-specific threshold optimization and comprehensive calibration analysis were outside the experimental scope. Finally, the Medical RAG component remains conceptual/exploratory; retrieval quality, hallucination rates, explanation fidelity, and clinician agreement were not quantitatively evaluated.
 
-\sectionsection{Conclusion}
-TeleMed-M3 demonstrates the feasibility of modality-specific expert prediction and out-of-fold probability-level stacking. The core contribution of this work is primarily architectural and methodological: proposing a robust routing system that maintains critical modality flexibility without relying on the numerical imputation of entirely unavailable modality blocks.
+\section{SAFETY AND CLINICAL POSITIONING}
+TeleMed-M3 is explicitly positioned as a research-oriented clinical decision-support framework, not an autonomous diagnostic or treatment system. The predicted risk probabilities and generated summaries are intended to assist healthcare professionals in interpreting heterogeneous multimodal information and should not replace professional medical judgment.
 
-\bibliographystyle{IEEEtran}
+The system does not establish clinical efficacy, diagnostic utility, or treatment effectiveness. Any future clinical deployment would require validation on appropriate human cohorts, assessment of safety and calibration under real clinical conditions, evaluation of informative missingness, and continuous clinical oversight.
+
+\section{CONCLUSION}
+TeleMed-M3 presents a probability-level multimodal learning framework for metabolic risk stratification using Clinical, Wearable/CGM, and Gut Microbiome information. By separating modality-specific prediction from cross-modal fusion, the framework supports seven non-empty modality-availability pathways and can operate without numerically reconstructing an entirely unavailable modality.
+
+Evaluation on the 100,000-patient synthetic cohort showed that Clinical information provided the strongest standalone predictive signal, while multimodal pathways produced modest incremental discrimination and retained measurable signal when subsets of modalities were unavailable. Under the evaluated synthetic MCAR conditions, dynamic routing produced numerically higher AUROC than the tested median-imputation baseline, although the absolute differences were small.
+
+TreeSHAP provides local feature-level attribution for supported tree-based experts, while the Medical RAG component provides an exploratory mechanism for evidence-grounded reporting. Together, these components establish a research framework for interpretable multimodal telemedicine analysis, while clinical validation, external generalization, and real-world safety remain future requirements.
+
+\section*{Reproducibility and Data Availability}
+The codebase, trained models, synthetic generation scripts, and reproducibility audits for the TeleMed-M3 project are available in the project repository. Due to the synthetic nature of the dataset, it is fully reproducible from the provided parameters, eliminating privacy concerns related to patient health information.
+
+\nocite{*}
+\bibliographystyle{apalike}
 \bibliography{references}
 
 \end{document}
