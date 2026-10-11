@@ -44,7 +44,7 @@ export function Layout({ children, user, onLogout, onToggleTheme, theme = 'dark'
         {/* Page Container */}
         <main
           className={`flex-1 flex flex-col min-h-0 ${
-            noPageContainer ? 'h-[calc(100vh-72px)] max-h-[calc(100vh-72px)] overflow-hidden' : ''
+            noPageContainer ? 'h-[calc(100vh-72px)] max-h-[calc(100vh-72px)] overflow-y-auto custom-scrollbar' : ''
           }`}
           style={{ '--sidebar-width': isSidebarCollapsed ? '80px' : '280px' }}
         >

@@ -700,7 +700,7 @@ export default function ConsultationWorkspacePage({ user, consultationContext, i
   // ═══════════════════════════════════════════════════════════════════════
   if (isPatient && patientViewMode === 'OVERVIEW') {
     return (
-      <PageContainer className="max-w-[1440px] mx-auto px-4 sm:px-6 py-6 space-y-8">
+      <PageContainer className="max-w-[1440px] mx-auto px-4 sm:px-6 py-6 pb-24 space-y-8">
         
         {/* Toast Alert */}
         {toastMsg && (
