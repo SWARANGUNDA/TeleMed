@@ -11,17 +11,24 @@ export function Layout({ children, user, onLogout, onToggleTheme, theme = 'dark'
   const userRole = user?.role || 'PATIENT';
 
   return (
-    <div className="min-h-screen bg-[var(--bg-primary)] text-[var(--text-main)] flex flex-col font-sans transition-colors duration-200">
+    <div
+      className={`bg-[var(--bg-primary)] text-[var(--text-main)] flex flex-col font-sans transition-colors duration-200 ${
+        noPageContainer ? 'h-screen max-h-screen overflow-hidden' : 'min-h-screen'
+      }`}
+    >
       {/* Desktop Fixed Left Sidebar */}
       <Sidebar
         isCollapsed={isSidebarCollapsed}
         onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
         userRole={userRole}
+        user={user}
       />
 
       {/* Main Content Area */}
       <div
-        className={`flex-1 flex flex-col transition-all duration-300 ${
+        className={`flex-1 flex flex-col transition-all duration-300 min-h-0 ${
+          noPageContainer ? 'h-screen max-h-screen overflow-hidden' : ''
+        } ${
           isSidebarCollapsed ? 'lg:pl-[80px]' : 'lg:pl-[280px]'
         }`}
       >
@@ -35,7 +42,12 @@ export function Layout({ children, user, onLogout, onToggleTheme, theme = 'dark'
         />
 
         {/* Page Container */}
-        <main className="flex-1 flex flex-col" style={{ '--sidebar-width': isSidebarCollapsed ? '80px' : '280px' }}>
+        <main
+          className={`flex-1 flex flex-col min-h-0 ${
+            noPageContainer ? 'h-[calc(100vh-72px)] max-h-[calc(100vh-72px)] overflow-hidden' : ''
+          }`}
+          style={{ '--sidebar-width': isSidebarCollapsed ? '80px' : '280px' }}
+        >
           {noPageContainer ? (
             children
           ) : (
@@ -58,6 +70,7 @@ export function Layout({ children, user, onLogout, onToggleTheme, theme = 'dark'
             isCollapsed={false}
             onToggleCollapse={() => {}}
             userRole={userRole}
+            user={user}
             className="!flex !static !w-full !border-none"
           />
         </div>

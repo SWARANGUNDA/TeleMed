@@ -90,29 +90,14 @@ export default function Sidebar({
         justifyContent: isCollapsed ? 'center' : 'space-between',
         borderBottom: '1px solid var(--border-subtle)'
       }}>
-        {!isCollapsed && (
+        {isCollapsed ? (
+          <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: '#ffffff', padding: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid rgba(0,0,0,0.1)' }}>
+            <img src="/assets/healthprism_icon.png" alt="Health Prism" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+          </div>
+        ) : (
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <div style={{
-              width: '34px',
-              height: '34px',
-              borderRadius: '9px',
-              background: 'linear-gradient(135deg, var(--accent-cyan), var(--accent-blue))',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: '#ffffff',
-              fontWeight: 800,
-              fontSize: '1rem'
-            }}>
-              T
-            </div>
-            <div>
-              <div style={{ fontWeight: 800, fontSize: '1.05rem', color: 'var(--text-main)', letterSpacing: '-0.02em', lineHeight: 1.2 }}>
-                TeleMed <span style={{ color: 'var(--accent-cyan)' }}>AI</span>
-              </div>
-              <div style={{ fontSize: '0.68rem', color: 'var(--text-dim)', fontWeight: 600, textTransform: 'uppercase' }}>
-                {role} SHELL
-              </div>
+            <div style={{ height: '38px', borderRadius: '10px', background: '#ffffff', padding: '4px 8px', display: 'flex', alignItems: 'center', border: '1px solid rgba(0,0,0,0.1)' }}>
+              <img src="/assets/healthprism_logo.png" alt="Health Prism" style={{ height: '100%', width: 'auto', objectFit: 'contain' }} />
             </div>
           </div>
         )}

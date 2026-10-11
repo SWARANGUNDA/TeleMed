@@ -22,7 +22,7 @@ import {
 } from 'lucide-react';
 import { Avatar } from '../ui/Avatar';
 
-export function Sidebar({ isCollapsed, onToggleCollapse, userRole = 'PATIENT', className = '' }) {
+export function Sidebar({ isCollapsed, onToggleCollapse, userRole = 'PATIENT', user, className = '' }) {
   const location = useLocation();
   const navigate = useNavigate();
   const [, setTick] = useState(0);
@@ -88,80 +88,139 @@ export function Sidebar({ isCollapsed, onToggleCollapse, userRole = 'PATIENT', c
 
   return (
     <aside
-      className={`fixed top-0 left-0 bottom-0 z-[var(--z-sticky)] bg-[var(--bg-sidebar)] border-r border-[var(--border-subtle)] transition-all duration-300 ease-in-out flex flex-col justify-between hidden lg:flex ${
+      className={`fixed top-0 left-0 bottom-0 z-[var(--z-sticky)] bg-[var(--bg-sidebar)] border-r border-[var(--border-subtle)] transition-all duration-300 ease-in-out flex flex-col h-screen overflow-hidden hidden lg:flex ${
         isCollapsed ? 'w-[80px]' : 'w-[280px]'
       } ${className}`}
     >
       {/* Brand Header */}
-      <div>
-        <div className="h-[72px] px-5 flex items-center justify-between border-b border-[var(--border-subtle)]">
-          <div className="flex items-center gap-3 overflow-hidden cursor-pointer" onClick={() => navigate('/')}>
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-[var(--primary)] to-[var(--accent)] flex items-center justify-center text-white font-bold shadow-sm shrink-0">
-              <Activity className="w-6 h-6 text-white" />
+      <div className="h-[74px] px-3.5 flex items-center justify-between border-b border-[var(--border-subtle)] shrink-0">
+        <div className="flex items-center flex-1 min-w-0 cursor-pointer overflow-hidden" onClick={() => navigate('/')}>
+          {isCollapsed ? (
+            <div className="w-11 h-11 rounded-xl bg-white p-1 flex items-center justify-center shadow-xs border border-slate-200/80 hover:scale-105 transition-transform mx-auto" title="Health Prism">
+              <img
+                src="/assets/healthprism_icon.png"
+                alt="Health Prism"
+                className="w-full h-full object-contain"
+              />
             </div>
+          ) : (
+            <div className="flex items-center flex-1 min-w-0 pr-1">
+              <img
+                src="/assets/healthprism_logo.png"
+                alt="Health Prism"
+                className="h-10 md:h-11 w-auto max-w-[200px] object-contain hover:scale-[1.02] transition-transform drop-shadow-xs"
+              />
+            </div>
+          )}
+        </div>
+
+        <button
+          onClick={onToggleCollapse}
+          className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--bg-surface-hover)] transition-colors shrink-0"
+          title={isCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
+        >
+          {isCollapsed ? <ChevronRight className="w-5 h-5" /> : <ChevronLeft className="w-5 h-5" />}
+        </button>
+      </div>
+
+      {/* Navigation Items (Never clipped, smooth internal scroll when needed) */}
+      <nav className="flex-1 min-h-0 overflow-y-auto px-3 py-2 space-y-3 custom-scrollbar">
+        {menuConfig.map((group, idx) => (
+          <div key={idx} className="space-y-0.5">
             {!isCollapsed && (
-              <div className="flex flex-col">
-                <span className="font-bold text-base tracking-tight text-[var(--text-main)] leading-none">TeleMed AI</span>
-                <span className="text-[10px] font-mono text-[var(--primary)] uppercase font-semibold mt-1">v4.0 Unified</span>
+              <div className="px-3 py-1 text-[10px] font-mono font-bold tracking-wider text-[var(--text-dim)] uppercase">
+                {group.group}
               </div>
             )}
+
+            {group.items.map((item) => {
+              const Icon = item.icon;
+              const isActive = location.pathname === item.path;
+
+              return (
+                <button
+                  key={item.id || `${item.path}-${item.label}`}
+                  onClick={() => navigate(item.path)}
+                  className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all duration-150 group relative cursor-pointer ${
+                    isActive
+                      ? 'bg-[var(--primary-light)] text-[var(--primary)] font-bold shadow-xs'
+                      : 'text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--bg-surface-hover)]'
+                  }`}
+                  title={isCollapsed ? item.label : undefined}
+                >
+                  <Icon className={`w-4 h-4 shrink-0 transition-transform group-hover:scale-110 ${isActive ? 'text-[var(--primary)]' : 'text-[var(--text-muted)]'}`} />
+                  {!isCollapsed && <span className="truncate">{item.label}</span>}
+                  {isActive && (
+                    <div className="absolute right-0 top-1/2 -translate-y-1/2 w-1 h-5 bg-[var(--primary)] rounded-l-full" />
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        ))}
+      </nav>
+
+      {/* Empty Space Telemetry Card: Fills space, looks high-tech and clinical */}
+      {!isCollapsed && (
+        <div className="p-3 mx-3 mb-2 rounded-2xl bg-gradient-to-br from-blue-50/90 via-indigo-50/50 to-cyan-50/60 dark:from-slate-900/90 dark:to-indigo-950/50 border border-blue-100/90 dark:border-indigo-900/50 shadow-xs space-y-2 shrink-0">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-1.5">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+              <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-800 dark:text-slate-200">
+                HealthPrism Live
+              </span>
+            </div>
+            <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-600 dark:text-blue-400 font-bold border border-blue-500/20">
+              v4.0
+            </span>
+          </div>
+
+          <div className="grid grid-cols-2 gap-1.5 text-[10px]">
+            <div className="p-1.5 rounded-lg bg-white/80 dark:bg-slate-800/70 border border-slate-200/60 dark:border-slate-700/60">
+              <span className="text-slate-400 block text-[9px] font-medium">Diagnostic</span>
+              <span className="font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                <ShieldCheck className="w-3 h-3" /> Online
+              </span>
+            </div>
+            <div className="p-1.5 rounded-lg bg-white/80 dark:bg-slate-800/70 border border-slate-200/60 dark:border-slate-700/60">
+              <span className="text-slate-400 block text-[9px] font-medium">Encryption</span>
+              <span className="font-bold text-blue-600 dark:text-blue-400 flex items-center gap-1">
+                <Lock className="w-3 h-3" /> HIPAA 256b
+              </span>
+            </div>
           </div>
 
           <button
-            onClick={onToggleCollapse}
-            className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--bg-surface-hover)] transition-colors"
-            title={isCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
+            onClick={() => navigate(userRole === 'DOCTOR' ? '/doctor/consultations' : '/intake')}
+            className="w-full py-1.5 px-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold text-[11px] flex items-center justify-center space-x-1.5 transition-all shadow-xs cursor-pointer hover:scale-[1.01]"
           >
-            {isCollapsed ? <ChevronRight className="w-5 h-5" /> : <ChevronLeft className="w-5 h-5" />}
+            <Sparkles className="w-3.5 h-3.5" />
+            <span>{userRole === 'DOCTOR' ? 'Consultation Queue' : 'New Health Intake'}</span>
           </button>
         </div>
+      )}
 
-        {/* Navigation Items */}
-        <nav className="p-3 space-y-6 overflow-y-auto max-h-[calc(100vh-140px)] no-scrollbar">
-          {menuConfig.map((group, idx) => (
-            <div key={idx} className="space-y-1">
-              {!isCollapsed && (
-                <div className="px-3 py-1 text-[10px] font-mono font-semibold tracking-wider text-[var(--text-dim)] uppercase">
-                  {group.group}
-                </div>
-              )}
-
-              {group.items.map((item) => {
-                const Icon = item.icon;
-                const isActive = location.pathname === item.path;
-
-                return (
-                  <button
-                    key={item.id || `${item.path}-${item.label}`}
-                    onClick={() => navigate(item.path)}
-                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 group relative ${
-                      isActive
-                        ? 'bg-[var(--primary-light)] text-[var(--primary)] font-semibold shadow-sm'
-                        : 'text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--bg-surface-hover)]'
-                    }`}
-                    title={isCollapsed ? item.label : undefined}
-                  >
-                    <Icon className={`w-5 h-5 shrink-0 transition-transform group-hover:scale-110 ${isActive ? 'text-[var(--primary)]' : 'text-[var(--text-muted)]'}`} />
-                    {!isCollapsed && <span className="truncate">{item.label}</span>}
-                    {isActive && (
-                      <div className="absolute right-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-[var(--primary)] rounded-l-full" />
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-          ))}
-        </nav>
-      </div>
-
-      {/* Footer User Role Badge */}
-      <div className="p-3 border-t border-[var(--border-subtle)]">
-        <div className={`flex items-center gap-3 p-2 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] ${isCollapsed ? 'justify-center' : ''}`}>
-          <Avatar user={{ role: userRole }} size="sm" className="rounded-lg" />
+      {/* Footer User Profile Card */}
+      <div className="p-3 border-t border-[var(--border-subtle)] shrink-0 bg-[var(--bg-sidebar)]">
+        <div
+          onClick={() => navigate(userRole === 'DOCTOR' ? '/doctor/profile' : '/profile')}
+          className={`flex items-center gap-2.5 p-2 rounded-xl bg-[var(--bg-surface)] hover:bg-[var(--bg-surface-hover)] border border-[var(--border-subtle)] transition-colors cursor-pointer ${
+            isCollapsed ? 'justify-center' : ''
+          }`}
+          title="View Profile Workspace"
+        >
+          <Avatar user={{ role: userRole }} size="sm" className="rounded-lg shrink-0" />
           {!isCollapsed && (
-            <div className="flex flex-col overflow-hidden">
-              <span className="text-xs font-bold text-[var(--text-main)] truncate">{userRole} Portal</span>
-              <span className="text-[10px] font-mono text-[var(--success)] flex items-center gap-1">
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-[var(--text-main)] truncate">
+                  {user?.full_name || user?.name || (userRole === 'DOCTOR' ? 'Dr. Provider' : userRole === 'ADMIN' ? 'Administrator' : 'swaran')}
+                </span>
+                <span className="text-[10px] font-extrabold uppercase px-1.5 py-0.5 rounded bg-blue-50 dark:bg-slate-800 text-blue-700 dark:text-blue-300">
+                  {userRole}
+                </span>
+              </div>
+              <span className="text-[10px] font-mono text-[var(--success)] flex items-center gap-1 mt-0.5">
                 <span className="w-1.5 h-1.5 rounded-full bg-[var(--success)] animate-pulse" />
                 Active Session
               </span>

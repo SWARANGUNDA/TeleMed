@@ -127,6 +127,15 @@ function getPathFromNav(primaryNav, subNav, role) {
   if (primaryNav === 'records') return '/records';
   if (primaryNav === 'consultations') return '/consultations';
   if (primaryNav === 'appointments') return '/appointments';
+  if (role === 'ADMIN') {
+    if (primaryNav === 'admin_dashboard' || primaryNav === 'dashboard' || primaryNav === 'overview') return '/admin/dashboard';
+    if (primaryNav === 'admin_verification' || primaryNav === 'verification' || primaryNav === 'doctors') return '/admin/doctors';
+    if (primaryNav === 'admin_assignments' || primaryNav === 'consultations') return '/admin/consultations';
+    if (primaryNav === 'admin_users' || primaryNav === 'users') return '/admin/users';
+    if (primaryNav === 'admin_system' || primaryNav === 'system' || primaryNav === 'metrics' || primaryNav === 'settings') return '/admin/system';
+    if (primaryNav === 'admin_audit' || primaryNav === 'audit' || primaryNav === 'compliance') return '/admin/audit';
+  }
+
   if (primaryNav === 'care') return '/care';
   if (primaryNav === 'patient_privacy' || primaryNav === 'privacy') return '/privacy';
   if (primaryNav === 'account') return '/account';
@@ -139,7 +148,6 @@ function getPathFromNav(primaryNav, subNav, role) {
   if (primaryNav === 'admin_system') return '/admin/system';
   if (primaryNav === 'admin_audit') return '/admin/audit';
   if (primaryNav === 'dashboard') {
-    if (role === 'ADMIN') return '/admin/dashboard';
     if (role === 'DOCTOR') return '/doctor/dashboard';
     return '/dashboard';
   }
@@ -671,7 +679,17 @@ export default function App() {
 
             <Route path="/profile" element={
               <ProtectedRoute currentUser={currentUser} authChecking={authChecking} allowedRoles={['PATIENT', 'DOCTOR', 'ADMIN']}>
-                <AccountPage user={currentUser} onNavigate={handleNavigate} />
+                {currentUser?.role === 'PATIENT' ? (
+                  <ProfilePage
+                    user={currentUser}
+                    session={session}
+                    predictionData={predictionData}
+                    onNavigate={handleNavigate}
+                    refreshCurrentUser={refreshCurrentUser}
+                  />
+                ) : (
+                  <AccountPage user={currentUser} onNavigate={handleNavigate} />
+                )}
               </ProtectedRoute>
             } />
 
@@ -803,7 +821,7 @@ export default function App() {
       onLogout={handleLogout}
       onToggleTheme={toggleTheme}
       theme={activeTheme}
-      noPageContainer={location.pathname === '/messages'}
+      noPageContainer={location.pathname.startsWith('/messages') || location.pathname.includes('/consultations')}
     >
 
 

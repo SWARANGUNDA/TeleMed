@@ -63,7 +63,7 @@ export function Topbar({ user, onLogout, onToggleTheme, theme = 'dark', onOpenMo
 
   return (
     <>
-      <header className={`sticky top-0 z-[var(--z-header)] h-[72px] bg-[var(--glass-bg)] backdrop-blur-[var(--glass-blur)] border-b border-[var(--border-subtle)] px-4 md:px-8 flex items-center justify-between transition-all duration-200 ${className}`}>
+      <header className={`sticky top-0 z-[var(--z-header)] h-[72px] shrink-0 bg-[var(--glass-bg)] backdrop-blur-[var(--glass-blur)] border-b border-[var(--border-subtle)] px-4 md:px-8 flex items-center justify-between transition-all duration-200 ${className}`}>
         {/* Left: Mobile Menu Button & Breadcrumb */}
         <div className="flex items-center gap-4">
           <button
@@ -74,8 +74,8 @@ export function Topbar({ user, onLogout, onToggleTheme, theme = 'dark', onOpenMo
           </button>
 
           <div className="flex items-center gap-3">
-            <div className="lg:hidden w-8 h-8 rounded-lg bg-gradient-to-tr from-[var(--primary)] to-[var(--accent)] flex items-center justify-center text-white font-bold">
-              <Activity className="w-5 h-5 text-white" />
+            <div className="lg:hidden w-8 h-8 rounded-lg bg-white p-1 flex items-center justify-center shadow-xs border border-slate-200/80 shrink-0">
+              <img src="/assets/healthprism_icon.png" alt="Health Prism" className="w-full h-full object-contain" />
             </div>
             <nav className="flex items-center gap-2 text-xs text-[var(--text-muted)] font-medium">
               {breadcrumbs.map((crumb, idx) => (
