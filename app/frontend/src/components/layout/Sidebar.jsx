@@ -20,7 +20,6 @@ import {
   Calendar,
   Sparkles
 } from 'lucide-react';
-import { Avatar } from '../ui/Avatar';
 
 export function Sidebar({ isCollapsed, onToggleCollapse, userRole = 'PATIENT', user, className = '' }) {
   const location = useLocation();
@@ -161,37 +160,6 @@ export function Sidebar({ isCollapsed, onToggleCollapse, userRole = 'PATIENT', u
           </div>
         ))}
       </nav>
-
-
-
-      {/* Footer User Profile Card */}
-      <div className="p-3 border-t border-[var(--border-subtle)] shrink-0 bg-[var(--bg-sidebar)]">
-        <div
-          onClick={() => navigate(userRole === 'DOCTOR' ? '/doctor/profile' : '/profile')}
-          className={`flex items-center gap-2.5 p-2 rounded-xl bg-[var(--bg-surface)] hover:bg-[var(--bg-surface-hover)] border border-[var(--border-subtle)] transition-colors cursor-pointer ${
-            isCollapsed ? 'justify-center' : ''
-          }`}
-          title="View Profile Workspace"
-        >
-          <Avatar user={{ role: userRole }} size="sm" className="rounded-lg shrink-0" />
-          {!isCollapsed && (
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-[var(--text-main)] truncate">
-                  {user?.full_name || user?.name || (userRole === 'DOCTOR' ? 'Dr. Provider' : userRole === 'ADMIN' ? 'Administrator' : 'swaran')}
-                </span>
-                <span className="text-[10px] font-extrabold uppercase px-1.5 py-0.5 rounded bg-blue-50 dark:bg-slate-800 text-blue-700 dark:text-blue-300">
-                  {userRole}
-                </span>
-              </div>
-              <span className="text-[10px] font-mono text-[var(--success)] flex items-center gap-1 mt-0.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-[var(--success)] animate-pulse" />
-                Active Session
-              </span>
-            </div>
-          )}
-        </div>
-      </div>
     </aside>
   );
 }
