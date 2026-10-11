@@ -3,8 +3,9 @@ import { useLocation, useSearchParams } from 'react-router-dom';
 import {
   Brain, RefreshCw, AlertTriangle, ShieldCheck, TrendingUp, TrendingDown,
   Search, Filter, Download, Printer, Copy, Check, ChevronDown, ChevronUp,
-  Activity, Watch, Dna, FileText, Info, Sparkles, Layers, ArrowRight, Eye
+  Activity, Watch, Dna, FileText, Info, Sparkles, Layers, ArrowRight, Eye, X
 } from 'lucide-react';
+import HighlightMatch from '../components/ui/HighlightMatch';
 import {
   Button, Card, CardHeader, CardBody, CardFooter, Badge,
   ProgressBar, CircularProgress, Table, TableRow, TableCell, Tabs, Input, EmptyState, Alert
@@ -161,12 +162,40 @@ export default function XAIPage({ session, predictionData, xaiData, setXaiData, 
 
   const allDrivers = extractAllFeatures();
 
-  // Filter drivers by search and modality
-  const filteredDrivers = allDrivers.filter((d) => {
-    const matchesSearch = d.name.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesModality = modalityFilter === 'all' || d.modality === modalityFilter;
-    return matchesSearch && matchesModality;
-  });
+  // Elasticsearch-style multi-token live scoring & ranking
+  const filteredDrivers = React.useMemo(() => {
+    let list = allDrivers;
+    if (modalityFilter !== 'all') {
+      list = list.filter((d) => d.modality === modalityFilter);
+    }
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return list;
+    const tokens = q.split(/\s+/).filter(Boolean);
+
+    return list
+      .map((d) => {
+        const targetStr = `${d.name} ${d.modality} ${d.value} ${d.range} ${d.direction}`.toLowerCase();
+        let score = 0;
+        let allMatch = true;
+
+        for (const token of tokens) {
+          if (targetStr.includes(token)) {
+            score += 10;
+            if (d.name.toLowerCase().includes(token)) score += 20;
+            if (d.name.toLowerCase().startsWith(token)) score += 15;
+          } else {
+            allMatch = false;
+          }
+        }
+
+        if (!allMatch) return null;
+        if (targetStr.includes(q)) score += 50;
+        return { item: d, score };
+      })
+      .filter(Boolean)
+      .sort((a, b) => b.score - a.score || b.item.absShap - a.item.absShap)
+      .map((entry) => entry.item);
+  }, [allDrivers, modalityFilter, searchQuery]);
 
   const displayedDrivers = showAllDrivers ? filteredDrivers : filteredDrivers.slice(0, 5);
 
@@ -383,30 +412,55 @@ export default function XAIPage({ session, predictionData, xaiData, setXaiData, 
       <ContentSection title="Feature Contribution Explorer" subtitle="Detailed breakdown of canonical feature values, reference ranges, and SHAP directions">
         <div className="space-y-4">
           <div className="flex items-center justify-between gap-4 flex-wrap">
-            <div className="w-full md:w-96">
+            <div className="w-full md:w-96 relative">
               <Input
-                placeholder="Search feature by name..."
-                leftIcon={<Search className="w-4 h-4" />}
+                placeholder="Live search feature by name, value, or range..."
+                leftIcon={<Search className="w-4 h-4 text-[var(--primary)]" />}
+                rightIcon={
+                  searchQuery ? (
+                    <button
+                      type="button"
+                      onClick={() => setSearchQuery('')}
+                      className="p-1 hover:bg-[var(--bg-surface-hover)] rounded-full text-[var(--text-muted)] hover:text-[var(--text-main)] transition-colors"
+                      title="Clear Search"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  ) : null
+                }
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
             </div>
             <div className="flex items-center gap-2">
-              <Badge variant="primary" size="sm">Showing {filteredDrivers.length} Features</Badge>
+              <Badge variant="primary" size="sm">
+                Showing {filteredDrivers.length} of {allDrivers.length} Features
+              </Badge>
+              {searchQuery && (
+                <span className="text-[11px] font-mono text-[var(--primary)] font-bold bg-[var(--primary)]/10 px-2 py-0.5 rounded-full border border-[var(--primary)]/20 animate-pulse">
+                  ⚡ 0ms Live Filter
+                </span>
+              )}
             </div>
           </div>
 
           <Table headers={['Feature Name', 'Modality', 'Observed Value', 'Reference Range', 'SHAP Value', 'Direction & Strength']}>
             {filteredDrivers.map((d, idx) => (
               <TableRow key={idx}>
-                <TableCell className="font-semibold text-xs">{d.name}</TableCell>
+                <TableCell className="font-semibold text-xs">
+                  <HighlightMatch text={d.name} query={searchQuery} />
+                </TableCell>
                 <TableCell>
                   <Badge variant={d.modality === 'clinical' ? 'primary' : d.modality === 'wearable' ? 'secondary' : 'accent'} size="sm">
-                    {d.modality}
+                    <HighlightMatch text={d.modality} query={searchQuery} />
                   </Badge>
                 </TableCell>
-                <TableCell className="font-mono font-bold text-[var(--primary)] text-xs">{d.value}</TableCell>
-                <TableCell className="font-mono text-xs text-[var(--text-muted)]">{d.range}</TableCell>
+                <TableCell className="font-mono font-bold text-[var(--primary)] text-xs">
+                  <HighlightMatch text={d.value} query={searchQuery} />
+                </TableCell>
+                <TableCell className="font-mono text-xs text-[var(--text-muted)]">
+                  <HighlightMatch text={d.range} query={searchQuery} />
+                </TableCell>
                 <TableCell className="font-mono text-xs font-bold">
                   <span className={d.shapVal >= 0 ? 'text-[var(--danger)]' : 'text-[var(--success)]'}>
                     {formatShap(d.shapVal)}

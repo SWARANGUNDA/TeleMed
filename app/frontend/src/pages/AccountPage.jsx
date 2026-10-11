@@ -1,13 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import {
   User, Stethoscope, Lock, ShieldCheck, Save, Edit3, AlertCircle,
-  CheckCircle2, Mail, Phone, Calendar, Building, Award, Activity, Shield, Key
+  CheckCircle2, Mail, Phone, Calendar, Building, Award, Activity, Shield, Key,
+  Sparkles, Smile, Check
 } from 'lucide-react';
 import {
   Button, Card, Badge, Avatar, Input, Select, Alert, Modal
 } from '../components/ui';
 import { PageContainer } from '../components/layout';
 import { updateUserProfile, getAuthToken } from '../api/client';
+import {
+  getAvailableAvatarsForRole,
+  getAvatarById,
+  suggestAvatarByDemographics,
+  svgToDataUri
+} from '../utils/avatarCatalog';
 
 export default function AccountPage({ user, onProfileUpdated }) {
   const role = user?.role || 'PATIENT';
@@ -20,6 +27,29 @@ export default function AccountPage({ user, onProfileUpdated }) {
   const [heightCm, setHeightCm] = useState(patientProfile.height_cm || '');
   const [weightKg, setWeightKg] = useState(patientProfile.weight_kg || '');
   const [contactNumber, setContactNumber] = useState(patientProfile.contact_number || '');
+
+  // Avatar & Profile Emoji State
+  const [selectedAvatar, setSelectedAvatar] = useState(() => {
+    try {
+      const profileKey = `telemed_user_profile_${user?.user_id || 'guest'}`;
+      const saved = localStorage.getItem(profileKey);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed.selectedAvatar) return parsed.selectedAvatar;
+      }
+    } catch (e) {}
+    return role === 'ADMIN' ? 'admin' : role === 'DOCTOR' ? 'doctor_male' : 'male';
+  });
+  const [avatarAutoNotice, setAvatarAutoNotice] = useState(null);
+  const availableAvatars = getAvailableAvatarsForRole(role);
+  const currentAvatarObj = getAvatarById(selectedAvatar);
+
+  const handleAutoSuggestAvatar = () => {
+    const suggested = suggestAvatarByDemographics(age, gender, role);
+    setSelectedAvatar(suggested.id);
+    setAvatarAutoNotice(`Auto-matched ${suggested.label} ${suggested.emoji} based on your Age (${age || 'unspecified'}) & Gender (${gender || 'unspecified'})`);
+    setTimeout(() => setAvatarAutoNotice(null), 5000);
+  };
 
   // Doctor Profile Form State
   const doctorProfile = user?.doctor_profile || {};
@@ -110,7 +140,11 @@ export default function AccountPage({ user, onProfileUpdated }) {
       try {
         const existing = localStorage.getItem(profileKey);
         const parsed = existing ? JSON.parse(existing) : {};
-        localStorage.setItem(profileKey, JSON.stringify({ ...parsed, isUpdated: true }));
+        localStorage.setItem(profileKey, JSON.stringify({ 
+          ...parsed, 
+          selectedAvatar, 
+          isUpdated: true 
+        }));
       } catch (e) {}
 
       setSaveSuccess(true);
@@ -141,12 +175,18 @@ export default function AccountPage({ user, onProfileUpdated }) {
 
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="flex items-center gap-4 md:gap-6">
-            <Avatar
-              user={user}
-              name={displayFullName}
-              size="lg"
-              className="ring-4 ring-blue-500/40 shadow-xl shadow-blue-500/30 text-xl font-black bg-gradient-to-br from-blue-500 to-indigo-600 text-white"
-            />
+            <div className="relative">
+              <Avatar
+                user={user}
+                avatarId={selectedAvatar}
+                name={displayFullName}
+                size="lg"
+                className="ring-4 ring-blue-500/40 shadow-xl shadow-blue-500/30 text-xl font-black bg-gradient-to-br from-blue-500 to-indigo-600 text-white"
+              />
+              <span className="absolute -bottom-1 -right-1 text-xl p-0.5 bg-black/60 rounded-full shadow-lg border border-white/20 select-none">
+                {currentAvatarObj.emoji}
+              </span>
+            </div>
             <div className="space-y-1.5">
               <div className="flex items-center gap-2.5 flex-wrap">
                 <h1 className="text-xl md:text-2xl font-black text-white tracking-tight">
@@ -184,7 +224,85 @@ export default function AccountPage({ user, onProfileUpdated }) {
               <h3 className="text-base font-extrabold text-[var(--text-main)]">Editable Demographic Profile</h3>
             </div>
 
-            <form onSubmit={handleProfileSave} className="space-y-4">
+            <form onSubmit={handleProfileSave} className="space-y-6">
+              
+              {/* PROFILE CHARACTER AVATAR & CLINICAL EMOJI SELECTION */}
+              <div className="p-4 rounded-2xl bg-gradient-to-br from-[var(--bg-surface)] to-[var(--bg-primary)] border border-[var(--border-subtle)] space-y-3">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2.5 border-b border-[var(--border-subtle)]">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-extrabold text-[var(--text-main)] flex items-center gap-1.5">
+                        <Smile className="w-4 h-4 text-[var(--primary)]" /> Profile Character & Emoji Avatar
+                      </span>
+                      <span className="text-xl leading-none">{currentAvatarObj.emoji}</span>
+                    </div>
+                    <p className="text-[11px] text-[var(--text-muted)]">
+                      Choose your clinical avatar and emoji, or auto-match one based on your demographic profile (Age & Gender)
+                    </p>
+                  </div>
+
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="!px-3 !py-1.5 text-xs font-bold text-[var(--primary)] border-[var(--primary)]/40 hover:bg-[var(--primary)]/10 shrink-0"
+                    leftIcon={<Sparkles className="w-3.5 h-3.5 text-[var(--primary)] animate-pulse" />}
+                    onClick={handleAutoSuggestAvatar}
+                  >
+                    Auto-Match by Age & Gender
+                  </Button>
+                </div>
+
+                {avatarAutoNotice && (
+                  <div className="p-2.5 rounded-xl bg-[var(--primary)]/10 border border-[var(--primary)]/30 text-xs text-[var(--primary)] font-semibold flex items-center gap-2 animate-fade-in">
+                    <Sparkles className="w-4 h-4 shrink-0 text-[var(--primary)]" />
+                    <span>{avatarAutoNotice}</span>
+                  </div>
+                )}
+
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2.5 pt-1">
+                  {availableAvatars.map((av) => {
+                    const isSelected = selectedAvatar === av.id;
+                    const avatarUri = av.url || svgToDataUri(av.svg);
+                    return (
+                      <button
+                        key={av.id}
+                        type="button"
+                        onClick={() => setSelectedAvatar(av.id)}
+                        className={`p-2.5 rounded-2xl flex flex-col items-center justify-center transition-all duration-200 relative group cursor-pointer ${
+                          isSelected
+                            ? `bg-gradient-to-tr ${av.color} text-white shadow-xl ring-2 ${av.ring} scale-102 z-10`
+                            : 'bg-[var(--bg-surface)] text-[var(--text-main)] border border-[var(--border-subtle)] hover:border-[var(--primary)] hover:scale-102 hover:shadow-md'
+                        }`}
+                        title={`${av.label} (${av.ageRange})`}
+                      >
+                        {isSelected && (
+                          <span className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-emerald-500 text-white flex items-center justify-center text-[10px] font-bold shadow-md ring-2 ring-[var(--bg-surface)]">
+                            <Check className="w-3 h-3 stroke-[3]" />
+                          </span>
+                        )}
+                        <div className="relative w-12 h-12 rounded-full overflow-hidden border-2 border-white/40 shadow-sm mb-1.5 bg-slate-900 shrink-0">
+                          <img
+                            src={avatarUri}
+                            alt={av.label}
+                            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                          />
+                          <span className="absolute -bottom-1 -right-1 text-sm bg-black/60 rounded-full px-0.5">
+                            {av.emoji}
+                          </span>
+                        </div>
+                        <span className="text-[11px] font-extrabold text-center leading-tight truncate w-full">
+                          {av.role}
+                        </span>
+                        <span className={`text-[9px] font-mono leading-none mt-0.5 ${isSelected ? 'text-white/80' : 'text-[var(--text-muted)]'}`}>
+                          {av.ageRange}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
               <div>
                 <label className="text-xs font-bold text-[var(--text-main)] block mb-1">Full Name</label>
                 <Input

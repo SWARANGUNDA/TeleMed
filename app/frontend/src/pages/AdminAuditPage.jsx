@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   ShieldCheck, Download, Search, Filter, Clock, FileText, CheckCircle2,
-  AlertTriangle, XCircle, ShieldAlert, Database, RefreshCw, Eye, Lock, Terminal
+  AlertTriangle, XCircle, ShieldAlert, Database, RefreshCw, Eye, Lock, Terminal, X, Sparkles
 } from 'lucide-react';
-import { Button, Card, Badge, Table, TableRow, TableCell, Input, Modal, Alert, EmptyState } from '../components/ui';
+import { Button, Card, Badge, Table, TableRow, TableCell, Input, Modal, Alert, EmptyState, HighlightMatch } from '../components/ui';
 import { PageContainer, PageHeader, ContentSection } from '../components/layout';
 import { fetchAdminAuditLogs, verifyAdminAuditIntegrity, getAuthToken } from '../api/client';
 
@@ -18,12 +18,12 @@ export default function AdminAuditPage() {
   const [verifyingIntegrity, setVerifyingIntegrity] = useState(false);
   const [selectedLog, setSelectedLog] = useState(null);
 
-  const loadAuditLogs = async () => {
+  const loadAuditLogs = async (query = searchQuery) => {
     setLoading(true);
     setErrorMsg(null);
     try {
       const data = await fetchAdminAuditLogs({
-        search: searchQuery,
+        search: query,
         outcome: outcomeFilter !== 'ALL' ? outcomeFilter : undefined,
         page_size: 50
       });
@@ -43,10 +43,69 @@ export default function AdminAuditPage() {
     loadAuditLogs();
   }, [outcomeFilter]);
 
-  const handleSearchSubmit = (e) => {
-    e.preventDefault();
-    loadAuditLogs();
-  };
+  // Debounced server query sync (250ms)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      loadAuditLogs(searchQuery);
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  // Zero-latency Elasticsearch-like in-memory scoring
+  const displayedLogs = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return logs;
+
+    const tokens = q.split(/\s+/).filter(Boolean);
+    const scoredList = [];
+
+    for (const log of logs) {
+      const act = (log.action || '').toLowerCase();
+      const actor = (log.actor_user_id || log.admin || '').toLowerCase();
+      const resType = (log.resource_type || log.target || '').toLowerCase();
+      const eId = (log.event_id || log.id || '').toLowerCase();
+      const out = (log.outcome || '').toLowerCase();
+
+      let matchAllTokens = true;
+      let score = 0;
+
+      for (const t of tokens) {
+        let tokenMatch = false;
+        if (act.includes(t)) {
+          tokenMatch = true;
+          score += act.startsWith(t) ? 35 : 18;
+        }
+        if (actor.includes(t)) {
+          tokenMatch = true;
+          score += actor.startsWith(t) ? 30 : 15;
+        }
+        if (resType.includes(t)) {
+          tokenMatch = true;
+          score += 20;
+        }
+        if (eId.includes(t)) {
+          tokenMatch = true;
+          score += 25;
+        }
+        if (out.includes(t)) {
+          tokenMatch = true;
+          score += 10;
+        }
+
+        if (!tokenMatch) {
+          matchAllTokens = false;
+          break;
+        }
+      }
+
+      if (matchAllTokens) {
+        scoredList.push({ log, score });
+      }
+    }
+
+    scoredList.sort((a, b) => b.score - a.score);
+    return scoredList.map(s => s.log);
+  }, [logs, searchQuery]);
 
   const handleVerifyIntegrity = async () => {
     setVerifyingIntegrity(true);
@@ -149,15 +208,25 @@ export default function AdminAuditPage() {
 
       {/* Filter Toolbar */}
       <div className="flex items-center justify-between gap-4 flex-wrap">
-        <form onSubmit={handleSearchSubmit} className="w-full md:w-96 flex gap-2">
+        <div className="relative w-full md:w-96">
           <Input
-            placeholder="Search by action, actor, or resource..."
-            leftIcon={<Search className="w-4 h-4" />}
+            placeholder="Type to search audit logs (action, actor, resource)..."
+            leftIcon={<Search className="w-4 h-4 text-[var(--primary)]" />}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
+            className="pr-10"
           />
-          <Button variant="outline" size="md" type="submit">Search</Button>
-        </form>
+          {searchQuery && (
+            <button
+              type="button"
+              onClick={() => setSearchQuery('')}
+              className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-[var(--text-muted)] hover:text-[var(--text-main)] rounded-full hover:bg-[var(--bg-surface)]"
+              title="Clear Search"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
 
         <div className="flex items-center gap-2">
           {['ALL', 'SUCCESS', 'FAILED'].map((outcome) => (
@@ -175,22 +244,22 @@ export default function AdminAuditPage() {
       </div>
 
       {/* Audit Log Table */}
-      <ContentSection title={`System Audit Trail (${totalRecords})`}>
+      <ContentSection title={`System Audit Trail (${displayedLogs.length})`}>
         <Table headers={['Event ID', 'Action / Event Type', 'Actor User ID', 'Resource Type', 'Timestamp', 'Outcome', 'Actions']}>
-          {logs.length > 0 ? (
-            logs.map((log) => (
+          {displayedLogs.length > 0 ? (
+            displayedLogs.map((log) => (
               <TableRow key={log.event_id || log.id}>
                 <TableCell className="font-mono text-xs font-bold text-[var(--primary)]">
-                  {log.event_id || log.id || 'EVT-LOG'}
+                  <HighlightMatch text={log.event_id || log.id || 'EVT-LOG'} query={searchQuery} />
                 </TableCell>
                 <TableCell className="font-semibold text-xs text-[var(--text-main)]">
-                  {log.action}
+                  <HighlightMatch text={log.action} query={searchQuery} />
                 </TableCell>
                 <TableCell className="font-mono text-xs text-[var(--text-muted)]">
-                  {log.actor_user_id || log.admin || 'System Actor'}
+                  <HighlightMatch text={log.actor_user_id || log.admin || 'System Actor'} query={searchQuery} />
                 </TableCell>
                 <TableCell className="text-xs font-mono text-[var(--text-main)]">
-                  {log.resource_type || log.target || 'DOCTOR_PROFILE'}
+                  <HighlightMatch text={log.resource_type || log.target || 'DOCTOR_PROFILE'} query={searchQuery} />
                 </TableCell>
                 <TableCell className="font-mono text-xs text-[var(--text-muted)]">
                   {log.created_at ? new Date(log.created_at).toLocaleString() : (log.timestamp || 'Just now')}

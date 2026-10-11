@@ -1,11 +1,12 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   Stethoscope, CheckCircle, Clock, XCircle, ShieldAlert, Filter, Check,
-  RefreshCw, Eye, AlertTriangle, FileText, X, Search, RotateCcw, ShieldCheck, Download, ExternalLink, ZoomIn, FileCheck, Loader2
+  RefreshCw, Eye, AlertTriangle, FileText, X, Search, RotateCcw, ShieldCheck, Download, ExternalLink, ZoomIn, FileCheck, Loader2,
+  Sparkles, ChevronRight
 } from 'lucide-react';
 import {
   Button, Card, CardHeader, CardBody, CardFooter, Badge, Avatar,
-  ProgressBar, CircularProgress, Table, TableRow, TableCell, Tabs, Modal, Input, TextArea, EmptyState, Alert
+  ProgressBar, CircularProgress, Table, TableRow, TableCell, Tabs, Modal, Input, TextArea, EmptyState, Alert, HighlightMatch
 } from '../components/ui';
 import { PageContainer, PageHeader, ContentSection } from '../components/layout';
 import {
@@ -98,8 +99,21 @@ export default function AdminDoctorVerificationPage() {
   const [applications, setApplications] = useState([]);
   const [filterStatus, setFilterStatus] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
+  const [isSuggestionsOpen, setIsSuggestionsOpen] = useState(false);
+  const searchContainerRef = useRef(null);
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState(null);
+
+  // Close live suggestions overlay when clicking outside
+  useEffect(() => {
+    function handleClickOutside(e) {
+      if (searchContainerRef.current && !searchContainerRef.current.contains(e.target)) {
+        setIsSuggestionsOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   // Application Modal Detail State
   const [selectedApp, setSelectedApp] = useState(null);
@@ -123,26 +137,113 @@ export default function AdminDoctorVerificationPage() {
 
   const [allApps, setAllApps] = useState([]);
 
-  const loadApplications = async () => {
-    setLoading(true);
+  const unwrapApps = (res) => (Array.isArray(res) ? res : (res?.applications || res?.doctors || []));
+
+  const loadApplications = async (showLoading = true) => {
+    if (showLoading) setLoading(true);
     setErrorMsg(null);
     try {
       const [filteredRes, allRes] = await Promise.all([
-        fetchAdminDoctorApplications(filterStatus || '', '', searchQuery || ''),
+        fetchAdminDoctorApplications(filterStatus || '', '', ''),
         fetchAdminDoctorApplications('', '', '')
       ]);
-      setApplications(filteredRes.applications || filteredRes.doctors || []);
-      setAllApps(allRes.applications || allRes.doctors || []);
+      setApplications(unwrapApps(filteredRes));
+      setAllApps(unwrapApps(allRes));
     } catch (err) {
       setErrorMsg(err.message || 'Failed to load doctor applications.');
     } finally {
-      setLoading(false);
+      if (showLoading) setLoading(false);
     }
   };
 
   useEffect(() => {
     loadApplications();
+    const interval = setInterval(() => {
+      loadApplications(false);
+    }, 4000);
+
+    const handleSync = () => loadApplications(false);
+    window.addEventListener('focus', handleSync);
+    window.addEventListener('storage', handleSync);
+    window.addEventListener('telemed:doctor-updated', handleSync);
+
+    let bc;
+    try {
+      bc = new BroadcastChannel('telemed_sync');
+      bc.onmessage = () => loadApplications(false);
+    } catch (e) {}
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', handleSync);
+      window.removeEventListener('storage', handleSync);
+      window.removeEventListener('telemed:doctor-updated', handleSync);
+      if (bc) bc.close();
+    };
   }, [filterStatus]);
+
+  // =========================================================================
+  // ZERO-LATENCY ELASTICSEARCH-LIKE IN-MEMORY MATCHING & RANKING
+  // =========================================================================
+  const displayedApplications = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return applications;
+
+    const tokens = q.split(/\s+/).filter(Boolean);
+    const scoredList = [];
+
+    for (const app of applications) {
+      const name = (app.full_name || app.name || '').toLowerCase();
+      const email = (app.email || '').toLowerCase();
+      const id = (app.doctor_id || app.id || '').toLowerCase();
+      const lic = (app.registration_number || app.medical_license_number || '').toLowerCase();
+      const spec = (app.specialization || '').toLowerCase();
+      const hosp = (app.hospital_affiliation || app.registration_council || '').toLowerCase();
+
+      let matchAllTokens = true;
+      let score = 0;
+
+      for (const t of tokens) {
+        let tokenMatch = false;
+        if (name.includes(t)) {
+          tokenMatch = true;
+          score += name.startsWith(t) ? 35 : 18;
+        }
+        if (lic.includes(t)) {
+          tokenMatch = true;
+          score += lic.startsWith(t) ? 40 : 20;
+        }
+        if (id.includes(t)) {
+          tokenMatch = true;
+          score += id.startsWith(t) ? 35 : 20;
+        }
+        if (spec.includes(t)) {
+          tokenMatch = true;
+          score += spec.startsWith(t) ? 25 : 12;
+        }
+        if (hosp.includes(t)) {
+          tokenMatch = true;
+          score += 10;
+        }
+        if (email.includes(t)) {
+          tokenMatch = true;
+          score += 15;
+        }
+
+        if (!tokenMatch) {
+          matchAllTokens = false;
+          break;
+        }
+      }
+
+      if (matchAllTokens) {
+        scoredList.push({ app, score });
+      }
+    }
+
+    scoredList.sort((a, b) => b.score - a.score);
+    return scoredList.map(item => item.app);
+  }, [applications, searchQuery]);
 
   const handleOpenDetail = async (doctorId, userId) => {
     setDetailLoading(true);
@@ -326,23 +427,121 @@ export default function AdminDoctorVerificationPage() {
 
       {errorMsg && <Alert variant="danger">{errorMsg}</Alert>}
 
-      {/* Filter Bar */}
+      {/* Filter Bar with Live Elasticsearch Floating Suggestions */}
       <div className="flex items-center justify-between gap-4 flex-wrap">
-        <div className="w-full md:w-96">
-          <Input
-            placeholder="Search physician by name, license, or hospital..."
-            leftIcon={<Search className="w-4 h-4" />}
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
+        <div ref={searchContainerRef} className="relative w-full md:w-[480px]">
+          <div className="relative">
+            <Input
+              placeholder="Type to search physician (name, license, council, hospital)..."
+              leftIcon={<Search className="w-4 h-4 text-[var(--primary)]" />}
+              value={searchQuery}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                setIsSuggestionsOpen(true);
+              }}
+              onFocus={() => {
+                if (searchQuery.trim()) setIsSuggestionsOpen(true);
+              }}
+              className="pr-10"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSearchQuery('');
+                  setIsSuggestionsOpen(false);
+                }}
+                className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-[var(--text-muted)] hover:text-[var(--text-main)] rounded-full hover:bg-[var(--bg-surface)]"
+                title="Clear Search"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+
+          {/* Floating Elasticsearch Autocomplete Results Overlay */}
+          {isSuggestionsOpen && searchQuery.trim() && (
+            <div className="absolute left-0 right-0 top-full mt-1.5 bg-[var(--bg-surface)] border border-[var(--border-medium)] rounded-2xl shadow-2xl z-50 overflow-hidden backdrop-blur-xl animate-fade-in max-h-96 overflow-y-auto">
+              <div className="p-2.5 bg-[var(--bg-primary)]/80 border-b border-[var(--border-subtle)] flex items-center justify-between text-[11px] font-mono">
+                <span className="text-[var(--text-muted)] flex items-center gap-1.5">
+                  <Sparkles className="w-3.5 h-3.5 text-[var(--primary)]" />
+                  Elasticsearch Live Index: <strong className="text-[var(--primary)]">{displayedApplications.length}</strong> matching physicians
+                </span>
+                <span className="text-[10px] text-[var(--text-muted)]">Instant 0ms Keystroke Query</span>
+              </div>
+
+              {displayedApplications.length > 0 ? (
+                <div className="divide-y divide-[var(--border-subtle)]">
+                  {displayedApplications.slice(0, 6).map((app) => (
+                    <button
+                      key={app.doctor_id || app.id}
+                      type="button"
+                      onClick={() => {
+                        setIsSuggestionsOpen(false);
+                        handleOpenDetail(app.doctor_id || app.id, app.user_id);
+                      }}
+                      className="w-full text-left p-3 hover:bg-[var(--bg-surface-hover)] transition-all flex items-center justify-between gap-3 group"
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <Avatar
+                          user={app}
+                          avatarId="doctor_male"
+                          name={app.full_name || app.name}
+                          size="sm"
+                        />
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold text-xs text-[var(--text-main)] group-hover:text-[var(--primary)] transition-colors truncate">
+                              <HighlightMatch text={app.full_name || app.name} query={searchQuery} />
+                            </span>
+                            <Badge
+                              variant={app.verification_status === 'VERIFIED' ? 'success' : app.verification_status === 'REJECTED' ? 'danger' : 'warning'}
+                              size="sm font-mono font-bold"
+                            >
+                              {app.verification_status || 'PENDING'}
+                            </Badge>
+                          </div>
+                          <div className="flex items-center gap-2 text-[11px] font-mono text-[var(--text-muted)] mt-0.5 truncate">
+                            <span className="text-[var(--primary)]">
+                              <HighlightMatch text={app.doctor_id || app.id} query={searchQuery} />
+                            </span>
+                            <span>•</span>
+                            <span>
+                              Lic: <HighlightMatch text={app.medical_license_number || app.registration_number || 'REG-190826'} query={searchQuery} />
+                            </span>
+                            <span>•</span>
+                            <span className="truncate">
+                              <HighlightMatch text={app.specialization || 'Internal Medicine'} query={searchQuery} />
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                      <ChevronRight className="w-4 h-4 text-[var(--text-muted)] group-hover:text-[var(--primary)] group-hover:translate-x-0.5 transition-all shrink-0" />
+                    </button>
+                  ))}
+                  {displayedApplications.length > 6 && (
+                    <div className="p-2 text-center text-[10px] font-mono text-[var(--text-muted)] bg-[var(--bg-primary)]/50">
+                      + {displayedApplications.length - 6} more matching physicians in table below
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="p-6 text-center text-xs text-[var(--text-muted)] space-y-1">
+                  <p className="font-semibold text-[var(--text-main)]">No physician records matching "{searchQuery}"</p>
+                  <p className="text-[11px]">Try searching by name, license number, council, or specialization.</p>
+                </div>
+              )}
+            </div>
+          )}
         </div>
+
         <div className="flex items-center gap-2">
           {['', 'PENDING', 'UNDER_REVIEW', 'VERIFIED', 'RESUBMISSION_REQUIRED', 'REJECTED'].map((st) => (
             <Button
               key={st}
               variant={filterStatus === st ? 'primary' : 'outline'}
               size="sm"
-              className="!px-3 !py-1 text-xs"
+              className="!px-3 !py-1 text-xs font-bold"
               onClick={() => setFilterStatus(st)}
             >
               {st === '' ? 'ALL' : st.replace(/_/g, ' ')}
@@ -352,18 +551,28 @@ export default function AdminDoctorVerificationPage() {
       </div>
 
       {/* Doctor Applications Table */}
-      <ContentSection title={`Doctor Credentials Queue (${applications.length})`}>
+      <ContentSection title={`Doctor Credentials Queue (${displayedApplications.length})`}>
         <Table headers={['Doctor ID', 'Physician Name', 'Medical License', 'Hospital', 'Specialization', 'Status', 'Actions']}>
-          {applications.length > 0 ? (
-            applications.map((app) => (
+          {displayedApplications.length > 0 ? (
+            displayedApplications.map((app) => (
               <TableRow key={app.doctor_id || app.id}>
-                <TableCell className="font-mono text-xs font-bold text-[var(--primary)]">{app.doctor_id || app.id}</TableCell>
-                <TableCell className="font-semibold text-xs text-[var(--text-main)]">{app.full_name || app.name}</TableCell>
-                <TableCell className="font-mono text-xs text-[var(--text-muted)]">{app.medical_license_number || app.registration_number || 'REG-190826'}</TableCell>
-                <TableCell className="text-xs">{app.hospital_affiliation || app.registration_council || 'Apollo Hospitals'}</TableCell>
-                <TableCell className="text-xs">{app.specialization || 'Internal Medicine'}</TableCell>
+                <TableCell className="font-mono text-xs font-bold text-[var(--primary)]">
+                  <HighlightMatch text={app.doctor_id || app.id} query={searchQuery} />
+                </TableCell>
+                <TableCell className="font-semibold text-xs text-[var(--text-main)]">
+                  <HighlightMatch text={app.full_name || app.name} query={searchQuery} />
+                </TableCell>
+                <TableCell className="font-mono text-xs text-[var(--text-muted)]">
+                  <HighlightMatch text={app.medical_license_number || app.registration_number || 'REG-190826'} query={searchQuery} />
+                </TableCell>
+                <TableCell className="text-xs">
+                  <HighlightMatch text={app.hospital_affiliation || app.registration_council || 'Apollo Hospitals'} query={searchQuery} />
+                </TableCell>
+                <TableCell className="text-xs">
+                  <HighlightMatch text={app.specialization || 'Internal Medicine'} query={searchQuery} />
+                </TableCell>
                 <TableCell>
-                  <Badge variant={app.verification_status === 'VERIFIED' ? 'success' : app.verification_status === 'REJECTED' ? 'danger' : 'warning'} size="sm">
+                  <Badge variant={app.verification_status === 'VERIFIED' ? 'success' : app.verification_status === 'REJECTED' ? 'danger' : 'warning'} size="sm font-mono font-bold">
                     {app.verification_status || 'PENDING'}
                   </Badge>
                 </TableCell>

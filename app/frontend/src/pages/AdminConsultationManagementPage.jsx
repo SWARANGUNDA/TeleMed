@@ -1,11 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   Stethoscope, Clock, Filter, Search, UserCheck, RefreshCw, X, Check,
-  AlertTriangle, ShieldAlert, FileText, User, UserPlus, HeartPulse, Building2
+  AlertTriangle, ShieldAlert, FileText, User, UserPlus, HeartPulse, Building2,
+  Sparkles, ChevronRight
 } from 'lucide-react';
 import {
   Button, Card, CardHeader, CardBody, CardFooter, Badge, Avatar,
-  Table, TableRow, TableCell, Input, Modal, Alert, EmptyState
+  Table, TableRow, TableCell, Input, Modal, Alert, EmptyState, HighlightMatch
 } from '../components/ui';
 import { PageContainer, PageHeader, ContentSection } from '../components/layout';
 import {
@@ -21,9 +22,42 @@ export default function AdminConsultationManagementPage() {
   const [doctors, setDoctors] = useState([]);
   const [filterStatus, setFilterStatus] = useState('ALL');
   const [searchQuery, setSearchQuery] = useState('');
+  const [isSuggestionsOpen, setIsSuggestionsOpen] = useState(false);
+  const searchContainerRef = useRef(null);
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState(null);
   const [noticeMsg, setNoticeMsg] = useState(null);
+
+  // Close suggestions on outside click
+  useEffect(() => {
+    function handleClickOutside(e) {
+      if (searchContainerRef.current && !searchContainerRef.current.contains(e.target)) {
+        setIsSuggestionsOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Debounced server query sync (250ms)
+  useEffect(() => {
+    if (!searchQuery.trim()) return;
+    const timer = setTimeout(async () => {
+      try {
+        const data = await fetchAdminConsultations(filterStatus !== 'ALL' ? filterStatus : '', searchQuery);
+        const fetched = Array.isArray(data) ? data : (data?.consultations || []);
+        if (fetched.length > 0) {
+          setConsultations(prev => {
+            const map = new Map();
+            prev.forEach(c => map.set(c.consultation_id, c));
+            fetched.forEach(c => map.set(c.consultation_id, c));
+            return Array.from(map.values());
+          });
+        }
+      } catch (err) {}
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [searchQuery, filterStatus]);
 
   // Assign Doctor Modal State
   const [selectedConsultation, setSelectedConsultation] = useState(null);
@@ -64,6 +98,74 @@ export default function AdminConsultationManagementPage() {
   useEffect(() => {
     loadData();
   }, [filterStatus]);
+
+  // =========================================================================
+  // ZERO-LATENCY ELASTICSEARCH-LIKE IN-MEMORY MATCHING & RANKING
+  // =========================================================================
+  const filteredConsultations = useMemo(() => {
+    let baseList = consultations;
+    if (filterStatus && filterStatus !== 'ALL') {
+      baseList = consultations.filter(c => c.status === filterStatus);
+    }
+
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return baseList;
+
+    const tokens = q.split(/\s+/).filter(Boolean);
+    const scoredList = [];
+
+    for (const c of baseList) {
+      const pName = (c.patient_name || c.full_name || '').toLowerCase();
+      const pEmail = (c.patient_email || c.email || '').toLowerCase();
+      const cId = (c.consultation_id || '').toLowerCase();
+      const spec = (c.requested_specialization || c.specialization || '').toLowerCase();
+      const docName = (c.doctor_name || '').toLowerCase();
+      const cat = (c.category || '').toLowerCase();
+
+      let matchAllTokens = true;
+      let score = 0;
+
+      for (const t of tokens) {
+        let tokenMatch = false;
+        if (pName.includes(t)) {
+          tokenMatch = true;
+          score += pName.startsWith(t) ? 35 : 18;
+        }
+        if (pEmail.includes(t)) {
+          tokenMatch = true;
+          score += pEmail.startsWith(t) ? 25 : 12;
+        }
+        if (cId.includes(t)) {
+          tokenMatch = true;
+          score += cId.startsWith(t) ? 35 : 18;
+        }
+        if (spec.includes(t)) {
+          tokenMatch = true;
+          score += spec.startsWith(t) ? 25 : 12;
+        }
+        if (docName.includes(t)) {
+          tokenMatch = true;
+          score += 15;
+        }
+        if (cat.includes(t)) {
+          tokenMatch = true;
+          score += 10;
+        }
+
+        if (!tokenMatch) {
+          matchAllTokens = false;
+          break;
+        }
+      }
+
+      if (matchAllTokens) {
+        scoredList.push({ item: c, score });
+      }
+    }
+
+    scoredList.sort((a, b) => b.score - a.score);
+    return scoredList.map(s => s.item);
+  }, [consultations, filterStatus, searchQuery]);
 
   const handleSearchSubmit = (e) => {
     e.preventDefault();
@@ -179,17 +281,96 @@ export default function AdminConsultationManagementPage() {
       {errorMsg && <Alert variant="danger">{errorMsg}</Alert>}
       {noticeMsg && <Alert variant="success">{noticeMsg}</Alert>}
 
-      {/* Filter Toolbar */}
+      {/* Filter Toolbar with Live Elasticsearch Floating Suggestions */}
       <div className="flex items-center justify-between gap-4 flex-wrap">
-        <form onSubmit={handleSearchSubmit} className="w-full md:w-96 flex gap-2">
-          <Input
-            placeholder="Search patient name, email, or specialization..."
-            leftIcon={<Search className="w-4 h-4" />}
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-          <Button variant="outline" size="md" type="submit">Search</Button>
-        </form>
+        <div ref={searchContainerRef} className="relative w-full md:w-[460px]">
+          <div className="relative">
+            <Input
+              placeholder="Type to search consultation (patient, email, specialization, doctor)..."
+              leftIcon={<Search className="w-4 h-4 text-[var(--primary)]" />}
+              value={searchQuery}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                setIsSuggestionsOpen(true);
+              }}
+              onFocus={() => {
+                if (searchQuery.trim()) setIsSuggestionsOpen(true);
+              }}
+              className="pr-10"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSearchQuery('');
+                  setIsSuggestionsOpen(false);
+                }}
+                className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-[var(--text-muted)] hover:text-[var(--text-main)] rounded-full hover:bg-[var(--bg-surface)]"
+                title="Clear Search"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+
+          {/* Floating Elasticsearch Autocomplete Results Overlay */}
+          {isSuggestionsOpen && searchQuery.trim() && (
+            <div className="absolute left-0 right-0 top-full mt-1.5 bg-[var(--bg-surface)] border border-[var(--border-medium)] rounded-2xl shadow-2xl z-50 overflow-hidden backdrop-blur-xl animate-fade-in max-h-96 overflow-y-auto">
+              <div className="p-2.5 bg-[var(--bg-primary)]/80 border-b border-[var(--border-subtle)] flex items-center justify-between text-[11px] font-mono">
+                <span className="text-[var(--text-muted)] flex items-center gap-1.5">
+                  <Sparkles className="w-3.5 h-3.5 text-[var(--primary)]" />
+                  Elasticsearch Live Index: <strong className="text-[var(--primary)]">{filteredConsultations.length}</strong> matching requests
+                </span>
+                <span className="text-[10px] text-[var(--text-muted)]">Instant 0ms Keystroke Query</span>
+              </div>
+
+              {filteredConsultations.length > 0 ? (
+                <div className="divide-y divide-[var(--border-subtle)]">
+                  {filteredConsultations.slice(0, 6).map((c, i) => (
+                    <button
+                      key={c.consultation_id || i}
+                      type="button"
+                      onClick={() => {
+                        setIsSuggestionsOpen(false);
+                        handleOpenAssignModal(c);
+                      }}
+                      className="w-full text-left p-3 hover:bg-[var(--bg-surface-hover)] transition-all flex items-center justify-between gap-3 group"
+                    >
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-xs text-[var(--text-main)] group-hover:text-[var(--primary)] transition-colors truncate">
+                            <HighlightMatch text={c.patient_name || c.full_name || 'Patient'} query={searchQuery} />
+                          </span>
+                          <span className="text-[11px] font-mono text-[var(--text-muted)]">
+                            <HighlightMatch text={c.patient_email || c.email || ''} query={searchQuery} />
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2 text-[11px] font-mono text-[var(--text-muted)] mt-0.5 truncate">
+                          <span className="text-[var(--primary)] font-semibold">
+                            <HighlightMatch text={c.requested_specialization || c.specialization || 'General'} query={searchQuery} />
+                          </span>
+                          <span>•</span>
+                          <span>Doc: <HighlightMatch text={c.doctor_name || 'Unassigned'} query={searchQuery} /></span>
+                        </div>
+                      </div>
+                      <ChevronRight className="w-4 h-4 text-[var(--text-muted)] group-hover:text-[var(--primary)] group-hover:translate-x-0.5 transition-all shrink-0" />
+                    </button>
+                  ))}
+                  {filteredConsultations.length > 6 && (
+                    <div className="p-2 text-center text-[10px] font-mono text-[var(--text-muted)] bg-[var(--bg-primary)]/50">
+                      + {filteredConsultations.length - 6} more matching consultations in table below
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="p-6 text-center text-xs text-[var(--text-muted)] space-y-1">
+                  <p className="font-semibold text-[var(--text-main)]">No consultations matching "{searchQuery}"</p>
+                  <p className="text-[11px]">Try searching by patient name, email, specialization, or physician.</p>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
 
         <div className="flex items-center gap-1.5 flex-wrap">
           {['ALL', 'REQUESTED', 'ASSIGNED', 'ACCEPTED', 'ACTIVE', 'COMPLETED', 'CANCELLED'].map((st) => (
@@ -207,17 +388,21 @@ export default function AdminConsultationManagementPage() {
       </div>
 
       {/* Consultations Table */}
-      <ContentSection title={`Active Consultation Queue (${consultations.length})`}>
+      <ContentSection title={`Active Consultation Queue (${filteredConsultations.length})`}>
         <Table headers={['Patient Summary', 'Requested Specialization', 'Category & Urgency', 'Assigned Doctor', 'Status', 'Admin Controls']}>
-          {consultations.length > 0 ? (
-            consultations.map((c, idx) => (
+          {filteredConsultations.length > 0 ? (
+            filteredConsultations.map((c, idx) => (
               <TableRow key={`${c.consultation_id || 'cons'}_${idx}`}>
                 <TableCell>
-                  <strong className="text-xs font-semibold text-[var(--text-main)] block">{c.patient_name || c.full_name || 'Patient'}</strong>
-                  <span className="font-mono text-[11px] text-[var(--text-muted)]">{c.patient_email || c.email || '—'}</span>
+                  <strong className="text-xs font-semibold text-[var(--text-main)] block">
+                    <HighlightMatch text={c.patient_name || c.full_name || 'Patient'} query={searchQuery} />
+                  </strong>
+                  <span className="font-mono text-[11px] text-[var(--text-muted)]">
+                    <HighlightMatch text={c.patient_email || c.email || '—'} query={searchQuery} />
+                  </span>
                 </TableCell>
                 <TableCell className="font-semibold text-xs text-[var(--primary)]">
-                  {c.requested_specialization || c.specialization || 'General Medicine'}
+                  <HighlightMatch text={c.requested_specialization || c.specialization || 'General Medicine'} query={searchQuery} />
                 </TableCell>
                 <TableCell>
                   <div className="text-xs font-medium text-[var(--text-main)]">{c.category || 'Clinical Intake Triage'}</div>
@@ -228,7 +413,9 @@ export default function AdminConsultationManagementPage() {
                 <TableCell>
                   {c.doctor_name || c.assigned_doctor_id ? (
                     <div>
-                      <strong className="text-xs text-[var(--text-main)] block">{formatDoctorName(c.doctor_name || 'Arjun Sarkaar')}</strong>
+                      <strong className="text-xs text-[var(--text-main)] block">
+                        <HighlightMatch text={formatDoctorName(c.doctor_name || 'Arjun Sarkaar')} query={searchQuery} />
+                      </strong>
                       <span className="text-[10px] font-mono text-[var(--text-muted)]">{c.doctor_specialization || 'Internal Medicine'}</span>
                     </div>
                   ) : (

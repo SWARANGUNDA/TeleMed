@@ -1,12 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   RefreshCw, Search, CheckCircle2, ShieldCheck, Clock, FileText,
   Hourglass, Bell, ChevronRight, Eye, MessageCircle, ShieldAlert,
-  Sparkles, TrendingUp, BarChart3, ArrowRight, User
+  Sparkles, TrendingUp, BarChart3, ArrowRight, User, X
 } from 'lucide-react';
 import {
-  Button, Card, Badge, Table, TableRow, TableCell, Modal
+  Button, Card, Badge, Table, TableRow, TableCell, Modal, HighlightMatch
 } from '../components/ui';
 import { PageContainer } from '../components/layout';
 import {
@@ -40,8 +40,20 @@ export default function DoctorDashboardPage({ user, onNavigate }) {
   // Queue state & filters
   const [activeQueueTab, setActiveQueueTab] = useState('ALL'); // 'ALL', 'PENDING', 'IN_REVIEW', 'COMPLETED'
   const [searchQuery, setSearchQuery] = useState('');
+  const [isSuggestionsOpen, setIsSuggestionsOpen] = useState(false);
+  const searchContainerRef = useRef(null);
   const [selectedConsultationForDetails, setSelectedConsultationForDetails] = useState(null);
   const [showDetailedAnalyticsModal, setShowDetailedAnalyticsModal] = useState(false);
+
+  useEffect(() => {
+    const handleOutside = (e) => {
+      if (searchContainerRef.current && !searchContainerRef.current.contains(e.target)) {
+        setIsSuggestionsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleOutside);
+    return () => document.removeEventListener('mousedown', handleOutside);
+  }, []);
 
   useEffect(() => {
     loadAllConsultations();
@@ -130,22 +142,46 @@ export default function DoctorDashboardPage({ user, onNavigate }) {
   const inReviewCount = inReviewConsultations.length;
   const completedCount = completedConsultations.length;
 
-  // Filtered queue for table
-  const filteredQueue = allConsultations.filter(c => {
-    // Tab filter
-    if (activeQueueTab === 'PENDING' && !['REQUESTED', 'ASSIGNED', 'PENDING'].includes(c.status)) return false;
-    if (activeQueueTab === 'IN_REVIEW' && !['ACCEPTED', 'CONFIRMED', 'UPCOMING', 'IN_CONSULTATION', 'ACTIVE'].includes(c.status)) return false;
-    if (activeQueueTab === 'COMPLETED' && c.status !== 'COMPLETED') return false;
+  // Filtered queue with Elasticsearch ranking
+  const filteredQueue = useMemo(() => {
+    let list = allConsultations.filter(c => {
+      // Tab filter
+      if (activeQueueTab === 'PENDING' && !['REQUESTED', 'ASSIGNED', 'PENDING'].includes(c.status)) return false;
+      if (activeQueueTab === 'IN_REVIEW' && !['ACCEPTED', 'CONFIRMED', 'UPCOMING', 'IN_CONSULTATION', 'ACTIVE'].includes(c.status)) return false;
+      if (activeQueueTab === 'COMPLETED' && c.status !== 'COMPLETED') return false;
+      return true;
+    });
 
-    // Search query
-    const pName = (c.patient_name || c.full_name || '').toLowerCase();
-    const pId = (c.patient_id || c.user_id || '').toLowerCase();
-    const cId = (c.consultation_id || c.id || '').toLowerCase();
-    const spec = (c.specialty || c.category || '').toLowerCase();
-    const q = searchQuery.toLowerCase();
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return list;
 
-    return !q || pName.includes(q) || pId.includes(q) || cId.includes(q) || spec.includes(q);
-  });
+    const tokens = q.split(/\s+/).filter(Boolean);
+    return list
+      .map(c => {
+        const pName = (c.patient_name || c.full_name || '').toLowerCase();
+        const pId = (c.patient_id || c.user_id || '').toLowerCase();
+        const cId = (c.consultation_id || c.id || '').toLowerCase();
+        const spec = (c.specialty || c.category || '').toLowerCase();
+        const stat = (c.status || '').toLowerCase();
+        const reason = (c.reason || c.chief_complaints || '').toLowerCase();
+
+        const haystack = `${pName} ${pId} ${cId} ${spec} ${stat} ${reason}`;
+        const allMatch = tokens.every(tok => haystack.includes(tok));
+        if (!allMatch) return null;
+
+        let score = 0;
+        tokens.forEach(tok => {
+          if (pName.startsWith(tok)) score += 30;
+          else if (pName.includes(tok)) score += 15;
+          if (cId.includes(tok) || pId.includes(tok)) score += 20;
+          if (spec.includes(tok)) score += 10;
+        });
+        return { c, score };
+      })
+      .filter(Boolean)
+      .sort((a, b) => b.score - a.score)
+      .map(x => x.c);
+  }, [allConsultations, activeQueueTab, searchQuery]);
 
   // Highlight pending case for Action Required Banner
   const actionRequiredCase = pendingConsultations[0];
@@ -316,16 +352,81 @@ export default function DoctorDashboardPage({ user, onNavigate }) {
           </div>
 
           <div className="flex items-center gap-3 flex-wrap">
-            {/* Search Input */}
-            <div className="relative w-64">
-              <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
+            {/* Elasticsearch Search Input */}
+            <div ref={searchContainerRef} className="relative w-72">
+              <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-[var(--primary)]" />
               <input
                 type="text"
-                placeholder="Search patient, ID, specialty..."
+                placeholder="Live search patient, ID, specialty..."
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full bg-[var(--bg-primary)] text-xs text-[var(--text-main)] rounded-xl pl-8 pr-3 py-1.5 border border-[var(--border-subtle)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  setIsSuggestionsOpen(e.target.value.trim().length > 0);
+                }}
+                onFocus={() => {
+                  if (searchQuery.trim()) setIsSuggestionsOpen(true);
+                }}
+                className="w-full bg-[var(--bg-primary)] text-xs text-[var(--text-main)] rounded-xl pl-8 pr-12 py-1.5 border border-[var(--border-subtle)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
               />
+              {searchQuery.trim() && (
+                <span className="absolute right-7 top-1/2 -translate-y-1/2 text-[9px] font-mono px-1 py-0.5 rounded bg-[var(--primary)]/10 text-[var(--primary)] font-bold pointer-events-none">
+                  {filteredQueue.length}
+                </span>
+              )}
+              {searchQuery && (
+                <button
+                  onClick={() => {
+                    setSearchQuery('');
+                    setIsSuggestionsOpen(false);
+                  }}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-[var(--text-muted)] hover:text-[var(--danger)]"
+                  title="Clear Search"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+
+              {/* Floating Autocomplete Dropdown */}
+              {isSuggestionsOpen && searchQuery.trim().length > 0 && (
+                <div className="absolute top-full left-0 right-0 mt-2 z-50 bg-[var(--bg-surface)] border border-[var(--primary)]/40 rounded-2xl shadow-2xl backdrop-blur-xl max-h-60 overflow-y-auto custom-scrollbar p-2 animate-fadeIn">
+                  <div className="px-3 py-1 border-b border-[var(--border-subtle)] flex items-center justify-between text-[10px] font-bold text-[var(--text-muted)]">
+                    <span className="flex items-center gap-1">
+                      <Sparkles className="w-3 h-3 text-[var(--primary)]" />
+                      Queue Matches
+                    </span>
+                    <span>{filteredQueue.length} cases</span>
+                  </div>
+
+                  {filteredQueue.length > 0 ? (
+                    filteredQueue.slice(0, 5).map((c, idx) => (
+                      <div
+                        key={`doc_sugg_${c.id || idx}`}
+                        onClick={() => {
+                          setSearchQuery(c.patient_name || c.full_name || '');
+                          setIsSuggestionsOpen(false);
+                        }}
+                        className="p-2 hover:bg-[var(--primary)]/10 rounded-xl cursor-pointer transition-colors flex items-center justify-between gap-2 text-left"
+                      >
+                        <div className="min-w-0">
+                          <p className="text-xs font-bold text-[var(--text-main)] truncate">
+                            <HighlightMatch text={c.patient_name || c.full_name || 'Patient'} query={searchQuery} />
+                          </p>
+                          <p className="text-[10px] text-[var(--text-muted)] font-mono truncate">
+                            <HighlightMatch text={c.consultation_id || c.id} query={searchQuery} /> • {c.specialty || c.category}
+                          </p>
+                        </div>
+                        <Badge variant="primary" size="sm" className="!text-[9px]">
+                          {c.status}
+                        </Badge>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="p-3 text-center text-xs text-[var(--text-muted)]">
+                      No matching cases in review queue
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Filter Tabs */}
@@ -369,13 +470,13 @@ export default function DoctorDashboardPage({ user, onNavigate }) {
               return (
                 <TableRow key={c.consultation_id || c.id || `queue-row-${idx}`}>
                   <TableCell className="font-mono text-xs font-bold text-[var(--primary)]">
-                    {c.consultation_id || c.id}
+                    <HighlightMatch text={c.consultation_id || c.id} query={searchQuery} />
                   </TableCell>
                   <TableCell className="font-semibold text-xs text-[var(--text-main)]">
-                    {c.patient_name || c.full_name || 'Patient Record'}
+                    <HighlightMatch text={c.patient_name || c.full_name || 'Patient Record'} query={searchQuery} />
                   </TableCell>
                   <TableCell className="text-xs text-[var(--text-muted)] font-medium">
-                    {c.specialty || c.category || doctorSpecialty}
+                    <HighlightMatch text={c.specialty || c.category || doctorSpecialty} query={searchQuery} />
                   </TableCell>
                   <TableCell>
                     <Badge

@@ -2,8 +2,9 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   UploadCloud, Camera, FileText, CheckCircle2, AlertCircle, Trash2, ArrowRight, ShieldCheck,
-  Activity, Watch, Dna, RefreshCw, ChevronRight, Sliders, Check, Eye, Edit3, Sparkles, AlertTriangle, HelpCircle, ShieldAlert, Info, Search, FileSpreadsheet, Lock, Brain
+  Activity, Watch, Dna, RefreshCw, ChevronRight, Sliders, Check, Eye, Edit3, Sparkles, AlertTriangle, HelpCircle, ShieldAlert, Info, Search, FileSpreadsheet, Lock, Brain, X
 } from 'lucide-react';
+import HighlightMatch from '../components/ui/HighlightMatch';
 import {
   Button, Card, CardHeader, CardBody, CardFooter, Badge, Avatar,
   ProgressBar, CircularProgress, Skeleton, Table, TableRow, TableCell, Tabs, EmptyState, Alert, Input, Accordion
@@ -944,10 +945,22 @@ export default function IntakePage({
 
           {/* Feature Search Filter Bar */}
           <div className="flex items-center justify-between gap-4 flex-wrap">
-            <div className="w-full md:w-96">
+            <div className="w-full md:w-96 relative">
               <Input
                 placeholder="Search canonical biomarker or taxa..."
-                leftIcon={<Search className="w-4 h-4" />}
+                leftIcon={<Search className="w-4 h-4 text-[var(--primary)]" />}
+                rightIcon={
+                  featureSearchQuery ? (
+                    <button
+                      type="button"
+                      onClick={() => setFeatureSearchQuery('')}
+                      className="p-1 hover:bg-[var(--bg-surface-hover)] rounded-full text-[var(--text-muted)] hover:text-[var(--text-main)] transition-colors"
+                      title="Clear Search"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  ) : null
+                }
                 value={featureSearchQuery}
                 onChange={(e) => setFeatureSearchQuery(e.target.value)}
               />
@@ -966,7 +979,13 @@ export default function IntakePage({
                 id: 'clinical_feats',
                 label: 'Clinical Lab Biomarkers (18)',
                 content: (() => {
-                  const filtered = CLINICAL_V4_FEATURES.filter(k => k.toLowerCase().includes(featureSearchQuery.toLowerCase()));
+                  const q = featureSearchQuery.trim().toLowerCase();
+                  const tokens = q ? q.split(/\s+/).filter(Boolean) : [];
+                  const filtered = CLINICAL_V4_FEATURES.filter(k => {
+                    if (!tokens.length) return true;
+                    const kLower = k.toLowerCase();
+                    return tokens.every(t => kLower.includes(t));
+                  });
                   const visible = showAllClinical ? filtered : filtered.slice(0, 7);
                   return (
                     <div className="space-y-3">
@@ -978,7 +997,9 @@ export default function IntakePage({
 
                           return (
                             <TableRow key={featKey} className={isEdited ? 'bg-amber-500/5' : ''}>
-                              <TableCell className="font-semibold text-xs">{featKey}</TableCell>
+                              <TableCell className="font-semibold text-xs">
+                                <HighlightMatch text={featKey} query={featureSearchQuery} />
+                              </TableCell>
                               <TableCell>
                                 <Input
                                   value={val ?? ''}
@@ -1020,7 +1041,13 @@ export default function IntakePage({
                 id: 'wearable_feats',
                 label: 'Wearable Telemetry (15)',
                 content: (() => {
-                  const filtered = WEARABLE_V4_FEATURES.filter(k => k.toLowerCase().includes(featureSearchQuery.toLowerCase()));
+                  const q = featureSearchQuery.trim().toLowerCase();
+                  const tokens = q ? q.split(/\s+/).filter(Boolean) : [];
+                  const filtered = WEARABLE_V4_FEATURES.filter(k => {
+                    if (!tokens.length) return true;
+                    const kLower = k.toLowerCase();
+                    return tokens.every(t => kLower.includes(t));
+                  });
                   const visible = showAllWearable ? filtered : filtered.slice(0, 7);
                   return (
                     <div className="space-y-3">
@@ -1032,7 +1059,9 @@ export default function IntakePage({
 
                           return (
                             <TableRow key={featKey} className={isEdited ? 'bg-amber-500/5' : ''}>
-                              <TableCell className="font-semibold text-xs">{featKey}</TableCell>
+                              <TableCell className="font-semibold text-xs">
+                                <HighlightMatch text={featKey} query={featureSearchQuery} />
+                              </TableCell>
                               <TableCell>
                                 <Input
                                   value={val ?? ''}
@@ -1139,10 +1168,22 @@ export default function IntakePage({
 
                       {/* CONTROLS BAR */}
                       <Card isGlass={true} className="p-4 space-y-3">
-                        <div className="flex items-center gap-2 w-full max-w-sm mb-2">
+                        <div className="flex items-center gap-2 w-full max-w-sm mb-2 relative">
                           <Input
                             placeholder="Search 40 V4 Taxa species..."
-                            leftIcon={<Search className="w-4 h-4" />}
+                            leftIcon={<Search className="w-4 h-4 text-[var(--accent)]" />}
+                            rightIcon={
+                              taxaSearchQuery ? (
+                                <button
+                                  type="button"
+                                  onClick={() => setTaxaSearchQuery('')}
+                                  className="p-1 hover:bg-[var(--bg-surface-hover)] rounded-full text-[var(--text-muted)] hover:text-[var(--text-main)] transition-colors"
+                                  title="Clear Search"
+                                >
+                                  <X className="w-3.5 h-3.5" />
+                                </button>
+                              ) : null
+                            }
                             value={taxaSearchQuery}
                             onChange={(e) => setTaxaSearchQuery(e.target.value)}
                           />
@@ -1157,7 +1198,7 @@ export default function IntakePage({
                             return (
                               <TableRow key={featKey} className={isEdited ? 'bg-purple-500/5' : ''}>
                                 <TableCell className="font-semibold text-xs font-mono text-[var(--text-main)]">
-                                  {featKey}
+                                  <HighlightMatch text={featKey} query={taxaSearchQuery || featureSearchQuery} />
                                 </TableCell>
                                 <TableCell>
                                   <Input

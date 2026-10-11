@@ -177,6 +177,13 @@ export default function DoctorVerificationPage({ currentUser }) {
       const lightMeta = updated.map(({ data_url, ...rest }) => rest);
       try { localStorage.setItem(`telemed_doctor_creds_meta_${doctorUserId}`, JSON.stringify(lightMeta)); } catch (e) {}
 
+      window.dispatchEvent(new Event('telemed:doctor-updated'));
+      try {
+        const bc = new BroadcastChannel('telemed_sync');
+        bc.postMessage({ type: 'DOCTOR_CREDENTIAL_UPLOADED', doctorId: doctorUserId });
+        bc.close();
+      } catch (e) {}
+
       setSuccessMsg(`Credential document '${selectedFile.name}' uploaded successfully to secure vault.`);
       setSelectedFile(null);
       setUploading(false);
@@ -233,12 +240,24 @@ export default function DoctorVerificationPage({ currentUser }) {
       setSuccessMsg('Application submitted for Admin Verification! Status updated to UNDER REVIEW.');
       setHasNewUpload(false);
       window.dispatchEvent(new Event('telemed:user-updated'));
+      window.dispatchEvent(new Event('telemed:doctor-updated'));
+      try {
+        const bc = new BroadcastChannel('telemed_sync');
+        bc.postMessage({ type: 'DOCTOR_APPLICATION_SUBMITTED', doctorId: doctorUserId });
+        bc.close();
+      } catch (e) {}
     } catch (err) {
       try { localStorage.setItem(`telemed_doctor_status_${doctorUserId}`, 'UNDER_REVIEW'); } catch (e) {}
       setAppData(prev => ({ ...(prev || {}), verification_status: 'UNDER_REVIEW' }));
       setSuccessMsg('Application submitted for Admin Verification! Status updated to UNDER REVIEW.');
       setHasNewUpload(false);
       window.dispatchEvent(new Event('telemed:user-updated'));
+      window.dispatchEvent(new Event('telemed:doctor-updated'));
+      try {
+        const bc = new BroadcastChannel('telemed_sync');
+        bc.postMessage({ type: 'DOCTOR_APPLICATION_SUBMITTED', doctorId: doctorUserId });
+        bc.close();
+      } catch (e) {}
     } finally {
       setSubmitting(false);
     }

@@ -1,13 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { PageHeader, PageContainer, ContentSection } from '../components/layout';
-import { Card, Badge, Button, ProgressBar, Input, Modal, Tabs, Table, EmptyState, Alert } from '../components/ui';
+import { Card, Badge, Button, ProgressBar, Input, Modal, Tabs, Table, EmptyState, Alert, HighlightMatch, Avatar } from '../components/ui';
 import {
   User, ShieldCheck, Activity, Heart, FileText, Watch, Dna, Clock,
   Search, Filter, Download, Eye, Edit3, Calendar, Phone, Mail, MapPin,
   Sparkles, CheckCircle2, AlertCircle, ArrowUpRight, ChevronRight, Check,
-  Stethoscope, Brain, Shield, Award, Zap, Smile, HeartPulse, Scale
+  Stethoscope, Brain, Shield, Award, Zap, Smile, HeartPulse, Scale, X
 } from 'lucide-react';
-import { getAvailableAvatarsForRole, getAvatarById, svgToDataUri } from '../utils/avatarCatalog';
+import { getAvailableAvatarsForRole, getAvatarById, svgToDataUri, suggestAvatarByDemographics } from '../utils/avatarCatalog';
 
 export default function ProfilePage({ user, session, predictionData, onNavigate, refreshCurrentUser }) {
   const [activeTab, setActiveTab] = useState('summary');
@@ -204,6 +204,23 @@ export default function ProfilePage({ user, session, predictionData, onNavigate,
     },
   ];
 
+  // Dynamic Profile Completion Rate (0-100%)
+  const completionRate = useMemo(() => {
+    const fields = [
+      profileForm.fullName,
+      profileForm.email,
+      profileForm.phone,
+      profileForm.dob,
+      profileForm.age,
+      profileForm.gender,
+      profileForm.height,
+      profileForm.weight,
+      profileForm.bloodGroup,
+    ];
+    const filled = fields.filter(f => f !== null && f !== undefined && String(f).trim() !== '' && String(f) !== 'None reported').length;
+    return Math.round((filled / fields.length) * 100);
+  }, [profileForm]);
+
   const assessmentHistory = realRecords.map((r, idx) => ({
     id: r.record_id || `ASM-${idx}`,
     date: r.created_at ? new Date(r.created_at).toISOString().split('T')[0] : 'N/A',
@@ -214,27 +231,62 @@ export default function ProfilePage({ user, session, predictionData, onNavigate,
     pathway: r.effective_pathway || 'C+W+G',
   }));
 
-  const filteredHistory = assessmentHistory.filter((item) =>
-    item.id.toLowerCase().includes(historySearchQuery.toLowerCase()) ||
-    item.diseases.toLowerCase().includes(historySearchQuery.toLowerCase())
-  );
+  const filteredHistory = useMemo(() => {
+    if (!historySearchQuery.trim()) return assessmentHistory;
+    const q = historySearchQuery.toLowerCase().trim();
+    const tokens = q.split(/\s+/).filter(Boolean);
+    return assessmentHistory
+      .map(item => {
+        const haystack = `${item.id} ${item.diseases} ${item.risk} ${item.pathway}`.toLowerCase();
+        const allMatch = tokens.every(t => haystack.includes(t));
+        if (!allMatch) return null;
+        let score = 0;
+        tokens.forEach(t => {
+          if (item.id.toLowerCase().includes(t)) score += 30;
+          if (item.diseases.toLowerCase().includes(t)) score += 20;
+        });
+        return { item, score };
+      })
+      .filter(Boolean)
+      .sort((a, b) => b.score - a.score)
+      .map(x => x.item);
+  }, [assessmentHistory, historySearchQuery]);
 
-  const vaultDocuments = realRecords.map((r) => ({
-    id: `DOC-${r.record_id}`,
-    name: `TeleMed_Health_Record_${r.record_id}.json`,
-    type: 'AI Reports',
-    date: r.created_at ? new Date(r.created_at).toISOString().split('T')[0] : 'N/A',
-    size: 'Immutable Record',
-    status: 'Verified Snapshot',
-    recordId: r.record_id,
-  }));
+  const vaultDocuments = useMemo(() => {
+    return realRecords.map((r) => ({
+      id: `DOC-${r.record_id}`,
+      name: `TeleMed_Health_Record_${r.record_id}.json`,
+      type: 'AI Reports',
+      date: r.created_at ? new Date(r.created_at).toISOString().split('T')[0] : 'N/A',
+      size: 'Immutable Record',
+      status: 'Verified Snapshot',
+      recordId: r.record_id,
+    }));
+  }, [realRecords]);
 
-  const filteredVault = vaultDocuments.filter((doc) => {
-    const matchesCat = vaultCategory === 'ALL' || doc.type === vaultCategory;
-    const matchesSearch = doc.name.toLowerCase().includes(vaultSearchQuery.toLowerCase()) ||
-                          doc.type.toLowerCase().includes(vaultSearchQuery.toLowerCase());
-    return matchesCat && matchesSearch;
-  });
+  const filteredVault = useMemo(() => {
+    let list = vaultDocuments.filter((doc) => {
+      return vaultCategory === 'ALL' || doc.type === vaultCategory;
+    });
+    if (!vaultSearchQuery.trim()) return list;
+    const q = vaultSearchQuery.toLowerCase().trim();
+    const tokens = q.split(/\s+/).filter(Boolean);
+    return list
+      .map(doc => {
+        const haystack = `${doc.name} ${doc.type} ${doc.id}`.toLowerCase();
+        const allMatch = tokens.every(t => haystack.includes(t));
+        if (!allMatch) return null;
+        let score = 0;
+        tokens.forEach(t => {
+          if (doc.name.toLowerCase().includes(t)) score += 30;
+          if (doc.id.toLowerCase().includes(t)) score += 20;
+        });
+        return { doc, score };
+      })
+      .filter(Boolean)
+      .sort((a, b) => b.score - a.score)
+      .map(x => x.doc);
+  }, [vaultDocuments, vaultCategory, vaultSearchQuery]);
 
   return (
     <PageContainer className="space-y-8 py-6">
@@ -511,23 +563,44 @@ export default function ProfilePage({ user, session, predictionData, onNavigate,
           {/* TAB 4: ASSESSMENT HISTORY */}
           {activeTab === 'history' && (
             <div className="space-y-4">
-              <Input
-                placeholder="Search assessment history by ID or disease..."
-                leftIcon={<Search className="w-4 h-4" />}
-                value={historySearchQuery}
-                onChange={(e) => setHistorySearchQuery(e.target.value)}
-              />
+              <div className="relative">
+                <Input
+                  placeholder="Live search assessment history by ID or disease..."
+                  leftIcon={<Search className="w-4 h-4 text-[var(--primary)]" />}
+                  rightIcon={
+                    historySearchQuery ? (
+                      <button
+                        type="button"
+                        onClick={() => setHistorySearchQuery('')}
+                        className="p-1 text-[var(--text-muted)] hover:text-[var(--danger)]"
+                        title="Clear Search"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    ) : null
+                  }
+                  value={historySearchQuery}
+                  onChange={(e) => setHistorySearchQuery(e.target.value)}
+                />
+                {historySearchQuery.trim() && (
+                  <span className="absolute right-9 top-1/2 -translate-y-1/2 text-[10px] font-mono px-1.5 py-0.5 rounded bg-[var(--primary)]/10 text-[var(--primary)] font-bold pointer-events-none">
+                    {filteredHistory.length} matches
+                  </span>
+                )}
+              </div>
 
               {filteredHistory.length === 0 ? (
                 <Card isGlass={true} className="p-8 text-center text-xs text-[var(--text-muted)]">
-                  No assessments found matching your search.
+                  {historySearchQuery ? `No assessments matching "${historySearchQuery}".` : "No assessments found matching your search."}
                 </Card>
               ) : (
                 filteredHistory.map((item) => (
                   <Card key={item.id} isGlass={true} className="p-5 space-y-3">
                     <div className="flex justify-between items-center flex-wrap gap-2">
                       <div className="flex items-center gap-2">
-                        <strong className="text-sm font-mono text-[var(--primary)]">{item.id}</strong>
+                        <strong className="text-sm font-mono text-[var(--primary)]">
+                          <HighlightMatch text={item.id} query={historySearchQuery} />
+                        </strong>
                         <span className="text-xs text-[var(--text-muted)]">Date: {item.date}</span>
                       </div>
                       <Badge variant={item.riskVariant} size="sm">{item.risk}</Badge>
@@ -536,7 +609,9 @@ export default function ProfilePage({ user, session, predictionData, onNavigate,
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs font-mono p-3 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-subtle)]">
                       <div>
                         <span className="text-[9px] text-[var(--text-muted)] block uppercase">Diseases Evaluated</span>
-                        <span className="text-[var(--text-main)] font-semibold truncate block">{item.diseases}</span>
+                        <span className="text-[var(--text-main)] font-semibold truncate block">
+                          <HighlightMatch text={item.diseases} query={historySearchQuery} />
+                        </span>
                       </div>
                       <div>
                         <span className="text-[9px] text-[var(--text-muted)] block uppercase">Model Confidence</span>
@@ -566,13 +641,32 @@ export default function ProfilePage({ user, session, predictionData, onNavigate,
           {activeTab === 'vault' && (
             <div className="space-y-4">
               <div className="flex gap-3 items-center justify-between flex-wrap">
-                <Input
-                  placeholder="Search health documents..."
-                  leftIcon={<Search className="w-4 h-4" />}
-                  value={vaultSearchQuery}
-                  onChange={(e) => setVaultSearchQuery(e.target.value)}
-                  className="w-full sm:w-72"
-                />
+                <div className="relative w-full sm:w-80">
+                  <Input
+                    placeholder="Live search health documents..."
+                    leftIcon={<Search className="w-4 h-4 text-[var(--primary)]" />}
+                    rightIcon={
+                      vaultSearchQuery ? (
+                        <button
+                          type="button"
+                          onClick={() => setVaultSearchQuery('')}
+                          className="p-1 text-[var(--text-muted)] hover:text-[var(--danger)]"
+                          title="Clear Search"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      ) : null
+                    }
+                    value={vaultSearchQuery}
+                    onChange={(e) => setVaultSearchQuery(e.target.value)}
+                    className="w-full"
+                  />
+                  {vaultSearchQuery.trim() && (
+                    <span className="absolute right-9 top-1/2 -translate-y-1/2 text-[10px] font-mono px-1.5 py-0.5 rounded bg-[var(--primary)]/10 text-[var(--primary)] font-bold pointer-events-none">
+                      {filteredVault.length} files
+                    </span>
+                  )}
+                </div>
                 <select
                   value={vaultCategory}
                   onChange={(e) => setVaultCategory(e.target.value)}
@@ -586,7 +680,7 @@ export default function ProfilePage({ user, session, predictionData, onNavigate,
               <div className="space-y-3">
                 {filteredVault.length === 0 ? (
                   <Card isGlass={true} className="p-8 text-center text-xs text-[var(--text-muted)]">
-                    No documents stored in vault yet.
+                    {vaultSearchQuery ? `No documents matching "${vaultSearchQuery}".` : "No documents stored in vault yet."}
                   </Card>
                 ) : (
                   filteredVault.map((doc) => (
@@ -596,7 +690,9 @@ export default function ProfilePage({ user, session, predictionData, onNavigate,
                           <FileText className="w-5 h-5" />
                         </div>
                         <div>
-                          <strong className="text-xs text-[var(--text-main)] block font-mono">{doc.name}</strong>
+                          <strong className="text-xs text-[var(--text-main)] block font-mono">
+                            <HighlightMatch text={doc.name} query={vaultSearchQuery} />
+                          </strong>
                           <span className="text-[10px] font-mono text-[var(--text-muted)]">
                             {doc.type} • {doc.date} • {doc.size}
                           </span>
@@ -630,13 +726,33 @@ export default function ProfilePage({ user, session, predictionData, onNavigate,
         >
           <form onSubmit={handleProfileSave} className="space-y-4 text-xs">
             
-            {/* GHIBLI AVATAR SELECTION SECTION (ROLE-GATED) */}
+            {/* GHIBLI AVATAR & CLINICAL EMOJI SELECTION SECTION (ROLE-GATED) */}
             <div className="space-y-2 p-3 rounded-2xl bg-gradient-to-br from-[var(--bg-primary)] to-[var(--bg-surface)] border border-[var(--border-subtle)] shadow-sm">
-              <div className="flex justify-between items-center px-1">
-                <span className="font-black text-xs text-[var(--text-main)] font-mono uppercase tracking-wider">
-                  Select Your Indian Ghibli Avatar
-                </span>
-                <Badge variant="primary" size="sm" className="font-bold text-[10px]">Patient Suite (6 Characters)</Badge>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 px-1">
+                <div>
+                  <span className="font-black text-xs text-[var(--text-main)] font-mono uppercase tracking-wider block">
+                    Select Your Clinical Avatar & Emoji
+                  </span>
+                  <span className="text-[10px] text-[var(--text-muted)]">
+                    Pick your character avatar or auto-match based on age and gender
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="!px-2.5 !py-1 text-[11px] font-bold text-[var(--primary)] border-[var(--primary)]/30 hover:bg-[var(--primary)]/10"
+                    leftIcon={<Sparkles className="w-3.5 h-3.5 text-[var(--primary)] animate-pulse" />}
+                    onClick={() => {
+                      const suggested = suggestAvatarByDemographics(profileForm.age, profileForm.gender, userRole);
+                      setProfileForm(prev => ({ ...prev, selectedAvatar: suggested.id }));
+                    }}
+                  >
+                    Auto-Match by Age & Gender
+                  </Button>
+                  <Badge variant="primary" size="sm" className="font-bold text-[10px]">Patient Suite</Badge>
+                </div>
               </div>
 
               <div className="grid grid-cols-3 sm:grid-cols-6 gap-2.5 pt-1">
@@ -648,22 +764,28 @@ export default function ProfilePage({ user, session, predictionData, onNavigate,
                       key={av.id}
                       type="button"
                       onClick={() => setProfileForm({ ...profileForm, selectedAvatar: av.id })}
-                      className={`p-2 rounded-xl flex flex-col items-center justify-center transition-all duration-200 relative group ${
+                      className={`p-2 rounded-xl flex flex-col items-center justify-center transition-all duration-200 relative group cursor-pointer ${
                         isSelected 
                           ? `bg-gradient-to-tr ${av.color} text-white shadow-lg ring-2 ${av.ring} scale-102 z-10` 
                           : 'bg-[var(--bg-surface)] text-[var(--text-main)] border border-[var(--border-subtle)] hover:border-[var(--primary)] hover:scale-102'
                       }`}
-                      title={av.label}
+                      title={`${av.label} (${av.ageRange})`}
                     >
                       {isSelected && (
                         <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-emerald-500 text-white flex items-center justify-center text-[9px] font-bold shadow-md">
                           ✓
                         </span>
                       )}
-                      <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-white/40 shadow-sm mb-1 bg-slate-900 shrink-0">
+                      <div className="relative w-12 h-12 rounded-full overflow-hidden border-2 border-white/40 shadow-sm mb-1 bg-slate-900 shrink-0">
                         <img src={avatarUri} alt={av.label} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300" />
+                        <span className="absolute -bottom-1 -right-1 text-xs bg-black/60 rounded-full px-0.5">
+                          {av.emoji}
+                        </span>
                       </div>
                       <span className="text-[11px] font-bold font-mono text-center leading-none truncate w-full">{av.role}</span>
+                      <span className={`text-[8.5px] font-mono leading-none mt-0.5 ${isSelected ? 'text-white/80' : 'text-[var(--text-muted)]'}`}>
+                        {av.ageRange}
+                      </span>
                     </button>
                   );
                 })}

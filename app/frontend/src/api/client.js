@@ -429,6 +429,59 @@ export async function fetchAdminUsers(roleFilter = '', searchQuery = '') {
   return data.users || (Array.isArray(data) ? data : []);
 }
 
+export async function createAdminUser(userData) {
+  const res = await fetch(`${API_BASE}/admin/users`, {
+    method: 'POST',
+    headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
+    body: JSON.stringify(userData),
+  });
+  const data = await handleApiResponse(res, 'Failed to create user account');
+  return data.user || data;
+}
+
+export async function updateAdminUserStatus(userId, isActive) {
+  const res = await fetch(`${API_BASE}/admin/users/${userId}/status`, {
+    method: 'PUT',
+    headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
+    body: JSON.stringify({ is_active: Boolean(isActive) }),
+  });
+  const data = await handleApiResponse(res, 'Failed to update user status');
+  return data.user || data;
+}
+
+export async function resetAdminUserPassword(userId, newPassword = null) {
+  const res = await fetch(`${API_BASE}/admin/users/${userId}/reset-password`, {
+    method: 'POST',
+    headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
+    body: JSON.stringify({ new_password: newPassword }),
+  });
+  return await handleApiResponse(res, 'Failed to reset user password');
+}
+
+export async function fetchAdminSystemHealth() {
+  const res = await fetch(`${API_BASE}/admin/system/health`, {
+    headers: getAuthHeaders(),
+  });
+  return await handleApiResponse(res, 'Failed to fetch system operations health');
+}
+
+export async function fetchAdminSystemSettings() {
+  const res = await fetch(`${API_BASE}/admin/system/settings`, {
+    headers: getAuthHeaders(),
+  });
+  const data = await handleApiResponse(res, 'Failed to fetch system settings');
+  return data.settings || data;
+}
+
+export async function updateAdminSystemSettings(settings) {
+  const res = await fetch(`${API_BASE}/admin/system/settings`, {
+    method: 'POST',
+    headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
+    body: JSON.stringify({ settings }),
+  });
+  return await handleApiResponse(res, 'Failed to update system settings');
+}
+
 export async function fetchAdminDoctors(verificationStatus = null) {
   let url = `${API_BASE}/admin/doctors`;
   if (verificationStatus) url += `?verification_status=${encodeURIComponent(verificationStatus)}`;
@@ -725,7 +778,10 @@ export async function submitDoctorApplicationForReview() {
 
 export async function fetchAdminDoctorApplications(statusFilter = '', specializationFilter = '', searchQuery = '') {
   const params = new URLSearchParams();
-  if (statusFilter && statusFilter !== 'ALL') params.append('status', statusFilter);
+  if (statusFilter && statusFilter !== 'ALL') {
+    params.append('status', statusFilter);
+    params.append('verification_status', statusFilter);
+  }
   if (specializationFilter && specializationFilter !== 'ALL') params.append('specialization', specializationFilter);
   if (searchQuery) params.append('search', searchQuery);
 
@@ -734,7 +790,12 @@ export async function fetchAdminDoctorApplications(statusFilter = '', specializa
     headers: getAuthHeaders(),
   });
   const data = await handleApiResponse(res, 'Failed to fetch doctor applications');
-  return data.applications || (Array.isArray(data) ? data : []);
+  const list = (data && data.applications) || (data && data.doctors) || (Array.isArray(data) ? data : []);
+  if (Array.isArray(list)) {
+    list.applications = list;
+    list.doctors = list;
+  }
+  return list;
 }
 
 export async function fetchAdminDoctorApplicationDetail(doctorId) {
@@ -751,8 +812,11 @@ export async function transitionDoctorStatus(doctorId, targetStatus, reason = ''
     method: 'POST',
     headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify({
+      status: targetStatus,
       target_status: targetStatus,
+      new_status: targetStatus,
       reason: reason,
+      notes: reason,
     }),
   });
   return await handleApiResponse(res, 'Failed to transition application status');
@@ -1049,26 +1113,6 @@ export async function joinAppointment(appointmentId) {
   return await handleApiResponse(res, 'Failed to join appointment session');
 }
 
-// ------------------------------------------------------------------
-// Level 10: System Operations & Health Monitoring API
-// ------------------------------------------------------------------
-
-export async function fetchAdminSystemHealth() {
-  const res = await fetch(`${API_BASE}/admin/system/health`, {
-    method: 'GET',
-    headers: getAuthHeaders(),
-  });
-  return await handleApiResponse(res, 'Failed to fetch system health diagnostics');
-}
-
-export async function updateAdminSystemSettings(settings) {
-  const res = await fetch(`${API_BASE}/admin/system/settings`, {
-    method: 'POST',
-    headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
-    body: JSON.stringify({ settings }),
-  });
-  return await handleApiResponse(res, 'Failed to update system settings');
-}
 
 // ------------------------------------------------------------------
 // Level 12: Audit & Data Governance API
