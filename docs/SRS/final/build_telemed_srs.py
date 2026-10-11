@@ -83,33 +83,13 @@ def create_srs_document():
     # -------------------------------------------------------------------------
     add_heading_1(doc, "1. ABSTRACT")
     add_body_p(doc, 
-        "TeleMed is an advanced AI-assisted telemedicine decision-support platform designed to address the fragmented nature "
-        "of contemporary digital health systems. Traditional telemedicine frameworks rely almost exclusively on episodic clinical "
-        "laboratory data, failing to synthesize continuous physiological telemetry from wearable sensors and metabolic multi-omics "
-        "data from the human gut microbiome. TeleMed resolves this gap by providing a unified, multi-modal diagnostic engine that "
-        "integrates three distinct health modalities: (1) Clinical Laboratory & Biomarker Data (18 features), (2) Continuous Wearable "
-        "& Continuous Glucose Monitoring (CGM) Telemetry (15 features), and (3) 16S rRNA / Metagenomic Gut Microbiome Profiles "
-        "(40 bacterial taxa and 9 derived ecological/functional indices)."
+        "Metabolic diseases such as Type 2 Diabetes, Prediabetes, High Adiposity Risk, Metabolic Syndrome, and Non-Alcoholic Fatty Liver Disease are influenced by complex interactions among clinical, lifestyle, wearable, and gut microbiome factors. However, existing telemedicine systems primarily rely on conventional clinical and wearable data and provide limited integration of gut microbiome information. In addition, many AI-assisted healthcare systems offer limited interpretability, personalized recommendations, and clinician-friendly synthesis of heterogeneous patient data. This project proposes a Generative AI Assisted Telemedicine Platform for Personalized Gut Microbiome Analysis that integrates clinical, wearable/Continuous Glucose Monitoring (CGM), and gut microbiome data within a unified telemedicine environment."
     )
     add_body_p(doc, 
-        "The architecture incorporates three specialized modality-specific Machine Learning expert models—a CatBoost Clinical Expert, "
-        "an XGBoost Wearable/CGM Expert, and a CatBoost Gut Microbiome Expert. These experts execute modality-level feature processing "
-        "and pass their risk estimates into an adaptive Stacking/Fusion Meta-Learner. The fusion engine dynamically evaluates available "
-        "patient modalities across seven complete and partial input combinations, producing multi-label risk probability scores for five "
-        "interrelated cardiometabolic and liver conditions: Type 2 Diabetes, Prediabetes, High Adiposity Risk, Metabolic Syndrome, and "
-        "Non-Alcoholic Fatty Liver Disease (NAFLD)."
+        "The proposed system employs modality-specific machine learning expert models and probability-level multimodal fusion to generate risk predictions for five metabolic conditions while dynamically handling different combinations of available patient modalities without numerically imputing an entirely unavailable modality. Explainable AI using TreeSHAP is incorporated to identify influential features and provide transparent interpretations of model predictions. A Retrieval-Augmented Generation (RAG) and Generative AI layer further transforms structured model outputs and relevant medical evidence into understandable, clinician-friendly summaries and personalized health recommendations. The platform also provides patient and healthcare-professional interfaces supporting health-data management, risk visualization, report generation, and remote consultation workflows."
     )
     add_body_p(doc, 
-        "To ensure transparency and clinical trust, TeleMed integrates TreeSHAP (SHapley Additive exPlanations) to compute exact game-theoretic "
-        "feature attributions for every prediction. To bridge the gap between machine predictions and clinical utility, the system combines "
-        "a Medical Retrieval-Augmented Generation (RAG) vector engine (utilizing FAISS embeddings of peer-reviewed clinical guidelines) with "
-        "a Large Language Model (LLM) to generate personalized, evidence-grounded health reports for patients and reviewing physicians."
-    )
-    add_callout_box(doc, 
-        "CRITICAL DISCLAIMER: TeleMed is designed strictly as an AI-assisted clinical decision-support research prototype. "
-        "It does NOT perform autonomous medical diagnosis, prescribe pharmaceutical treatments, or replace qualified healthcare professionals. "
-        "All predictions and AI-generated insights represent probabilistic risk estimates and must be interpreted by a certified physician.",
-        "CLINICAL DECISION SUPPORT NOTICE"
+        "The system is designed as a research-oriented clinical decision-support framework rather than an autonomous diagnostic system. Its machine-learning evaluation is conducted using a synthetically generated multimodal cohort, providing a controlled environment for evaluating multimodal prediction, explainability, and dynamic modality handling. The proposed platform demonstrates how gut microbiome information, wearable data, clinical parameters, explainable machine learning, and Generative AI can be integrated into a unified telemedicine framework for personalized metabolic health decision support."
     )
 
     # -------------------------------------------------------------------------
