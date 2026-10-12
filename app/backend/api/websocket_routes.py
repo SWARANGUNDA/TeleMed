@@ -280,9 +280,11 @@ async def websocket_call_signaling_endpoint(
 
         # If peer already initiated a call, deliver pending request immediately
         pending_call = ws_manager.get_pending_call(consultation_id)
-        if pending_call and pending_call.get("sender_id") != user_id:
-            logger.info(f"Delivering pending call request in {consultation_id} to newly joined user {user_id}")
-            await websocket.send_text(json.dumps(pending_call))
+        if pending_call:
+            room_size = ws_manager.get_room_size(consultation_id)
+            if pending_call.get("sender_id") != user_id or room_size >= 2:
+                logger.info(f"Delivering pending call request in {consultation_id} to newly joined user {user_id}")
+                await websocket.send_text(json.dumps(pending_call))
 
         while True:
             raw_text = await websocket.receive_text()
@@ -313,8 +315,8 @@ async def websocket_call_signaling_endpoint(
                 if event in ("CALL_ACCEPT", "CALL_DECLINE", "CALL_CANCEL", "CALL_END"):
                     ws_manager.clear_pending_call(consultation_id)
 
-                # Relay signaling message to peer
-                peer_ws = ws_manager.get_call_peer_ws(consultation_id, user_id)
+                # Get all peer WebSockets in this consultation call room
+                peers = ws_manager.get_call_peers(consultation_id, websocket)
 
                 if event == "CALL_REQUEST":
                     # Store pending call so peer receives it immediately upon joining room
@@ -335,7 +337,7 @@ async def websocket_call_signaling_endpoint(
                             pass
 
                     # If peer is connected to signaling room, relay the request directly
-                    if peer_ws:
+                    for peer_ws in peers:
                         try:
                             await peer_ws.send_text(json.dumps(msg))
                         except Exception as relay_err:
@@ -351,22 +353,18 @@ async def websocket_call_signaling_endpoint(
                     }))
                     continue
 
-                if peer_ws:
-                    try:
-                        await peer_ws.send_text(json.dumps(msg))
-                    except Exception as relay_err:
-                        logger.warning(f"Call signaling relay error in {consultation_id}: {relay_err}")
-                        await websocket.send_text(json.dumps({
-                            "event": "CALL_ERROR",
-                            "message": "Failed to reach the other participant.",
-                            "error_type": "RELAY_FAILED"
-                        }))
+                if peers:
+                    for peer_ws in peers:
+                        try:
+                            await peer_ws.send_text(json.dumps(msg))
+                        except Exception as relay_err:
+                            logger.warning(f"Call signaling relay error in {consultation_id}: {relay_err}")
                 else:
-                    # No peer connected — only error on events that require an active peer
-                    if event in ("CALL_OFFER", "CALL_ANSWER", "ICE_CANDIDATE"):
+                    # No peer connected — notify caller/sender
+                    if event in ("CALL_ACCEPT", "CALL_OFFER", "CALL_ANSWER", "ICE_CANDIDATE"):
                         await websocket.send_text(json.dumps({
                             "event": "CALL_ERROR",
-                            "message": "Peer disconnected from signaling.",
+                            "message": "Peer disconnected or not currently in the consultation workspace.",
                             "error_type": "PEER_DISCONNECTED"
                         }))
 
@@ -381,9 +379,9 @@ async def websocket_call_signaling_endpoint(
     except Exception as e:
         logger.warning(f"Call signaling WebSocket error for user {user_id} in {consultation_id}: {e}")
     finally:
-        # Notify peer that this participant disconnected
-        peer_ws = ws_manager.get_call_peer_ws(consultation_id, user_id)
-        if peer_ws:
+        # Notify peers that this participant disconnected
+        peers = ws_manager.get_call_peers(consultation_id, websocket)
+        for peer_ws in peers:
             try:
                 await peer_ws.send_text(json.dumps({
                     "event": "CALL_END",
@@ -395,4 +393,4 @@ async def websocket_call_signaling_endpoint(
                 }))
             except Exception:
                 pass
-        ws_manager.disconnect_call(consultation_id, user_id)
+        ws_manager.disconnect_call(consultation_id, websocket)

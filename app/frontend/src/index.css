@@ -419,3 +419,122 @@ body {
   animation: fadeIn 0.2s ease-out forwards;
 }
 
+/* ── Ultra-Modern Teleconsultation Calling Animations ── */
+@keyframes hologramShimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.animate-hologram {
+  background: linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.18) 50%, rgba(255,255,255,0) 100%);
+  background-size: 200% 100%;
+  animation: hologramShimmer 3s infinite linear;
+}
+
+@keyframes ecgHeartbeat {
+  0%, 100% {
+    transform: scale(1);
+  }
+  14% {
+    transform: scale(1.15);
+  }
+  28% {
+    transform: scale(1);
+  }
+  42% {
+    transform: scale(1.1);
+  }
+  70% {
+    transform: scale(1);
+  }
+}
+
+.animate-ecg {
+  animation: ecgHeartbeat 2.2s infinite ease-in-out;
+}
+
+@keyframes soundwaveBar {
+  0%, 100% {
+    height: 15%;
+  }
+  50% {
+    height: 95%;
+  }
+}
+
+.eq-bar-1 { animation: soundwaveBar 1.1s ease-in-out infinite 0.1s; }
+.eq-bar-2 { animation: soundwaveBar 0.9s ease-in-out infinite 0.25s; }
+.eq-bar-3 { animation: soundwaveBar 1.3s ease-in-out infinite 0.4s; }
+.eq-bar-4 { animation: soundwaveBar 0.8s ease-in-out infinite 0.15s; }
+.eq-bar-5 { animation: soundwaveBar 1.0s ease-in-out infinite 0.35s; }
+.eq-bar-6 { animation: soundwaveBar 1.2s ease-in-out infinite 0.05s; }
+.eq-bar-7 { animation: soundwaveBar 0.7s ease-in-out infinite 0.3s; }
+.eq-bar-8 { animation: soundwaveBar 1.1s ease-in-out infinite 0.2s; }
+
+@keyframes auraGlow {
+  0%, 100% {
+    transform: scale(1) translate(0px, 0px);
+    opacity: 0.35;
+  }
+  50% {
+    transform: scale(1.18) translate(15px, -15px);
+    opacity: 0.65;
+  }
+}
+
+.call-aura-glow {
+  animation: auraGlow 8s infinite alternate ease-in-out;
+}
+
+@keyframes pulseRing {
+  0% {
+    transform: scale(0.85);
+    opacity: 0.85;
+  }
+  50% {
+    opacity: 0.4;
+  }
+  100% {
+    transform: scale(1.7);
+    opacity: 0;
+  }
+}
+
+.call-pulse-ring-1 {
+  animation: pulseRing 2.4s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
+}
+.call-pulse-ring-2 {
+  animation: pulseRing 2.4s cubic-bezier(0.215, 0.61, 0.355, 1) infinite 0.8s;
+}
+.call-pulse-ring-3 {
+  animation: pulseRing 2.4s cubic-bezier(0.215, 0.61, 0.355, 1) infinite 1.6s;
+}
+
+@keyframes floatReaction {
+  0% {
+    opacity: 0;
+    transform: translateY(12px) scale(0.5);
+  }
+  15% {
+    opacity: 1;
+    transform: translateY(-8px) scale(1.25);
+  }
+  75% {
+    opacity: 0.95;
+    transform: translateY(-65px) scale(1.05);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-100px) scale(0.75);
+  }
+}
+
+.animate-reaction-float {
+  animation: floatReaction 2.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+

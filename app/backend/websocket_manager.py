@@ -90,23 +90,28 @@ class ConnectionManager:
         """Returns list of currently online user IDs with active WebSocket connections."""
         return list(self.active_user_connections.keys())
 
-    # ── Audio Call Signaling Room Management ─────────────────────────────
+    # ── Audio & Video Call Signaling Room Management ─────────────────────
 
     async def connect_call(self, consultation_id: str, user_id: str, websocket: WebSocket):
-        """Register a user's WebSocket for audio call signaling in a consultation room."""
+        """Register a user's WebSocket for audio/video call signaling in a consultation room."""
         if consultation_id not in self.call_rooms:
             self.call_rooms[consultation_id] = {}
-        self.call_rooms[consultation_id][user_id] = websocket
-        logger.info(f"Call signaling: user {user_id} joined call room {consultation_id}. Participants: {list(self.call_rooms[consultation_id].keys())}")
+        # Store by websocket instance to safely handle multi-window/multi-session setups
+        self.call_rooms[consultation_id][websocket] = {"user_id": user_id}
+        logger.info(
+            f"Call signaling: user {user_id} joined call room {consultation_id}. "
+            f"Active connections in room: {len(self.call_rooms[consultation_id])}"
+        )
 
-    def disconnect_call(self, consultation_id: str, user_id: str):
-        """Remove a user from audio call signaling room."""
+    def disconnect_call(self, consultation_id: str, websocket: WebSocket):
+        """Remove a WebSocket connection from the call signaling room."""
         if consultation_id in self.call_rooms:
-            self.call_rooms[consultation_id].pop(user_id, None)
+            user_info = self.call_rooms[consultation_id].pop(websocket, None)
+            user_id = user_info.get("user_id") if user_info else "unknown"
             if not self.call_rooms[consultation_id]:
                 del self.call_rooms[consultation_id]
                 self.clear_pending_call(consultation_id)
-        logger.info(f"Call signaling: user {user_id} left call room {consultation_id}.")
+            logger.info(f"Call signaling: connection for user {user_id} left call room {consultation_id}.")
 
     def set_pending_call(self, consultation_id: str, call_payload: Dict[str, Any]):
         """Save a pending call request so that if the peer connects moments later, they receive it immediately."""
@@ -121,21 +126,45 @@ class ConnectionManager:
         """Clear pending call request on answer, decline, cancel, or termination."""
         self.pending_call_requests.pop(consultation_id, None)
 
-    def get_call_peer_ws(self, consultation_id: str, sender_id: str) -> Optional[WebSocket]:
-        """Get the WebSocket of the OTHER participant in a call room (not the sender)."""
+    def get_call_peers(self, consultation_id: str, sender_ws: WebSocket) -> List[WebSocket]:
+        """Get all OTHER WebSockets in this call room (excluding sender)."""
         room = self.call_rooms.get(consultation_id, {})
-        for uid, ws in room.items():
-            if uid != sender_id:
-                return ws
-        return None
+        return [ws for ws in room.keys() if ws != sender_ws]
+
+    def get_call_peer_ws(
+        self,
+        consultation_id: str,
+        sender_ws: WebSocket,
+        sender_id: Optional[str] = None
+    ) -> Optional[WebSocket]:
+        """
+        Get the peer WebSocket in a consultation room.
+        Prioritizes a connection with a different user_id if available;
+        otherwise returns any other connection in the room (e.g. testing in two tabs).
+        """
+        room = self.call_rooms.get(consultation_id, {})
+        diff_user_peer = None
+        any_other_peer = None
+        for ws, info in room.items():
+            if ws != sender_ws:
+                any_other_peer = ws
+                if sender_id and info.get("user_id") != sender_id:
+                    diff_user_peer = ws
+                    break
+        return diff_user_peer or any_other_peer
 
     def is_call_active(self, consultation_id: str) -> bool:
-        """Check if a call room has 2 participants (call in progress)."""
+        """Check if a call room has 2 or more participants."""
         return len(self.call_rooms.get(consultation_id, {})) >= 2
 
     def get_call_participants(self, consultation_id: str) -> List[str]:
         """Get list of user_ids currently in a call room."""
-        return list(self.call_rooms.get(consultation_id, {}).keys())
+        room = self.call_rooms.get(consultation_id, {})
+        return [info.get("user_id", "") for info in room.values()]
+
+    def get_room_size(self, consultation_id: str) -> int:
+        """Get total number of active connections in a call room."""
+        return len(self.call_rooms.get(consultation_id, {}))
 
 
 # Singleton instance

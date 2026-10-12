@@ -32,10 +32,11 @@ class RateLimiter:
         self._requests: Dict[str, list] = defaultdict(list)
         # Configurable limits: (max_requests, window_seconds)
         self.limits = {
-            "login": (10, 60),          # 10 login attempts per minute per IP
-            "register": (20, 60),       # 20 registrations per minute per IP
-            "api_default": (300, 60),   # 300 API calls per minute per IP (5 req/sec burst)
-            "upload": (30, 60),         # 30 uploads per minute per IP
+            "login": (15, 60),          # 15 login attempts per minute per IP
+            "register": (25, 60),       # 25 registrations per minute per IP
+            "api_default": (1200, 60),  # 1200 API calls per minute per IP (20 req/sec burst)
+            "consultations": (1800, 60), # 1800 calls per minute for live clinical polling & notes
+            "upload": (60, 60),         # 60 uploads per minute per IP
         }
 
     def _clean_old(self, key: str, window: float, now: float):

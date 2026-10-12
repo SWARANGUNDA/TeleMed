@@ -145,9 +145,20 @@ export default function useAudioCall(consultationId, user) {
 
   // ── WebSocket Signaling Send ──────────────────────────────────────────
   const sendSignal = useCallback((payload) => {
-    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-      wsRef.current.send(JSON.stringify(payload));
-      return true;
+    if (wsRef.current) {
+      if (wsRef.current.readyState === WebSocket.OPEN) {
+        wsRef.current.send(JSON.stringify(payload));
+        return true;
+      } else if (wsRef.current.readyState === WebSocket.CONNECTING) {
+        // Queue to send immediately once connection handshake finishes
+        const curWs = wsRef.current;
+        const prevOpen = curWs.onopen;
+        curWs.onopen = (e) => {
+          if (prevOpen) prevOpen(e);
+          try { curWs.send(JSON.stringify(payload)); } catch (err) {}
+        };
+        return true;
+      }
     }
     return false;
   }, []);
@@ -371,7 +382,9 @@ export default function useAudioCall(consultationId, user) {
   // ── Attach Local Stream to Video Ref ──────────────────────────────────
   const attachLocalStream = useCallback((stream) => {
     if (localVideoRef.current && stream) {
-      localVideoRef.current.srcObject = stream;
+      if (localVideoRef.current.srcObject !== stream) {
+        localVideoRef.current.srcObject = stream;
+      }
       localVideoRef.current.play().catch(() => {});
     }
   }, []);
@@ -379,11 +392,15 @@ export default function useAudioCall(consultationId, user) {
   // ── Attach Remote Stream to Video Ref ─────────────────────────────────
   const attachRemoteStream = useCallback((stream) => {
     if (remoteVideoRef.current && stream) {
-      remoteVideoRef.current.srcObject = stream;
+      if (remoteVideoRef.current.srcObject !== stream) {
+        remoteVideoRef.current.srcObject = stream;
+      }
       remoteVideoRef.current.play().catch(() => {});
     }
     if (remoteAudioRef.current && stream) {
-      remoteAudioRef.current.srcObject = stream;
+      if (remoteAudioRef.current.srcObject !== stream) {
+        remoteAudioRef.current.srcObject = stream;
+      }
       remoteAudioRef.current.play().catch(() => {});
     }
   }, []);
@@ -393,8 +410,10 @@ export default function useAudioCall(consultationId, user) {
     while (pendingIceCandidatesRef.current.length > 0) {
       const candidate = pendingIceCandidatesRef.current.shift();
       try {
-        await pc.addIceCandidate(new RTCIceCandidate(candidate));
-      } catch (err) {}
+        await pc.addIceCandidate(candidate);
+      } catch (err) {
+        console.warn('ICE candidate addition from queue ignored:', err);
+      }
     }
   }, []);
 
@@ -405,34 +424,57 @@ export default function useAudioCall(consultationId, user) {
     const pc = new RTCPeerConnection(getIceConfig());
     pcRef.current = pc;
 
-    // Send ICE candidates to peer
+    // Send ICE candidates to peer with portable payload
     pc.onicecandidate = (event) => {
       if (event.candidate) {
+        const candPayload = (event.candidate && typeof event.candidate.toJSON === 'function')
+          ? event.candidate.toJSON()
+          : {
+              candidate: event.candidate.candidate,
+              sdpMid: event.candidate.sdpMid,
+              sdpMLineIndex: event.candidate.sdpMLineIndex,
+              usernameFragment: event.candidate.usernameFragment,
+            };
         sendSignal({
           event: 'ICE_CANDIDATE',
-          candidate: event.candidate.toJSON(),
+          candidate: candPayload,
         });
       }
     };
 
-    // Handle remote audio & video tracks
+    // Handle remote audio & video tracks (supports single track or stream bundle)
     pc.ontrack = (event) => {
-      if (event.streams && event.streams[0]) {
-        const stream = event.streams[0];
+      let stream = (event.streams && event.streams[0]) ? event.streams[0] : null;
+      if (!stream) {
+        if (!remoteStreamRef.current) {
+          remoteStreamRef.current = new MediaStream();
+        }
+        remoteStreamRef.current.addTrack(event.track);
+        stream = remoteStreamRef.current;
+      } else {
         remoteStreamRef.current = stream;
-        
-        const hasVideo = stream.getVideoTracks().length > 0;
-        setIsRemoteVideoAvailable(hasVideo);
+      }
 
+      const hasVideo = stream.getVideoTracks().length > 0;
+      setIsRemoteVideoAvailable(hasVideo);
+      attachRemoteStream(stream);
+
+      stream.onaddtrack = () => {
+        setIsRemoteVideoAvailable(stream.getVideoTracks().length > 0);
         attachRemoteStream(stream);
+      };
+      stream.onremovetrack = () => {
+        setIsRemoteVideoAvailable(stream.getVideoTracks().length > 0);
+      };
+    };
 
-        stream.onaddtrack = () => {
-          setIsRemoteVideoAvailable(stream.getVideoTracks().length > 0);
-          attachRemoteStream(stream);
-        };
-        stream.onremovetrack = () => {
-          setIsRemoteVideoAvailable(stream.getVideoTracks().length > 0);
-        };
+    // Helper to transition to CONNECTED state once ICE or peer connection succeeds
+    const markConnected = () => {
+      if (callStateRef.current !== CALL_STATES.CONNECTED) {
+        clearReconnection();
+        updateCallState(CALL_STATES.CONNECTED);
+        startDurationTimer();
+        startStatsMonitoring();
       }
     };
 
@@ -440,14 +482,10 @@ export default function useAudioCall(consultationId, user) {
     pc.onconnectionstatechange = () => {
       const state = pc.connectionState;
       if (state === 'connected') {
-        clearReconnection();
-        updateCallState(CALL_STATES.CONNECTED);
-        startDurationTimer();
-        startStatsMonitoring();
+        markConnected();
       } else if (state === 'disconnected') {
         triggerReconnection();
       } else if (state === 'failed') {
-        // If not already recovering, trigger or finalize
         if (callStateRef.current === CALL_STATES.RECONNECTING) {
           // Allow countdown to finish
         } else {
@@ -462,7 +500,10 @@ export default function useAudioCall(consultationId, user) {
     };
 
     pc.oniceconnectionstatechange = () => {
-      if (pc.iceConnectionState === 'failed' || pc.iceConnectionState === 'disconnected') {
+      const iceState = pc.iceConnectionState;
+      if (iceState === 'connected' || iceState === 'completed') {
+        markConnected();
+      } else if (iceState === 'failed' || iceState === 'disconnected') {
         if (callStateRef.current === CALL_STATES.CONNECTED) {
           triggerReconnection();
         }
@@ -673,22 +714,33 @@ export default function useAudioCall(consultationId, user) {
       }
 
       case 'CALL_ACCEPT': {
-        if (callStateRef.current !== CALL_STATES.CALLING) return;
+        if (callStateRef.current !== CALL_STATES.CALLING && callStateRef.current !== CALL_STATES.RINGING) return;
         updateCallState(CALL_STATES.CONNECTING);
-        setStuckTimeout(20000);
+        setStuckTimeout(25000);
         try {
-          const pc = createPeerConnection();
+          const pc = pcRef.current || createPeerConnection();
           const stream = localStreamRef.current || await acquireMedia(callTypeRef.current);
-          stream.getTracks().forEach(track => pc.addTrack(track, stream));
+          
+          const senders = pc.getSenders();
+          if (senders.length === 0) {
+            stream.getTracks().forEach(track => pc.addTrack(track, stream));
+          }
 
-          const offer = await pc.createOffer();
+          const offer = await pc.createOffer({
+            offerToReceiveAudio: true,
+            offerToReceiveVideo: callTypeRef.current === 'video',
+          });
           await pc.setLocalDescription(offer);
           sendSignal({
             event: 'CALL_OFFER',
-            sdp: pc.localDescription.toJSON(),
+            sdp: {
+              type: pc.localDescription.type,
+              sdp: pc.localDescription.sdp,
+            },
             call_type: callTypeRef.current,
           });
         } catch (err) {
+          console.error('CALL_ACCEPT handling error:', err);
           setError('Failed to establish peer connection. Please try again.');
           updateCallState(CALL_STATES.FAILED);
           sendSignal({ event: 'CALL_END', reason: 'OFFER_FAILED' });
@@ -712,7 +764,7 @@ export default function useAudioCall(consultationId, user) {
 
       case 'CALL_OFFER': {
         updateCallState(CALL_STATES.CONNECTING);
-        setStuckTimeout(20000);
+        setStuckTimeout(25000);
         try {
           const offeredType = data.call_type || callTypeRef.current;
           callTypeRef.current = offeredType;
@@ -721,23 +773,30 @@ export default function useAudioCall(consultationId, user) {
           const pc = pcRef.current || createPeerConnection();
           const stream = localStreamRef.current || await acquireMedia(offeredType);
           
-          // Only add tracks if not already added
           const senders = pc.getSenders();
           if (senders.length === 0) {
             stream.getTracks().forEach(track => pc.addTrack(track, stream));
           }
 
-          await pc.setRemoteDescription(new RTCSessionDescription(data.sdp));
+          const sdpInit = (data.sdp && data.sdp.sdp)
+            ? data.sdp
+            : (typeof data.sdp === 'string' ? { type: 'offer', sdp: data.sdp } : data.sdp);
+
+          await pc.setRemoteDescription(new RTCSessionDescription(sdpInit));
           await drainIceCandidates(pc);
 
           const answer = await pc.createAnswer();
           await pc.setLocalDescription(answer);
           sendSignal({
             event: 'CALL_ANSWER',
-            sdp: pc.localDescription.toJSON(),
+            sdp: {
+              type: pc.localDescription.type,
+              sdp: pc.localDescription.sdp,
+            },
             call_type: offeredType,
           });
         } catch (err) {
+          console.error('CALL_OFFER negotiation error:', err);
           setError('Failed to establish video/audio teleconsultation.');
           updateCallState(CALL_STATES.FAILED);
           sendSignal({ event: 'CALL_END', reason: 'ANSWER_FAILED' });
@@ -749,9 +808,14 @@ export default function useAudioCall(consultationId, user) {
       case 'CALL_ANSWER': {
         if (!pcRef.current) return;
         try {
-          await pcRef.current.setRemoteDescription(new RTCSessionDescription(data.sdp));
+          const sdpInit = (data.sdp && data.sdp.sdp)
+            ? data.sdp
+            : (typeof data.sdp === 'string' ? { type: 'answer', sdp: data.sdp } : data.sdp);
+
+          await pcRef.current.setRemoteDescription(new RTCSessionDescription(sdpInit));
           await drainIceCandidates(pcRef.current);
         } catch (err) {
+          console.error('CALL_ANSWER finalization error:', err);
           setError('Failed to finalize teleconsultation stream.');
           updateCallState(CALL_STATES.FAILED);
           cleanupCall();
@@ -761,12 +825,16 @@ export default function useAudioCall(consultationId, user) {
 
       case 'ICE_CANDIDATE': {
         if (data.candidate) {
-          if (pcRef.current && pcRef.current.remoteDescription) {
-            try {
-              await pcRef.current.addIceCandidate(new RTCIceCandidate(data.candidate));
-            } catch (err) {}
-          } else {
-            pendingIceCandidatesRef.current.push(data.candidate);
+          try {
+            const cand = typeof data.candidate === 'string' ? JSON.parse(data.candidate) : data.candidate;
+            const rtcCandidate = new RTCIceCandidate(cand);
+            if (pcRef.current && pcRef.current.remoteDescription && pcRef.current.remoteDescription.type) {
+              await pcRef.current.addIceCandidate(rtcCandidate);
+            } else {
+              pendingIceCandidatesRef.current.push(rtcCandidate);
+            }
+          } catch (err) {
+            console.warn('ICE candidate parsing/addition failed:', err);
           }
         }
         break;
@@ -812,6 +880,12 @@ export default function useAudioCall(consultationId, user) {
     }
   }, [sendSignal, updateCallState, createPeerConnection, acquireMedia, cleanupCall, setStuckTimeout, drainIceCandidates]);
 
+  // Stable handler ref to prevent unmounting WebSocket on render
+  const handleSignalingMessageRef = useRef(handleSignalingMessage);
+  useEffect(() => {
+    handleSignalingMessageRef.current = handleSignalingMessage;
+  }, [handleSignalingMessage]);
+
   // ── Connect Signaling WebSocket ───────────────────────────────────────
   useEffect(() => {
     const userId = user?.user_id || user?.id;
@@ -831,17 +905,20 @@ export default function useAudioCall(consultationId, user) {
     }
 
     ws.onopen = () => {
+      if (pingIntervalRef.current) clearInterval(pingIntervalRef.current);
       pingIntervalRef.current = setInterval(() => {
         if (ws.readyState === WebSocket.OPEN) {
           ws.send('ping');
         }
-      }, 20000);
+      }, 15000);
     };
 
     ws.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
-        handleSignalingMessage(data);
+        if (handleSignalingMessageRef.current) {
+          handleSignalingMessageRef.current(data);
+        }
       } catch (err) {}
     };
 
@@ -872,7 +949,7 @@ export default function useAudioCall(consultationId, user) {
       }
       wsRef.current = null;
     };
-  }, [consultationId, user?.user_id, user?.id, handleSignalingMessage, updateCallState, cleanupCall]);
+  }, [consultationId, user?.user_id, user?.id]);
 
   // ── Tab Close / Beforeunload Handler ──────────────────────────────────
   useEffect(() => {
@@ -898,7 +975,12 @@ export default function useAudioCall(consultationId, user) {
     setCallType(type);
 
     try {
-      await acquireMedia(type);
+      const stream = await acquireMedia(type);
+      
+      // Pre-initialize RTCPeerConnection and add tracks right away
+      const pc = createPeerConnection();
+      stream.getTracks().forEach(track => pc.addTrack(track, stream));
+
       updateCallState(CALL_STATES.CALLING);
       setStuckTimeout(45000);
 
@@ -912,7 +994,7 @@ export default function useAudioCall(consultationId, user) {
       updateCallState(CALL_STATES.FAILED);
       cleanupCall();
     }
-  }, [acquireMedia, updateCallState, setStuckTimeout, sendSignal, cleanupCall]);
+  }, [acquireMedia, createPeerConnection, updateCallState, setStuckTimeout, sendSignal, cleanupCall]);
 
   /** Accept an Incoming Call */
   const acceptCall = useCallback(async (overrideType = null) => {
@@ -923,16 +1005,21 @@ export default function useAudioCall(consultationId, user) {
     setCallType(type);
 
     try {
-      await acquireMedia(type);
+      const stream = await acquireMedia(type);
       updateCallState(CALL_STATES.ACCEPTED);
+      
+      // Pre-initialize RTCPeerConnection and add tracks right away
+      const pc = createPeerConnection();
+      stream.getTracks().forEach(track => pc.addTrack(track, stream));
+
       sendSignal({ event: 'CALL_ACCEPT', call_type: type });
-      setStuckTimeout(20000);
+      setStuckTimeout(25000);
     } catch (err) {
       updateCallState(CALL_STATES.FAILED);
       sendSignal({ event: 'CALL_DECLINE', reason: 'MEDIA_ERROR' });
       cleanupCall();
     }
-  }, [acquireMedia, updateCallState, sendSignal, setStuckTimeout, cleanupCall]);
+  }, [acquireMedia, createPeerConnection, updateCallState, sendSignal, setStuckTimeout, cleanupCall]);
 
   /** Decline incoming call */
   const declineCall = useCallback(() => {

@@ -9,7 +9,7 @@ import {
   ArrowLeft, BadgeCheck, Phone, PhoneCall, PhoneOff, ShieldCheck, Zap, Search, AlertCircle,
   FileCheck, Heart, Sparkle, Mic, MicOff, Copy, Thermometer,
   Volume2, VolumeX, Minimize2, Maximize2, Radio, Wifi, Sliders, Waves, Headphones,
-  Monitor, MonitorUp
+  Monitor, MonitorUp, ClipboardList
 } from 'lucide-react';
 import { PageContainer } from '../components/layout';
 import {
@@ -257,12 +257,34 @@ export default function ConsultationWorkspacePage({ user, consultationContext, i
     return () => document.removeEventListener('mousedown', handleOutside);
   }, []);
 
-  // Live Audio Call UI Enhancements
+  // Live Audio & Video Call UI Enhancements
   const [isCallMinimized, setIsCallMinimized] = useState(false);
   const [isSpeakerOn, setIsSpeakerOn] = useState(true);
   const [isNoiseFilterActive, setIsNoiseFilterActive] = useState(true);
   const [showInCallNotes, setShowInCallNotes] = useState(false);
   const [inCallNoteText, setInCallNoteText] = useState('');
+  const [callReactions, setCallReactions] = useState([]);
+  const [isCallFullscreen, setIsCallFullscreen] = useState(false);
+  const callOverlayRef = useRef(null);
+
+  const triggerCallReaction = (emoji, label) => {
+    const id = Date.now() + Math.random();
+    const xPos = Math.floor(Math.random() * 50) + 25;
+    setCallReactions((prev) => [...prev, { id, emoji, label, x: xPos }]);
+    setTimeout(() => {
+      setCallReactions((prev) => prev.filter((r) => r.id !== id));
+    }, 2200);
+  };
+
+  const toggleCallFullscreen = () => {
+    if (!document.fullscreenElement) {
+      callOverlayRef.current?.requestFullscreen?.().catch(() => {});
+      setIsCallFullscreen(true);
+    } else {
+      document.exitFullscreen?.().catch(() => {});
+      setIsCallFullscreen(false);
+    }
+  };
 
   // Request New Consultation Modal State
   const [isNewModalOpen, setIsNewModalOpen] = useState(false);
@@ -561,13 +583,15 @@ export default function ConsultationWorkspacePage({ user, consultationContext, i
       setConnectionStatus('disconnected');
     }
 
-    // Relaxed polling interval (10s) with visibility check to protect against rate limits
+    // Fallback polling only when WebSocket is inactive/disconnected to eliminate 429 rate limit storms
     const pollInterval = setInterval(() => {
       if (typeof document !== 'undefined' && document.hidden) return;
+      // If WebSocket is actively connected, new messages arrive via push events — skip polling
+      if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) return;
       if (loadMessagesRef.current) {
         loadMessagesRef.current(activeChatCId, true);
       }
-    }, 10000);
+    }, 15000);
 
     return () => {
       if (ws) {
@@ -811,6 +835,760 @@ export default function ConsultationWorkspacePage({ user, consultationContext, i
     };
   }, [audioCall.fullCleanup]);
 
+  // ── Render Ultra-Premium Teleconsultation Calling Suite ──
+  const renderTeleconsultationSuite = () => {
+    if (audioCall.callState === 'IDLE') return null;
+
+    // Floating PiP Mini Widget when minimized
+    if (isCallMinimized) {
+      return (
+        <div className="fixed bottom-6 right-6 z-[9999] bg-gradient-to-br from-slate-900/95 via-indigo-950/95 to-slate-950/95 backdrop-blur-2xl border border-indigo-400/40 rounded-3xl shadow-[0_20px_60px_rgba(15,23,42,0.85)] p-3.5 flex items-center space-x-3.5 text-white animate-scale-in">
+          <div className="relative">
+            <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-cyan-500 via-indigo-600 to-purple-600 p-0.5 shadow-lg shadow-indigo-500/30">
+              <div className="w-full h-full rounded-[14px] bg-slate-900 flex items-center justify-center font-black text-sm text-white">
+                {(isDoctor ? patientDisplayName : doctorDisplayName).substring(0, 2).toUpperCase()}
+              </div>
+            </div>
+            {audioCall.callState === 'CONNECTED' && (
+              <>
+                <span className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-emerald-400 border-2 border-slate-950 rounded-full animate-ping" />
+                <span className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-emerald-400 border-2 border-slate-950 rounded-full shadow-xs" />
+              </>
+            )}
+          </div>
+
+          <div className="text-left min-w-[130px]">
+            <div className="text-xs font-black text-white flex items-center space-x-1.5 truncate max-w-[150px]">
+              <span className="truncate">{isDoctor ? patientDisplayName : doctorDisplayName}</span>
+              <span className="text-[9px] px-1.5 py-0.5 rounded-full font-mono font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+                {audioCall.latencyMs ? `${audioCall.latencyMs}ms` : '38ms'}
+              </span>
+            </div>
+            <div className="flex items-center space-x-2 text-[11px] font-mono font-bold text-emerald-400 mt-0.5">
+              <span>{formatDuration(audioCall.callDuration)}</span>
+              <span className="text-slate-500">•</span>
+              <span className="text-cyan-300 text-[10px] uppercase tracking-wider">{audioCall.callType}</span>
+              {audioCall.isMuted && <span className="text-amber-400 text-[10px]">Muted</span>}
+            </div>
+          </div>
+
+          <div className="flex items-center space-x-1.5 pl-2 border-l border-slate-800">
+            <button
+              onClick={audioCall.toggleMute}
+              className={`p-2 rounded-xl transition-all cursor-pointer ${
+                audioCall.isMuted
+                  ? 'bg-amber-500 text-white shadow-md shadow-amber-500/40 ring-1 ring-amber-400'
+                  : 'bg-slate-800/90 hover:bg-slate-700 text-slate-200'
+              }`}
+              title={audioCall.isMuted ? 'Unmute' : 'Mute'}
+            >
+              {audioCall.isMuted ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+            </button>
+            <button
+              onClick={() => setIsCallMinimized(false)}
+              className="p-2 rounded-xl bg-slate-800/90 hover:bg-slate-700 text-slate-200 border border-slate-700/60 transition-all cursor-pointer"
+              title="Expand Teleconsultation Window"
+            >
+              <Maximize2 className="w-4 h-4" />
+            </button>
+            <button
+              onClick={audioCall.endCall}
+              className="p-2 rounded-xl bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-700 hover:to-red-700 text-white shadow-md shadow-rose-600/40 transition-all cursor-pointer"
+              title="End Call"
+            >
+              <PhoneOff className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    // Full Teleconsultation Suite Modal
+    return (
+      <div
+        ref={callOverlayRef}
+        className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-950/80 backdrop-blur-xl p-2 sm:p-5 animate-fade-in"
+        style={{ pointerEvents: 'auto' }}
+      >
+        <div
+          className={`w-full ${
+            audioCall.callType === 'video' ? 'max-w-5xl' : 'max-w-xl'
+          } bg-gradient-to-b from-slate-900/95 via-indigo-950/90 to-slate-950/98 backdrop-blur-2xl border border-indigo-400/30 rounded-3xl shadow-[0_30px_100px_rgba(20,20,55,0.85)] overflow-hidden relative text-white transition-all flex flex-col max-h-[95vh]`}
+        >
+          {/* Top Holographic Shimmer Edge */}
+          <div className="h-[2px] w-full bg-gradient-to-r from-transparent via-cyan-400 via-indigo-400 to-transparent opacity-80 animate-hologram shrink-0" />
+
+          {/* Hidden remote audio tag for audio streaming */}
+          <audio ref={audioCall.remoteAudioRef} autoPlay playsInline />
+
+          {/* Luminous Ambient Background Glows */}
+          <div className="absolute -top-28 -left-28 w-96 h-96 bg-cyan-500/15 rounded-full blur-3xl pointer-events-none call-aura-glow" />
+          <div className="absolute top-1/2 -right-28 w-96 h-96 bg-violet-600/20 rounded-full blur-3xl pointer-events-none call-aura-glow" style={{ animationDelay: '2.5s' }} />
+          <div className="absolute -bottom-28 left-1/3 w-80 h-80 bg-emerald-500/15 rounded-full blur-3xl pointer-events-none call-aura-glow" style={{ animationDelay: '5s' }} />
+
+          {/* Floating User Reactions Overlay */}
+          <div className="absolute inset-x-0 bottom-24 top-16 pointer-events-none overflow-hidden z-40">
+            {callReactions.map((r) => (
+              <div
+                key={r.id}
+                style={{ left: `${r.x}%` }}
+                className="absolute bottom-4 z-50 pointer-events-none animate-reaction-float flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-900/90 backdrop-blur-md border border-cyan-400/40 text-white font-bold text-sm shadow-[0_0_20px_rgba(6,182,212,0.5)]"
+              >
+                <span className="text-lg">{r.emoji}</span>
+                <span className="text-[11px] font-mono text-cyan-200">{r.label}</span>
+              </div>
+            ))}
+          </div>
+
+          {/* ── TOP TELEMETRY & NAVIGATION BAR ──────────────────────────────── */}
+          <div className="p-3.5 sm:p-4.5 pb-2.5 flex items-center justify-between border-b border-indigo-500/20 relative z-20 shrink-0 bg-slate-900/60 backdrop-blur-md">
+            <div className="flex items-center space-x-2 sm:space-x-2.5 flex-wrap gap-y-1">
+              <div className="flex items-center space-x-1.5 px-3 py-1 rounded-full bg-emerald-500/15 border border-emerald-400/30 text-emerald-300 text-[11px] font-extrabold shadow-sm">
+                <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+                <span>{audioCall.callType === 'video' ? '256-Bit Encrypted HD Video' : '256-Bit Encrypted VoIP'}</span>
+              </div>
+              <div className="hidden sm:flex items-center space-x-1.5 px-2.5 py-1 rounded-full bg-cyan-500/10 border border-cyan-500/25 text-cyan-300 text-[10px] font-mono font-bold">
+                <Wifi className={`w-3 h-3 ${audioCall.networkQuality === 'POOR' ? 'text-rose-400 animate-pulse' : audioCall.networkQuality === 'FAIR' ? 'text-amber-400' : 'text-emerald-400'}`} />
+                <span>{audioCall.latencyMs ? `${audioCall.latencyMs}ms` : '38ms'} • {audioCall.networkQuality} • WebRTC</span>
+              </div>
+              <span className="hidden md:inline-flex px-2 py-0.5 rounded-md bg-indigo-500/15 border border-indigo-400/25 text-indigo-300 text-[10px] font-mono font-bold">
+                {activeConsultation?.specialization || 'Clinical Specialist'}
+              </span>
+            </div>
+
+            <div className="flex items-center space-x-2">
+              {/* Toggle In-Call Clinical Notes Drawer */}
+              <button
+                type="button"
+                onClick={() => setShowInCallNotes(!showInCallNotes)}
+                className={`px-2.5 py-1.5 rounded-xl border text-xs font-bold transition-all cursor-pointer flex items-center space-x-1.5 ${
+                  showInCallNotes
+                    ? 'bg-indigo-600 text-white border-indigo-400 shadow-md shadow-indigo-600/40'
+                    : 'bg-slate-800/80 hover:bg-slate-700/80 text-slate-300 border-slate-700/60'
+                }`}
+                title="Toggle Clinical Snapshot & Scratchpad"
+              >
+                <ClipboardList className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Clinical Notes</span>
+              </button>
+
+              {/* Fullscreen Button */}
+              <button
+                type="button"
+                onClick={toggleCallFullscreen}
+                className="p-2 text-slate-400 hover:text-white bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700/60 rounded-xl transition-all cursor-pointer"
+                title={isCallFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}
+              >
+                {isCallFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+              </button>
+
+              {/* Minimize to PiP Button */}
+              <button
+                type="button"
+                onClick={() => setIsCallMinimized(true)}
+                className="p-2 text-slate-400 hover:text-white bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700/60 rounded-xl transition-all cursor-pointer shadow-xs"
+                title="Minimize to Floating PiP Widget"
+              >
+                <Minimize2 className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+
+          {/* ── MAIN CONSULTATION VIEWPORT (VIDEO OR AUDIO) ───────────────────── */}
+          <div className="relative flex-1 min-h-0 flex flex-col lg:flex-row overflow-hidden">
+            {/* Left/Main Media Container */}
+            <div className="relative flex-1 flex flex-col justify-center items-center overflow-hidden">
+              {audioCall.callType === 'video' ? (
+                /* ── VIDEO INTERFACE ── */
+                <div className="relative aspect-video w-full max-h-[520px] bg-gradient-to-b from-slate-950 via-slate-900 to-indigo-950/80 flex items-center justify-center overflow-hidden">
+                  {/* Remote Primary Video Feed */}
+                  <video
+                    ref={audioCall.remoteVideoRef}
+                    autoPlay
+                    playsInline
+                    className={`w-full h-full object-cover transition-opacity duration-300 ${
+                      audioCall.isRemoteVideoAvailable && audioCall.callState === 'CONNECTED' ? 'opacity-100' : 'opacity-0 absolute'
+                    }`}
+                  />
+
+                  {/* Remote Screen Share Badge */}
+                  {audioCall.isRemoteScreenSharing && (
+                    <div className="absolute top-4 right-4 z-20 flex items-center space-x-1.5 bg-indigo-600/90 backdrop-blur-md px-3.5 py-1.5 rounded-2xl border border-indigo-400/40 text-xs text-white shadow-xl animate-pulse">
+                      <Monitor className="w-3.5 h-3.5 text-indigo-200" />
+                      <span className="font-bold text-[11px]">{isDoctor ? patientDisplayName : doctorDisplayName} is sharing screen</span>
+                    </div>
+                  )}
+
+                  {/* In-Call Reconnection Overlay */}
+                  {audioCall.callState === 'RECONNECTING' && (
+                    <div className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-slate-950/85 backdrop-blur-md p-4 text-center space-y-2">
+                      <RefreshCw className="w-12 h-12 animate-spin text-amber-400" />
+                      <div className="text-white text-base font-extrabold">Reconnecting Video Stream...</div>
+                      <div className="text-amber-200 text-xs font-semibold">
+                        Restoring WebRTC peer connection • ICE restart in progress {audioCall.reconnectCountdown !== null ? `(${audioCall.reconnectCountdown}s)` : ''}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Remote Video Fallback & Calling Central Stage */}
+                  {(!audioCall.isRemoteVideoAvailable || audioCall.callState !== 'CONNECTED') && (
+                    <div className="flex flex-col items-center justify-center p-6 text-center space-y-4 z-10 w-full max-w-md">
+                      {/* Holographic Avatar with Radar Waves */}
+                      <div className="relative my-2 flex items-center justify-center">
+                        {(audioCall.callState === 'CONNECTED' || audioCall.callState === 'CALLING' || audioCall.callState === 'RINGING') && (
+                          <>
+                            <div className="absolute w-32 h-32 rounded-full border border-cyan-400/40 call-pulse-ring-1" />
+                            <div className="absolute w-44 h-44 rounded-full border border-indigo-500/30 call-pulse-ring-2" />
+                            <div className="absolute w-56 h-56 rounded-full border border-violet-500/20 call-pulse-ring-3" />
+                          </>
+                        )}
+                        <div className="w-28 h-28 sm:w-32 sm:h-32 rounded-3xl bg-gradient-to-tr from-cyan-500 via-indigo-600 to-violet-600 p-1 shadow-[0_0_50px_rgba(99,102,241,0.55)] flex items-center justify-center transform hover:scale-105 transition-all">
+                          <div className="w-full h-full rounded-[22px] bg-slate-900/95 flex flex-col items-center justify-center relative overflow-hidden">
+                            <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/10 to-transparent pointer-events-none" />
+                            {audioCall.callState === 'RINGING' ? (
+                              <Video className="w-12 h-12 text-emerald-400 animate-bounce" />
+                            ) : (
+                              <>
+                                <span className="text-3xl font-black text-white tracking-wider">
+                                  {(isDoctor ? patientDisplayName : doctorDisplayName).substring(0, 2).toUpperCase()}
+                                </span>
+                                <span className="text-[10px] font-mono text-cyan-300 font-bold uppercase mt-1">
+                                  {isDoctor ? 'Patient' : 'Specialist'}
+                                </span>
+                              </>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Verified Specialist / Patient Shield */}
+                        <div className="absolute -bottom-1 -right-1 w-8 h-8 rounded-full bg-gradient-to-tr from-cyan-500 to-blue-600 border-2 border-slate-900 flex items-center justify-center text-white shadow-lg">
+                          {isDoctor ? <Heart className="w-4 h-4 fill-current text-white" /> : <Stethoscope className="w-4 h-4 text-white" />}
+                        </div>
+                      </div>
+
+                      {/* Participant Title & Specialty */}
+                      <div className="space-y-1">
+                        <h3 className="text-xl sm:text-2xl font-black text-white tracking-tight flex items-center justify-center gap-2">
+                          <span>{audioCall.callState === 'RINGING' ? (audioCall.incomingCallInfo?.senderName || 'Incoming Video Call') : (isDoctor ? patientDisplayName : doctorDisplayName)}</span>
+                          <BadgeCheck className="w-5 h-5 text-cyan-400 shrink-0" />
+                        </h3>
+                        <p className="text-xs text-indigo-300 font-semibold flex items-center justify-center gap-1.5">
+                          <span>{isDoctor ? 'Patient Telehealth Case' : 'Attending Medical Specialist'}</span>
+                          <span>•</span>
+                          <span className="text-cyan-300 font-mono">{activeConsultation?.specialization || 'Clinical Specialist'}</span>
+                        </p>
+                      </div>
+
+                      {/* Animated Sound Wave Equalizer Bars */}
+                      <div className="flex items-center justify-center gap-1.5 h-8 my-1 px-4 py-1.5 rounded-full bg-slate-950/70 border border-indigo-500/30 shadow-inner">
+                        <span className="w-1.5 rounded-full bg-cyan-400 eq-bar-1" />
+                        <span className="w-1.5 rounded-full bg-cyan-300 eq-bar-2" />
+                        <span className="w-1.5 rounded-full bg-indigo-400 eq-bar-3" />
+                        <span className="w-1.5 rounded-full bg-violet-400 eq-bar-4" />
+                        <span className="w-1.5 rounded-full bg-purple-400 eq-bar-5" />
+                        <span className="w-1.5 rounded-full bg-emerald-400 eq-bar-6" />
+                        <span className="w-1.5 rounded-full bg-teal-300 eq-bar-7" />
+                        <span className="w-1.5 rounded-full bg-cyan-400 eq-bar-8" />
+                      </div>
+
+                      {/* Status Headline */}
+                      <div className="text-xs font-semibold">
+                        {audioCall.callState === 'CONNECTED' ? (
+                          <span className="text-slate-300">Camera stream paused by remote participant (Audio live)</span>
+                        ) : audioCall.callState === 'CALLING' ? (
+                          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-indigo-500/20 border border-indigo-400/40 text-indigo-200 font-bold animate-pulse shadow-md">
+                            <PhoneCall className="w-3.5 h-3.5 animate-bounce text-cyan-400" />
+                            <span>Calling for HD Video Teleconsultation...</span>
+                          </div>
+                        ) : audioCall.callState === 'RINGING' ? (
+                          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-emerald-500/20 border border-emerald-400/40 text-emerald-200 font-bold animate-pulse shadow-md">
+                            <Video className="w-3.5 h-3.5 animate-bounce text-emerald-400" />
+                            <span>Incoming HD Video Teleconsultation Request</span>
+                          </div>
+                        ) : (
+                          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-blue-500/20 border border-blue-400/40 text-blue-200 font-bold">
+                            <Activity className="w-3.5 h-3.5 animate-spin text-cyan-400" />
+                            <span>Establishing secure WebRTC video link...</span>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Interactive Pre-Call Controls (Mic & Cam check while calling) */}
+                      {audioCall.callState === 'CALLING' && (
+                        <div className="flex items-center justify-center gap-2.5 pt-1">
+                          <button
+                            type="button"
+                            onClick={audioCall.toggleMute}
+                            className={`px-3.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
+                              audioCall.isMuted
+                                ? 'bg-amber-500/25 border border-amber-400/60 text-amber-300 shadow-xs ring-1 ring-amber-400/40'
+                                : 'bg-emerald-500/20 border border-emerald-400/40 text-emerald-300 hover:bg-emerald-500/30'
+                            }`}
+                            title="Preview Microphone"
+                          >
+                            {audioCall.isMuted ? <MicOff className="w-3.5 h-3.5" /> : <Mic className="w-3.5 h-3.5" />}
+                            <span>{audioCall.isMuted ? 'Mic Muted' : 'Mic Live'}</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={audioCall.toggleVideo}
+                            className={`px-3.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
+                              !audioCall.isVideoEnabled
+                                ? 'bg-amber-500/25 border border-amber-400/60 text-amber-300 shadow-xs ring-1 ring-amber-400/40'
+                                : 'bg-purple-500/20 border border-purple-400/40 text-purple-300 hover:bg-purple-500/30'
+                            }`}
+                            title="Preview Camera"
+                          >
+                            {audioCall.isVideoEnabled ? <Camera className="w-3.5 h-3.5 text-purple-300" /> : <CameraOff className="w-3.5 h-3.5" />}
+                            <span>{audioCall.isVideoEnabled ? 'Camera On' : 'Camera Off'}</span>
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Local Camera Picture-in-Picture (PiP) Floating Preview */}
+                  <div className="absolute bottom-4 right-4 z-20 w-36 sm:w-48 aspect-video rounded-2xl bg-slate-900 border-2 border-cyan-500/50 shadow-[0_10px_35px_rgba(0,0,0,0.85)] overflow-hidden group">
+                    <video
+                      ref={audioCall.localVideoRef}
+                      autoPlay
+                      playsInline
+                      muted
+                      className={`w-full h-full object-cover -scale-x-100 ${audioCall.isVideoEnabled ? 'block' : 'hidden'}`}
+                    />
+                    {!audioCall.isVideoEnabled && (
+                      <div className="w-full h-full flex flex-col items-center justify-center bg-slate-900/90 text-slate-400 p-2 text-center">
+                        <CameraOff className="w-5 h-5 mb-1 text-slate-500" />
+                        <span className="text-[10px] font-bold">Camera Off</span>
+                      </div>
+                    )}
+                    <div className="absolute bottom-1.5 left-2 px-2 py-0.5 rounded-md bg-black/75 backdrop-blur-xs text-[9px] font-bold text-white flex items-center gap-1 border border-white/10">
+                      {audioCall.isScreenSharing && <Monitor className="w-2.5 h-2.5 text-cyan-300" />}
+                      <span className="text-cyan-300">You</span>
+                      {audioCall.isMuted && <span className="text-amber-400">• Muted</span>}
+                    </div>
+                  </div>
+
+                  {/* Connected Video HUD Badges */}
+                  {audioCall.callState === 'CONNECTED' && (
+                    <div className="absolute top-4 left-4 z-20 flex items-center space-x-2 bg-black/60 backdrop-blur-md px-3.5 py-1.5 rounded-2xl border border-white/15 text-xs text-white shadow-xl">
+                      <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_#34d399]" />
+                      <span className="font-mono font-bold text-emerald-300">{formatDuration(audioCall.callDuration)}</span>
+                      <span className="text-slate-400">|</span>
+                      <span className="text-[11px] font-semibold text-slate-200">{isDoctor ? patientDisplayName : doctorDisplayName}</span>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                /* ── AUDIO CONSULTATION INTERFACE ── */
+                <div className="p-6 sm:p-8 text-center relative z-10 w-full max-w-lg">
+                  {/* Holographic Avatar with Sonic Rings */}
+                  <div className="relative my-4 flex items-center justify-center">
+                    {(audioCall.callState === 'CONNECTED' || audioCall.callState === 'CALLING' || audioCall.callState === 'RINGING') && (
+                      <>
+                        <div className="absolute w-32 h-32 rounded-full border border-cyan-500/40 call-pulse-ring-1" />
+                        <div className="absolute w-44 h-44 rounded-full border border-indigo-400/30 call-pulse-ring-2" />
+                        <div className="absolute w-56 h-56 rounded-full border border-purple-400/20 call-pulse-ring-3" />
+                      </>
+                    )}
+
+                    <div className="relative w-28 h-28 rounded-3xl bg-gradient-to-tr from-cyan-500 via-indigo-600 to-purple-600 p-1 shadow-2xl shadow-indigo-500/50 flex items-center justify-center transition-all transform hover:scale-105">
+                      <div className="w-full h-full rounded-[22px] bg-slate-900 flex items-center justify-center overflow-hidden">
+                        {audioCall.callState === 'RINGING' ? (
+                          <PhoneCall className="w-12 h-12 text-emerald-400 animate-bounce" />
+                        ) : audioCall.callState === 'CONNECTED' ? (
+                          <div className="flex flex-col items-center justify-center">
+                            <span className="text-3xl font-black text-white tracking-wider">
+                              {(isDoctor ? patientDisplayName : doctorDisplayName).substring(0, 2).toUpperCase()}
+                            </span>
+                            <div className="flex items-center gap-1 mt-1">
+                              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                              <span className="text-[10px] font-mono text-emerald-400 uppercase font-bold">Active</span>
+                            </div>
+                          </div>
+                        ) : audioCall.callState === 'CALLING' ? (
+                          <PhoneCall className="w-12 h-12 text-cyan-400 animate-pulse" />
+                        ) : audioCall.callState === 'CONNECTING' || audioCall.callState === 'ACCEPTED' ? (
+                          <Activity className="w-12 h-12 text-blue-400 animate-spin" />
+                        ) : (
+                          <PhoneOff className="w-12 h-12 text-rose-400" />
+                        )}
+                      </div>
+
+                      <div className="absolute -bottom-1 -right-1 w-8 h-8 rounded-full bg-gradient-to-tr from-cyan-500 to-blue-600 border-2 border-slate-900 flex items-center justify-center text-white shadow-md">
+                        {isDoctor ? <Heart className="w-4 h-4 fill-current text-white" /> : <Stethoscope className="w-4 h-4 text-white" />}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Participant Name & Specialization */}
+                  <div className="space-y-1.5 mt-3">
+                    <h2 className="text-2xl font-black text-white tracking-tight flex items-center justify-center gap-2">
+                      <span>{audioCall.callState === 'RINGING' ? (audioCall.incomingCallInfo?.senderName || 'Incoming Patient Call') : (isDoctor ? patientDisplayName : doctorDisplayName)}</span>
+                      <BadgeCheck className="w-5 h-5 text-cyan-400 shrink-0" />
+                    </h2>
+                    <div className="flex items-center justify-center gap-2 text-xs text-indigo-300 font-semibold">
+                      <span>{isDoctor ? 'Patient Telehealth Case' : 'Attending Medical Specialist'}</span>
+                      <span>•</span>
+                      <span className="px-2.5 py-0.5 rounded-full bg-indigo-500/20 text-cyan-200 text-[10px] font-mono font-bold border border-indigo-400/30">
+                        {activeConsultation?.specialization || 'Clinical Specialist'}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Status & Live Timer Badge */}
+                  <div className="mt-3.5">
+                    {audioCall.callState === 'CALLING' && (
+                      <div className="inline-flex items-center space-x-2 px-5 py-2 rounded-full bg-indigo-500/20 border border-indigo-400/30 text-indigo-200 text-xs font-bold animate-pulse shadow-sm">
+                        <PhoneCall className="w-4 h-4 animate-bounce text-cyan-400" />
+                        <span>Ringing remote station • Outgoing VoIP call...</span>
+                      </div>
+                    )}
+                    {audioCall.callState === 'RINGING' && (
+                      <div className="inline-flex items-center space-x-2 px-5 py-2 rounded-full bg-emerald-500/20 border border-emerald-400/30 text-emerald-200 text-xs font-bold animate-pulse shadow-sm">
+                        <PhoneCall className="w-4 h-4 animate-bounce text-emerald-400" />
+                        <span>Incoming Audio Consultation Request</span>
+                      </div>
+                    )}
+                    {(audioCall.callState === 'CONNECTING' || audioCall.callState === 'ACCEPTED') && (
+                      <div className="inline-flex items-center space-x-2 px-5 py-2 rounded-full bg-blue-500/20 border border-blue-400/30 text-blue-200 text-xs font-bold animate-pulse shadow-sm">
+                        <Activity className="w-4 h-4 animate-spin text-cyan-400" />
+                        <span>Negotiating WebRTC Peer Connection...</span>
+                      </div>
+                    )}
+                    {audioCall.callState === 'CONNECTED' && (
+                      <div className="inline-flex items-center space-x-2.5 px-6 py-2 rounded-full bg-emerald-500/15 border border-emerald-400/30 shadow-inner">
+                        <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_10px_#34d399]" />
+                        <span className="text-xl font-mono font-black text-emerald-300 tracking-wider">
+                          {formatDuration(audioCall.callDuration)}
+                        </span>
+                        <span className="text-[10px] font-extrabold text-emerald-400 uppercase tracking-widest bg-emerald-500/20 px-2 py-0.5 rounded-full">
+                          Live VoIP
+                        </span>
+                      </div>
+                    )}
+                    {audioCall.callState === 'RECONNECTING' && (
+                      <div className="inline-flex items-center space-x-2 px-5 py-2 rounded-full bg-amber-500/20 border border-amber-400/40 text-amber-200 text-xs font-bold animate-pulse shadow-md">
+                        <RefreshCw className="w-4 h-4 animate-spin text-amber-400" />
+                        <span>Signal dropped • Reconnecting {audioCall.reconnectCountdown !== null ? `(${audioCall.reconnectCountdown}s)` : ''}...</span>
+                      </div>
+                    )}
+                    {audioCall.callState === 'DECLINED' && (
+                      <div className="inline-flex items-center space-x-2 px-4 py-1.5 rounded-full bg-rose-500/20 border border-rose-400/30 text-rose-300 text-xs font-bold">
+                        <span>Call Declined</span>
+                      </div>
+                    )}
+                    {audioCall.callState === 'MISSED' && (
+                      <div className="inline-flex items-center space-x-2 px-4 py-1.5 rounded-full bg-amber-500/20 border border-amber-400/30 text-amber-300 text-xs font-bold">
+                        <span>Call Missed</span>
+                      </div>
+                    )}
+                    {audioCall.callState === 'ENDED' && (
+                      <div className="inline-flex items-center space-x-2 px-4 py-1.5 rounded-full bg-slate-800 border border-slate-700 text-slate-300 text-xs font-bold">
+                        <span>Call Concluded</span>
+                      </div>
+                    )}
+                    {audioCall.callState === 'FAILED' && (
+                      <div className="inline-flex items-center space-x-2 px-4 py-1.5 rounded-full bg-rose-500/20 border border-rose-400/30 text-rose-300 text-xs font-bold">
+                        <span>Connection Failed</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Audio Equalizer Waveform */}
+                  <AudioVisualizerWaveform
+                    isConnected={audioCall.callState === 'CONNECTED'}
+                    isMuted={audioCall.isMuted}
+                  />
+
+                  {/* Pre-Call Mic Check (Audio Mode) */}
+                  {audioCall.callState === 'CALLING' && (
+                    <div className="flex items-center justify-center pt-2">
+                      <button
+                        type="button"
+                        onClick={audioCall.toggleMute}
+                        className={`px-3.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
+                          audioCall.isMuted
+                            ? 'bg-amber-500/25 border border-amber-400/60 text-amber-300 shadow-xs'
+                            : 'bg-emerald-500/20 border border-emerald-400/40 text-emerald-300'
+                        }`}
+                      >
+                        {audioCall.isMuted ? <MicOff className="w-3.5 h-3.5" /> : <Mic className="w-3.5 h-3.5" />}
+                        <span>{audioCall.isMuted ? 'Mic Muted' : 'Mic Ready'}</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* In-Call Clinical Snapshot & Scratchpad Slide Drawer */}
+            {showInCallNotes && (
+              <div className="w-full lg:w-80 bg-slate-900/95 border-t lg:border-t-0 lg:border-l border-indigo-500/30 p-4 flex flex-col justify-between overflow-y-auto max-h-80 lg:max-h-full">
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-extrabold uppercase tracking-wider text-cyan-300 flex items-center gap-1.5">
+                      <ClipboardList className="w-3.5 h-3.5" />
+                      <span>Clinical Snapshot</span>
+                    </span>
+                    <button
+                      onClick={() => setShowInCallNotes(false)}
+                      className="p-1 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+
+                  <div className="p-3 rounded-2xl bg-slate-950/60 border border-slate-800 space-y-1.5 text-xs">
+                    <div className="flex justify-between text-slate-400">
+                      <span>Case ID</span>
+                      <span className="font-mono font-bold text-white">{activeConsultation?.consultation_id || 'Active'}</span>
+                    </div>
+                    <div className="flex justify-between text-slate-400">
+                      <span>Reason</span>
+                      <span className="font-semibold text-slate-200 truncate max-w-[130px]">{activeConsultation?.reason || 'General Telehealth'}</span>
+                    </div>
+                    <div className="flex justify-between text-slate-400">
+                      <span>Urgency</span>
+                      <span className="px-2 py-0.2 rounded-full font-bold text-[10px] bg-indigo-500/20 text-indigo-300">
+                        {activeConsultation?.urgency || 'ROUTINE'}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-bold text-slate-300">In-Call Clinical Scratchpad:</label>
+                    <textarea
+                      rows={4}
+                      value={inCallNoteText}
+                      onChange={(e) => setInCallNoteText(e.target.value)}
+                      placeholder="Jot down symptoms, vitals, or action items during this call..."
+                      className="w-full p-2.5 bg-slate-950/80 border border-slate-800 focus:border-indigo-500 rounded-xl text-xs text-white placeholder:text-slate-500 focus:outline-none resize-none"
+                    />
+                  </div>
+                </div>
+
+                <div className="pt-2 flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (inCallNoteText.trim()) {
+                        setPatientNewMessage(`[In-Call Note] ${inCallNoteText}`);
+                        notify('Note copied to message composer');
+                      }
+                    }}
+                    className="flex-1 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all text-center"
+                  >
+                    Copy to Chat
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (inCallNoteText.trim()) {
+                        navigator.clipboard?.writeText(inCallNoteText);
+                        notify('Copied scratchpad note');
+                      }
+                    }}
+                    className="p-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs"
+                    title="Copy to Clipboard"
+                  >
+                    <Copy className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Error Message Alert */}
+          {audioCall.error && (
+            <div className="mx-6 mb-2 px-4 py-2 bg-rose-500/20 border border-rose-500/30 rounded-xl text-xs text-rose-300 font-medium text-center shrink-0">
+              {audioCall.error}
+            </div>
+          )}
+
+          {/* ── QUICK REACTIONS BAR (Active in connected or calling states) ──── */}
+          {(audioCall.callState === 'CONNECTED' || audioCall.callState === 'CALLING') && (
+            <div className="px-4 py-1.5 bg-slate-950/60 border-t border-indigo-500/20 flex items-center justify-center gap-2 overflow-x-auto shrink-0">
+              <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 hidden sm:inline mr-1">
+                Reactions:
+              </span>
+              {[
+                { emoji: '👋', label: 'Wave' },
+                { emoji: '👍', label: 'All Good' },
+                { emoji: '🩺', label: 'Audio Clear' },
+                { emoji: '📋', label: 'Taking Notes' },
+                { emoji: '❤️', label: 'Thank You' }
+              ].map((btn) => (
+                <button
+                  key={btn.label}
+                  type="button"
+                  onClick={() => triggerCallReaction(btn.emoji, btn.label)}
+                  className="px-2.5 py-1 rounded-xl bg-slate-800/80 hover:bg-slate-700/90 border border-slate-700/50 hover:border-cyan-400/50 text-white text-xs font-semibold flex items-center gap-1 transition-all transform hover:scale-105 active:scale-95 cursor-pointer shadow-xs"
+                >
+                  <span>{btn.emoji}</span>
+                  <span className="text-[10px] text-slate-300">{btn.label}</span>
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* ── BOTTOM ERGONOMIC ACTION DOCK ──────────────────────────────────── */}
+          <div className="p-3.5 sm:p-5 pt-2.5 bg-slate-950/95 border-t border-indigo-500/30 flex items-center justify-center gap-3 sm:gap-4 relative z-20 shrink-0">
+            {/* RINGING State Actions */}
+            {audioCall.callState === 'RINGING' && (
+              <>
+                <button
+                  onClick={audioCall.declineCall}
+                  className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-rose-600 to-red-500 hover:from-rose-700 hover:to-red-600 text-white flex flex-col items-center justify-center shadow-xl shadow-rose-600/40 hover:scale-105 active:scale-95 transition-all cursor-pointer border border-rose-400/30"
+                  title="Decline Call"
+                >
+                  <PhoneOff className="w-6 h-6" />
+                  <span className="text-[10px] font-bold mt-1">Decline</span>
+                </button>
+                <button
+                  onClick={() => audioCall.acceptCall(audioCall.incomingCallInfo?.callType || 'video')}
+                  className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-emerald-600 to-teal-500 hover:from-emerald-700 hover:to-teal-600 text-white flex flex-col items-center justify-center shadow-2xl shadow-emerald-500/50 hover:scale-105 active:scale-95 transition-all cursor-pointer animate-pulse border border-emerald-400/40"
+                  title={audioCall.incomingCallInfo?.callType === 'video' ? 'Accept Video Call' : 'Accept Audio Call'}
+                >
+                  {audioCall.incomingCallInfo?.callType === 'video' ? <Video className="w-6 h-6" /> : <Phone className="w-6 h-6" />}
+                  <span className="text-[10px] font-bold mt-1">Accept</span>
+                </button>
+              </>
+            )}
+
+            {/* CALLING State Actions */}
+            {audioCall.callState === 'CALLING' && (
+              <button
+                onClick={audioCall.cancelCall}
+                className="px-8 py-4 rounded-2xl bg-gradient-to-tr from-rose-600 via-rose-500 to-red-600 hover:from-rose-700 hover:to-red-700 text-white flex items-center justify-center space-x-2.5 shadow-2xl shadow-rose-600/50 hover:scale-105 active:scale-95 transition-all cursor-pointer border border-rose-400/40"
+                title="Cancel Call"
+              >
+                <PhoneOff className="w-6 h-6" />
+                <span className="text-xs font-black uppercase tracking-wider">Cancel Call</span>
+              </button>
+            )}
+
+            {/* CONNECTED & RECONNECTING State Actions */}
+            {(audioCall.callState === 'CONNECTED' || audioCall.callState === 'RECONNECTING') && (
+              <>
+                {/* Microphone Mute */}
+                <button
+                  onClick={audioCall.toggleMute}
+                  className={`w-14 h-14 rounded-2xl flex flex-col items-center justify-center transition-all cursor-pointer ${
+                    audioCall.isMuted
+                      ? 'bg-amber-500 hover:bg-amber-600 text-white shadow-xl shadow-amber-500/40 ring-2 ring-amber-400/60 scale-105'
+                      : 'bg-slate-800/90 hover:bg-slate-700 text-emerald-400 border border-slate-700/80 shadow-md'
+                  }`}
+                  title={audioCall.isMuted ? 'Unmute Microphone' : 'Mute Microphone'}
+                >
+                  {audioCall.isMuted ? <MicOff className="w-5 h-5 text-white" /> : <Mic className="w-5 h-5" />}
+                  <span className="text-[10px] font-bold mt-0.5">{audioCall.isMuted ? 'Muted' : 'Mute'}</span>
+                </button>
+
+                {/* Camera Video Toggle (For Video Calls) */}
+                {audioCall.callType === 'video' && (
+                  <button
+                    onClick={audioCall.toggleVideo}
+                    className={`w-14 h-14 rounded-2xl flex flex-col items-center justify-center transition-all cursor-pointer ${
+                      !audioCall.isVideoEnabled
+                        ? 'bg-amber-500 hover:bg-amber-600 text-white shadow-xl shadow-amber-500/40 ring-2 ring-amber-400/50'
+                        : 'bg-slate-800/90 hover:bg-slate-700 text-purple-400 border border-slate-700/80 shadow-md'
+                    }`}
+                    title={audioCall.isVideoEnabled ? 'Turn Off Camera' : 'Turn On Camera'}
+                  >
+                    {audioCall.isVideoEnabled ? <Camera className="w-5 h-5 text-purple-400" /> : <CameraOff className="w-5 h-5" />}
+                    <span className="text-[10px] font-bold mt-0.5">{audioCall.isVideoEnabled ? 'Camera' : 'Cam Off'}</span>
+                  </button>
+                )}
+
+                {/* Screen Share Toggle (For Video Calls) */}
+                {audioCall.callType === 'video' && (
+                  <button
+                    onClick={audioCall.toggleScreenShare}
+                    className={`w-14 h-14 rounded-2xl flex flex-col items-center justify-center transition-all cursor-pointer ${
+                      audioCall.isScreenSharing
+                        ? 'bg-cyan-600 hover:bg-cyan-700 text-white shadow-xl shadow-cyan-600/40 ring-2 ring-cyan-400/60 scale-105'
+                        : 'bg-slate-800/90 hover:bg-slate-700 text-slate-200 border border-slate-700/80 shadow-md'
+                    }`}
+                    title={audioCall.isScreenSharing ? 'Stop Screen Sharing' : 'Share Screen'}
+                  >
+                    <MonitorUp className={`w-5 h-5 ${audioCall.isScreenSharing ? 'text-white' : 'text-cyan-400'}`} />
+                    <span className="text-[10px] font-bold mt-0.5">{audioCall.isScreenSharing ? 'Sharing' : 'Share'}</span>
+                  </button>
+                )}
+
+                {/* Speaker Output Toggle */}
+                <button
+                  onClick={() => setIsSpeakerOn(!isSpeakerOn)}
+                  className={`w-14 h-14 rounded-2xl flex flex-col items-center justify-center transition-all cursor-pointer ${
+                    isSpeakerOn
+                      ? 'bg-slate-800/90 hover:bg-slate-700 text-blue-400 border border-slate-700/80 shadow-md'
+                      : 'bg-slate-900 text-slate-500 border border-slate-800'
+                  }`}
+                  title="Toggle Speaker Output"
+                >
+                  {isSpeakerOn ? <Volume2 className="w-5 h-5" /> : <VolumeX className="w-5 h-5 text-slate-500" />}
+                  <span className="text-[10px] font-bold mt-0.5">Speaker</span>
+                </button>
+
+                {/* End Call Button */}
+                <button
+                  onClick={audioCall.endCall}
+                  className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-rose-600 via-rose-500 to-red-600 hover:from-rose-700 hover:to-red-700 text-white flex flex-col items-center justify-center shadow-xl shadow-rose-600/50 hover:scale-105 active:scale-95 transition-all cursor-pointer ring-2 ring-rose-400/30"
+                  title="End Teleconsultation"
+                >
+                  <PhoneOff className="w-6 h-6" />
+                  <span className="text-[10px] font-black mt-0.5">End</span>
+                </button>
+              </>
+            )}
+
+            {/* CONNECTING / ACCEPTED State Action */}
+            {(audioCall.callState === 'CONNECTING' || audioCall.callState === 'ACCEPTED') && (
+              <button
+                onClick={audioCall.endCall}
+                className="px-8 py-4 rounded-2xl bg-gradient-to-tr from-rose-600 to-red-500 hover:from-rose-700 hover:to-red-600 text-white flex items-center justify-center space-x-2 shadow-xl shadow-rose-600/40 hover:scale-105 active:scale-95 transition-all cursor-pointer border border-rose-400/40"
+                title="Cancel"
+              >
+                <PhoneOff className="w-5 h-5" />
+                <span className="text-xs font-black uppercase tracking-wider">Cancel</span>
+              </button>
+            )}
+
+            {/* Terminal States Actions */}
+            {['DECLINED', 'MISSED', 'ENDED', 'FAILED'].includes(audioCall.callState) && (
+              <div className="flex items-center space-x-3 w-full justify-center">
+                <button
+                  onClick={() => {
+                    audioCall.resetToIdle();
+                    setIsCallMinimized(false);
+                  }}
+                  className="px-6 py-3 bg-slate-800 hover:bg-slate-700 text-white rounded-2xl border border-slate-700 text-xs font-bold transition-all cursor-pointer shadow-md"
+                >
+                  Return to Workspace
+                </button>
+                {isDoctor && ['DECLINED', 'FAILED', 'MISSED'].includes(audioCall.callState) && (
+                  <button
+                    onClick={() => {
+                      const prevType = audioCall.callType;
+                      audioCall.resetToIdle();
+                      setIsCallMinimized(false);
+                      setTimeout(() => audioCall.startCall(prevType), 300);
+                    }}
+                    className="px-6 py-3 bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-2xl text-xs font-extrabold transition-all cursor-pointer shadow-xl shadow-indigo-500/40 flex items-center gap-2"
+                  >
+                    <RefreshCw className="w-3.5 h-3.5" />
+                    <span>Retry Call</span>
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   // ═══════════════════════════════════════════════════════════════════════
   // RENDER: PATIENT PORTAL DASHBOARD (OVERVIEW MODE)
   // ═══════════════════════════════════════════════════════════════════════
@@ -827,25 +1605,26 @@ export default function ConsultationWorkspacePage({ user, consultationContext, i
         )}
 
         {/* ── HERO BANNER & STATS ────────────────────────────────────────── */}
-        <div className="relative overflow-hidden p-6 sm:p-8 bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950 text-white rounded-3xl shadow-2xl border border-slate-800/80">
-          <div className="absolute -top-24 -right-24 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
-          <div className="absolute -bottom-24 -left-24 w-96 h-96 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="relative overflow-hidden p-6 sm:p-8 bg-gradient-to-br from-slate-900 via-indigo-950 to-blue-950 text-white rounded-3xl shadow-2xl border border-indigo-500/30 backdrop-blur-md">
+          <div className="absolute -top-24 -right-24 w-96 h-96 bg-cyan-500/15 rounded-full blur-3xl pointer-events-none call-aura-glow" />
+          <div className="absolute -bottom-24 -left-24 w-96 h-96 bg-indigo-500/20 rounded-full blur-3xl pointer-events-none call-aura-glow" style={{ animationDelay: '3s' }} />
           
           <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-            <div className="space-y-2 max-w-2xl">
-              <div className="flex items-center space-x-2.5">
-                <span className="px-3 py-1 bg-gradient-to-r from-blue-500/20 to-indigo-500/20 border border-blue-400/30 text-blue-300 text-xs font-extrabold rounded-full flex items-center gap-1.5 shadow-xs">
-                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+            <div className="space-y-2.5 max-w-2xl">
+              <div className="flex items-center space-x-2.5 flex-wrap gap-y-1">
+                <span className="px-3.5 py-1 bg-gradient-to-r from-cyan-500/20 to-blue-500/20 border border-cyan-400/40 text-cyan-200 text-xs font-extrabold rounded-full flex items-center gap-1.5 shadow-sm">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_#34d399]" />
                   TeleMed Physician Network Active
                 </span>
-                <span className="text-xs text-slate-400 font-mono">Level 8 Telehealth Protocol</span>
+                <span className="text-xs text-indigo-200/80 font-mono px-2.5 py-0.5 rounded-md bg-indigo-500/20 border border-indigo-400/25">Level 8 Telehealth Protocol</span>
               </div>
 
-              <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
-                My Doctor Consultations
+              <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight flex items-center gap-2">
+                <span>My Doctor Consultations</span>
+                <Sparkles className="w-5 h-5 text-cyan-300" />
               </h1>
-              <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
-                Connect directly with board-certified medical specialists, attend live chat teleconsultations, review clinical prescriptions, and manage your health records.
+              <p className="text-xs sm:text-sm text-slate-200 leading-relaxed">
+                Connect directly with board-certified medical specialists, attend live chat teleconsultations, review clinical prescriptions, and manage your health records in real time.
               </p>
             </div>
 
@@ -1369,6 +2148,8 @@ export default function ConsultationWorkspacePage({ user, consultationContext, i
           </div>
         )}
 
+        {/* Live Audio & Video Teleconsultation Suite in Patient Overview Mode */}
+        {renderTeleconsultationSuite()}
       </PageContainer>
     );
   }
@@ -1388,8 +2169,9 @@ export default function ConsultationWorkspacePage({ user, consultationContext, i
       )}
 
       {/* ── TOP HEADER BANNER ──────────────────────────────────────────────── */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 p-3.5 bg-gradient-to-r from-slate-900 via-slate-800 to-indigo-950 text-white rounded-2xl shadow-xl border border-slate-700/50 shrink-0">
-        <div className="flex items-center space-x-3.5">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 p-3.5 sm:p-4 bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white rounded-2xl shadow-xl border border-indigo-500/30 shrink-0 relative overflow-hidden backdrop-blur-md">
+        <div className="absolute -top-12 -right-12 w-48 h-48 bg-cyan-500/10 rounded-full blur-2xl pointer-events-none" />
+        <div className="flex items-center space-x-3.5 relative z-10">
           {isPatient && (
             <button
               onClick={() => setPatientViewMode('OVERVIEW')}
@@ -1401,16 +2183,16 @@ export default function ConsultationWorkspacePage({ user, consultationContext, i
             </button>
           )}
 
-          <div className="w-11 h-11 rounded-xl bg-gradient-to-tr from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-blue-500/20 text-white shrink-0">
-            <Stethoscope className="w-5 h-5" />
+          <div className="w-11 h-11 rounded-xl bg-gradient-to-tr from-cyan-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-indigo-500/30 text-white shrink-0">
+            <Stethoscope className="w-5 h-5 text-cyan-200" />
           </div>
           <div>
             <div className="flex items-center space-x-2">
-              <h1 className="text-xl font-extrabold tracking-tight text-white">
-                {isDoctor ? 'Doctor Clinical Workspace' : 'Attending Consultation Live Chat'}
+              <h1 className="text-xl font-extrabold tracking-tight text-white flex items-center gap-1.5">
+                <span>{isDoctor ? 'Doctor Clinical Workspace' : 'Attending Consultation Live Chat'}</span>
               </h1>
-              <span className="bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[10px] font-bold px-2.5 py-0.5 rounded-full flex items-center gap-1">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              <span className="bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[10px] font-bold px-2.5 py-0.5 rounded-full flex items-center gap-1 shadow-xs">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_#34d399]" />
                 {isDoctor ? 'Doctor Portal Active' : 'Live Chat Workspace Active'}
               </span>
             </div>
@@ -1481,494 +2263,8 @@ export default function ConsultationWorkspacePage({ user, consultationContext, i
       )}
 
       {/* ── ULTRA-PREMIUM WEBRTC AUDIO & VIDEO TELECONSULTATION OVERLAY ──── */}
-      {audioCall.callState !== 'IDLE' && !isCallMinimized && (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-950/85 backdrop-blur-md p-3 sm:p-6 animate-fade-in" style={{ pointerEvents: 'auto' }}>
-          <div className={`w-full ${audioCall.callType === 'video' ? 'max-w-4xl' : 'max-w-lg'} bg-gradient-to-b from-slate-900 via-slate-900/98 to-indigo-950 border border-indigo-500/30 rounded-3xl shadow-[0_25px_80px_rgba(0,0,0,0.85)] overflow-hidden relative text-white transition-all`}>
-            
-            {/* Hidden audio element for remote audio playback */}
-            <audio ref={audioCall.remoteAudioRef} autoPlay playsInline />
+      {renderTeleconsultationSuite()}
 
-            {/* Ambient Background Glows */}
-            <div className="absolute -top-20 -left-20 w-64 h-64 bg-blue-600/20 rounded-full blur-3xl pointer-events-none call-aura-glow" />
-            <div className="absolute -bottom-20 -right-20 w-64 h-64 bg-indigo-600/25 rounded-full blur-3xl pointer-events-none call-aura-glow" style={{ animationDelay: '2s' }} />
-
-            {/* Top Navigation & Status Bar */}
-            <div className="p-4 sm:p-5 pb-2 flex items-center justify-between border-b border-slate-800/80 relative z-20">
-              <div className="flex items-center space-x-2">
-                <div className="flex items-center space-x-1.5 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-[11px] font-bold shadow-xs">
-                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-                  <span>{audioCall.callType === 'video' ? '256-Bit Encrypted HD Video' : '256-Bit Encrypted VoIP'}</span>
-                </div>
-                <div className="hidden sm:flex items-center space-x-1 px-2.5 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 text-[10px] font-mono">
-                  <Wifi className={`w-3 h-3 ${audioCall.networkQuality === 'POOR' ? 'text-rose-400 animate-pulse' : audioCall.networkQuality === 'FAIR' ? 'text-amber-400' : 'text-emerald-400'}`} />
-                  <span>{audioCall.latencyMs ? `${audioCall.latencyMs}ms` : '38ms'} • {audioCall.networkQuality} • {audioCall.callType === 'video' ? 'HD 720p' : 'VoIP'}</span>
-                </div>
-              </div>
-
-              <div className="flex items-center space-x-2">
-                <button
-                  type="button"
-                  onClick={() => setIsCallMinimized(true)}
-                  className="p-2 text-slate-400 hover:text-white bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700/60 rounded-xl transition-all cursor-pointer shadow-xs"
-                  title="Minimize to Floating Widget (PiP)"
-                >
-                  <Minimize2 className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-
-            {/* Main Video View vs Audio View */}
-            {audioCall.callType === 'video' ? (
-              /* ── VIDEO CONSULTATION INTERFACE ── */
-              <div className="relative aspect-video w-full max-h-[520px] bg-slate-950 flex items-center justify-center overflow-hidden">
-                {/* Remote Participant Primary Video Feed */}
-                <video
-                  ref={audioCall.remoteVideoRef}
-                  autoPlay
-                  playsInline
-                  className={`w-full h-full object-cover transition-opacity duration-300 ${
-                    audioCall.isRemoteVideoAvailable && audioCall.callState === 'CONNECTED' ? 'opacity-100' : 'opacity-0 absolute'
-                  }`}
-                />
-
-                {/* Remote Screen Share Badge */}
-                {audioCall.isRemoteScreenSharing && (
-                  <div className="absolute top-4 right-4 z-20 flex items-center space-x-1.5 bg-indigo-600/90 backdrop-blur-md px-3 py-1.5 rounded-xl border border-indigo-400/40 text-xs text-white shadow-xl animate-pulse">
-                    <Monitor className="w-3.5 h-3.5 text-indigo-200" />
-                    <span className="font-bold text-[11px]">{isDoctor ? patientDisplayName : doctorDisplayName} is sharing screen</span>
-                  </div>
-                )}
-
-                {/* In-Call Reconnection Overlay */}
-                {audioCall.callState === 'RECONNECTING' && (
-                  <div className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4 text-center space-y-2">
-                    <RefreshCw className="w-10 h-10 animate-spin text-amber-400" />
-                    <div className="text-white text-base font-extrabold">Reconnecting Video Stream...</div>
-                    <div className="text-amber-200 text-xs font-semibold">
-                      Restoring WebRTC peer connection • Attempting ICE restart {audioCall.reconnectCountdown !== null ? `(${audioCall.reconnectCountdown}s)` : ''}
-                    </div>
-                  </div>
-                )}
-
-                {/* Remote Video Fallback (When remote camera is off or connecting) */}
-                {(!audioCall.isRemoteVideoAvailable || audioCall.callState !== 'CONNECTED') && (
-                  <div className="flex flex-col items-center justify-center p-6 text-center space-y-3 z-10">
-                    <div className="relative">
-                      {(audioCall.callState === 'CONNECTED' || audioCall.callState === 'CALLING' || audioCall.callState === 'RINGING') && (
-                        <>
-                          <div className="absolute -inset-4 rounded-full border border-purple-500/30 animate-ping" />
-                          <div className="absolute -inset-8 rounded-full border border-indigo-500/20 animate-pulse" />
-                        </>
-                      )}
-                      <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-3xl bg-gradient-to-tr from-purple-600 via-indigo-600 to-blue-600 p-1 shadow-2xl flex items-center justify-center">
-                        <div className="w-full h-full rounded-[22px] bg-slate-900 flex items-center justify-center">
-                          {audioCall.callState === 'RINGING' ? (
-                            <Video className="w-12 h-12 text-emerald-400 animate-bounce" />
-                          ) : (
-                            <span className="text-3xl font-black text-white">
-                              {(isDoctor ? patientDisplayName : doctorDisplayName).substring(0, 2).toUpperCase()}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="space-y-1">
-                      <h3 className="text-xl font-bold text-white">
-                        {audioCall.callState === 'RINGING' ? (audioCall.incomingCallInfo?.senderName || 'Incoming Video Call') : (isDoctor ? patientDisplayName : doctorDisplayName)}
-                      </h3>
-                      <p className="text-xs text-purple-300 font-semibold">
-                        {audioCall.callState === 'CONNECTED'
-                          ? 'Camera feed paused by remote participant (Audio live)'
-                          : audioCall.callState === 'CALLING'
-                          ? 'Calling for HD Video Teleconsultation...'
-                          : audioCall.callState === 'RINGING'
-                          ? 'Incoming HD Video Teleconsultation Request'
-                          : 'Establishing secure video link...'}
-                      </p>
-                    </div>
-                  </div>
-                )}
-
-                {/* Local Camera Picture-in-Picture (PiP) Floating Preview */}
-                <div className="absolute bottom-4 right-4 z-20 w-36 sm:w-48 aspect-video rounded-2xl bg-slate-900 border-2 border-indigo-500/50 shadow-2xl overflow-hidden group">
-                  <video
-                    ref={audioCall.localVideoRef}
-                    autoPlay
-                    playsInline
-                    muted
-                    className={`w-full h-full object-cover -scale-x-100 ${audioCall.isVideoEnabled ? 'block' : 'hidden'}`}
-                  />
-                  {!audioCall.isVideoEnabled && (
-                    <div className="w-full h-full flex flex-col items-center justify-center bg-slate-900/90 text-slate-400 p-2 text-center">
-                      <CameraOff className="w-5 h-5 mb-1 text-slate-500" />
-                      <span className="text-[10px] font-bold">Camera Off</span>
-                    </div>
-                  )}
-                  <div className="absolute bottom-1 left-2 px-1.5 py-0.5 rounded bg-black/60 backdrop-blur-xs text-[9px] font-bold text-white flex items-center gap-1">
-                    {audioCall.isScreenSharing && <Monitor className="w-2.5 h-2.5 text-indigo-300" />}
-                    <span>You {audioCall.isScreenSharing ? '(Screen)' : ''} {audioCall.isMuted && '• Muted'}</span>
-                  </div>
-                </div>
-
-                {/* Video Call Live HUD Badge */}
-                {audioCall.callState === 'CONNECTED' && (
-                  <div className="absolute top-4 left-4 z-20 flex items-center space-x-2 bg-black/60 backdrop-blur-md px-3 py-1.5 rounded-xl border border-white/10 text-xs text-white">
-                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                    <span className="font-mono font-bold text-emerald-300">{formatDuration(audioCall.callDuration)}</span>
-                    <span className="text-[10px] text-slate-300">| {isDoctor ? patientDisplayName : doctorDisplayName}</span>
-                  </div>
-                )}
-              </div>
-            ) : (
-              /* ── AUDIO CONSULTATION INTERFACE ── */
-              <div className="p-6 text-center relative z-10">
-                <div className="relative my-4 flex items-center justify-center">
-                  {(audioCall.callState === 'CONNECTED' || audioCall.callState === 'CALLING' || audioCall.callState === 'RINGING') && (
-                    <>
-                      <div className="absolute w-28 h-28 rounded-full border border-indigo-500/40 call-pulse-ring-1" />
-                      <div className="absolute w-36 h-36 rounded-full border border-blue-400/25 call-pulse-ring-2" />
-                      <div className="absolute w-44 h-44 rounded-full border border-indigo-400/15 call-pulse-ring-3" />
-                    </>
-                  )}
-                  
-                  <div className="relative w-24 h-24 rounded-3xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-purple-600 p-1 shadow-2xl shadow-indigo-500/50 ring-4 ring-indigo-500/30 flex items-center justify-center transition-all transform hover:scale-105">
-                    <div className="w-full h-full rounded-[22px] bg-slate-900 flex items-center justify-center overflow-hidden">
-                      {audioCall.callState === 'RINGING' ? (
-                        <PhoneCall className="w-10 h-10 text-emerald-400 animate-bounce" />
-                      ) : audioCall.callState === 'CONNECTED' ? (
-                        <div className="flex flex-col items-center justify-center">
-                          <span className="text-2xl font-black text-white tracking-wider">
-                            {(isDoctor ? patientDisplayName : doctorDisplayName).substring(0, 2).toUpperCase()}
-                          </span>
-                          <div className="flex items-center gap-1 mt-0.5">
-                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                            <span className="text-[9px] font-mono text-emerald-400 uppercase font-bold">Live</span>
-                          </div>
-                        </div>
-                      ) : audioCall.callState === 'CALLING' ? (
-                        <PhoneCall className="w-10 h-10 text-indigo-400 animate-pulse" />
-                      ) : audioCall.callState === 'CONNECTING' || audioCall.callState === 'ACCEPTED' ? (
-                        <Activity className="w-10 h-10 text-blue-400 animate-spin" />
-                      ) : (
-                        <PhoneOff className="w-10 h-10 text-rose-400" />
-                      )}
-                    </div>
-                    
-                    <div className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-blue-600 border-2 border-slate-900 flex items-center justify-center text-white shadow-md">
-                      {isDoctor ? <Heart className="w-3.5 h-3.5 fill-current text-white" /> : <Stethoscope className="w-3.5 h-3.5 text-white" />}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Participant Name & Specialization */}
-                <div className="space-y-1 mt-2">
-                  <h2 className="text-2xl font-black text-white tracking-tight flex items-center justify-center gap-2">
-                    <span>{audioCall.callState === 'RINGING' ? (audioCall.incomingCallInfo?.senderName || 'Incoming Patient Call') : (isDoctor ? patientDisplayName : doctorDisplayName)}</span>
-                    <BadgeCheck className="w-5 h-5 text-blue-400 shrink-0" />
-                  </h2>
-                  <div className="flex items-center justify-center gap-2 text-xs text-indigo-300 font-semibold">
-                    <span>{isDoctor ? 'Patient Telehealth Case' : 'Attending Medical Specialist'}</span>
-                    <span>•</span>
-                    <span className="px-2 py-0.5 rounded-md bg-indigo-500/20 text-indigo-200 text-[10px] font-mono font-bold">
-                      {activeConsultation?.specialization || 'Clinical Specialist'}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Status & Live Timer Badge */}
-                <div className="mt-3">
-                  {audioCall.callState === 'CALLING' && (
-                    <div className="inline-flex items-center space-x-2 px-4 py-1.5 rounded-full bg-indigo-500/20 border border-indigo-400/30 text-indigo-200 text-xs font-bold animate-pulse shadow-sm">
-                      <PhoneCall className="w-3.5 h-3.5 animate-bounce" />
-                      <span>Connecting audio channel...</span>
-                    </div>
-                  )}
-                  {audioCall.callState === 'RINGING' && (
-                    <div className="inline-flex items-center space-x-2 px-4 py-1.5 rounded-full bg-amber-500/20 border border-amber-400/30 text-amber-200 text-xs font-bold animate-pulse shadow-sm">
-                      <PhoneCall className="w-3.5 h-3.5 animate-bounce" />
-                      <span>Incoming Audio Consultation Request</span>
-                    </div>
-                  )}
-                  {(audioCall.callState === 'CONNECTING' || audioCall.callState === 'ACCEPTED') && (
-                    <div className="inline-flex items-center space-x-2 px-4 py-1.5 rounded-full bg-blue-500/20 border border-blue-400/30 text-blue-200 text-xs font-bold animate-pulse shadow-sm">
-                      <Activity className="w-3.5 h-3.5 animate-spin text-blue-400" />
-                      <span>Negotiating WebRTC Peer Connection...</span>
-                    </div>
-                  )}
-                  {audioCall.callState === 'CONNECTED' && (
-                    <div className="inline-flex items-center space-x-2.5 px-5 py-2 rounded-full bg-emerald-500/15 border border-emerald-500/30 shadow-inner">
-                      <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_10px_#34d399]" />
-                      <span className="text-xl font-mono font-black text-emerald-300 tracking-wider">
-                        {formatDuration(audioCall.callDuration)}
-                      </span>
-                      <span className="text-[10px] font-extrabold text-emerald-400/90 uppercase tracking-widest bg-emerald-500/20 px-2 py-0.5 rounded-full">
-                        Connected
-                      </span>
-                    </div>
-                  )}
-                  {audioCall.callState === 'RECONNECTING' && (
-                    <div className="inline-flex items-center space-x-2 px-4 py-1.5 rounded-full bg-amber-500/20 border border-amber-400/40 text-amber-200 text-xs font-bold animate-pulse shadow-md">
-                      <RefreshCw className="w-3.5 h-3.5 animate-spin text-amber-400" />
-                      <span>Signal dropped • ICE Reconnecting {audioCall.reconnectCountdown !== null ? `(${audioCall.reconnectCountdown}s)` : ''}...</span>
-                    </div>
-                  )}
-                  {audioCall.callState === 'DECLINED' && (
-                    <div className="inline-flex items-center space-x-2 px-4 py-1.5 rounded-full bg-rose-500/20 border border-rose-400/30 text-rose-300 text-xs font-bold">
-                      <span>Call Declined</span>
-                    </div>
-                  )}
-                  {audioCall.callState === 'MISSED' && (
-                    <div className="inline-flex items-center space-x-2 px-4 py-1.5 rounded-full bg-amber-500/20 border border-amber-400/30 text-amber-300 text-xs font-bold">
-                      <span>Call Missed</span>
-                    </div>
-                  )}
-                  {audioCall.callState === 'ENDED' && (
-                    <div className="inline-flex items-center space-x-2 px-4 py-1.5 rounded-full bg-slate-800 border border-slate-700 text-slate-300 text-xs font-bold">
-                      <span>Call Concluded</span>
-                    </div>
-                  )}
-                  {audioCall.callState === 'FAILED' && (
-                    <div className="inline-flex items-center space-x-2 px-4 py-1.5 rounded-full bg-rose-500/20 border border-rose-400/30 text-rose-300 text-xs font-bold">
-                      <span>Connection Failed</span>
-                    </div>
-                  )}
-                </div>
-
-                {/* Dynamic Sound Wave Visualizer */}
-                <AudioVisualizerWaveform
-                  isConnected={audioCall.callState === 'CONNECTED'}
-                  isMuted={audioCall.isMuted}
-                />
-              </div>
-            )}
-
-            {/* Error Message */}
-            {audioCall.error && (
-              <div className="mx-6 mb-2 px-4 py-2 bg-rose-500/20 border border-rose-500/30 rounded-xl text-xs text-rose-300 font-medium text-center">
-                {audioCall.error}
-              </div>
-            )}
-
-            {/* Bottom Ergonomic Action Dock */}
-            <div className="p-4 sm:p-6 pt-3 bg-slate-950/90 border-t border-slate-800/80 flex items-center justify-center gap-3 sm:gap-4 relative z-20">
-              
-              {/* RINGING State Actions */}
-              {audioCall.callState === 'RINGING' && (
-                <>
-                  <button
-                    onClick={audioCall.declineCall}
-                    className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-rose-600 to-red-500 hover:from-rose-700 hover:to-red-600 text-white flex flex-col items-center justify-center shadow-xl shadow-rose-600/40 hover:scale-105 active:scale-95 transition-all cursor-pointer"
-                    title="Decline Call"
-                  >
-                    <PhoneOff className="w-6 h-6" />
-                    <span className="text-[10px] font-bold mt-1">Decline</span>
-                  </button>
-                  <button
-                    onClick={() => audioCall.acceptCall(audioCall.incomingCallInfo?.callType || 'video')}
-                    className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-emerald-600 to-teal-500 hover:from-emerald-700 hover:to-teal-600 text-white flex flex-col items-center justify-center shadow-xl shadow-emerald-500/40 hover:scale-105 active:scale-95 transition-all cursor-pointer animate-pulse"
-                    title={audioCall.incomingCallInfo?.callType === 'video' ? 'Accept Video Call' : 'Accept Audio Call'}
-                  >
-                    {audioCall.incomingCallInfo?.callType === 'video' ? <Video className="w-6 h-6" /> : <Phone className="w-6 h-6" />}
-                    <span className="text-[10px] font-bold mt-1">Accept</span>
-                  </button>
-                </>
-              )}
-
-              {/* CALLING State Actions */}
-              {audioCall.callState === 'CALLING' && (
-                <button
-                  onClick={audioCall.cancelCall}
-                  className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-rose-600 to-red-500 hover:from-rose-700 hover:to-red-600 text-white flex flex-col items-center justify-center shadow-xl shadow-rose-600/40 hover:scale-105 active:scale-95 transition-all cursor-pointer"
-                  title="Cancel Call"
-                >
-                  <PhoneOff className="w-6 h-6" />
-                  <span className="text-[10px] font-bold mt-1">Cancel</span>
-                </button>
-              )}
-
-              {/* CONNECTED & RECONNECTING State Actions */}
-              {(audioCall.callState === 'CONNECTED' || audioCall.callState === 'RECONNECTING') && (
-                <>
-                  {/* Microphone Mute */}
-                  <button
-                    onClick={audioCall.toggleMute}
-                    className={`w-14 h-14 rounded-2xl flex flex-col items-center justify-center transition-all cursor-pointer ${
-                      audioCall.isMuted
-                        ? 'bg-amber-500 hover:bg-amber-600 text-white shadow-xl shadow-amber-500/40 ring-2 ring-amber-400/50 scale-105'
-                        : 'bg-slate-800/90 hover:bg-slate-700 text-slate-200 border border-slate-700/80 shadow-md'
-                    }`}
-                    title={audioCall.isMuted ? 'Unmute Microphone' : 'Mute Microphone'}
-                  >
-                    {audioCall.isMuted ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
-                    <span className="text-[10px] font-bold mt-0.5">{audioCall.isMuted ? 'Muted' : 'Mute'}</span>
-                  </button>
-
-                  {/* Camera Video Toggle (For Video Calls) */}
-                  {audioCall.callType === 'video' && (
-                    <button
-                      onClick={audioCall.toggleVideo}
-                      className={`w-14 h-14 rounded-2xl flex flex-col items-center justify-center transition-all cursor-pointer ${
-                        !audioCall.isVideoEnabled
-                          ? 'bg-amber-500 hover:bg-amber-600 text-white shadow-xl shadow-amber-500/40 ring-2 ring-amber-400/50'
-                          : 'bg-slate-800/90 hover:bg-slate-700 text-slate-200 border border-slate-700/80 shadow-md'
-                      }`}
-                      title={audioCall.isVideoEnabled ? 'Turn Off Camera' : 'Turn On Camera'}
-                    >
-                      {audioCall.isVideoEnabled ? <Camera className="w-5 h-5 text-purple-400" /> : <CameraOff className="w-5 h-5" />}
-                      <span className="text-[10px] font-bold mt-0.5">{audioCall.isVideoEnabled ? 'Camera' : 'Cam Off'}</span>
-                    </button>
-                  )}
-
-                  {/* Screen Share Toggle (For Video Calls) */}
-                  {audioCall.callType === 'video' && (
-                    <button
-                      onClick={audioCall.toggleScreenShare}
-                      className={`w-14 h-14 rounded-2xl flex flex-col items-center justify-center transition-all cursor-pointer ${
-                        audioCall.isScreenSharing
-                          ? 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-xl shadow-indigo-600/40 ring-2 ring-indigo-400/50 scale-105'
-                          : 'bg-slate-800/90 hover:bg-slate-700 text-slate-200 border border-slate-700/80 shadow-md'
-                      }`}
-                      title={audioCall.isScreenSharing ? 'Stop Screen Sharing' : 'Share Screen'}
-                    >
-                      <MonitorUp className={`w-5 h-5 ${audioCall.isScreenSharing ? 'text-white' : 'text-indigo-400'}`} />
-                      <span className="text-[10px] font-bold mt-0.5">{audioCall.isScreenSharing ? 'Sharing' : 'Share'}</span>
-                    </button>
-                  )}
-
-                  {/* Speaker Output Toggle */}
-                  <button
-                    onClick={() => setIsSpeakerOn(!isSpeakerOn)}
-                    className={`w-14 h-14 rounded-2xl flex flex-col items-center justify-center transition-all cursor-pointer ${
-                      isSpeakerOn
-                        ? 'bg-slate-800/90 hover:bg-slate-700 text-slate-200 border border-slate-700/80 shadow-md'
-                        : 'bg-slate-900 text-slate-500 border border-slate-800'
-                    }`}
-                    title="Toggle Speaker Output"
-                  >
-                    {isSpeakerOn ? <Volume2 className="w-5 h-5 text-blue-400" /> : <VolumeX className="w-5 h-5 text-slate-500" />}
-                    <span className="text-[10px] font-bold mt-0.5">Speaker</span>
-                  </button>
-
-                  {/* End Call Button */}
-                  <button
-                    onClick={audioCall.endCall}
-                    className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-rose-600 via-rose-500 to-red-600 hover:from-rose-700 hover:to-red-700 text-white flex flex-col items-center justify-center shadow-xl shadow-rose-600/50 hover:scale-105 active:scale-95 transition-all cursor-pointer ring-2 ring-rose-400/30"
-                    title="End Teleconsultation"
-                  >
-                    <PhoneOff className="w-6 h-6" />
-                    <span className="text-[10px] font-black mt-0.5">End</span>
-                  </button>
-                </>
-              )}
-
-              {/* CONNECTING / ACCEPTED State Action */}
-              {(audioCall.callState === 'CONNECTING' || audioCall.callState === 'ACCEPTED') && (
-                <button
-                  onClick={audioCall.endCall}
-                  className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-rose-600 to-red-500 hover:from-rose-700 hover:to-red-600 text-white flex flex-col items-center justify-center shadow-xl shadow-rose-600/40 hover:scale-105 active:scale-95 transition-all cursor-pointer"
-                  title="Cancel"
-                >
-                  <PhoneOff className="w-6 h-6" />
-                  <span className="text-[10px] font-bold mt-1">Cancel</span>
-                </button>
-              )}
-
-              {/* Terminal States Actions */}
-              {['DECLINED', 'MISSED', 'ENDED', 'FAILED'].includes(audioCall.callState) && (
-                <div className="flex items-center space-x-3 w-full justify-center">
-                  <button
-                    onClick={() => {
-                      audioCall.resetToIdle();
-                      setIsCallMinimized(false);
-                    }}
-                    className="px-6 py-3 bg-slate-800 hover:bg-slate-700 text-white rounded-2xl border border-slate-700 text-xs font-bold transition-all cursor-pointer shadow-md"
-                  >
-                    Return to Workspace
-                  </button>
-                  {isDoctor && ['DECLINED', 'FAILED', 'MISSED'].includes(audioCall.callState) && (
-                    <button
-                      onClick={() => {
-                        const prevType = audioCall.callType;
-                        audioCall.resetToIdle();
-                        setIsCallMinimized(false);
-                        setTimeout(() => audioCall.startCall(prevType), 300);
-                      }}
-                      className="px-6 py-3 bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-2xl text-xs font-extrabold transition-all cursor-pointer shadow-xl shadow-indigo-500/40 flex items-center gap-2"
-                    >
-                      <RefreshCw className="w-3.5 h-3.5" />
-                      <span>Retry Call</span>
-                    </button>
-                  )}
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ── DOCKED FLOATING PIP CALL WIDGET (When Minimized) ───────────────── */}
-      {audioCall.callState !== 'IDLE' && isCallMinimized && (
-        <div className="fixed bottom-6 right-6 z-[9999] bg-slate-950/95 backdrop-blur-2xl border border-indigo-500/40 rounded-2xl shadow-[0_15px_50px_rgba(0,0,0,0.8)] p-3 flex items-center space-x-3.5 text-white animate-scale-in">
-          {/* Avatar with pulse dot */}
-          <div className="relative">
-            <div className="w-11 h-11 rounded-xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-purple-600 flex items-center justify-center font-black text-sm shadow-md">
-              {(isDoctor ? patientDisplayName : doctorDisplayName).substring(0, 2).toUpperCase()}
-            </div>
-            {audioCall.callState === 'CONNECTED' && (
-              <>
-                <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-emerald-500 border-2 border-slate-950 rounded-full animate-ping" />
-                <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-emerald-500 border-2 border-slate-950 rounded-full" />
-              </>
-            )}
-          </div>
-
-          {/* Call Metadata */}
-          <div className="text-left min-w-[130px]">
-            <div className="text-xs font-black text-white flex items-center space-x-1.5 truncate max-w-[140px]">
-              <span className="truncate">{isDoctor ? patientDisplayName : doctorDisplayName}</span>
-              <span className={`text-[9px] px-1.5 py-0.2 rounded font-mono font-bold ${
-                audioCall.networkQuality === 'POOR' ? 'bg-rose-500/30 text-rose-300' :
-                audioCall.networkQuality === 'FAIR' ? 'bg-amber-500/30 text-amber-300' :
-                'bg-indigo-500/30 text-indigo-300'
-              }`}>
-                {audioCall.latencyMs ? `${audioCall.latencyMs}ms` : 'HD'}
-              </span>
-            </div>
-            <div className="flex items-center space-x-1.5 text-[11px] font-mono font-bold text-emerald-400 mt-0.5">
-              <span>{formatDuration(audioCall.callDuration)}</span>
-              <span className="text-slate-600">•</span>
-              <span className="text-slate-400 text-[10px]">{audioCall.isScreenSharing ? 'Screen' : audioCall.isMuted ? 'Muted' : 'Active'}</span>
-            </div>
-          </div>
-
-          {/* Quick Action Controls */}
-          <div className="flex items-center space-x-1.5 pl-2 border-l border-slate-800">
-            <button
-              onClick={audioCall.toggleMute}
-              className={`p-2 rounded-xl transition-all cursor-pointer ${
-                audioCall.isMuted ? 'bg-amber-500 text-white' : 'bg-slate-800 hover:bg-slate-700 text-slate-200'
-              }`}
-              title={audioCall.isMuted ? 'Unmute' : 'Mute'}
-            >
-              {audioCall.isMuted ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
-            </button>
-            <button
-              onClick={() => setIsCallMinimized(false)}
-              className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700/60 transition-all cursor-pointer"
-              title="Expand Calling Window"
-            >
-              <Maximize2 className="w-4 h-4" />
-            </button>
-            <button
-              onClick={audioCall.endCall}
-              className="p-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white shadow-md shadow-rose-600/40 transition-all cursor-pointer"
-              title="End Call"
-            >
-              <PhoneOff className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
-      )}
 
       {/* ── 2-COLUMN CLINICAL WORKSPACE GRID ───────────────────────────────── */}
       <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-3 min-h-0">

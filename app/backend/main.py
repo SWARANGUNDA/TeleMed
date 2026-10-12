@@ -151,7 +151,10 @@ async def rate_limit_middleware(request: Request, call_next):
         return await call_next(request)
 
     path = request.url.path.rstrip("/")
-    category = RATE_LIMIT_ROUTES.get(path, "api_default")
+    if path.startswith("/api/v1/consultations") or path.startswith("/api/v1/doctor/consultations"):
+        category = "consultations"
+    else:
+        category = RATE_LIMIT_ROUTES.get(path, "api_default")
 
     allowed, retry_after = RATE_LIMITER.check(client_ip, category)
     if not allowed:

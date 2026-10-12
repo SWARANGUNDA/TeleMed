@@ -22,12 +22,13 @@ export default function Header({
   useEffect(() => {
     if (user) {
       loadNotifs();
-      const interval = setInterval(loadNotifs, 10000);
+      const interval = setInterval(loadNotifs, 30000);
       return () => clearInterval(interval);
     }
   }, [user]);
 
   const loadNotifs = async () => {
+    if (typeof document !== 'undefined' && document.hidden) return;
     try {
       const data = await fetchNotifications();
       setNotifications(data.notifications || []);
