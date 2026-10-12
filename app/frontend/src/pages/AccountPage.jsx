@@ -460,9 +460,6 @@ export default function AccountPage({ user, onProfileUpdated }) {
                   className="w-20 h-20 md:w-24 md:h-24 text-2xl font-black bg-slate-900 text-white rounded-full object-cover"
                 />
               </div>
-              <span className="absolute -bottom-1 -right-1 text-2xl p-1 bg-slate-900/90 rounded-full shadow-lg border border-white/20 select-none">
-                {currentAvatarObj.emoji}
-              </span>
             </div>
 
             <div className="space-y-2">
@@ -586,9 +583,6 @@ export default function AccountPage({ user, onProfileUpdated }) {
                           alt={av.label}
                           className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
                         />
-                        <span className="absolute -bottom-1 -right-1 text-sm bg-black/70 rounded-full px-1 shadow">
-                          {av.emoji}
-                        </span>
                       </div>
 
                       <span className={`text-xs font-black text-center leading-tight truncate w-full ${isSelected ? 'text-[var(--primary)]' : 'text-[var(--text-main)]'}`}>
