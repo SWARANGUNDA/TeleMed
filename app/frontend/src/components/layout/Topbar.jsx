@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
   Search,
@@ -10,7 +10,9 @@ import {
   Settings,
   Shield,
   Menu,
-  Activity
+  Activity,
+  UserCheck,
+  ChevronRight
 } from 'lucide-react';
 import { Avatar } from '../ui/Avatar';
 import NotificationDrawer from '../NotificationDrawer';
@@ -20,6 +22,7 @@ export function Topbar({ user, onLogout, onToggleTheme, theme = 'dark', onOpenMo
   const location = useLocation();
   const navigate = useNavigate();
   const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const profileMenuRef = useRef(null);
   const [, setTick] = useState(0);
   const userId = user?.user_id || 'default_user';
   const [unreadBadgeCount, setUnreadBadgeCount] = useState(() => notificationStore.getUnreadCount(userId));
@@ -38,6 +41,21 @@ export function Topbar({ user, onLogout, onToggleTheme, theme = 'dark', onOpenMo
     };
   }, [userId]);
 
+  // Click outside to close profile dropdown
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (profileMenuRef.current && !profileMenuRef.current.contains(event.target)) {
+        setShowProfileMenu(false);
+      }
+    }
+    if (showProfileMenu) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showProfileMenu]);
+
   const getBreadcrumbs = () => {
     const path = location.pathname;
     if (path === '/') return ['Overview'];
@@ -48,7 +66,10 @@ export function Topbar({ user, onLogout, onToggleTheme, theme = 'dark', onOpenMo
     if (path === '/consultations') return ['Clinical', 'Doctor Consultations'];
     if (path === '/appointments') return ['Schedule', 'Appointments'];
     if (path === '/care') return ['Care', 'Personalized Recommendations'];
-    if (path === '/account' || path === '/profile') return ['Account & Profile', 'Patient Health Profile'];
+    if (path === '/compare') return ['Analytics', 'Compare & Analytics'];
+    if (path === '/messages') return ['Communication', 'Doctor Chat'];
+    if (path === '/notifications') return ['Alerts', 'Notification Center'];
+    if (path === '/account' || path === '/profile') return ['Profile & Identity', 'Profile Workspace'];
     if (path.startsWith('/doctor/profile') || path === '/doctor/account') return ['Doctor Portal', 'Professional Profile Workspace'];
     if (path.startsWith('/doctor')) return ['Doctor Portal', path.replace('/doctor/', '').toUpperCase() || 'Dashboard'];
     if (path.startsWith('/admin/account')) return ['Admin System', 'Account & System Governance'];
@@ -60,6 +81,19 @@ export function Topbar({ user, onLogout, onToggleTheme, theme = 'dark', onOpenMo
 
   const [isNotificationDrawerOpen, setIsNotificationDrawerOpen] = useState(false);
   const [drawerNotifications, setDrawerNotifications] = useState([]);
+
+  const handleToggleNotifications = () => {
+    const list = notificationStore.getNotifications(userId);
+    setDrawerNotifications(list);
+    setIsNotificationDrawerOpen(prev => !prev);
+  };
+
+  const handleNavigateProfile = () => {
+    setShowProfileMenu(false);
+    if (user?.role === 'DOCTOR') navigate('/doctor/profile');
+    else if (user?.role === 'ADMIN') navigate('/admin/account');
+    else navigate('/profile');
+  };
 
   return (
     <>
@@ -90,13 +124,11 @@ export function Topbar({ user, onLogout, onToggleTheme, theme = 'dark', onOpenMo
           </div>
         </div>
 
-
-
         {/* Right: Actions & User Profile */}
         <div className="flex items-center gap-3">
-          {/* Instagram-Style Notification Bell */}
+          {/* Notification Bell (Exclusively accesses all notifications via Drawer) */}
           <button
-            onClick={() => navigate('/notifications')}
+            onClick={handleToggleNotifications}
             className="p-2 rounded-xl text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--bg-surface-hover)] relative transition-all group"
             title="Open Notification Center"
           >
@@ -108,91 +140,129 @@ export function Topbar({ user, onLogout, onToggleTheme, theme = 'dark', onOpenMo
             )}
           </button>
 
-        {/* Theme Toggle */}
-        <button
-          onClick={onToggleTheme}
-          className="p-2 rounded-xl text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--bg-surface-hover)] transition-colors"
-          title={`Switch to ${theme === 'dark' ? 'Light' : 'Dark'} Mode`}
-        >
-          {theme === 'dark' ? <Sun className="w-5 h-5 text-amber-400" /> : <Moon className="w-5 h-5 text-slate-600" />}
-        </button>
-
-        {/* User Profile Dropdown Menu */}
-        <div className="relative">
+          {/* Theme Toggle */}
           <button
-            onClick={() => setShowProfileMenu(!showProfileMenu)}
-            className="flex items-center gap-2.5 p-1.5 rounded-xl hover:bg-[var(--bg-surface-hover)] transition-colors"
+            onClick={onToggleTheme}
+            className="p-2 rounded-xl text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--bg-surface-hover)] transition-colors"
+            title={`Switch to ${theme === 'dark' ? 'Light' : 'Dark'} Mode`}
           >
-            <Avatar user={user} name={user?.full_name || user?.name || 'User Profile'} size="sm" />
-            <div className="hidden sm:flex flex-col text-left">
-              <span className="text-xs font-bold text-[var(--text-main)] leading-tight">
-                {user?.full_name || user?.name || (user?.role === 'DOCTOR' ? 'Dr. Medical Officer' : user?.role === 'ADMIN' ? 'System Admin' : 'Patient Account')}
-              </span>
-              <span className="text-[10px] font-mono text-[var(--text-muted)]">{user?.role || 'PATIENT'}</span>
-            </div>
+            {theme === 'dark' ? <Sun className="w-5 h-5 text-amber-400" /> : <Moon className="w-5 h-5 text-slate-600" />}
           </button>
 
-          {showProfileMenu && (
-            <div className="absolute right-0 mt-2 w-64 p-3 border border-[var(--border-medium)] shadow-2xl rounded-2xl bg-[var(--bg-primary)] z-[9999] space-y-2 ring-1 ring-black/5">
-              <div className="px-3 py-2 pb-2.5 border-b border-[var(--border-subtle)] space-y-0.5">
-                <p className="text-xs font-extrabold text-[var(--text-main)] tracking-tight">
-                  {user?.full_name || user?.name || (user?.role === 'DOCTOR' ? 'Dr. Medical Officer' : user?.role === 'ADMIN' ? 'System Administrator' : 'Patient Account')}
-                </p>
-                <p className="text-[11px] font-mono text-[var(--text-muted)] truncate">{user?.email || ''}</p>
-                <div className="pt-1.5 flex items-center gap-1.5">
-                  <span className="px-2 py-0.5 text-[9.5px] font-mono font-bold rounded-full bg-[var(--primary-light)] text-[var(--primary)] border border-[var(--primary)]/20 uppercase">
-                    {user?.role || 'PATIENT'}
-                  </span>
-                  <span className="text-[10px] text-emerald-500 font-mono font-semibold flex items-center gap-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> Active Session
-                  </span>
+          {/* User Profile Dropdown Menu */}
+          <div className="relative" ref={profileMenuRef}>
+            <button
+              onClick={() => setShowProfileMenu(!showProfileMenu)}
+              className="flex items-center gap-2.5 p-1.5 rounded-xl hover:bg-[var(--bg-surface-hover)] transition-colors"
+              title="Profile & Identity Workspace"
+            >
+              <Avatar user={user} name={user?.full_name || user?.name || 'User Profile'} size="sm" />
+              <div className="hidden sm:flex flex-col text-left">
+                <span className="text-xs font-bold text-[var(--text-main)] leading-tight">
+                  {user?.full_name || user?.name || (user?.role === 'DOCTOR' ? 'Dr. Medical Officer' : user?.role === 'ADMIN' ? 'System Admin' : 'Patient Account')}
+                </span>
+                <span className="text-[10px] font-mono text-[var(--text-muted)]">{user?.role || 'PATIENT'}</span>
+              </div>
+            </button>
+
+            {showProfileMenu && (
+              <div className="absolute right-0 mt-2 w-72 p-3 border border-[var(--border-medium)] shadow-2xl rounded-2xl bg-[var(--bg-primary)] z-[9999] space-y-2 ring-1 ring-black/5 animate-fade-in">
+                {/* Clickable Profile Header Card */}
+                <div
+                  onClick={handleNavigateProfile}
+                  className="px-3 py-2.5 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] hover:bg-[var(--primary-light)]/40 hover:border-[var(--primary)]/30 transition-all cursor-pointer group"
+                  title="Open Full Profile Workspace"
+                >
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs font-extrabold text-[var(--text-main)] tracking-tight group-hover:text-[var(--primary)] transition-colors">
+                      {user?.full_name || user?.name || (user?.role === 'DOCTOR' ? 'Dr. Medical Officer' : user?.role === 'ADMIN' ? 'System Administrator' : 'Patient Account')}
+                    </p>
+                    <ChevronRight className="w-3.5 h-3.5 text-[var(--text-muted)] group-hover:text-[var(--primary)] group-hover:translate-x-0.5 transition-all" />
+                  </div>
+                  <p className="text-[11px] font-mono text-[var(--text-muted)] truncate">{user?.email || ''}</p>
+                  <div className="pt-2 flex items-center justify-between">
+                    <span className="px-2 py-0.5 text-[9.5px] font-mono font-bold rounded-full bg-[var(--primary-light)] text-[var(--primary)] border border-[var(--primary)]/20 uppercase">
+                      {user?.role || 'PATIENT'}
+                    </span>
+                    <span className="text-[10px] text-emerald-500 font-mono font-semibold flex items-center gap-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> Active Session
+                    </span>
+                  </div>
+                </div>
+
+                {/* Primary Profile Action: Profile Workspace */}
+                <div className="space-y-1">
+                  <button
+                    onClick={handleNavigateProfile}
+                    className="w-full flex items-center justify-between px-3 py-2 text-xs font-bold text-[var(--primary)] bg-[var(--primary-light)] hover:bg-[var(--primary)] hover:text-white rounded-xl transition-all shadow-xs group"
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <UserCheck className="w-4 h-4 shrink-0" />
+                      <div className="flex flex-col text-left">
+                        <span>Profile Workspace</span>
+                        <span className="text-[10px] font-normal opacity-80 group-hover:opacity-100">Medical Identity, Biometrics & Vault</span>
+                      </div>
+                    </div>
+                    <ChevronRight className="w-3.5 h-3.5 opacity-70 group-hover:opacity-100 group-hover:translate-x-0.5 transition-transform" />
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setShowProfileMenu(false);
+                      navigate('/account');
+                    }}
+                    className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-[var(--text-main)] hover:bg-[var(--bg-surface-hover)] rounded-xl transition-all"
+                  >
+                    <Settings className="w-4 h-4 text-[var(--text-muted)]" />
+                    <div className="flex flex-col text-left">
+                      <span>Account Settings</span>
+                      <span className="text-[10px] text-[var(--text-muted)] font-normal">Credentials & Contact Info</span>
+                    </div>
+                  </button>
+
+                  <button
+                    onClick={() => { setShowProfileMenu(false); navigate('/privacy'); }}
+                    className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-[var(--text-main)] hover:bg-[var(--bg-surface-hover)] rounded-xl transition-all"
+                  >
+                    <Shield className="w-4 h-4 text-[var(--text-muted)]" />
+                    <div className="flex flex-col text-left">
+                      <span>Privacy & Data Security</span>
+                      <span className="text-[10px] text-[var(--text-muted)] font-normal">HIPAA Compliance & Permissions</span>
+                    </div>
+                  </button>
+                </div>
+
+                <div className="pt-1.5 border-t border-[var(--border-subtle)]">
+                  <button
+                    onClick={() => { setShowProfileMenu(false); if (onLogout) onLogout(); }}
+                    className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-bold text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 rounded-xl transition-all"
+                  >
+                    <LogOut className="w-4 h-4 text-rose-500" />
+                    Sign Out Account
+                  </button>
                 </div>
               </div>
-
-              <div className="space-y-1">
-                <button
-                  onClick={() => {
-                    setShowProfileMenu(false);
-                    if (user?.role === 'DOCTOR') navigate('/doctor/profile');
-                    else if (user?.role === 'ADMIN') navigate('/admin/account');
-                    else navigate('/account');
-                  }}
-                  className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-[var(--text-main)] hover:bg-[var(--primary-light)] hover:text-[var(--primary)] rounded-xl transition-all"
-                >
-                  <Settings className="w-4 h-4 text-[var(--primary)]" />
-                  Account Settings & Profile
-                </button>
-                <button
-                  onClick={() => { setShowProfileMenu(false); navigate('/privacy'); }}
-                  className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-[var(--text-main)] hover:bg-[var(--primary-light)] hover:text-[var(--primary)] rounded-xl transition-all"
-                >
-                  <Shield className="w-4 h-4 text-[var(--primary)]" />
-                  Privacy & Data Security
-                </button>
-              </div>
-
-              <div className="pt-1.5 border-t border-[var(--border-subtle)]">
-                <button
-                  onClick={() => { setShowProfileMenu(false); if (onLogout) onLogout(); }}
-                  className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-bold text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 rounded-xl transition-all"
-                >
-                  <LogOut className="w-4 h-4 text-rose-500" />
-                  Sign Out Account
-                </button>
-              </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
-      </div>
       </header>
 
       <NotificationDrawer
         isOpen={isNotificationDrawerOpen}
         onClose={() => setIsNotificationDrawerOpen(false)}
         notifications={drawerNotifications}
-        onMarkAsRead={(id) => setDrawerNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n))}
-        onMarkAllRead={() => setDrawerNotifications(prev => prev.map(n => ({ ...n, isRead: true })))}
-        onDelete={(id) => setDrawerNotifications(prev => prev.filter(n => n.id !== id))}
+        onMarkAsRead={(id) => {
+          notificationStore.markAsRead(id, userId);
+          setDrawerNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n));
+        }}
+        onMarkAllRead={() => {
+          notificationStore.markAllAsRead(userId);
+          setDrawerNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
+        }}
+        onDelete={(id) => {
+          notificationStore.deleteNotification(id, userId);
+          setDrawerNotifications(prev => prev.filter(n => n.id !== id));
+        }}
       />
     </>
   );

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   User, Stethoscope, Lock, ShieldCheck, Save, Edit3, AlertCircle,
   CheckCircle2, Mail, Phone, Calendar, Building, Award, Activity, Shield, Key,
@@ -17,6 +18,7 @@ import {
 } from '../utils/avatarCatalog';
 
 export default function AccountPage({ user, onProfileUpdated }) {
+  const navigate = useNavigate();
   const role = user?.role || 'PATIENT';
 
   // Patient Profile Form State
@@ -198,6 +200,17 @@ export default function AccountPage({ user, onProfileUpdated }) {
               </div>
             </div>
           </div>
+
+          {role === 'PATIENT' && (
+            <Button
+              variant="primary"
+              size="sm"
+              className="!px-3.5 !py-2 text-xs font-bold shrink-0 shadow-lg shadow-blue-500/20"
+              onClick={() => navigate('/profile')}
+            >
+              Open Profile Workspace & Vault →
+            </Button>
+          )}
         </div>
       </div>
 
