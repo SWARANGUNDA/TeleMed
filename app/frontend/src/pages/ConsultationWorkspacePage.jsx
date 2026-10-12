@@ -396,21 +396,29 @@ export default function ConsultationWorkspacePage({ user, consultationContext, i
     }
   }, [selectedConsultation, user, role]);
 
+  const loadMessagesRef = useRef(loadMessages);
+  useEffect(() => {
+    loadMessagesRef.current = loadMessages;
+  }, [loadMessages]);
+
+  const activeChatCons = selectedConsultation || (consultations && consultations.length > 0 ? consultations[0] : null);
+  const activeChatCId = activeChatCons?.consultation_id || activeChatCons?.id;
+  const activeChatConsStatus = (activeChatCons?.status || '').toUpperCase();
+
   // Real-Time WebSocket & Polling Chat Sync
   useEffect(() => {
-    const activeCons = selectedConsultation || (consultations && consultations.length > 0 ? consultations[0] : null);
-    const cId = activeCons?.consultation_id || activeCons?.id;
-    const consStatus = (activeCons?.status || '').toUpperCase();
-    if (!cId) return;
+    if (!activeChatCId) return;
 
     // Awaiting doctor assignment: skip message polling and WS connection to avoid 403 loops
-    if (consStatus === 'REQUESTED' || consStatus === 'PENDING') {
+    if (activeChatConsStatus === 'REQUESTED' || activeChatConsStatus === 'PENDING') {
       setMessagesThread([]);
       setConnectionStatus('waiting_doctor');
       return;
     }
 
-    loadMessages(cId);
+    if (loadMessagesRef.current) {
+      loadMessagesRef.current(activeChatCId);
+    }
     setConnectionStatus('connecting');
 
     let ws = null;
@@ -419,7 +427,7 @@ export default function ConsultationWorkspacePage({ user, consultationContext, i
     try {
       const wsBase = getWsBaseUrl();
       const token = getAuthToken() || user?.user_id || '';
-      const wsUrl = `${wsBase}/ws/chat/${cId}?token=${encodeURIComponent(token)}`;
+      const wsUrl = `${wsBase}/ws/chat/${activeChatCId}?token=${encodeURIComponent(token)}`;
       ws = new WebSocket(wsUrl);
       socketRef.current = ws;
 
@@ -440,7 +448,9 @@ export default function ConsultationWorkspacePage({ user, consultationContext, i
             setIsOtherTyping(false);
           } else if (evt === 'chat_message' || evt === 'NEW_MESSAGE') {
             setIsOtherTyping(false);
-            loadMessages(cId, true);
+            if (loadMessagesRef.current) {
+              loadMessagesRef.current(activeChatCId, true);
+            }
           }
         } catch (e) {}
       };
@@ -451,7 +461,13 @@ export default function ConsultationWorkspacePage({ user, consultationContext, i
       setConnectionStatus('disconnected');
     }
 
-    const pollInterval = setInterval(() => loadMessages(cId, true), 3000);
+    // Relaxed polling interval (10s) with visibility check to protect against rate limits
+    const pollInterval = setInterval(() => {
+      if (typeof document !== 'undefined' && document.hidden) return;
+      if (loadMessagesRef.current) {
+        loadMessagesRef.current(activeChatCId, true);
+      }
+    }, 10000);
 
     return () => {
       if (ws) {
@@ -465,7 +481,7 @@ export default function ConsultationWorkspacePage({ user, consultationContext, i
       clearInterval(pollInterval);
       socketRef.current = null;
     };
-  }, [selectedConsultation, consultations, loadMessages, user]);
+  }, [activeChatCId, activeChatConsStatus, user?.user_id]);
 
   // Flexible Instagram-style Auto-scroll for Consultation Chat
   useEffect(() => {
