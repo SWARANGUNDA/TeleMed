@@ -4,7 +4,8 @@ import { PageHeader, PageContainer } from '../components/layout';
 import { Card, Badge, Button, Tabs, EmptyState, Modal } from '../components/ui';
 import {
   Bell, CheckCircle2, Trash2, Calendar, Sparkles, FileText, MessageSquare,
-  ShieldAlert, Settings, Clock, Filter, Check, ShieldCheck, Mail, Send, Pill, UserCheck, ExternalLink
+  ShieldAlert, Settings, Clock, Filter, Check, ShieldCheck, Mail, Send, Pill, UserCheck, ExternalLink,
+  ArrowRight, Zap
 } from 'lucide-react';
 import { fetchPatientRecords, fetchPatientConsultations } from '../api/client';
 import { notificationStore } from '../utils/notificationStore';
@@ -186,6 +187,22 @@ export default function NotificationsPage({ user, predictionData }) {
                     <p className="text-xs text-[var(--text-muted)] leading-relaxed pl-9 font-medium line-clamp-2">
                       {n.description}
                     </p>
+
+                    {(n.actionRoute || n.category === 'Welcome') && (
+                      <div className="pl-9 pt-1" onClick={(e) => e.stopPropagation()}>
+                        <button
+                          onClick={() => {
+                            handleMarkAsRead(n.id);
+                            navigate(n.actionRoute || '/intake');
+                          }}
+                          className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-xs font-bold shadow-sm transition-all hover:scale-[1.01] active:scale-[0.99] cursor-pointer"
+                        >
+                          <Zap className="w-3.5 h-3.5 text-cyan-200" />
+                          <span>{n.actionLabel || 'Start Intake Assessment'}</span>
+                          <ArrowRight className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    )}
 
                     <div className="flex items-center justify-between pt-1 pl-9 border-t border-[var(--border-subtle)]/50">
                       <span className="text-[10px] font-mono text-[var(--primary)] font-bold group-hover:underline flex items-center gap-1">
