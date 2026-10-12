@@ -478,55 +478,25 @@ export default function AccountPage({ user, onProfileUpdated }) {
                 </span>
               </div>
 
-              <div className="flex items-center gap-3 text-xs text-slate-300 font-mono flex-wrap">
+              <div className="flex items-center gap-3 text-xs text-slate-300 font-mono">
                 <span className="flex items-center gap-1.5 text-slate-400">
                   <Mail className="w-3.5 h-3.5 text-indigo-400" /> {user?.email || 'user@telemed.ai'}
                 </span>
-                <span className="text-slate-600">•</span>
-                <button
-                  type="button"
-                  onClick={handleCopyId}
-                  className="flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-slate-800/80 hover:bg-slate-700/80 text-cyan-300 hover:text-cyan-200 border border-cyan-500/30 transition-all cursor-pointer"
-                  title="Click to copy ID"
-                >
-                  <Fingerprint className="w-3.5 h-3.5 text-cyan-400" />
-                  <span>{user?.user_id || 'usr_patient'}</span>
-                  <Copy className="w-3 h-3 text-cyan-400/70" />
-                  {copiedId && <span className="text-[10px] text-emerald-400 font-bold ml-1">Copied!</span>}
-                </button>
               </div>
             </div>
           </div>
 
-          {/* Right Block: Profile Health & Quick Actions */}
-          <div className="flex items-center gap-4 lg:self-center flex-wrap">
-            {/* Completeness Pill */}
-            <div className="px-4 py-3 rounded-2xl bg-white/5 backdrop-blur-md border border-white/10 space-y-1 min-w-[170px]">
-              <div className="flex items-center justify-between text-xs">
-                <span className="text-slate-400 font-medium">Profile Completeness</span>
-                <span className="text-cyan-400 font-mono font-black">{completionScore}%</span>
-              </div>
-              <div className="w-full h-1.5 rounded-full bg-slate-800 overflow-hidden">
-                <div
-                  className="h-full bg-gradient-to-r from-cyan-400 to-indigo-500 rounded-full transition-all duration-500"
-                  style={{ width: `${completionScore}%` }}
-                />
-              </div>
-            </div>
-
-            {/* Quick Actions */}
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={scrollToSecurity}
-                className="!px-3.5 !py-2 text-xs font-bold text-white border-white/20 hover:bg-white/10 backdrop-blur-md"
-                leftIcon={<Lock className="w-3.5 h-3.5 text-indigo-400" />}
-              >
-                Change Password
-              </Button>
-            </div>
-
+          {/* Right Block: Change Password Shortcut */}
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={scrollToSecurity}
+              className="!px-4 !py-2 text-xs font-bold text-white border-white/20 hover:bg-white/10 backdrop-blur-md"
+              leftIcon={<Key className="w-3.5 h-3.5 text-indigo-400" />}
+            >
+              Change Password
+            </Button>
           </div>
 
         </div>
@@ -548,8 +518,8 @@ export default function AccountPage({ user, onProfileUpdated }) {
       {role === 'PATIENT' && (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
 
-          {/* Left/Main Column: Demographic Form & Avatar Studio (8 cols) */}
-          <div className="lg:col-span-8 space-y-8">
+          {/* Left/Main Column: Demographic Form & Avatar Studio (7 cols) */}
+          <div className="lg:col-span-7 space-y-8">
 
             {/* 1. CHARACTER STUDIO & AVATAR SHOWCASE */}
             <Card isGlass={true} className="p-6 md:p-7 bg-[var(--bg-primary)] border border-[var(--border-subtle)] shadow-xl rounded-3xl space-y-5">
@@ -645,7 +615,6 @@ export default function AccountPage({ user, onProfileUpdated }) {
                     <p className="text-[11px] text-[var(--text-muted)]">Verified personal and biometric baseline records</p>
                   </div>
                 </div>
-                <Badge variant="neutral" size="sm font-mono">CONFIDENTIAL</Badge>
               </div>
 
               <form onSubmit={handleProfileSave} className="space-y-6">
@@ -734,20 +703,6 @@ export default function AccountPage({ user, onProfileUpdated }) {
                       </div>
                     </div>
                   </div>
-
-                  {/* Realtime Live BMI Feedback Pill in form */}
-                  {bmiInfo && (
-                    <div className="p-3 rounded-2xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] flex items-center justify-between flex-wrap gap-2 animate-fade-in">
-                      <div className="flex items-center gap-2">
-                        <Activity className="w-4 h-4 text-emerald-500" />
-                        <span className="text-xs text-[var(--text-muted)]">Live Calculated BMI:</span>
-                        <strong className="text-xs font-mono font-black text-[var(--text-main)]">{bmiInfo.value} kg/m²</strong>
-                      </div>
-                      <Badge variant={bmiInfo.variant} size="sm font-mono font-bold">
-                        {bmiInfo.status}
-                      </Badge>
-                    </div>
-                  )}
                 </div>
 
                 {/* Section C: Clinical Identifiers & Emergency */}
@@ -805,12 +760,7 @@ export default function AccountPage({ user, onProfileUpdated }) {
                 </div>
 
                 {/* Form Action Controls */}
-                <div className="pt-4 flex items-center justify-between flex-wrap gap-3 border-t border-[var(--border-subtle)]">
-                  <div className="flex items-center gap-2 text-[11px] text-[var(--text-muted)] font-mono">
-                    <ShieldCheck className="w-4 h-4 text-emerald-500" />
-                    <span>Instant cryptographic persistence to local & cloud vault</span>
-                  </div>
-
+                <div className="pt-4 flex items-center justify-end border-t border-[var(--border-subtle)]">
                   <Button
                     variant="primary"
                     size="md"
@@ -828,105 +778,9 @@ export default function AccountPage({ user, onProfileUpdated }) {
 
           </div>
 
-          {/* Right Column: Biometric HUD & Account Security (4 cols) */}
-          <div className="lg:col-span-4 space-y-6">
-
-            {/* 1. BIOMETRIC DIAGNOSTICS & CLINICAL HUD */}
-            <Card isGlass={true} className="p-6 bg-[var(--bg-primary)] border border-[var(--border-subtle)] shadow-xl rounded-3xl space-y-5">
-              <div className="flex items-center justify-between pb-3.5 border-b border-[var(--border-subtle)]">
-                <div className="flex items-center gap-2.5">
-                  <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-500 ring-1 ring-emerald-500/20">
-                    <Activity className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-extrabold text-[var(--text-main)]">Biometric Diagnostics</h3>
-                    <span className="text-[10px] text-[var(--text-muted)]">Live Physical Indexing</span>
-                  </div>
-                </div>
-                <Badge variant="success" size="sm font-mono">CALCULATED</Badge>
-              </div>
-
-              {/* BMI Interactive Visual Meter */}
-              <div className="p-4 rounded-2xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-mono text-[var(--text-muted)] uppercase tracking-wider font-bold">Body Mass Index</span>
-                  {bmiInfo ? (
-                    <Badge variant={bmiInfo.variant} size="sm font-mono font-bold">
-                      {bmiInfo.status}
-                    </Badge>
-                  ) : (
-                    <span className="text-[10px] text-[var(--text-muted)]">Enter height & weight</span>
-                  )}
-                </div>
-
-                <div className="flex items-baseline gap-2">
-                  <span className="text-3xl font-black font-mono tracking-tight text-[var(--text-main)]">
-                    {bmiInfo ? `${bmiInfo.value}` : '—'}
-                  </span>
-                  <span className="text-xs font-mono text-[var(--text-muted)]">kg/m²</span>
-                </div>
-
-                {/* Color Spectrum Bar with Pointer */}
-                <div className="space-y-1.5 pt-1">
-                  <div className="relative h-2.5 rounded-full overflow-hidden bg-gradient-to-r from-sky-400 via-emerald-400 via-amber-400 to-rose-500 shadow-inner">
-                    {bmiInfo && (
-                      <div
-                        className="absolute top-0 bottom-0 w-2 bg-white rounded-full shadow-md ring-2 ring-black/40 transition-all duration-500 -translate-x-1"
-                        style={{ left: `${bmiInfo.gaugePosition}%` }}
-                      />
-                    )}
-                  </div>
-                  <div className="flex justify-between text-[9px] font-mono text-[var(--text-muted)]">
-                    <span>18.5 (Under)</span>
-                    <span>24.9 (Normal)</span>
-                    <span>29.9 (Over)</span>
-                    <span>30+ (Obese)</span>
-                  </div>
-                </div>
-
-                {bmiInfo && (
-                  <p className="text-[11px] text-[var(--text-muted)] leading-relaxed pt-1 border-t border-[var(--border-subtle)]">
-                    {bmiInfo.advice}
-                  </p>
-                )}
-              </div>
-
-              {/* Verified Identity Passport Card */}
-              <div className="space-y-2.5 text-xs">
-                <div className="flex justify-between items-center p-3 rounded-2xl bg-[var(--bg-surface)] border border-[var(--border-subtle)]">
-                  <span className="text-[var(--text-muted)] flex items-center gap-1.5">
-                    <Mail className="w-3.5 h-3.5 text-indigo-400" /> Account Email:
-                  </span>
-                  <strong className="font-mono text-[var(--text-main)] text-right truncate max-w-[160px]">{user?.email || '—'}</strong>
-                </div>
-
-                <div className="flex justify-between items-center p-3 rounded-2xl bg-[var(--bg-surface)] border border-[var(--border-subtle)]">
-                  <span className="text-[var(--text-muted)] flex items-center gap-1.5">
-                    <Fingerprint className="w-3.5 h-3.5 text-cyan-400" /> Patient ID:
-                  </span>
-                  <button
-                    type="button"
-                    onClick={handleCopyId}
-                    className="font-mono font-bold text-[var(--primary)] hover:underline flex items-center gap-1 cursor-pointer"
-                    title="Click to copy ID"
-                  >
-                    <span>{user?.user_id || 'usr_patient'}</span>
-                    <Copy className="w-3 h-3 opacity-70" />
-                  </button>
-                </div>
-
-                <div className="flex justify-between items-center p-3 rounded-2xl bg-[var(--bg-surface)] border border-[var(--border-subtle)]">
-                  <span className="text-[var(--text-muted)] flex items-center gap-1.5">
-                    <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" /> Protocol Security:
-                  </span>
-                  <Badge variant="success" size="sm font-mono font-bold">JWT • HIPAA COMPLIANT</Badge>
-                </div>
-              </div>
-            </Card>
-
-            {/* 2. SECURITY & RESET PASSWORD CARD */}
+          {/* Right Column: Account Security & Reset Password (5 cols) */}
+          <div className="lg:col-span-5 space-y-6">
             {renderPasswordResetCard()}
-
           </div>
 
         </div>
@@ -1038,43 +892,8 @@ export default function AccountPage({ user, onProfileUpdated }) {
             </Card>
           </div>
 
-          {/* Right Column: Governance & Password Reset (4 cols) */}
-          <div className="lg:col-span-4 space-y-6">
-            <Card isGlass={true} className="p-6 bg-[var(--bg-primary)] border border-[var(--border-subtle)] shadow-xl rounded-3xl space-y-4">
-              <div className="flex items-center gap-2 pb-3 border-b border-[var(--border-subtle)]">
-                <ShieldCheck className="w-5 h-5 text-emerald-500" />
-                <h3 className="text-sm font-extrabold text-[var(--text-main)]">Credential Governance</h3>
-              </div>
-
-              <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 space-y-1.5 text-xs">
-                <span className="text-[11px] font-mono font-bold text-emerald-600 dark:text-emerald-300 uppercase tracking-wider flex items-center gap-1.5">
-                  <Lock className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" /> Medical Registration #
-                </span>
-                <strong className="font-mono text-lg font-black text-emerald-700 dark:text-emerald-300 block tracking-widest">
-                  {doctorProfile.registration_number || 'REG-190826'}
-                </strong>
-              </div>
-
-              <div className="space-y-2.5 text-xs">
-                <div className="flex justify-between items-center p-3 rounded-2xl bg-[var(--bg-surface)] border border-[var(--border-subtle)]">
-                  <span className="text-[var(--text-muted)]">Verification Status:</span>
-                  <Badge variant={doctorProfile.verification_status === 'VERIFIED' ? 'success' : 'warning'} size="sm font-mono font-bold">
-                    {doctorProfile.verification_status || 'VERIFIED'}
-                  </Badge>
-                </div>
-
-                <div className="flex justify-between items-center p-3 rounded-2xl bg-[var(--bg-surface)] border border-[var(--border-subtle)]">
-                  <span className="text-[var(--text-muted)]">Physician Doctor ID:</span>
-                  <strong className="font-mono text-[var(--primary)]">{doctorProfile.doctor_id || 'DOC-101'}</strong>
-                </div>
-
-                <div className="flex justify-between items-center p-3 rounded-2xl bg-[var(--bg-surface)] border border-[var(--border-subtle)]">
-                  <span className="text-[var(--text-muted)]">Account Registration:</span>
-                  <strong className="font-mono text-[var(--text-main)]">{user?.created_at ? new Date(user.created_at).toLocaleDateString() : 'Active'}</strong>
-                </div>
-              </div>
-            </Card>
-
+          {/* Right Column: Password Reset (5 cols) */}
+          <div className="lg:col-span-5 space-y-6">
             {renderPasswordResetCard()}
           </div>
 
@@ -1085,8 +904,8 @@ export default function AccountPage({ user, onProfileUpdated }) {
       {role === 'ADMIN' && (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
 
-          {/* Admin Account & Governance (8 cols) */}
-          <div className="lg:col-span-8 space-y-6">
+          {/* Admin Account & Governance (7 cols) */}
+          <div className="lg:col-span-7 space-y-6">
             <Card isGlass={true} className="p-6 md:p-8 bg-[var(--bg-primary)] border border-[var(--border-subtle)] shadow-xl rounded-3xl space-y-6">
               <div className="flex items-center gap-2.5 pb-4 border-b border-[var(--border-subtle)]">
                 <div className="p-2 rounded-xl bg-indigo-500/10 text-indigo-500">
@@ -1130,32 +949,8 @@ export default function AccountPage({ user, onProfileUpdated }) {
             </Card>
           </div>
 
-          {/* Admin System Security Card (4 cols) */}
-          <div className="lg:col-span-4 space-y-6">
-            <Card isGlass={true} className="p-6 bg-[var(--bg-primary)] border border-[var(--border-subtle)] shadow-xl rounded-3xl space-y-4">
-              <div className="flex items-center gap-2 pb-3 border-b border-[var(--border-subtle)]">
-                <Key className="w-5 h-5 text-indigo-400" />
-                <h3 className="text-sm font-extrabold text-[var(--text-main)]">Security Credentials</h3>
-              </div>
-
-              <div className="space-y-2.5 text-xs">
-                <div className="flex justify-between items-center p-3 rounded-2xl bg-[var(--bg-surface)] border border-[var(--border-subtle)]">
-                  <span className="text-[var(--text-muted)]">Admin Email:</span>
-                  <strong className="font-mono text-[var(--text-main)]">{user?.email || '—'}</strong>
-                </div>
-
-                <div className="flex justify-between items-center p-3 rounded-2xl bg-[var(--bg-surface)] border border-[var(--border-subtle)]">
-                  <span className="text-[var(--text-muted)]">User ID:</span>
-                  <strong className="font-mono text-[var(--primary)]">{user?.user_id || '—'}</strong>
-                </div>
-
-                <div className="flex justify-between items-center p-3 rounded-2xl bg-[var(--bg-surface)] border border-[var(--border-subtle)]">
-                  <span className="text-[var(--text-muted)]">Auth Token Encryption:</span>
-                  <Badge variant="success" size="sm font-mono">PBKDF2 SHA-256</Badge>
-                </div>
-              </div>
-            </Card>
-
+          {/* Admin Right Column: Password Reset (5 cols) */}
+          <div className="lg:col-span-5 space-y-6">
             {renderPasswordResetCard()}
           </div>
 

@@ -117,112 +117,143 @@ export default function NotificationsPage({ user, predictionData }) {
 
       {/* TABS 1 & 2: CLICKABLE COMPACT NOTIFICATIONS LIST */}
       {(activeTab === 'all' || activeTab === 'unread') && (
-        <div className="space-y-3 animate-fade-in">
+        <div className="space-y-4 animate-fade-in">
           
-          {/* Category Filter Bar */}
-          <div className="flex items-center justify-between bg-[var(--bg-surface)] px-3 py-2 rounded-xl border border-[var(--border-subtle)]">
-            <span className="text-[11px] font-mono font-bold text-[var(--text-muted)] uppercase tracking-wider">Filter Category</span>
-            <select
-              value={categoryFilter}
-              onChange={(e) => setCategoryFilter(e.target.value)}
-              className="px-2.5 py-1 rounded-lg bg-[var(--bg-primary)] border border-[var(--border-subtle)] text-xs text-[var(--text-main)] font-medium focus:outline-none focus:border-[var(--primary)]"
-            >
-              <option value="ALL">All Categories</option>
-              <option value="AI Analysis">AI Analysis</option>
-              <option value="Prescriptions">Prescriptions</option>
-              <option value="Messages">Messages</option>
-              <option value="Appointments">Appointments</option>
-              <option value="Reports">Reports</option>
-            </select>
+          {/* Category Filter Chips */}
+          <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1">
+            {[
+              { id: 'ALL', label: 'All Categories', icon: Filter },
+              { id: 'AI Analysis', label: 'AI Analysis', icon: Sparkles },
+              { id: 'Prescriptions', label: 'Prescriptions', icon: Pill },
+              { id: 'Messages', label: 'Messages', icon: MessageSquare },
+              { id: 'Appointments', label: 'Appointments', icon: Calendar },
+              { id: 'Reports', label: 'Reports', icon: FileText },
+            ].map(cat => {
+              const active = categoryFilter === cat.id;
+              const CatIcon = cat.icon;
+              return (
+                <button
+                  key={cat.id}
+                  onClick={() => setCategoryFilter(cat.id)}
+                  className={`px-3.5 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center gap-2 cursor-pointer ${
+                    active
+                      ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md shadow-blue-500/25'
+                      : 'bg-[var(--bg-surface)] text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--bg-surface-hover)] border border-[var(--border-subtle)]'
+                  }`}
+                >
+                  <CatIcon className="w-3.5 h-3.5" />
+                  <span>{cat.label}</span>
+                </button>
+              );
+            })}
           </div>
 
           {filteredNotifications.length === 0 ? (
-            <Card isGlass={true} className="p-8 text-center space-y-2 border border-[var(--border-subtle)]">
-              <Bell className="w-8 h-8 text-[var(--text-muted)] mx-auto opacity-50" />
-              <h3 className="text-sm font-bold text-[var(--text-main)]">No Alerts Found</h3>
-              <p className="text-xs text-[var(--text-muted)]">No notifications match your current filter selection.</p>
+            <Card isGlass={true} className="p-12 text-center space-y-3 border border-[var(--border-subtle)] rounded-3xl">
+              <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-500/10 to-indigo-500/10 border border-blue-500/20 flex items-center justify-center text-[var(--primary)] mx-auto">
+                <Bell className="w-7 h-7 opacity-75" />
+              </div>
+              <div className="space-y-1">
+                <h3 className="text-sm font-extrabold text-[var(--text-main)]">No Notifications Found</h3>
+                <p className="text-xs text-[var(--text-muted)] max-w-sm mx-auto">
+                  {categoryFilter !== 'ALL'
+                    ? `No notifications currently match category "${categoryFilter}".`
+                    : 'You have no notifications pending in this view.'}
+                </p>
+              </div>
             </Card>
           ) : (
-            <div className="space-y-2.5">
+            <div className="space-y-3">
               {filteredNotifications.map((n) => {
                 const Icon = getCategoryIcon(n.category);
                 return (
                   <div
                     key={n.id}
                     onClick={() => handleOpenNotification(n)}
-                    className={`p-3.5 rounded-2xl border cursor-pointer transition-all space-y-2 group ${
+                    className={`relative p-4 rounded-2xl border cursor-pointer transition-all duration-200 space-y-3 group overflow-hidden ${
                       !n.isRead
-                        ? 'bg-[var(--bg-surface)] border-l-4 border-l-[var(--primary)] border-[var(--border-medium)] shadow-md hover:border-[var(--primary)] hover:shadow-lg'
-                        : 'bg-[var(--bg-primary)] border-[var(--border-subtle)] opacity-85 hover:border-[var(--primary)] hover:opacity-100'
+                        ? 'bg-[var(--bg-surface)] border-[var(--primary)]/30 shadow-md shadow-blue-500/5 hover:border-[var(--primary)] hover:shadow-lg'
+                        : 'bg-[var(--bg-surface)]/70 border-[var(--border-subtle)] hover:border-[var(--border-medium)] opacity-90 hover:opacity-100'
                     }`}
                   >
-                    <div className="flex items-center justify-between gap-3 flex-wrap">
-                      <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                        <div className="p-2 rounded-xl bg-[var(--primary-light)] text-[var(--primary)] shrink-0 group-hover:scale-105 transition-transform">
+                    {/* Unread Left Glowing Accent Bar */}
+                    {!n.isRead && (
+                      <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-blue-600 via-indigo-500 to-cyan-400" />
+                    )}
+
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-start gap-3 min-w-0 flex-1">
+                        <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white flex items-center justify-center shrink-0 shadow-md shadow-blue-500/20 group-hover:scale-105 transition-transform">
                           <Icon className="w-4 h-4" />
                         </div>
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-2 flex-wrap">
-                            <h4 className="text-xs font-black text-[var(--text-main)] group-hover:text-[var(--primary)] transition-colors truncate">
-                              {n.title}
-                            </h4>
-                            <Badge variant={n.category === 'AI Analysis' ? 'primary' : (n.category === 'Prescriptions' ? 'success' : 'secondary')} size="sm" className="text-[9px] font-mono">
+                            <span className="px-2 py-0.5 rounded-md text-[9.5px] font-mono font-bold uppercase tracking-wider bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
                               {n.category}
-                            </Badge>
+                            </span>
                             {!n.isRead && (
-                              <span className="w-2 h-2 rounded-full bg-[var(--primary)] animate-pulse shrink-0" />
+                              <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse shrink-0" title="Unread" />
                             )}
                           </div>
+                          <h4 className="text-sm font-bold text-[var(--text-main)] group-hover:text-[var(--primary)] transition-colors mt-1">
+                            {n.title}
+                          </h4>
                         </div>
                       </div>
 
                       <div className="flex items-center gap-2 shrink-0">
-                        <Badge variant={n.priority === 'HIGH' ? 'danger' : 'warning'} size="sm" className="text-[9px] font-mono">
-                          {n.priority}
-                        </Badge>
-                        <span className="text-[10px] font-mono text-[var(--text-muted)]">{n.timestamp}</span>
+                        <span className={`px-2 py-0.5 rounded-md text-[9.5px] font-mono font-bold tracking-wider uppercase border shrink-0 ${
+                          n.priority === 'HIGH' || n.priority === 'URGENT'
+                            ? 'bg-rose-500/15 text-rose-600 dark:text-rose-400 border-rose-500/30'
+                            : 'bg-slate-500/10 text-slate-600 dark:text-slate-400 border-slate-500/20'
+                        }`}>
+                          {n.priority || 'NORMAL'}
+                        </span>
                       </div>
                     </div>
 
-                    <p className="text-xs text-[var(--text-muted)] leading-relaxed pl-9 font-medium line-clamp-2">
+                    <p className="text-xs text-[var(--text-muted)] leading-relaxed pl-12 font-medium">
                       {n.description}
                     </p>
 
-                    {(n.actionRoute || n.category === 'Welcome') && (
-                      <div className="pl-9 pt-1" onClick={(e) => e.stopPropagation()}>
-                        <button
-                          onClick={() => {
-                            handleMarkAsRead(n.id);
-                            navigate(n.actionRoute || '/intake');
-                          }}
-                          className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-xs font-bold shadow-sm transition-all hover:scale-[1.01] active:scale-[0.99] cursor-pointer"
-                        >
-                          <Zap className="w-3.5 h-3.5 text-cyan-200" />
-                          <span>{n.actionLabel || 'Start Intake Assessment'}</span>
-                          <ArrowRight className="w-3.5 h-3.5" />
-                        </button>
+                    {/* Footer Row: Timestamp & Interactive CTA Button */}
+                    <div className="flex items-center justify-between pt-2 pl-12 border-t border-[var(--border-subtle)] text-[11px]">
+                      <div className="flex items-center gap-1.5 text-[var(--text-muted)] font-mono text-[10px]">
+                        <Clock className="w-3.5 h-3.5" />
+                        <span>{n.timestamp || 'Just now'}</span>
                       </div>
-                    )}
 
-                    <div className="flex items-center justify-between pt-1 pl-9 border-t border-[var(--border-subtle)]/50">
-                      <span className="text-[10px] font-mono text-[var(--primary)] font-bold group-hover:underline flex items-center gap-1">
-                        Click to view details & open &rarr;
-                      </span>
-                      <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                      <div className="flex items-center gap-2.5" onClick={(e) => e.stopPropagation()}>
+                        {(n.actionRoute || n.category === 'Welcome') && (
+                          <button
+                            onClick={() => {
+                              handleMarkAsRead(n.id);
+                              navigate(n.actionRoute || '/intake');
+                            }}
+                            className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 hover:from-blue-500 hover:to-indigo-500 text-white text-xs font-bold shadow-xs hover:shadow-md transition-all flex items-center gap-1.5 cursor-pointer group/btn"
+                          >
+                            <Zap className="w-3 h-3 text-cyan-200" />
+                            <span>{n.actionLabel || 'Start Intake'}</span>
+                            <ArrowRight className="w-3 h-3 transition-transform group-hover/btn:translate-x-0.5" />
+                          </button>
+                        )}
+
                         {!n.isRead && (
                           <button
                             onClick={() => handleMarkAsRead(n.id)}
-                            className="text-[11px] font-bold text-[var(--primary)] hover:underline px-2 py-0.5 rounded hover:bg-[var(--primary-light)] transition-colors"
+                            className="text-[var(--text-muted)] hover:text-[var(--primary)] transition-colors p-1.5 rounded-lg hover:bg-[var(--primary-light)] cursor-pointer"
+                            title="Mark as read"
                           >
-                            Mark Read
+                            <CheckCircle2 className="w-4 h-4" />
                           </button>
                         )}
+
                         <button
                           onClick={(e) => handleDelete(n.id, e)}
-                          className="text-[11px] font-bold text-red-400 hover:text-red-300 hover:underline px-2 py-0.5 rounded hover:bg-red-500/10 transition-colors flex items-center gap-1"
+                          className="text-[var(--text-muted)] hover:text-rose-500 transition-colors p-1.5 rounded-lg hover:bg-rose-500/10 cursor-pointer"
+                          title="Delete notification"
                         >
-                          <Trash2 className="w-3 h-3" />
-                          Delete
+                          <Trash2 className="w-4 h-4" />
                         </button>
                       </div>
                     </div>
@@ -236,16 +267,18 @@ export default function NotificationsPage({ user, predictionData }) {
 
       {/* TAB 3: ALERT PREFERENCES */}
       {activeTab === 'preferences' && (
-        <Card isGlass={true} className="p-5 space-y-4 animate-fade-in shadow-xl max-w-3xl border border-[var(--border-medium)]">
-          <div className="flex items-center justify-between border-b border-[var(--border-subtle)] pb-3">
+        <Card isGlass={true} className="p-6 md:p-8 space-y-6 animate-fade-in shadow-xl max-w-3xl border border-[var(--border-subtle)] rounded-3xl">
+          <div className="flex items-center justify-between border-b border-[var(--border-subtle)] pb-4">
             <div>
-              <h3 className="text-sm font-bold text-[var(--text-main)]">Alert Notification Settings</h3>
-              <p className="text-xs text-[var(--text-muted)]">Configure real-time teleconsultation and AI report channels</p>
+              <h3 className="text-base font-extrabold text-[var(--text-main)]">Alert Notification Settings</h3>
+              <p className="text-xs text-[var(--text-muted)] mt-0.5">Configure real-time teleconsultation and AI report channels</p>
             </div>
-            <Badge variant="success" size="sm" className="font-mono">PREFERENCES ACTIVE</Badge>
+            <span className="px-2.5 py-1 rounded-full text-[10px] font-bold font-mono bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">
+              ACTIVE
+            </span>
           </div>
 
-          <div className="space-y-2.5 text-xs">
+          <div className="space-y-3">
             {[
               { id: 'reminders', label: 'Appointment Reminders', desc: 'Receive alerts 24 hours & 30 mins before teleconsultations' },
               { id: 'aiReports', label: 'AI Report Completion', desc: 'Alert when multimodal predictions & TreeSHAP drivers finish' },
@@ -254,17 +287,26 @@ export default function NotificationsPage({ user, predictionData }) {
               { id: 'emailAlerts', label: 'Email Notifications', desc: 'Send summary alerts to registered email address' },
               { id: 'pushNotifications', label: 'Push Notifications', desc: 'Browser push alerts when platform is running' },
             ].map((pref) => (
-              <div key={pref.id} className="flex items-center justify-between p-3 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-subtle)] hover:border-[var(--primary)] transition-all">
-                <div>
-                  <strong className="text-xs text-[var(--text-main)] block">{pref.label}</strong>
-                  <span className="text-[11px] text-[var(--text-muted)]">{pref.desc}</span>
+              <div key={pref.id} className="flex items-center justify-between p-4 rounded-2xl bg-[var(--bg-primary)] border border-[var(--border-subtle)] hover:border-[var(--primary)]/40 transition-all">
+                <div className="pr-4">
+                  <strong className="text-xs font-bold text-[var(--text-main)] block">{pref.label}</strong>
+                  <span className="text-[11px] text-[var(--text-muted)] mt-0.5 block">{pref.desc}</span>
                 </div>
-                <input
-                  type="checkbox"
-                  checked={preferences[pref.id]}
-                  onChange={(e) => setPreferences({ ...preferences, [pref.id]: e.target.checked })}
-                  className="w-4 h-4 rounded text-[var(--primary)] focus:ring-[var(--primary)] cursor-pointer"
-                />
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={preferences[pref.id]}
+                  onClick={() => setPreferences({ ...preferences, [pref.id]: !preferences[pref.id] })}
+                  className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                    preferences[pref.id] ? 'bg-gradient-to-r from-blue-600 to-indigo-600' : 'bg-slate-300 dark:bg-slate-700'
+                  }`}
+                >
+                  <span
+                    className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out ${
+                      preferences[pref.id] ? 'translate-x-5' : 'translate-x-0'
+                    }`}
+                  />
+                </button>
               </div>
             ))}
           </div>
@@ -276,36 +318,34 @@ export default function NotificationsPage({ user, predictionData }) {
         <Modal
           isOpen={!!selectedNotif}
           onClose={() => setSelectedNotif(null)}
-          title={`Clinical Notification Detail | ${selectedNotif.id}`}
-          className="max-w-lg border border-[var(--primary)]/30 shadow-2xl"
+          title={selectedNotif.title}
+          className="max-w-lg border border-[var(--border-subtle)] shadow-2xl rounded-3xl"
         >
           <div className="space-y-4 p-1 text-xs">
             
             {/* Category & Priority Badge Header */}
             <div className="flex items-center justify-between flex-wrap gap-2 pb-3 border-b border-[var(--border-subtle)]">
               <div className="flex items-center gap-2">
-                <Badge variant="primary" size="sm" className="font-mono">{selectedNotif.category}</Badge>
-                <Badge variant={selectedNotif.priority === 'HIGH' ? 'danger' : 'warning'} size="sm" className="font-mono">
-                  {selectedNotif.priority} PRIORITY
-                </Badge>
+                <span className="px-2.5 py-0.5 rounded-md text-[10px] font-mono font-bold bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
+                  {selectedNotif.category}
+                </span>
+                <span className={`px-2 py-0.5 rounded-md text-[10px] font-mono font-bold tracking-wider uppercase border ${
+                  selectedNotif.priority === 'HIGH' || selectedNotif.priority === 'URGENT'
+                    ? 'bg-rose-500/15 text-rose-600 dark:text-rose-400 border-rose-500/30'
+                    : 'bg-slate-500/10 text-slate-600 dark:text-slate-400 border-slate-500/20'
+                }`}>
+                  {selectedNotif.priority || 'NORMAL'}
+                </span>
               </div>
-              <span className="text-[11px] font-mono text-[var(--text-muted)]">{selectedNotif.timestamp}</span>
-            </div>
-
-            {/* Notification Title */}
-            <div>
-              <h3 className="text-base font-extrabold text-[var(--text-main)]">{selectedNotif.title}</h3>
-              <p className="text-[11px] font-mono text-[var(--primary)] font-semibold mt-0.5">Reference ID: {selectedNotif.id}</p>
+              <span className="text-[11px] font-mono text-[var(--text-muted)] flex items-center gap-1">
+                <Clock className="w-3 h-3" />
+                {selectedNotif.timestamp}
+              </span>
             </div>
 
             {/* Detailed Content */}
-            <div className="p-3.5 rounded-2xl bg-[var(--bg-primary)] border border-[var(--border-subtle)] space-y-2 text-xs leading-relaxed">
+            <div className="p-4 rounded-2xl bg-[var(--bg-primary)] border border-[var(--border-subtle)] space-y-2 text-xs leading-relaxed">
               <p className="text-[var(--text-main)] font-medium">{selectedNotif.description}</p>
-              {selectedNotif.details && (
-                <p className="text-[var(--text-muted)] text-[11px] border-t border-[var(--border-subtle)]/50 pt-2 font-mono">
-                  {selectedNotif.details}
-                </p>
-              )}
             </div>
 
             {/* Modal Actions */}
@@ -314,7 +354,7 @@ export default function NotificationsPage({ user, predictionData }) {
                 variant="outline"
                 size="sm"
                 onClick={() => handleDelete(selectedNotif.id)}
-                className="text-red-400 border-red-500/30 hover:bg-red-500/10"
+                className="text-rose-500 border-rose-500/30 hover:bg-rose-500/10 rounded-xl"
               >
                 Delete Alert
               </Button>
@@ -324,6 +364,7 @@ export default function NotificationsPage({ user, predictionData }) {
                   <Button
                     variant="primary"
                     size="sm"
+                    className="rounded-xl shadow-md shadow-blue-500/20"
                     leftIcon={<ExternalLink className="w-3.5 h-3.5" />}
                     onClick={() => {
                       let route = selectedNotif.actionRoute;
@@ -343,6 +384,7 @@ export default function NotificationsPage({ user, predictionData }) {
                 <Button
                   variant="ghost"
                   size="sm"
+                  className="rounded-xl"
                   onClick={() => setSelectedNotif(null)}
                 >
                   Close
