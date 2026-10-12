@@ -12,13 +12,13 @@ import {
   Users,
   Cpu,
   FileCheck2,
-  Lock,
   ChevronLeft,
   ChevronRight,
   Activity,
   UserCheck,
   Calendar,
-  Sparkles
+  Sparkles,
+  MessageSquare
 } from 'lucide-react';
 
 export function Sidebar({ isCollapsed, onToggleCollapse, userRole = 'PATIENT', user, className = '' }) {
@@ -45,10 +45,8 @@ export function Sidebar({ isCollapsed, onToggleCollapse, userRole = 'PATIENT', u
     {
       group: "Records & Care",
       items: [
-        { id: "pat-profile", label: "Profile Workspace", icon: UserCheck, path: "/profile" },
         { id: "pat-compare", label: "Compare & Analytics", icon: BarChart3, path: "/compare" },
-        { id: "pat-messages", label: "Secure Messages", icon: Activity, path: "/messages" },
-        { id: "pat-notifications", label: "Notifications", icon: Lock, path: "/notifications" },
+        { id: "pat-messages", label: "Doctor Chat", icon: MessageSquare, path: "/messages" },
         { id: "pat-records", label: "Health Records", icon: History, path: "/records" },
         { id: "pat-consultations", label: "Consultations", icon: Stethoscope, path: "/consultations" },
         { id: "pat-appointments", label: "Appointments", icon: Calendar, path: "/appointments" },
