@@ -3068,8 +3068,6 @@ def send_consultation_message(sender_user_id: str, consultation_id: str, content
         is_patient_owner = (sender_user_id == c_row["user_id"])
         if p_row and c_pat_row and p_row["patient_id"] == c_pat_row["patient_id"]:
             is_patient_owner = True
-        if p_row and p_row["full_name"] and p_row["full_name"].lower().startswith("swaran"):
-            is_patient_owner = True
 
         if is_patient_owner:
             sender_role = "PATIENT"
@@ -3136,7 +3134,7 @@ def list_consultation_messages(user_id: str, consultation_id: str) -> List[Dict[
         c_pat_row = conn.execute("SELECT patient_id, full_name FROM patient_profiles WHERE user_id = ?", (c_row["user_id"],)).fetchone()
 
         is_authorized = False
-        if user_id == c_row["user_id"] or (p_row and c_pat_row and p_row["patient_id"] == c_pat_row["patient_id"]) or (p_row and p_row["full_name"] and p_row["full_name"].lower().startswith("swaran")):
+        if user_id == c_row["user_id"] or (p_row and c_pat_row and p_row["patient_id"] == c_pat_row["patient_id"]):
             is_authorized = True
         else:
             u_role_row = conn.execute("SELECT role FROM users WHERE user_id = ?", (user_id,)).fetchone()
