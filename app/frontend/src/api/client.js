@@ -1179,3 +1179,16 @@ export async function markMessagesAsRead(consultationId) {
   });
   return await handleApiResponse(res, 'Failed to mark messages read');
 }
+
+export async function changeUserPassword(currentPassword, newPassword) {
+  const res = await fetch(`${API_BASE}/auth/change-password`, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    body: JSON.stringify({
+      current_password: currentPassword || '',
+      new_password: newPassword,
+    }),
+  });
+  return await handleApiResponse(res, 'Failed to update account password');
+}
+

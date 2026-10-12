@@ -190,45 +190,20 @@ export function Topbar({ user, onLogout, onToggleTheme, theme = 'dark', onOpenMo
                   </div>
                 </div>
 
-                {/* Primary Profile Action: Profile Workspace */}
+                {/* Single Unified Profile Action */}
                 <div className="space-y-1">
                   <button
                     onClick={handleNavigateProfile}
-                    className="w-full flex items-center justify-between px-3 py-2 text-xs font-bold text-[var(--primary)] bg-[var(--primary-light)] hover:bg-[var(--primary)] hover:text-white rounded-xl transition-all shadow-xs group"
+                    className="w-full flex items-center justify-between px-3.5 py-2.5 text-xs font-bold text-[var(--primary)] bg-[var(--primary-light)] hover:bg-[var(--primary)] hover:text-white rounded-xl transition-all shadow-xs group cursor-pointer"
                   >
                     <div className="flex items-center gap-2.5">
                       <UserCheck className="w-4 h-4 shrink-0" />
                       <div className="flex flex-col text-left">
                         <span>Profile Workspace</span>
-                        <span className="text-[10px] font-normal opacity-80 group-hover:opacity-100">Medical Identity, Biometrics & Vault</span>
+                        <span className="text-[10px] font-normal opacity-80 group-hover:opacity-100">Whole Profile, Identity & Password Reset</span>
                       </div>
                     </div>
                     <ChevronRight className="w-3.5 h-3.5 opacity-70 group-hover:opacity-100 group-hover:translate-x-0.5 transition-transform" />
-                  </button>
-
-                  <button
-                    onClick={() => {
-                      setShowProfileMenu(false);
-                      navigate('/account');
-                    }}
-                    className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-[var(--text-main)] hover:bg-[var(--bg-surface-hover)] rounded-xl transition-all"
-                  >
-                    <Settings className="w-4 h-4 text-[var(--text-muted)]" />
-                    <div className="flex flex-col text-left">
-                      <span>Account Settings</span>
-                      <span className="text-[10px] text-[var(--text-muted)] font-normal">Credentials & Contact Info</span>
-                    </div>
-                  </button>
-
-                  <button
-                    onClick={() => { setShowProfileMenu(false); navigate('/privacy'); }}
-                    className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-[var(--text-main)] hover:bg-[var(--bg-surface-hover)] rounded-xl transition-all"
-                  >
-                    <Shield className="w-4 h-4 text-[var(--text-muted)]" />
-                    <div className="flex flex-col text-left">
-                      <span>Privacy & Data Security</span>
-                      <span className="text-[10px] text-[var(--text-muted)] font-normal">HIPAA Compliance & Permissions</span>
-                    </div>
                   </button>
                 </div>
 

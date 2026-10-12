@@ -146,7 +146,7 @@ class ResetPasswordRequest(BaseModel):
 
 
 class ChangePasswordRequest(BaseModel):
-    current_password: str
+    current_password: Optional[str] = ""
     new_password: str = Field(..., min_length=8)
 
 
@@ -480,9 +480,13 @@ def reset_password(req: ResetPasswordRequest):
 @router.post("/change-password", status_code=status.HTTP_200_OK)
 def change_password(req: ChangePasswordRequest, current_user: Dict[str, Any] = Depends(get_current_user)):
     """Change password for current authenticated user."""
-    authenticated = database.authenticate_user(current_user["email"], req.current_password)
-    if not authenticated:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Current password incorrect.")
+    user_rec = database.get_user_by_id(current_user["user_id"])
+    has_pwd = bool(user_rec and user_rec.get("password_hash") and user_rec.get("salt"))
+
+    if has_pwd and req.current_password:
+        authenticated = database.authenticate_user(current_user["email"], req.current_password)
+        if not authenticated:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Current password incorrect.")
 
     valid, pwd_msg = validate_password_strength(req.new_password)
     if not valid:

@@ -3,13 +3,13 @@ import { useNavigate } from 'react-router-dom';
 import {
   User, Stethoscope, Lock, ShieldCheck, Save, Edit3, AlertCircle,
   CheckCircle2, Mail, Phone, Calendar, Building, Award, Activity, Shield, Key,
-  Sparkles, Smile, Check
+  Sparkles, Smile, Check, Eye, EyeOff
 } from 'lucide-react';
 import {
   Button, Card, Badge, Avatar, Input, Select, Alert, Modal
 } from '../components/ui';
 import { PageContainer } from '../components/layout';
-import { updateUserProfile, getAuthToken } from '../api/client';
+import { updateUserProfile, getAuthToken, changeUserPassword } from '../api/client';
 import {
   getAvailableAvatarsForRole,
   getAvatarById,
@@ -29,6 +29,19 @@ export default function AccountPage({ user, onProfileUpdated }) {
   const [heightCm, setHeightCm] = useState(patientProfile.height_cm || '');
   const [weightKg, setWeightKg] = useState(patientProfile.weight_kg || '');
   const [contactNumber, setContactNumber] = useState(patientProfile.contact_number || '');
+  const [bloodGroup, setBloodGroup] = useState(patientProfile.blood_group || 'O+');
+  const [emergencyContact, setEmergencyContact] = useState(patientProfile.emergency_contact || '');
+
+  // Password Reset Form State
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [pwdSaving, setPwdSaving] = useState(false);
+  const [pwdSuccess, setPwdSuccess] = useState(null);
+  const [pwdError, setPwdError] = useState(null);
 
   // Avatar & Profile Emoji State
   const [selectedAvatar, setSelectedAvatar] = useState(() => {
@@ -79,6 +92,8 @@ export default function AccountPage({ user, onProfileUpdated }) {
         setHeightCm(p.height_cm || '');
         setWeightKg(p.weight_kg || '');
         setContactNumber(p.contact_number || '');
+        setBloodGroup(p.blood_group || 'O+');
+        setEmergencyContact(p.emergency_contact || '');
       } else if (role === 'DOCTOR') {
         const d = user.doctor_profile || {};
         setDocFullName(user.full_name || d.full_name || '');
@@ -121,7 +136,9 @@ export default function AccountPage({ user, onProfileUpdated }) {
           gender: gender,
           height_cm: heightCm ? parseFloat(heightCm) : null,
           weight_kg: weightKg ? parseFloat(weightKg) : null,
-          contact_number: contactNumber
+          contact_number: contactNumber,
+          blood_group: bloodGroup,
+          emergency_contact: emergencyContact
         };
       } else if (role === 'DOCTOR') {
         payload = {
@@ -144,7 +161,10 @@ export default function AccountPage({ user, onProfileUpdated }) {
         const parsed = existing ? JSON.parse(existing) : {};
         localStorage.setItem(profileKey, JSON.stringify({ 
           ...parsed, 
+          fullName: role === 'PATIENT' ? fullName : (role === 'DOCTOR' ? docFullName : fullName),
           selectedAvatar, 
+          bloodGroup,
+          emergencyContact,
           isUpdated: true 
         }));
       } catch (e) {}
@@ -163,6 +183,139 @@ export default function AccountPage({ user, onProfileUpdated }) {
       setSaving(false);
     }
   };
+
+  const handlePasswordReset = async (e) => {
+    e.preventDefault();
+    setPwdError(null);
+    setPwdSuccess(null);
+
+    if (newPassword.length < 8) {
+      setPwdError('New password must be at least 8 characters long.');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setPwdError('New passwords do not match. Please re-type.');
+      return;
+    }
+
+    setPwdSaving(true);
+    try {
+      await changeUserPassword(currentPassword, newPassword);
+      setPwdSuccess('Account password successfully updated and encrypted!');
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+      setTimeout(() => setPwdSuccess(null), 5000);
+    } catch (err) {
+      setPwdError(err.message || 'Failed to update password. Please check your credentials.');
+    } finally {
+      setPwdSaving(false);
+    }
+  };
+
+  const renderPasswordResetCard = () => (
+    <Card isGlass={true} className="p-6 bg-[var(--bg-primary)] space-y-4 border border-[var(--border-subtle)] shadow-xl">
+      <div className="flex items-center gap-2 pb-3 border-b border-[var(--border-subtle)]">
+        <Key className="w-5 h-5 text-indigo-500" />
+        <h3 className="text-base font-extrabold text-[var(--text-main)]">Account Security & Reset Password</h3>
+      </div>
+
+      <form onSubmit={handlePasswordReset} className="space-y-4">
+        {pwdSuccess && (
+          <Alert variant="success">
+            {pwdSuccess}
+          </Alert>
+        )}
+        {pwdError && (
+          <Alert variant="danger">
+            {pwdError}
+          </Alert>
+        )}
+
+        <div>
+          <label className="text-xs font-bold text-[var(--text-main)] block mb-1">Current Password</label>
+          <div className="relative">
+            <input
+              type={showCurrentPassword ? "text" : "password"}
+              value={currentPassword}
+              onChange={(e) => setCurrentPassword(e.target.value)}
+              placeholder="Enter current password (leave blank if Google sign-in)"
+              className="w-full p-2.5 pr-10 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] text-[var(--text-main)] text-xs focus:outline-none focus:ring-2 focus:ring-[var(--primary)] font-mono"
+            />
+            <button
+              type="button"
+              onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[var(--text-muted)] hover:text-[var(--text-main)] p-1 cursor-pointer"
+            >
+              {showCurrentPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+            </button>
+          </div>
+          <p className="text-[10px] text-[var(--text-muted)] mt-1">If you registered via Google OAuth without a password, you can leave this blank.</p>
+        </div>
+
+        <div>
+          <label className="text-xs font-bold text-[var(--text-main)] block mb-1">New Password</label>
+          <div className="relative">
+            <input
+              type={showNewPassword ? "text" : "password"}
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              placeholder="At least 8 characters..."
+              required
+              className="w-full p-2.5 pr-10 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] text-[var(--text-main)] text-xs focus:outline-none focus:ring-2 focus:ring-[var(--primary)] font-mono"
+            />
+            <button
+              type="button"
+              onClick={() => setShowNewPassword(!showNewPassword)}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[var(--text-muted)] hover:text-[var(--text-main)] p-1 cursor-pointer"
+            >
+              {showNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+            </button>
+          </div>
+        </div>
+
+        <div>
+          <label className="text-xs font-bold text-[var(--text-main)] block mb-1">Confirm New Password</label>
+          <div className="relative">
+            <input
+              type={showConfirmPassword ? "text" : "password"}
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              placeholder="Re-enter new password..."
+              required
+              className="w-full p-2.5 pr-10 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] text-[var(--text-main)] text-xs focus:outline-none focus:ring-2 focus:ring-[var(--primary)] font-mono"
+            />
+            <button
+              type="button"
+              onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[var(--text-muted)] hover:text-[var(--text-main)] p-1 cursor-pointer"
+            >
+              {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+            </button>
+          </div>
+          {confirmPassword && newPassword !== confirmPassword && (
+            <span className="text-[10px] text-rose-500 font-semibold block mt-1">Passwords do not match</span>
+          )}
+          {confirmPassword && newPassword === confirmPassword && (
+            <span className="text-[10px] text-emerald-500 font-semibold block mt-1">✓ Passwords match</span>
+          )}
+        </div>
+
+        <div className="pt-2">
+          <Button
+            variant="primary"
+            size="md"
+            type="submit"
+            isLoading={pwdSaving}
+            leftIcon={<Key className="w-4 h-4" />}
+            className="w-full justify-center shadow-md shadow-indigo-500/20"
+          >
+            Reset & Update Password
+          </Button>
+        </div>
+      </form>
+    </Card>
+  );
 
   const displayFullName = role === 'PATIENT' ? (fullName || 'Patient Account') : role === 'DOCTOR' ? (docFullName || 'Dr. Medical Officer') : (fullName || 'System Administrator');
 
@@ -200,17 +353,6 @@ export default function AccountPage({ user, onProfileUpdated }) {
               </div>
             </div>
           </div>
-
-          {role === 'PATIENT' && (
-            <Button
-              variant="primary"
-              size="sm"
-              className="!px-3.5 !py-2 text-xs font-bold shrink-0 shadow-lg shadow-blue-500/20"
-              onClick={() => navigate('/profile')}
-            >
-              Open Profile Workspace & Vault →
-            </Button>
-          )}
         </div>
       </div>
 
@@ -378,6 +520,36 @@ export default function AccountPage({ user, onProfileUpdated }) {
                 </div>
               </div>
 
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs font-bold text-[var(--text-main)] block mb-1">Blood Group</label>
+                  <select
+                    value={bloodGroup}
+                    onChange={(e) => setBloodGroup(e.target.value)}
+                    className="w-full p-2.5 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] text-[var(--text-main)] text-xs focus:outline-none focus:ring-2 focus:ring-[var(--primary)] font-mono"
+                  >
+                    <option value="A+">A+</option>
+                    <option value="A-">A-</option>
+                    <option value="B+">B+</option>
+                    <option value="B-">B-</option>
+                    <option value="AB+">AB+</option>
+                    <option value="AB-">AB-</option>
+                    <option value="O+">O+</option>
+                    <option value="O-">O-</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-[var(--text-main)] block mb-1">Emergency Contact</label>
+                  <Input
+                    type="text"
+                    value={emergencyContact}
+                    onChange={(e) => setEmergencyContact(e.target.value)}
+                    placeholder="e.g. Spouse (+91 98765 00000)"
+                  />
+                </div>
+              </div>
+
               <div>
                 <label className="text-xs font-bold text-[var(--text-main)] block mb-1">Contact Phone Number</label>
                 <Input
@@ -396,7 +568,7 @@ export default function AccountPage({ user, onProfileUpdated }) {
             </form>
           </Card>
 
-          {/* Protected System & Biometrics Card (1 col) */}
+          {/* Protected System, Biometrics & Security Cards (1 col) */}
           <div className="space-y-6">
             <Card isGlass={true} className="p-6 bg-[var(--bg-primary)] space-y-4">
               <div className="flex items-center gap-2 pb-3 border-b border-[var(--border-subtle)]">
@@ -436,6 +608,9 @@ export default function AccountPage({ user, onProfileUpdated }) {
                 </div>
               </div>
             </Card>
+
+            {/* Account Security & Password Reset */}
+            {renderPasswordResetCard()}
           </div>
 
         </div>
@@ -583,6 +758,9 @@ export default function AccountPage({ user, onProfileUpdated }) {
                 </div>
               </div>
             </Card>
+
+            {/* Doctor Account Security & Password Reset */}
+            {renderPasswordResetCard()}
           </div>
 
         </div>
@@ -655,6 +833,9 @@ export default function AccountPage({ user, onProfileUpdated }) {
                 </div>
               </div>
             </Card>
+
+            {/* Admin Account Security & Password Reset */}
+            {renderPasswordResetCard()}
           </div>
 
         </div>

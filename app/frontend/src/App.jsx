@@ -679,17 +679,7 @@ export default function App() {
 
             <Route path="/profile" element={
               <ProtectedRoute currentUser={currentUser} authChecking={authChecking} allowedRoles={['PATIENT', 'DOCTOR', 'ADMIN']}>
-                {currentUser?.role === 'PATIENT' ? (
-                  <ProfilePage
-                    user={currentUser}
-                    session={session}
-                    predictionData={predictionData}
-                    onNavigate={handleNavigate}
-                    refreshCurrentUser={refreshCurrentUser}
-                  />
-                ) : (
-                  <AccountPage user={currentUser} onNavigate={handleNavigate} />
-                )}
+                <AccountPage user={currentUser} onNavigate={handleNavigate} />
               </ProtectedRoute>
             } />
 
