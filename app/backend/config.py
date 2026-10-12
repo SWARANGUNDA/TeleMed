@@ -92,6 +92,8 @@ CORS_ORIGINS: List[str] = list(set([
     "http://127.0.0.1:5174",
     "http://localhost:4173",
     "http://127.0.0.1:4173",
+    "https://tele-med-omega.vercel.app",
+    "https://tele-med.vercel.app",
 ] + custom_cors))
 
 # Session State Constants (Strict Order)

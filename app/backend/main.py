@@ -78,7 +78,7 @@ app.add_middleware(
     allow_origins=config.CORS_ORIGINS,
     allow_origin_regex=r"https://.*\.vercel\.app",
     allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
     allow_headers=["*"],
     expose_headers=["X-RateLimit-Remaining", "Retry-After", "X-Request-ID", "X-Process-Time-MS"],
 )
@@ -87,6 +87,8 @@ app.add_middleware(
 # ---------------------------------------------------------------------------
 @app.middleware("http")
 async def security_headers_middleware(request: Request, call_next):
+    if request.method == "OPTIONS":
+        return await call_next(request)
     response = await call_next(request)
     for header, value in SECURITY_HEADERS.items():
         response.headers[header] = value
@@ -114,19 +116,47 @@ RATE_LIMIT_ROUTES = {
     "/api/v1/doctor/credentials/upload": "upload",
 }
 
+def _inject_cors_headers(response: JSONResponse, request: Request):
+    """Ensure CORS headers are present even when middleware short-circuits (e.g. on 429)."""
+    origin = request.headers.get("origin")
+    if origin:
+        if (
+            origin in config.CORS_ORIGINS
+            or "vercel.app" in origin
+            or origin.startswith("http://localhost:")
+            or origin.startswith("http://127.0.0.1:")
+        ):
+            response.headers["Access-Control-Allow-Origin"] = origin
+            response.headers["Access-Control-Allow-Credentials"] = "true"
+            response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS, PATCH"
+            response.headers["Access-Control-Allow-Headers"] = "*"
+            response.headers["Access-Control-Expose-Headers"] = "X-RateLimit-Remaining, Retry-After, X-Request-ID, X-Process-Time-MS"
+
+
 @app.middleware("http")
 async def rate_limit_middleware(request: Request, call_next):
-    client_ip = request.client.host if request.client else "unknown"
-    # Skip rate limiting for FastAPI TestClient (used in test suites)
-    if client_ip == "testclient":
+    # 1. Preflight OPTIONS requests must NEVER be rate-limited
+    if request.method == "OPTIONS":
         return await call_next(request)
+
+    # 2. Extract real client IP behind reverse proxies (Render, Cloudflare, etc.)
+    forwarded_for = request.headers.get("x-forwarded-for")
+    if forwarded_for:
+        client_ip = forwarded_for.split(",")[0].strip()
+    else:
+        client_ip = request.client.host if request.client else "unknown"
+
+    # Skip rate limiting for FastAPI TestClient / local test runners
+    if client_ip in ("testclient", "127.0.0.1", "localhost"):
+        return await call_next(request)
+
     path = request.url.path.rstrip("/")
     category = RATE_LIMIT_ROUTES.get(path, "api_default")
 
     allowed, retry_after = RATE_LIMITER.check(client_ip, category)
     if not allowed:
         logger.warning("Rate limit exceeded for %s on %s (category=%s)", client_ip, path, category)
-        return SanitizedJSONResponse(
+        resp = SanitizedJSONResponse(
             status_code=429,
             content={
                 "error": True,
@@ -135,6 +165,8 @@ async def rate_limit_middleware(request: Request, call_next):
             },
             headers={"Retry-After": str(retry_after)},
         )
+        _inject_cors_headers(resp, request)
+        return resp
     return await call_next(request)
 
 

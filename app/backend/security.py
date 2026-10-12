@@ -33,9 +33,9 @@ class RateLimiter:
         # Configurable limits: (max_requests, window_seconds)
         self.limits = {
             "login": (10, 60),          # 10 login attempts per minute per IP
-            "register": (10, 60),      # 10 registrations per minute per IP
-            "api_default": (120, 60),  # 120 API calls per minute per IP
-            "upload": (10, 60),        # 10 uploads per minute per IP
+            "register": (20, 60),       # 20 registrations per minute per IP
+            "api_default": (300, 60),   # 300 API calls per minute per IP (5 req/sec burst)
+            "upload": (30, 60),         # 30 uploads per minute per IP
         }
 
     def _clean_old(self, key: str, window: float, now: float):
