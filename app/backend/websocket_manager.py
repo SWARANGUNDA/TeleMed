@@ -23,6 +23,8 @@ class ConnectionManager:
         self.consultation_rooms: Dict[str, Set[WebSocket]] = {}
         # Map consultation_id -> {user_id: WebSocket} for audio call signaling
         self.call_rooms: Dict[str, Dict[str, WebSocket]] = {}
+        # Map consultation_id -> active pending call request payload
+        self.pending_call_requests: Dict[str, Dict[str, Any]] = {}
 
     async def connect_user(self, user_id: str, websocket: WebSocket):
         """Accept WebSocket connection and attach to user_id notification channel."""
@@ -103,7 +105,21 @@ class ConnectionManager:
             self.call_rooms[consultation_id].pop(user_id, None)
             if not self.call_rooms[consultation_id]:
                 del self.call_rooms[consultation_id]
+                self.clear_pending_call(consultation_id)
         logger.info(f"Call signaling: user {user_id} left call room {consultation_id}.")
+
+    def set_pending_call(self, consultation_id: str, call_payload: Dict[str, Any]):
+        """Save a pending call request so that if the peer connects moments later, they receive it immediately."""
+        self.pending_call_requests[consultation_id] = call_payload
+        logger.info(f"Call signaling: saved pending call request for consultation {consultation_id}")
+
+    def get_pending_call(self, consultation_id: str) -> Optional[Dict[str, Any]]:
+        """Retrieve any pending call request for this consultation."""
+        return self.pending_call_requests.get(consultation_id)
+
+    def clear_pending_call(self, consultation_id: str):
+        """Clear pending call request on answer, decline, cancel, or termination."""
+        self.pending_call_requests.pop(consultation_id, None)
 
     def get_call_peer_ws(self, consultation_id: str, sender_id: str) -> Optional[WebSocket]:
         """Get the WebSocket of the OTHER participant in a call room (not the sender)."""

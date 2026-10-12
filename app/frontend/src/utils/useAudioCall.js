@@ -42,7 +42,11 @@ function getIceConfig() {
       { urls: stunUrl },
       { urls: 'stun:stun1.l.google.com:19302' },
       { urls: 'stun:stun2.l.google.com:19302' },
+      { urls: 'stun:stun3.l.google.com:19302' },
+      { urls: 'stun:stun4.l.google.com:19302' },
+      { urls: 'stun:global.stun.twilio.com:3478' },
     ],
+    iceCandidatePoolSize: 10,
   };
   if (typeof window !== 'undefined' && window.__TELEMED_TURN_URL__) {
     config.iceServers.push({
@@ -626,6 +630,12 @@ export default function useAudioCall(consultationId, user) {
     switch (event) {
       case 'CALL_CONNECTED':
         setPeerName(data.peer_name || '');
+        break;
+
+      case 'CALL_RINGING':
+        if (data.peer_name) {
+          setPeerName(data.peer_name);
+        }
         break;
 
       case 'CALL_REQUEST': {

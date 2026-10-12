@@ -278,6 +278,12 @@ async def websocket_call_signaling_endpoint(
             "message": "Audio call signaling channel active."
         }))
 
+        # If peer already initiated a call, deliver pending request immediately
+        pending_call = ws_manager.get_pending_call(consultation_id)
+        if pending_call and pending_call.get("sender_id") != user_id:
+            logger.info(f"Delivering pending call request in {consultation_id} to newly joined user {user_id}")
+            await websocket.send_text(json.dumps(pending_call))
+
         while True:
             raw_text = await websocket.receive_text()
 
@@ -303,18 +309,27 @@ async def websocket_call_signaling_endpoint(
                 msg["sender_name"] = caller_name
                 msg["consultation_id"] = consultation_id
 
+                # Clear pending call on resolution events
+                if event in ("CALL_ACCEPT", "CALL_DECLINE", "CALL_CANCEL", "CALL_END"):
+                    ws_manager.clear_pending_call(consultation_id)
+
                 # Relay signaling message to peer
                 peer_ws = ws_manager.get_call_peer_ws(consultation_id, user_id)
 
                 if event == "CALL_REQUEST":
-                    # If peer is registered on push notifications, notify them
+                    # Store pending call so peer receives it immediately upon joining room
+                    ws_manager.set_pending_call(consultation_id, msg)
+
+                    # If peer is registered on push notifications, notify them globally
                     if peer_user_id:
                         try:
                             await ws_manager.send_user_notification(peer_user_id, {
                                 "event": "INCOMING_CALL",
                                 "consultation_id": consultation_id,
                                 "caller_name": caller_name,
-                                "caller_role": participant_role
+                                "caller_role": participant_role,
+                                "call_type": msg.get("call_type", "audio"),
+                                "sender_id": user_id
                             })
                         except Exception:
                             pass
@@ -325,22 +340,16 @@ async def websocket_call_signaling_endpoint(
                             await peer_ws.send_text(json.dumps(msg))
                         except Exception as relay_err:
                             logger.warning(f"Call signaling relay error in {consultation_id}: {relay_err}")
-                        continue
-                    else:
-                        # If peer is currently offline, establish Live Telehealth Audio Session immediately
-                        import asyncio
-                        logger.info(f"Peer offline: connecting Live Telehealth Voice Session for user {user_id} in {consultation_id}")
-                        await asyncio.sleep(0.5)
-                        await websocket.send_text(json.dumps({
-                            "event": "CALL_ACCEPT",
-                            "sender_id": peer_user_id or "telemed_live_assistant",
-                            "sender_name": peer_name or "TeleMed Live Physician",
-                            "sender_role": "PATIENT" if participant_role == "DOCTOR" else "DOCTOR",
-                            "consultation_id": consultation_id,
-                            "is_virtual_session": True,
-                            "message": "Connected to Live Telehealth Audio Consultation."
-                        }))
-                        continue
+
+                    # Notify caller that call is ringing
+                    await websocket.send_text(json.dumps({
+                        "event": "CALL_RINGING",
+                        "consultation_id": consultation_id,
+                        "peer_name": peer_name,
+                        "peer_role": "PATIENT" if participant_role == "DOCTOR" else "DOCTOR",
+                        "message": f"Calling {peer_name}... Waiting for response."
+                    }))
+                    continue
 
                 if peer_ws:
                     try:
@@ -353,7 +362,7 @@ async def websocket_call_signaling_endpoint(
                             "error_type": "RELAY_FAILED"
                         }))
                 else:
-                    # No peer connected — only error on events that require a peer
+                    # No peer connected — only error on events that require an active peer
                     if event in ("CALL_OFFER", "CALL_ANSWER", "ICE_CANDIDATE"):
                         await websocket.send_text(json.dumps({
                             "event": "CALL_ERROR",
