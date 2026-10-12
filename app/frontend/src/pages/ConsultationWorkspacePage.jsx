@@ -410,10 +410,14 @@ export default function ConsultationWorkspacePage({ user, consultationContext, i
           setSelectedConsultation(found);
           if (isPatient) setPatientViewMode('CHAT_WORKSPACE');
         } else if (consList.length > 0) {
-          setSelectedConsultation(consList[0]);
+          setSelectedConsultation(prev => prev || consList[0]);
         }
-      } else if (consList.length > 0 && !selectedConsultation) {
-        setSelectedConsultation(consList[0]);
+      } else if (consList.length > 0) {
+        setSelectedConsultation(prev => {
+          if (!prev) return consList[0];
+          const updated = consList.find(c => (c.consultation_id === (prev.consultation_id || prev.id) || c.id === (prev.consultation_id || prev.id)));
+          return updated || prev;
+        });
       }
     } catch (err) {
       setErrorMsg(err.message || 'Failed to sync clinical workspace.');
@@ -421,7 +425,7 @@ export default function ConsultationWorkspacePage({ user, consultationContext, i
       setLoading(false);
       setRefreshing(false);
     }
-  }, [isDoctor, effectiveContext, isPatient, selectedConsultation]);
+  }, [isDoctor, isPatient, effectiveContext?.consultationId, effectiveContext?.consultation_id]);
 
   useEffect(() => {
     loadWorkspaceData();
@@ -1373,7 +1377,7 @@ export default function ConsultationWorkspacePage({ user, consultationContext, i
   // RENDER: LIVE CHAT WORKSPACE (PATIENT ATTEND MODE & DOCTOR PORTAL)
   // ═══════════════════════════════════════════════════════════════════════
   return (
-    <div className="max-w-[1600px] w-full mx-auto p-3 flex flex-col h-[calc(100vh-65px)] overflow-hidden space-y-3">
+    <div className="max-w-[1600px] w-full mx-auto p-2.5 sm:p-3 flex flex-col h-full max-h-full overflow-hidden space-y-2.5 sm:space-y-3">
       
       {/* Toast Alert */}
       {toastMsg && (
@@ -2124,7 +2128,7 @@ export default function ConsultationWorkspacePage({ user, consultationContext, i
           ) : (
             <>
               {/* Active Workspace Header Bar */}
-              <div className="p-3.5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white shrink-0 shadow-2xs">
+              <div className="p-3 sm:p-3.5 border-b border-slate-100 flex flex-wrap items-center justify-between gap-2.5 bg-white shrink-0 shadow-2xs">
                 <div className="flex items-center space-x-3 min-w-0 flex-1">
                   <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white font-bold flex items-center justify-center text-sm shadow-md shrink-0">
                     {(isDoctor ? patientDisplayName : doctorDisplayName).split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
@@ -2157,13 +2161,13 @@ export default function ConsultationWorkspacePage({ user, consultationContext, i
                 </div>
 
                 {/* Header Right Action Buttons */}
-                <div className="flex items-center space-x-2 shrink-0 flex-wrap justify-end gap-y-1">
+                <div className="flex items-center space-x-2 shrink-0 flex-wrap justify-end gap-1.5 ml-auto">
                   <ConsultationTimer isActive={activeConsultation?.status !== 'COMPLETED'} />
 
                   {isDoctor && (activeConsultation?.status === 'ASSIGNED' || activeConsultation?.status === 'REQUESTED') && (
                     <button
                       onClick={handleAcceptAssignment}
-                      className="px-3.5 py-2 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl transition-all cursor-pointer flex items-center space-x-1.5 shadow-md shadow-emerald-600/20 whitespace-nowrap shrink-0"
+                      className="px-3 py-1.5 sm:px-3.5 sm:py-2 text-[11px] sm:text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl transition-all cursor-pointer flex items-center space-x-1.5 shadow-md shadow-emerald-600/20 whitespace-nowrap shrink-0"
                     >
                       <Check size={14} />
                       <span>Accept Case</span>
@@ -2174,7 +2178,7 @@ export default function ConsultationWorkspacePage({ user, consultationContext, i
                     <button
                       onClick={handleCompleteConsultation}
                       disabled={completing}
-                      className="px-3.5 py-2 text-xs font-bold text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 rounded-xl transition-all cursor-pointer flex items-center space-x-1.5 shadow-md shadow-blue-500/20 whitespace-nowrap shrink-0"
+                      className="px-3 py-1.5 sm:px-3.5 sm:py-2 text-[11px] sm:text-xs font-bold text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 rounded-xl transition-all cursor-pointer flex items-center space-x-1.5 shadow-md shadow-blue-500/20 whitespace-nowrap shrink-0"
                     >
                       {completing ? <RefreshCw size={14} className="animate-spin" /> : <CheckCircle size={14} />}
                       <span>Sign & Complete</span>
@@ -2184,7 +2188,7 @@ export default function ConsultationWorkspacePage({ user, consultationContext, i
               </div>
 
               {/* Workspace Navigation Tabs */}
-              <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50/50 px-4 shrink-0">
+              <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50/50 px-3 sm:px-4 shrink-0 overflow-x-auto custom-scrollbar">
                 <div className="flex items-center space-x-1">
                   <button
                     onClick={() => setWorkspaceTab('chat')}
@@ -2247,15 +2251,15 @@ export default function ConsultationWorkspacePage({ user, consultationContext, i
                       </div>
                     ) : messagesThread.length === 0 ? (
                       /* Interactive Clinical Starter Launchpad */
-                      <div className="py-8 px-4 flex flex-col items-center justify-center max-w-lg mx-auto text-center space-y-4 my-auto">
-                        <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-blue-500/20 to-indigo-500/20 border border-blue-400/30 flex items-center justify-center text-blue-600 shadow-inner">
-                          <MessageSquare className="w-7 h-7" />
+                      <div className="py-4 px-3 flex flex-col items-center justify-center max-w-lg mx-auto text-center space-y-3">
+                        <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-blue-500/20 to-indigo-500/20 border border-blue-400/30 flex items-center justify-center text-blue-600 shadow-inner">
+                          <MessageSquare className="w-6 h-6" />
                         </div>
                         <div>
                           <h4 className="text-sm font-extrabold text-slate-900">
                             {isDoctor ? 'Clinical Consultation Room Ready' : 'Secure Consultation Channel Ready'}
                           </h4>
-                          <p className="text-xs text-slate-500 mt-1 max-w-sm">
+                          <p className="text-xs text-slate-500 mt-0.5 max-w-sm">
                             {isDoctor
                               ? 'Start the consultation with a greeting, review chief complaints, or pick a starter prompt below:'
                               : 'Communicate directly with your attending physician. Click a topic below or type your message to begin:'}
@@ -2263,19 +2267,19 @@ export default function ConsultationWorkspacePage({ user, consultationContext, i
                         </div>
 
                         {/* Interactive Starter Action Cards */}
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 w-full text-left pt-1">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 w-full text-left pt-1">
                           {(isDoctor ? DOCTOR_QUICK_PROMPTS.slice(0, 4) : PATIENT_QUICK_PROMPTS.slice(0, 4)).map((item, idx) => (
                             <button
                               key={idx}
                               type="button"
                               onClick={() => handleApplyQuickPrompt(item.text)}
-                              className="p-3 rounded-xl bg-white border border-slate-200/80 hover:border-blue-400 hover:bg-blue-50/50 transition-all text-xs text-slate-800 font-semibold shadow-2xs hover:shadow-xs group cursor-pointer flex flex-col justify-between"
+                              className="p-2.5 rounded-xl bg-white border border-slate-200/80 hover:border-blue-400 hover:bg-blue-50/50 transition-all text-xs text-slate-800 font-semibold shadow-2xs hover:shadow-xs group cursor-pointer flex flex-col justify-between"
                             >
-                              <span className="text-[11px] font-extrabold text-blue-600 mb-1 flex items-center justify-between">
+                              <span className="text-[11px] font-extrabold text-blue-600 mb-0.5 flex items-center justify-between">
                                 <span>{item.label}</span>
                                 <ChevronRight className="w-3.5 h-3.5 text-slate-400 group-hover:translate-x-0.5 group-hover:text-blue-600 transition-all" />
                               </span>
-                              <span className="text-[11px] text-slate-500 line-clamp-2 leading-relaxed">
+                              <span className="text-[10.5px] text-slate-500 line-clamp-2 leading-relaxed">
                                 {item.text}
                               </span>
                             </button>
