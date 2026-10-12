@@ -9,46 +9,47 @@ import ScrollToTop from './components/ScrollToTop';
 
 import AssessmentComparisonModal from './components/AssessmentComparisonModal';
 import useTheme from './utils/useTheme';
+import { lazyWithRetry } from './utils/lazyWithRetry';
 import { predictV3, fetchXAIV3, analyzePredictions, confirmFeatures, getCurrentUser, logoutUser, loginUser, fetchPatientRecords, warmupBackend } from './api/client';
 
-// Lazy-loaded pages (code split per route)
-const DashboardPage = lazy(() => import('./pages/DashboardPage'));
-const IntakePage = lazy(() => import('./pages/IntakePage'));
+// Resilient Lazy-loaded pages (auto-recovers from new Vercel deployment chunk mismatches)
+const DashboardPage = lazyWithRetry(() => import('./pages/DashboardPage'));
+const IntakePage = lazyWithRetry(() => import('./pages/IntakePage'));
 
 // Lazy-loaded secondary & role-specific pages
-const XAIPage = lazy(() => import('./pages/XAIPage'));
-const ReportPage = lazy(() => import('./pages/ReportPage'));
-const HealthRecordsPage = lazy(() => import('./pages/HealthRecordsPage'));
-const CarePage = lazy(() => import('./pages/CarePage'));
-const AccountPage = lazy(() => import('./pages/AccountPage'));
-const DoctorDashboardPage = lazy(() => import('./pages/DoctorDashboardPage'));
-const DoctorVerificationPage = lazy(() => import('./pages/DoctorVerificationPage'));
-const AdminDashboardPage = lazy(() => import('./pages/AdminDashboardPage'));
-const AdminDoctorVerificationPage = lazy(() => import('./pages/AdminDoctorVerificationPage'));
-const AdminUsersPage = lazy(() => import('./pages/AdminUsersPage'));
-const AdminSystemPage = lazy(() => import('./pages/AdminSystemPage'));
-const AdminAuditPage = lazy(() => import('./pages/AdminAuditPage'));
-const PatientPrivacyPage = lazy(() => import('./pages/PatientPrivacyPage'));
-const ConsultationWorkspacePage = lazy(() => import('./pages/ConsultationWorkspacePage'));
-const AdminConsultationManagementPage = lazy(() => import('./pages/AdminConsultationManagementPage'));
-const AppointmentsPage = lazy(() => import('./pages/AppointmentsPage'));
-const PlaceholderPage = lazy(() => import('./pages/PlaceholderPage'));
-const ProfilePage = lazy(() => import('./pages/ProfilePage'));
-const CompareAssessmentsPage = lazy(() => import('./pages/CompareAssessmentsPage'));
-const NotificationsPage = lazy(() => import('./pages/NotificationsPage'));
-const MessagesPage = lazy(() => import('./pages/MessagesPage'));
-const HealthCopilotPage = lazy(() => import('./pages/HealthCopilotPage'));
+const XAIPage = lazyWithRetry(() => import('./pages/XAIPage'));
+const ReportPage = lazyWithRetry(() => import('./pages/ReportPage'));
+const HealthRecordsPage = lazyWithRetry(() => import('./pages/HealthRecordsPage'));
+const CarePage = lazyWithRetry(() => import('./pages/CarePage'));
+const AccountPage = lazyWithRetry(() => import('./pages/AccountPage'));
+const DoctorDashboardPage = lazyWithRetry(() => import('./pages/DoctorDashboardPage'));
+const DoctorVerificationPage = lazyWithRetry(() => import('./pages/DoctorVerificationPage'));
+const AdminDashboardPage = lazyWithRetry(() => import('./pages/AdminDashboardPage'));
+const AdminDoctorVerificationPage = lazyWithRetry(() => import('./pages/AdminDoctorVerificationPage'));
+const AdminUsersPage = lazyWithRetry(() => import('./pages/AdminUsersPage'));
+const AdminSystemPage = lazyWithRetry(() => import('./pages/AdminSystemPage'));
+const AdminAuditPage = lazyWithRetry(() => import('./pages/AdminAuditPage'));
+const PatientPrivacyPage = lazyWithRetry(() => import('./pages/PatientPrivacyPage'));
+const ConsultationWorkspacePage = lazyWithRetry(() => import('./pages/ConsultationWorkspacePage'));
+const AdminConsultationManagementPage = lazyWithRetry(() => import('./pages/AdminConsultationManagementPage'));
+const AppointmentsPage = lazyWithRetry(() => import('./pages/AppointmentsPage'));
+const PlaceholderPage = lazyWithRetry(() => import('./pages/PlaceholderPage'));
+const ProfilePage = lazyWithRetry(() => import('./pages/ProfilePage'));
+const CompareAssessmentsPage = lazyWithRetry(() => import('./pages/CompareAssessmentsPage'));
+const NotificationsPage = lazyWithRetry(() => import('./pages/NotificationsPage'));
+const MessagesPage = lazyWithRetry(() => import('./pages/MessagesPage'));
+const HealthCopilotPage = lazyWithRetry(() => import('./pages/HealthCopilotPage'));
 
 // Public Landing Pages
-const HomePage = lazy(() => import('./pages/HomePage'));
-const AboutPage = lazy(() => import('./pages/AboutPage'));
-const FeaturesPage = lazy(() => import('./pages/FeaturesPage'));
-const HowItWorksPage = lazy(() => import('./pages/HowItWorksPage'));
-const ResearchPage = lazy(() => import('./pages/ResearchPage'));
-const ContactPage = lazy(() => import('./pages/ContactPage'));
-const LoginPage = lazy(() => import('./pages/LoginPage'));
-const RegisterPage = lazy(() => import('./pages/RegisterPage'));
-const AdminLoginPage = lazy(() => import('./pages/AdminLoginPage'));
+const HomePage = lazyWithRetry(() => import('./pages/HomePage'));
+const AboutPage = lazyWithRetry(() => import('./pages/AboutPage'));
+const FeaturesPage = lazyWithRetry(() => import('./pages/FeaturesPage'));
+const HowItWorksPage = lazyWithRetry(() => import('./pages/HowItWorksPage'));
+const ResearchPage = lazyWithRetry(() => import('./pages/ResearchPage'));
+const ContactPage = lazyWithRetry(() => import('./pages/ContactPage'));
+const LoginPage = lazyWithRetry(() => import('./pages/LoginPage'));
+const RegisterPage = lazyWithRetry(() => import('./pages/RegisterPage'));
+const AdminLoginPage = lazyWithRetry(() => import('./pages/AdminLoginPage'));
 
 function PageSkeleton() {
   return (

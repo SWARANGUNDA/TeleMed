@@ -15,6 +15,23 @@ export default class ErrorBoundary extends React.Component {
     if (import.meta.env?.DEV) {
       console.warn('[TeleMed ErrorBoundary caught an unhandled component error]:', error, errorInfo);
     }
+    const msg = (error?.message || '').toLowerCase();
+    const isChunkError =
+      msg.includes('failed to fetch dynamically imported module') ||
+      msg.includes('chunkloaderror') ||
+      msg.includes('failed to load module script') ||
+      msg.includes('text/html');
+
+    if (isChunkError && typeof window !== 'undefined') {
+      const lastReload = sessionStorage.getItem('telemed_eb_chunk_reload');
+      const now = Date.now();
+      if (!lastReload || now - parseInt(lastReload, 10) > 12000) {
+        sessionStorage.setItem('telemed_eb_chunk_reload', String(now));
+        console.warn('[TeleMed] ErrorBoundary caught dynamic chunk error. Refreshing to load latest build...');
+        window.location.reload();
+        return;
+      }
+    }
     this.setState({ errorInfo });
   }
 
@@ -60,12 +77,32 @@ export default class ErrorBoundary extends React.Component {
               <AlertTriangle size={30} />
             </div>
 
-            <h2 style={{ fontSize: '1.35rem', fontWeight: 800, margin: '0 0 8px 0', color: 'var(--text-main, #f8fafc)' }}>
-              Something went wrong in this section
-            </h2>
-            <p style={{ color: 'var(--text-muted, #94a3b8)', fontSize: '0.9rem', marginBottom: '20px', lineHeight: 1.5 }}>
-              An unexpected component error occurred. The application recovered safely without losing system state.
-            </p>
+            {(() => {
+              const msg = (this.state.error?.message || '').toLowerCase();
+              const isChunk = msg.includes('failed to fetch dynamically imported module') || msg.includes('chunkloaderror') || msg.includes('failed to load module script') || msg.includes('text/html');
+              if (isChunk) {
+                return (
+                  <>
+                    <h2 style={{ fontSize: '1.35rem', fontWeight: 800, margin: '0 0 8px 0', color: 'var(--text-main, #f8fafc)' }}>
+                      New Application Update Available
+                    </h2>
+                    <p style={{ color: 'var(--text-muted, #94a3b8)', fontSize: '0.9rem', marginBottom: '20px', lineHeight: 1.5 }}>
+                      A newer version of TeleMed has been deployed. Click Reload below to load the latest version.
+                    </p>
+                  </>
+                );
+              }
+              return (
+                <>
+                  <h2 style={{ fontSize: '1.35rem', fontWeight: 800, margin: '0 0 8px 0', color: 'var(--text-main, #f8fafc)' }}>
+                    Something went wrong in this section
+                  </h2>
+                  <p style={{ color: 'var(--text-muted, #94a3b8)', fontSize: '0.9rem', marginBottom: '20px', lineHeight: 1.5 }}>
+                    An unexpected component error occurred. The application recovered safely without losing system state.
+                  </p>
+                </>
+              );
+            })()}
 
             {this.state.error && (
               <div style={{

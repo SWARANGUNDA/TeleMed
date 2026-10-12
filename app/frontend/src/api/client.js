@@ -260,17 +260,23 @@ export async function refreshToken(tokenParam = null) {
   try {
     const token = tokenParam || (typeof sessionStorage !== 'undefined' ? sessionStorage.getItem('telemed_refresh_token') || '' : '');
     // If no refresh token exists, do not fire an unauthorized request that triggers a 401 console error
-    if (!token && (typeof document === 'undefined' || !document.cookie || !document.cookie.includes('telemed_refresh_token'))) {
+    if (!token) {
       return null;
     }
-    const bodyPayload = token ? JSON.stringify({ refresh_token: token }) : undefined;
+    const bodyPayload = JSON.stringify({ refresh_token: token });
     const res = await fetchWithTimeout(`${API_BASE}/auth/refresh`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: bodyPayload,
       credentials: 'include',
     }, 4000);
-    if (!res.ok) return null;
+    if (!res.ok) {
+      if (res.status === 401 && typeof sessionStorage !== 'undefined') {
+        try { sessionStorage.removeItem('telemed_refresh_token'); } catch (e) {}
+        try { localStorage.removeItem('telemed_refresh_token'); } catch (e) {}
+      }
+      return null;
+    }
     const data = await parseJsonSafely(res);
     if (!data) return null;
     if (data.access_token || data.token) {
@@ -360,7 +366,7 @@ export async function getCurrentUser() {
     let token = getAuthToken();
     const storedRefresh = typeof sessionStorage !== 'undefined' ? sessionStorage.getItem('telemed_refresh_token') || '' : '';
     if (!token) {
-      if (!storedRefresh && typeof document !== 'undefined' && !document.cookie.includes('telemed_refresh_token')) {
+      if (!storedRefresh) {
         return null;
       }
       const refreshRes = await refreshToken();
@@ -372,7 +378,7 @@ export async function getCurrentUser() {
       credentials: 'include',
     }, 3500);
     if (!res.ok) {
-      if (res.status === 401) {
+      if (res.status === 401 && storedRefresh) {
         const refreshRes = await refreshToken();
         if (refreshRes) {
           const retryRes = await fetchWithTimeout(`${API_BASE}/auth/me`, {

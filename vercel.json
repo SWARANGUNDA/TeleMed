@@ -1,0 +1,49 @@
+{
+  "version": 2,
+  "headers": [
+    {
+      "source": "/index.html",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-cache, no-store, must-revalidate"
+        },
+        {
+          "key": "Pragma",
+          "value": "no-cache"
+        },
+        {
+          "key": "Expires",
+          "value": "0"
+        }
+      ]
+    },
+    {
+      "source": "/assets/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=31536000, immutable"
+        }
+      ]
+    }
+  ],
+  "rewrites": [
+    {
+      "source": "/api/v1/:path*",
+      "destination": "https://telemed-3koh.onrender.com/api/v1/:path*"
+    },
+    {
+      "source": "/api/v3/:path*",
+      "destination": "https://telemed-3koh.onrender.com/api/v3/:path*"
+    },
+    {
+      "source": "/api/:path*",
+      "destination": "https://telemed-3koh.onrender.com/api/:path*"
+    },
+    {
+      "source": "/((?!assets/|manifest.webmanifest|sw.js|favicon.ico).*)",
+      "destination": "/index.html"
+    }
+  ]
+}

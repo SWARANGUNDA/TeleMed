@@ -15,11 +15,30 @@ ReactDOM.createRoot(document.getElementById('root')).render(
   </React.StrictMode>,
 );
 
-// Register production Service Worker for static asset caching
-if ('serviceWorker' in navigator && import.meta.env.PROD) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js').catch(() => {
-      // Quietly fall back if ServiceWorker is restricted (e.g. private mode)
-    });
-  });
+// Automatically recover from dynamic module preload errors (e.g. when new version is deployed on Vercel)
+window.addEventListener('vite:preloadError', (event) => {
+  console.warn('[TeleMed] Outdated chunk requested after deployment. Auto-reloading to fetch newest version...', event);
+  const lastReload = sessionStorage.getItem('telemed_preload_reload');
+  const now = Date.now();
+  if (!lastReload || now - parseInt(lastReload, 10) > 10000) {
+    sessionStorage.setItem('telemed_preload_reload', String(now));
+    window.location.reload();
+  }
+});
+
+// Purge any legacy Service Worker registrations & caches that might serve stale index.html
+if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
+  navigator.serviceWorker.getRegistrations().then((registrations) => {
+    for (const registration of registrations) {
+      registration.unregister();
+    }
+  }).catch(() => {});
+  if ('caches' in window) {
+    caches.keys().then((names) => {
+      for (const name of names) {
+        caches.delete(name);
+      }
+    }).catch(() => {});
+  }
 }
+
