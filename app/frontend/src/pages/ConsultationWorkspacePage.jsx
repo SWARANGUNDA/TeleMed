@@ -297,6 +297,7 @@ export default function ConsultationWorkspacePage({ user, consultationContext, i
 
   const socketRef = useRef(null);
   const chatEndRef = useRef(null);
+  const consultationMessagesContainerRef = useRef(null);
   const [showConsultationScrollBottomBtn, setShowConsultationScrollBottomBtn] = useState(false);
   const isConsultationAtBottomRef = useRef(true);
   const messageInputRef = useRef(null);
