@@ -2,7 +2,7 @@ import React from 'react';
 import { Card, Badge } from '../ui';
 import { Server, Cpu, Database, Activity, ShieldCheck, Zap, Network, BrainCircuit, FileSearch } from 'lucide-react';
 
-export default function InfrastructureHealth({ systemHealth }) {
+export default function InfrastructureHealth({ systemHealth, className = '' }) {
   const dbLatency = systemHealth?.services?.database?.latency_ms ?? 0.47;
   const dbEngine = systemHealth?.services?.database?.engine === 'sqlite' ? 'SQLite Engine' : 'PostgreSQL 17 Primary';
 
@@ -82,7 +82,7 @@ export default function InfrastructureHealth({ systemHealth }) {
   ];
 
   return (
-    <Card isGlass={true} className="p-6 space-y-5 shadow-xl border-t-4 border-t-emerald-500">
+    <Card isGlass={true} className={`p-6 space-y-5 shadow-xl border-t-4 border-t-emerald-500 w-full ${className}`}>
       <div className="flex items-center justify-between border-b border-[var(--border-subtle)] pb-4 flex-wrap gap-2">
         <div className="flex items-center gap-2.5">
           <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
@@ -98,35 +98,36 @@ export default function InfrastructureHealth({ systemHealth }) {
         </Badge>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5 text-xs">
         {subsystems.map((sub, idx) => {
           const Icon = sub.icon;
           return (
             <div 
               key={idx} 
-              className="p-3.5 rounded-xl bg-[var(--bg-primary)]/80 hover:bg-[var(--bg-primary)] border border-[var(--border-subtle)] hover:border-[var(--primary)]/40 transition-all space-y-2 group shadow-2xs"
+              className="p-3.5 rounded-xl bg-[var(--bg-primary)]/80 hover:bg-[var(--bg-primary)] border border-[var(--border-subtle)] hover:border-[var(--primary)]/40 transition-all flex flex-col justify-between gap-3 group shadow-2xs"
             >
-              <div className="flex items-start justify-between gap-2">
-                <div className="flex items-start gap-2.5 min-w-0">
-                  <div className="p-1.5 rounded-lg bg-[var(--primary)]/10 text-[var(--primary)] shrink-0 group-hover:scale-105 transition-transform mt-0.5">
-                    <Icon className="w-4 h-4" />
+              <div className="flex items-start gap-2.5 min-w-0">
+                <div className="p-1.5 rounded-lg bg-[var(--primary)]/10 text-[var(--primary)] shrink-0 group-hover:scale-105 transition-transform mt-0.5">
+                  <Icon className="w-4 h-4" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="text-xs font-bold text-[var(--text-main)] leading-tight">
+                    {sub.name}
                   </div>
-                  <div className="min-w-0">
-                    <div className="text-xs font-bold text-[var(--text-main)] leading-tight">
-                      {sub.name}
-                    </div>
-                    <div className="text-[11px] text-[var(--text-muted)] mt-1 leading-snug">
-                      {sub.detail}
-                    </div>
+                  <div className="text-[11px] text-[var(--text-muted)] mt-1 leading-snug">
+                    {sub.detail}
                   </div>
                 </div>
-                <Badge variant={sub.badgeVar} size="sm" className="shrink-0 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5">
+              </div>
+
+              <div className="flex items-center justify-between pt-2 border-t border-[var(--border-subtle)] gap-2">
+                <Badge variant={sub.badgeVar} size="sm" className="shrink-0 text-[9.5px] font-bold uppercase tracking-wider px-2 py-0.5">
                   {sub.status}
                 </Badge>
-              </div>
-              <div className="flex items-center justify-between text-[10px] text-[var(--text-muted)] pt-2 border-t border-[var(--border-subtle)] font-medium">
-                <span>Latency</span>
-                <span className="font-semibold text-[var(--text-main)]">{sub.latency}</span>
+                <div className="flex items-center gap-1.5 text-[10.5px] text-[var(--text-muted)] font-medium">
+                  <span>Latency:</span>
+                  <span className="font-semibold text-[var(--text-main)] font-mono">{sub.latency}</span>
+                </div>
               </div>
             </div>
           );

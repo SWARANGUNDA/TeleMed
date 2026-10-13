@@ -308,31 +308,27 @@ export default function AdminDashboardPage({ onNavigate }) {
             </Card>
           </div>
 
-          {/* ROW 1: INFRASTRUCTURE & RUNTIME HOST (Height-matched side-by-side) */}
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-            <div className="lg:col-span-7">
-              <InfrastructureHealth systemHealth={systemHealth} />
-            </div>
-            <div className="lg:col-span-5 space-y-6">
-              <MaintenancePanel systemHealth={systemHealth} />
-              <AIPlatformInsights systemHealth={systemHealth} />
-            </div>
-          </div>
-
-          {/* ROW 2: MULTIMODAL DIAGNOSTICS & POPULATION GOVERNANCE (Height-matched side-by-side) */}
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-            <div className="lg:col-span-7">
-              <PlatformAnalytics stats={stats} />
-            </div>
-            <div className="lg:col-span-5 space-y-6">
-              <CompliancePanel stats={stats} />
-              <UserAnalytics stats={stats} />
-            </div>
-          </div>
-
-          {/* ROW 3: LIVE IMMUTABLE AUDIT TRAIL & OPERATIONS (Full width 100%) */}
+          {/* HERO ROW: FULL-WIDTH SUBSYSTEM INFRASTRUCTURE HEALTH (3x3 Grid) */}
           <div className="w-full">
-            <OperationsFeed recentActivity={stats?.recent_activity} />
+            <InfrastructureHealth systemHealth={systemHealth} />
+          </div>
+
+          {/* BALANCED ROW 1: MULTIMODAL DIAGNOSTICS & AI ARCHITECTURE (50/50 Split) */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
+            <PlatformAnalytics stats={stats} className="h-full" />
+            <AIPlatformInsights className="h-full" />
+          </div>
+
+          {/* BALANCED ROW 2: GOVERNANCE, COMPLIANCE & USER POPULATION (50/50 Split) */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
+            <CompliancePanel stats={stats} className="h-full" />
+            <UserAnalytics stats={stats} className="h-full" />
+          </div>
+
+          {/* BALANCED ROW 3: ENGINE RUNTIME & OPERATIONAL ACTIVITY FEED (50/50 Split) */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
+            <MaintenancePanel systemHealth={systemHealth} className="h-full" />
+            <OperationsFeed recentActivity={stats?.recent_activity} className="h-full" layout="list" />
           </div>
 
           {/* System Telemetry & Performance Gauges */}
@@ -753,16 +749,20 @@ export default function AdminDashboardPage({ onNavigate }) {
       {/* 4. PLATFORM SUBSYSTEMS & MONITORING */}
       {activeTab === 'monitoring' && (
         <div className="space-y-6">
-          <InfrastructureHealth />
-          <PlatformAnalytics />
+          <InfrastructureHealth systemHealth={systemHealth} />
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
+            <PlatformAnalytics stats={stats} className="h-full" />
+            <AIPlatformInsights className="h-full" />
+          </div>
+          <MaintenancePanel systemHealth={systemHealth} />
         </div>
       )}
 
       {/* 5. SECURITY & AUDIT LOGS */}
       {activeTab === 'security' && (
         <div className="space-y-6">
-          <OperationsFeed />
-          <CompliancePanel />
+          <OperationsFeed recentActivity={stats?.recent_activity} layout="grid" />
+          <CompliancePanel stats={stats} />
         </div>
       )}
 

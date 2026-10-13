@@ -2,7 +2,7 @@ import React from 'react';
 import { Card, Badge } from '../ui';
 import { Activity, ShieldCheck, CheckCircle2, UserCheck, Clock, FileText, Lock } from 'lucide-react';
 
-export default function OperationsFeed({ recentActivity = [] }) {
+export default function OperationsFeed({ recentActivity = [], className = '', layout = 'list' }) {
   // Format relative or local time cleanly
   const formatTime = (ts) => {
     if (!ts) return 'Just now';
@@ -92,13 +92,13 @@ export default function OperationsFeed({ recentActivity = [] }) {
       if (list.length < 5) list.push(b);
     });
 
-    return list.slice(0, 6);
+    return layout === 'list' ? list.slice(0, 4) : list.slice(0, 6);
   };
 
   const activities = buildActivities();
 
   return (
-    <Card isGlass={true} className="p-6 space-y-4 shadow-xl border-t-4 border-t-blue-500">
+    <Card isGlass={true} className={`p-6 space-y-5 shadow-xl border-t-4 border-t-blue-500 flex flex-col justify-between ${className}`}>
       <div className="flex items-center justify-between border-b border-[var(--border-subtle)] pb-4 flex-wrap gap-2">
         <div className="flex items-center gap-2.5">
           <div className="p-2 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400">
@@ -114,7 +114,7 @@ export default function OperationsFeed({ recentActivity = [] }) {
         </Badge>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 text-xs">
+      <div className={layout === 'grid' ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 text-xs" : "space-y-3 text-xs"}>
         {activities.map((act) => {
           const Icon = act.icon || Activity;
           return (

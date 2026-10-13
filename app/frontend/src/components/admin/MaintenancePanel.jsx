@@ -2,7 +2,7 @@ import React from 'react';
 import { Card, Badge } from '../ui';
 import { HardDrive, Server, Shield, Database, Cpu } from 'lucide-react';
 
-export default function MaintenancePanel({ systemHealth }) {
+export default function MaintenancePanel({ systemHealth, className = '' }) {
   const dbEngine = systemHealth?.services?.database?.engine === 'sqlite' 
     ? 'SQLite Engine (WAL Mode)' 
     : 'PostgreSQL 17 Primary Engine';
@@ -46,7 +46,7 @@ export default function MaintenancePanel({ systemHealth }) {
   ];
 
   return (
-    <Card isGlass={true} className="p-6 space-y-5 shadow-xl border-t-4 border-t-slate-500">
+    <Card isGlass={true} className={`p-6 space-y-5 shadow-xl border-t-4 border-t-slate-500 flex flex-col justify-between ${className}`}>
       <div className="flex items-center justify-between border-b border-[var(--border-subtle)] pb-4 flex-wrap gap-2">
         <div className="flex items-center gap-2.5">
           <div className="p-2 rounded-xl bg-slate-500/10 text-slate-600 dark:text-slate-400">
