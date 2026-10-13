@@ -648,192 +648,255 @@ export function generatePersonalizedRecommendations(rawPredictionData, userProfi
     {
       id: 'swap_breakfast',
       category: 'Meals & Nutrition',
-      timeOfDay: 'Morning (7:30–9:00 AM)',
-      timingTip: 'Eat within 90 minutes of waking to anchor morning insulin sensitivity',
-      currentHabit: 'Carb-heavy or sweet breakfast (cereal, white toast with jam, sweet pastries, flavored lattes)',
-      precisionSwap: 'Savory Protein & Fiber Anchor: 2 pastured eggs (or organic firm tofu scramble) + 1 cup baby spinach + 1/2 avocado + 1/3 cup fresh wild blueberries',
+      title: '🍳 Healthy Breakfast Swap',
+      clinicalTitle: 'Savory Protein & Fiber Anchor Protocol',
+      timeOfDay: 'Morning (Breakfast)',
+      timingTip: 'Eat within 1.5 hours of waking up',
+      currentHabit: 'Sugary cereal, white bread with jam, sweet pastries, or sweet coffee',
+      clinicalCurrentHabit: 'Carb-heavy or sweet breakfast (cereal, white toast with jam, sweet pastries, flavored lattes)',
+      precisionSwap: '2 scrambled eggs (or tofu) with a handful of spinach & half an avocado',
+      clinicalPrecisionSwap: 'Savory Protein & Fiber Anchor: 2 pastured eggs (or organic firm tofu scramble) + 1 cup baby spinach + 1/2 avocado + 1/3 cup fresh wild blueberries',
+      simpleTask: 'Scramble 2 eggs with spinach (5 mins). Keeps you full until lunch!',
+      whyItHelps: 'High-protein breakfast stops morning sugar spikes and keeps your energy rock-solid.',
       rationale: `Calibrated for your glycemic baseline${glucose ? ` (${glucose} mg/dL)` : ''}. Eliminates early morning glucose spikes, stimulates early GLP-1 satiety signaling, and stops mid-morning hypoglycemia crashes.`,
-      prepTip: 'Quick 5-min scramble seasoned with sea salt and cracked black pepper; top with avocado slices.',
-      difficulty: 'Quick Prep (5 mins)',
-      impactBiomarker: 'Morning Postprandial Glucose AUC',
-      expectedDelta: '-26% to -32% post-breakfast glucose excursion',
-      badge: 'MORNING GLYCEMIC ANCHOR',
-      groceryItems: ['Pastured eggs or firm organic tofu', 'Fresh baby spinach', 'Hass avocados', 'Wild blueberries']
+      prepTip: 'Quick 5-min scramble in a pan with salt & pepper; top with avocado slices.',
+      difficulty: '5 mins prep',
+      impactBiomarker: 'Morning Blood Sugar',
+      expectedDelta: 'Steady energy all morning',
+      badge: 'Steady Energy',
+      clinicalBadge: 'MORNING GLYCEMIC ANCHOR',
+      groceryItems: ['Eggs (or firm tofu)', 'Baby spinach', 'Avocados', 'Fresh blueberries']
     },
     {
       id: 'swap_lunch',
       category: 'Meals & Nutrition',
+      title: '🥗 Veggies & Protein First at Lunch',
+      clinicalTitle: 'Carbohydrate Sequencing & Acetic Acid Preload',
       timeOfDay: 'Midday (Lunch)',
-      timingTip: 'Drink ACV 10 mins before eating; sequence greens and protein first, starches last',
-      currentHabit: 'Starches eaten first on an empty stomach (white rice, standard pasta, sandwich buns, bread baskets)',
-      precisionSwap: 'Carbohydrate Sequencing & Preloading: 1 tbsp raw Apple Cider Vinegar in 4oz water + leafy salad & grilled protein, followed by chilled & reheated lentils or sprouted sourdough',
+      timingTip: 'Eat your salad/protein first; save rice, bread, or pasta for last',
+      currentHabit: 'Eating rice, bread, or pasta first on an empty stomach',
+      clinicalCurrentHabit: 'Starches eaten first on an empty stomach (white rice, standard pasta, sandwich buns, bread baskets)',
+      precisionSwap: 'Eat your greens and chicken/fish/tofu first, bread/rice last + sip water with lemon',
+      clinicalPrecisionSwap: 'Carbohydrate Sequencing & Preloading: 1 tbsp raw Apple Cider Vinegar in 4oz water + leafy salad & grilled protein, followed by chilled & reheated lentils or sprouted sourdough',
+      simpleTask: 'Take 3 bites of salad and protein before taking your first bite of bread or rice.',
+      whyItHelps: 'Veggies coat your stomach so carbs absorb slowly, preventing the 2 PM food coma.',
       rationale: `Acetic acid slows gastric transit and inhibits alpha-amylase activity. Eating fibers and proteins first coats the small intestine, blunting carbohydrate absorption speed without food deprivation${glucose ? ` (current baseline: ${glucose} mg/dL)` : ''}.`,
-      prepTip: 'Mix 1 tbsp raw unfiltered ACV with 4oz water and drink 10 mins before your first bite.',
-      difficulty: 'Effortless (1 min)',
-      impactBiomarker: '2-Hour Postprandial Glucose Peak',
-      expectedDelta: '-22% to -28% post-meal glucose spike',
-      badge: 'CARBOHYDRATE SEQUENCING',
-      groceryItems: ['Raw unfiltered Apple Cider Vinegar', 'Sprouted sourdough bread', 'Dry or canned lentils / chickpeas']
+      prepTip: 'Drink a glass of water with 1 spoonful of lemon juice or apple cider vinegar before lunch.',
+      difficulty: '1 min habit',
+      impactBiomarker: 'After-Meal Blood Sugar',
+      expectedDelta: 'No 2 PM food coma',
+      badge: 'No Sugar Spike',
+      clinicalBadge: 'CARBOHYDRATE SEQUENCING',
+      groceryItems: ['Leafy salad greens', 'Lentils or chickpeas', 'Apple Cider Vinegar (optional)']
     },
     {
       id: 'swap_beverage',
       category: 'Drinks & Hydration',
-      timeOfDay: 'Throughout the Day',
-      timingTip: 'Drink mid-morning and during the 3:00 PM afternoon slump',
-      currentHabit: 'Sweetened specialty coffees, commercial fruit juices, regular sodas, sugary energy drinks (> 35g liquid sugar/day)',
-      precisionSwap: 'EGCG Citrus Cold-Brew: Iced organic green tea with fresh lemon slices, mint leaves, and mineral-rich sparkling water with a pinch of electrolytes',
+      title: '🍵 Refreshing Green Tea Swap',
+      clinicalTitle: 'EGCG Catechin Cold-Brew Hydration Protocol',
+      timeOfDay: 'All Day (Hydration)',
+      timingTip: 'Enjoy mid-morning or during the 3 PM afternoon slump',
+      currentHabit: 'Sodas, sweet coffees, sweetened energy drinks, or bottled fruit juices',
+      clinicalCurrentHabit: 'Sweetened specialty coffees, commercial fruit juices, regular sodas, sugary energy drinks (> 35g liquid sugar/day)',
+      precisionSwap: 'Iced green tea with fresh lemon slices and cold sparkling water',
+      clinicalPrecisionSwap: 'EGCG Citrus Cold-Brew: Iced organic green tea with fresh lemon slices, mint leaves, and mineral-rich sparkling water with a pinch of electrolytes',
+      simpleTask: 'Keep a pitcher of cold green tea with lemon in the fridge for whenever you feel thirsty.',
+      whyItHelps: 'Gives you clean, steady hydration with zero sugar, and green tea helps burn fat.',
       rationale: `Liquid refined sugars bypass normal satiety receptors and feed hepatic de-novo lipogenesis. Green tea EGCG catechins activate AMPK cellular enzymes, supporting mitochondrial fat oxidation and daily hydration target (${targetWaterLiters}L/day).`,
       prepTip: 'Steep 2 green tea bags in cold water overnight in a pitcher; serve over ice with lemon.',
-      difficulty: 'Effortless (2 mins)',
-      impactBiomarker: 'Hepatic Lipid Accumulation & Daily Glucose Swings',
-      expectedDelta: 'Zero glycemic surge; +14% hepatic fat oxidation',
-      badge: 'METABOLIC HYDRATION',
-      groceryItems: ['Organic green tea bags / loose leaf', 'Fresh organic lemons and limes', 'Sparkling mineral water', 'Fresh mint']
+      difficulty: '2 mins',
+      impactBiomarker: 'Liver Health & Hydration',
+      expectedDelta: 'Zero sugar spike & helps burn fat',
+      badge: 'Zero Sugar',
+      clinicalBadge: 'METABOLIC HYDRATION',
+      groceryItems: ['Green tea bags', 'Fresh lemons or limes', 'Sparkling mineral water', 'Fresh mint']
     },
     {
       id: 'swap_snack',
-      category: 'Snacks & Craving Shields',
-      timeOfDay: 'Mid-Afternoon (3:30–4:30 PM)',
-      timingTip: 'Consume at the first sign of afternoon energy slump before cravings take over',
-      currentHabit: 'Processed vending machine snacks (potato chips, cookies, standard milk chocolate, granola bars)',
-      precisionSwap: 'Magnesium Satiety Shield: 1 oz raw unsalted walnuts + 1 tbsp raw pumpkin seeds (pepitas) + 1 square (15g) 85%+ dark cacao',
+      category: 'Snacks & Treats',
+      title: '🥜 Crunchy Afternoon Snack',
+      clinicalTitle: 'Magnesium Satiety Shield & Flavanol Protocol',
+      timeOfDay: 'Mid-Afternoon (3:30 PM)',
+      timingTip: 'Eat at the first sign of 3 PM hunger before sweet cravings hit',
+      currentHabit: 'Vending machine potato chips, cookies, candy bars, or sugary granola bars',
+      clinicalCurrentHabit: 'Processed vending machine snacks (potato chips, cookies, standard milk chocolate, granola bars)',
+      precisionSwap: 'Handful of raw walnuts & pumpkin seeds + 1 square of dark chocolate',
+      clinicalPrecisionSwap: 'Magnesium Satiety Shield: 1 oz raw unsalted walnuts + 1 tbsp raw pumpkin seeds (pepitas) + 1 square (15g) 85%+ dark cacao',
+      simpleTask: 'Keep a small container of walnuts and dark chocolate at your desk or in your bag.',
+      whyItHelps: 'Healthy fats and magnesium satisfy hunger fast without causing a sugar spike.',
       rationale: `Raw walnuts provide essential omega-3 ALA; pumpkin seeds supply 120mg of bioavailable magnesium (vital for insulin receptor phosphorylation). 85% cacao delivers flavanols that boost vascular nitric oxide.`,
-      prepTip: 'Pre-portion into small portable snack containers at the start of the week.',
-      difficulty: 'Instant (No cooking)',
-      impactBiomarker: 'Cellular Magnesium & Insulin Sensitivity',
-      expectedDelta: '-18% afternoon craving severity; +120mg magnesium',
-      badge: 'MAGNESIUM CRAVING SHIELD',
-      groceryItems: ['Raw unsalted walnuts', 'Raw unsalted pumpkin seeds (pepitas)', '85%+ dark artisan chocolate']
+      prepTip: 'Pre-portion into small portable containers for the week so you always have a healthy snack ready.',
+      difficulty: 'Instant',
+      impactBiomarker: 'Energy & Craving Control',
+      expectedDelta: 'Curbs sugar cravings fast',
+      badge: 'Curbs Cravings',
+      clinicalBadge: 'MAGNESIUM CRAVING SHIELD',
+      groceryItems: ['Raw unsalted walnuts', 'Pumpkin seeds (pepitas)', '70%+ dark chocolate']
     },
     {
       id: 'swap_movement',
       category: 'Physical Movement',
-      timeOfDay: 'Post-Meal (Within 30 mins)',
-      timingTip: 'Begin within 30 minutes of meal completion before blood glucose reaches peak',
-      currentHabit: 'Immediate seated desk work or reclining on the couch after eating (sedentary glucose accumulation)',
-      precisionSwap: '15-Minute Post-Meal Ambulation or 120-Second Active Soleus Push-Ups (Calf Raises) Every 45 Minutes',
+      title: '🚶 10-Minute Walk After Meals',
+      clinicalTitle: 'Postprandial Soleus & GLUT-4 Translocation Protocol',
+      timeOfDay: 'After Meals',
+      timingTip: 'Start within 20 to 30 minutes of finishing lunch or dinner',
+      currentHabit: 'Sitting at your desk or lying on the couch immediately after eating',
+      clinicalCurrentHabit: 'Immediate seated desk work or reclining on the couch after eating (sedentary glucose accumulation)',
+      precisionSwap: 'A 10–15 min light stroll or gentle seated calf raises at your desk',
+      clinicalPrecisionSwap: '15-Minute Post-Meal Ambulation or 120-Second Active Soleus Push-Ups (Calf Raises) Every 45 Minutes',
+      simpleTask: 'Take a 10-minute stroll around your building or do gentle calf raises while answering emails.',
+      whyItHelps: 'Your leg muscles soak up blood sugar directly from your meal, lowering your sugar levels naturally.',
       rationale: `Contraction of slow-twitch soleus and quadriceps muscle fibers recruits GLUT-4 glucose transporters directly to cell surfaces without requiring insulin. This rapidly clears glucose from the bloodstream into working muscles${steps ? ` toward your 8,500 step target (currently ${Math.round(steps).toLocaleString()} steps)` : ''}.`,
-      prepTip: 'Set a phone reminder 20 mins after lunch. Walk around your building or do seated calf-raises while answering emails.',
-      difficulty: 'Easy (15 mins walk or 2 mins at desk)',
-      impactBiomarker: 'Postprandial Glycemic AUC & Daily Step Target',
-      expectedDelta: '-19% 2-hour glucose excursion; +1,800 to +2,400 daily steps',
-      badge: 'GLUT-4 ACTIVATION',
-      groceryItems: ['Comfortable walking footwear', 'Pedometer / Wearable tracker']
+      prepTip: 'Set a friendly reminder on your phone 20 minutes after lunch to get up and move.',
+      difficulty: '10 mins',
+      impactBiomarker: 'Blood Sugar & Daily Steps',
+      expectedDelta: 'Soaks up blood sugar naturally',
+      badge: 'Soaks Up Sugar',
+      clinicalBadge: 'GLUT-4 ACTIVATION',
+      groceryItems: ['Comfortable walking shoes', 'Step counter or smartwatch']
     },
     {
       id: 'swap_sleep',
-      category: 'Sleep & Circadian',
-      timeOfDay: 'Nightly (9:30–10:30 PM)',
-      timingTip: 'Initiate 60 minutes before your planned sleep window; cease caloric intake 3 hours prior',
-      currentHabit: 'Late-night smartphone and blue-screen scrolling in bed + late-night snacking until 11 PM',
-      precisionSwap: 'Amber Light Wind-Down + 4-7-8 Parasympathetic Breathwork + 12-Hour Overnight Fasting Window',
+      category: 'Sleep & Bedtime',
+      title: '🌙 Relaxing Bedtime Routine',
+      clinicalTitle: 'Circadian Melatonin & Parasympathetic Vagal Reset',
+      timeOfDay: 'Night (10:00 PM)',
+      timingTip: 'Start 30 to 45 minutes before sleep; stop snacking by 8:30 PM',
+      currentHabit: 'Scrolling on your phone in bed with bright light + late-night snacking',
+      clinicalCurrentHabit: 'Late-night smartphone and blue-screen scrolling in bed + late-night snacking until 11 PM',
+      precisionSwap: 'Put screens away 30 mins before sleep, dim lights, and sip chamomile tea',
+      clinicalPrecisionSwap: 'Amber Light Wind-Down + 4-7-8 Parasympathetic Breathwork + 12-Hour Overnight Fasting Window',
+      simpleTask: 'Dim the room lights, put your phone on the charger away from bed, and take 5 slow deep breaths.',
+      whyItHelps: 'Helps your brain relax so you fall asleep faster, sleep deeper, and wake up energized.',
       rationale: `Blue light suppresses pineal melatonin secretion by up to 50%, while late calories cause nocturnal insulin elevation and prevent deep slow-wave sleep. 4-7-8 breathing activates the vagus nerve, raising nocturnal HRV RMSSD${hrv ? ` from ${hrv} ms` : ''}.`,
-      prepTip: 'Dim overhead lighting. Inhale for 4 seconds, hold for 7 seconds, exhale slowly for 8 seconds (repeat 4 cycles).',
-      difficulty: 'Relaxing (5 mins)',
-      impactBiomarker: 'Nocturnal Sleep Quality & HRV RMSSD',
-      expectedDelta: '+45–60 min deep slow-wave sleep; +8–12 ms nocturnal HRV',
-      badge: 'CIRCADIAN RESET',
-      groceryItems: ['Organic chamomile or lavender herbal tea', 'Amber-tinted night bulb or blue-light filter app']
+      prepTip: 'Dim overhead lights. Inhale slowly for 4 seconds, hold for 4 seconds, exhale for 6 seconds.',
+      difficulty: '5 mins',
+      impactBiomarker: 'Deep Sleep & Morning Energy',
+      expectedDelta: 'Deeper, more restful sleep',
+      badge: 'Better Sleep',
+      clinicalBadge: 'CIRCADIAN RESET',
+      groceryItems: ['Chamomile or lavender herbal tea', 'Night light or reading lamp']
     }
   ];
 
-  // Extra Condition-Specific Swaps
+  // Extra Condition-Specific Swaps (Friendly & Actionable)
   if (akkermansia !== null && akkermansia < 1.2) {
     precisionSwaps.push({
       id: 'swap_gut',
       category: 'Meals & Nutrition',
-      timeOfDay: 'Daily Snack or Breakfast',
-      timingTip: 'Consume with morning or afternoon meal',
-      currentHabit: 'Low-polyphenol processed snacks and fiber-poor refined white carbs',
-      precisionSwap: 'Akkermansia Mucosal Nourishment: 1/2 cup fresh pomegranate arils + wild blueberries + 1 tbsp ground flaxseeds',
+      title: '🫐 Berry & Fiber Gut Boost',
+      clinicalTitle: 'Akkermansia Mucosal Barrier Reconstitution Protocol',
+      timeOfDay: 'Breakfast or Snack',
+      timingTip: 'Enjoy with morning breakfast or as an afternoon snack',
+      currentHabit: 'Low-fiber snacks, white bread, and processed snack bars',
+      clinicalCurrentHabit: 'Low-polyphenol processed snacks and fiber-poor refined white carbs',
+      precisionSwap: 'Half a cup of berries (blueberries/raspberries) with a spoonful of ground flaxseeds',
+      clinicalPrecisionSwap: 'Akkermansia Mucosal Nourishment: 1/2 cup fresh pomegranate arils + wild blueberries + 1 tbsp ground flaxseeds',
+      simpleTask: 'Stir a spoonful of berries and ground flaxseeds into your yogurt or oatmeal.',
+      whyItHelps: 'Feeds the friendly bacteria in your gut that protect your digestive wall.',
       rationale: `Ellagitannins and anthocyanins selectively nourish your depleted Akkermansia muciniphila (${akkermansia}%), stimulating intestinal goblet cells to fortify mucosal tight junctions.`,
-      prepTip: 'Mix berries with 1 tbsp ground flaxseeds in 4oz plain Greek yogurt or oatmeal.',
-      difficulty: 'Quick (2 mins)',
-      impactBiomarker: 'Akkermansia Abundance & Mucosal Barrier',
-      expectedDelta: '+0.8% to +1.2% relative abundance',
-      badge: 'MUCUS BARRIER REPAIR',
-      groceryItems: ['Fresh pomegranate or 100% pomegranate juice', 'Fresh or frozen wild blueberries', 'Cold-milled ground flaxseeds']
+      prepTip: 'Keep a bag of frozen wild blueberries in the freezer to add to yogurt or smoothies.',
+      difficulty: '1 min',
+      impactBiomarker: 'Gut Health & Digestion',
+      expectedDelta: 'Strengthens digestive wall',
+      badge: 'Nourishes Gut',
+      clinicalBadge: 'MUCUS BARRIER REPAIR',
+      groceryItems: ['Wild blueberries or raspberries', 'Plain Greek yogurt', 'Ground flaxseeds']
     });
   }
 
   if (sysBp !== null && sysBp >= 125) {
     precisionSwaps.push({
       id: 'swap_vascular',
-      category: 'Cardiovascular & Lipids',
+      category: 'Meals & Nutrition',
+      title: '🥑 Heart-Healthy Seasoning Swap',
+      clinicalTitle: 'Potassium-Sodium Counter-Transport & Endothelial Tone',
       timeOfDay: 'Lunch & Dinner',
-      timingTip: 'Season all meals with potassium mineral blend instead of table salt',
-      currentHabit: 'Processed salty condiments, standard sodium snacks, and table salt (> 3,200 mg sodium/day)',
-      precisionSwap: 'Potassium-Rich Vascular Shield: Sliced avocado, steamed spinach, and mineral potassium-salt blend (< 2,000 mg sodium, > 3,500 mg potassium)',
+      timingTip: 'Season meals with garlic, herbs, and lemon instead of extra table salt',
+      currentHabit: 'Heavy table salt, salty packaged sauces, and salty snacks',
+      clinicalCurrentHabit: 'Processed salty condiments, standard sodium snacks, and table salt (> 3,200 mg sodium/day)',
+      precisionSwap: 'Season with herbs & garlic, and add avocado or fresh spinach to your plate',
+      clinicalPrecisionSwap: 'Potassium-Rich Vascular Shield: Sliced avocado, steamed spinach, and mineral potassium-salt blend (< 2,000 mg sodium, > 3,500 mg potassium)',
+      simpleTask: 'Add half an avocado or spinach to your meal and flavor with garlic and herbs instead of salt.',
+      whyItHelps: 'Potassium in spinach and avocado helps your blood vessels relax naturally.',
       rationale: `Shifts urinary electrolyte clearance to relax vascular smooth muscle and suppress sympathetic vasoconstriction, directly targeting your systolic pressure (${sysBp} mmHg).`,
-      prepTip: 'Replace table salt with 50/50 potassium-chloride mineral salt; add half an avocado to lunch.',
-      difficulty: 'Instant (No extra cooking)',
-      impactBiomarker: 'Systolic Blood Pressure & Endothelial Tone',
-      expectedDelta: '-5 to -9 mmHg systolic reduction',
-      badge: 'VASCULAR RELAXATION',
-      groceryItems: ['Potassium-chloride mineral salt blend', 'Fresh Hass avocados', 'Organic baby spinach']
+      prepTip: 'Flavor foods with garlic, black pepper, oregano, and fresh lemon juice.',
+      difficulty: 'Instant',
+      impactBiomarker: 'Blood Pressure Relaxation',
+      expectedDelta: 'Relaxes blood vessels naturally',
+      badge: 'Eases Blood Pressure',
+      clinicalBadge: 'VASCULAR RELAXATION',
+      groceryItems: ['Fresh Hass avocados', 'Baby spinach', 'Fresh garlic and lemons']
     });
   }
 
   if ((trig !== null && trig >= 150) || (alt !== null && alt > 32)) {
     precisionSwaps.push({
       id: 'swap_lipid',
-      category: 'Cardiovascular & Lipids',
-      timeOfDay: 'Lunch & Dinner Cooking',
-      timingTip: 'Use cold-pressed EVOO as finishing drizzle; eat wild fish 2x/week',
-      currentHabit: 'Cooking with butter, palm oil, or industrial refined seed oils',
-      precisionSwap: '2 tbsp Cold-Pressed Extra Virgin Olive Oil + Wild Salmon or Sardines 2x/Week',
+      category: 'Meals & Nutrition',
+      title: '🐟 Olive Oil & Healthy Fats Swap',
+      clinicalTitle: 'Hepatic SREBP-1c Suppression & Marine EPA/DHA Protocol',
+      timeOfDay: 'Dinner Cooking',
+      timingTip: 'Drizzle extra virgin olive oil over warm meals; eat fish 2x per week',
+      currentHabit: 'Cooking with butter, margarine, or heavy frying oils',
+      clinicalCurrentHabit: 'Cooking with butter, palm oil, or industrial refined seed oils',
+      precisionSwap: 'Drizzle 1 tbsp extra virgin olive oil over your food & enjoy salmon or tuna twice a week',
+      clinicalPrecisionSwap: '2 tbsp Cold-Pressed Extra Virgin Olive Oil + Wild Salmon or Sardines 2x/Week',
+      simpleTask: 'Drizzle 1 tablespoon of extra virgin olive oil over your cooked veggies and protein.',
+      whyItHelps: 'Healthy olive oil gives your liver a break and helps clear out stubborn blood fats.',
       rationale: `Oleic acid and marine EPA/DHA omega-3s downregulate SREBP-1c in the liver, clearing circulating lipid remnants and protecting hepatic transaminases${alt ? ` (ALT: ${alt} U/L)` : ''}.`,
-      prepTip: 'Drizzle 1 tbsp raw EVOO over cooked proteins and greens right before serving.',
-      difficulty: 'Quick (1 min)',
-      impactBiomarker: 'Serum Triglycerides & ALT Enzymes',
-      expectedDelta: '-35 to -55 mg/dL triglycerides; -18% ALT transaminases',
-      badge: 'HEPATIC REMNANT CLEARANCE',
-      groceryItems: ['High-polyphenol Extra Virgin Olive Oil', 'Wild-caught salmon or sardines']
+      prepTip: 'Use raw extra virgin olive oil as a finishing drizzle over cooked greens and chicken.',
+      difficulty: '1 min',
+      impactBiomarker: 'Liver Health & Blood Fats',
+      expectedDelta: 'Clears stored fats from the liver',
+      badge: 'Cleanses Liver',
+      clinicalBadge: 'HEPATIC REMNANT CLEARANCE',
+      groceryItems: ['Extra Virgin Olive Oil', 'Wild salmon fillets or canned tuna']
     });
   }
 
-  // Compile Grocery Checklist from Swaps
+  // Compile Grocery Checklist from Swaps (Simple & Understandable)
   const groceryChecklist = [
     {
-      category: 'Fresh Produce (Greens & Polyphenols)',
+      category: 'Fresh Produce (Veggies & Fruits)',
       items: [
-        { name: 'Organic baby spinach & dark leafy greens', purpose: 'Potassium, lutein & fiber sequencing' },
-        { name: 'Fresh Hass avocados', purpose: 'Monounsaturated oleic acid & potassium' },
-        { name: 'Wild blueberries & pomegranate arils', purpose: 'Ellagitannins for Akkermansia muciniphila' },
-        { name: 'Fresh organic lemons, limes & mint', purpose: 'Citrus EGCG cold-brew hydration' }
+        { name: 'Baby spinach or leafy salad greens', purpose: 'Potassium, lutein & fiber sequencing', simplePurpose: 'Fibers to slow sugar absorption and keep you full' },
+        { name: 'Fresh Hass avocados', purpose: 'Monounsaturated oleic acid & potassium', simplePurpose: 'Healthy fats to keep energy steady and blood pressure calm' },
+        { name: 'Fresh or frozen blueberries', purpose: 'Ellagitannins for Akkermansia muciniphila', simplePurpose: 'Sweet snack that protects your digestion and gut' },
+        { name: 'Lemons, limes & fresh mint', purpose: 'Citrus EGCG cold-brew hydration', simplePurpose: 'Adds fresh flavor to zero-sugar cold drinks' }
       ]
     },
     {
-      category: 'Pantry & Fiber Prebiotics',
+      category: 'Pantry & Easy Carbs',
       items: [
-        { name: 'Raw unfiltered Apple Cider Vinegar (with mother)', purpose: 'Acetic acid for starch sequencing' },
-        { name: 'Sprouted whole-grain sourdough bread', purpose: 'Slow-ferment low-GI complex carbohydrate' },
-        { name: 'Dry or canned lentils / chickpeas', purpose: 'Resistant starch to fuel butyrate producers' },
-        { name: 'Cold-milled ground flaxseeds', purpose: 'Soluble mucilage fiber & lignans' }
+        { name: 'Raw Apple Cider Vinegar (optional)', purpose: 'Acetic acid for starch sequencing', simplePurpose: '1 spoonful in water before lunch helps digestion' },
+        { name: 'Whole-grain sourdough bread', purpose: 'Slow-ferment low-GI complex carbohydrate', simplePurpose: 'Easier to digest than regular white bread' },
+        { name: 'Dry or canned lentils / chickpeas', purpose: 'Resistant starch to fuel butyrate producers', simplePurpose: 'Wholesome protein & fiber that prevents hunger' },
+        { name: 'Ground flaxseeds', purpose: 'Soluble mucilage fiber & lignans', simplePurpose: 'Stir 1 spoon into yogurt or oats for smooth digestion' }
       ]
     },
     {
-      category: 'Healthy Fats & Satiety Nuts',
+      category: 'Healthy Fats & Healthy Snacks',
       items: [
-        { name: 'Cold-Pressed Extra Virgin Olive Oil (high-polyphenol)', purpose: 'Oleocanthal & hepatic VLDL clearance' },
-        { name: 'Raw unsalted walnuts', purpose: 'Plant-based omega-3 ALA for endothelial health' },
-        { name: 'Raw unsalted pumpkin seeds (pepitas)', purpose: '120mg bioavailable magnesium for insulin receptors' },
-        { name: '85%+ dark artisan cacao chocolate', purpose: 'Flavanols for nitric oxide vascular dilation' }
+        { name: 'Extra Virgin Olive Oil', purpose: 'Oleocanthal & hepatic VLDL clearance', simplePurpose: 'Drizzle over meals to nourish your liver' },
+        { name: 'Raw unsalted walnuts', purpose: 'Plant-based omega-3 ALA for endothelial health', simplePurpose: 'Heart-healthy crunchy snack for 3 PM cravings' },
+        { name: 'Pumpkin seeds (pepitas)', purpose: '120mg bioavailable magnesium for insulin receptors', simplePurpose: 'Natural magnesium to calm stress and sugar cravings' },
+        { name: '70%+ dark chocolate bar', purpose: 'Flavanols for nitric oxide vascular dilation', simplePurpose: 'Satisfying treat with virtually no added sugar' }
       ]
     },
     {
-      category: 'Teas, Beverages & Minerals',
+      category: 'Teas & Refreshing Drinks',
       items: [
-        { name: 'Organic green tea bags / loose leaf', purpose: 'EGCG catechins for AMPK metabolic activation' },
-        { name: 'Sparkling mineral water', purpose: 'Zero-sugar hydration & natural electrolytes' },
-        { name: 'Organic chamomile or lavender herbal tea', purpose: 'Apigenin for GABA receptor relaxation at night' }
+        { name: 'Green tea bags or loose tea', purpose: 'EGCG catechins for AMPK metabolic activation', simplePurpose: 'Clean morning and afternoon boost with zero sugar' },
+        { name: 'Sparkling water or seltzer', purpose: 'Zero-sugar hydration & natural electrolytes', simplePurpose: 'Satisfying fizzy alternative to sodas and juices' },
+        { name: 'Chamomile or lavender herbal tea', purpose: 'Apigenin for GABA receptor relaxation at night', simplePurpose: 'Calming drink to help you fall asleep peacefully' }
       ]
     },
     {
       category: 'Clean Proteins',
       items: [
-        { name: 'Pastured organic eggs or firm organic tofu', purpose: '25g morning protein anchor to blunt glucose spikes' },
-        { name: 'Wild-caught salmon or canned sardines', purpose: 'Marine EPA/DHA omega-3 for triglyceride reduction' }
+        { name: 'Eggs (or firm organic tofu)', purpose: '25g morning protein anchor to blunt glucose spikes', simplePurpose: 'Morning protein that stops cravings before they start' },
+        { name: 'Salmon fillets or canned wild tuna', purpose: 'Marine EPA/DHA omega-3 for triglyceride reduction', simplePurpose: 'Healthy omega-3 fish to support heart and liver' }
       ]
     }
   ];

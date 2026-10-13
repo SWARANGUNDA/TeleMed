@@ -104,7 +104,7 @@ export default function PersonalizedRecommendations({ predictionData, userProfil
 
   const handleCopyGrocery = () => {
     const textSections = (groceryChecklist || []).map(cat => {
-      const itemsList = cat.items.map(it => `  [ ] ${it.name} — ${it.purpose}`).join('\n');
+      const itemsList = cat.items.map(it => `  [ ] ${it.name} — ${viewMode === 'simple' ? (it.simplePurpose || it.purpose) : it.purpose}`).join('\n');
       return `📌 ${cat.category.toUpperCase()}\n${itemsList}`;
     }).join('\n\n');
 
@@ -986,7 +986,9 @@ export default function PersonalizedRecommendations({ predictionData, userProfil
                               </div>
                               <div className="min-w-0 flex-1">
                                 <div className="text-xs font-semibold">{item.name}</div>
-                                <div className="text-[10.5px] text-[var(--text-muted)] font-normal">{item.purpose}</div>
+                                <div className="text-[10.5px] text-[var(--text-muted)] font-normal">
+                                  {viewMode === 'simple' ? (item.simplePurpose || item.purpose) : item.purpose}
+                                </div>
                               </div>
                             </div>
                           );
