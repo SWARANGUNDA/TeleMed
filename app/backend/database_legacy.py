@@ -279,8 +279,8 @@ def ensure_demo_users_seeded(force: bool = False):
     try:
         now = datetime.datetime.now(datetime.timezone.utc).isoformat()
         demo_accounts = [
-            ("usr_patient", getattr(config, "DEMO_PATIENT_EMAIL", "patient@telemed.ai"), getattr(config, "DEMO_PATIENT_PASSWORD", "PatSec#2026!HealthApp"), "PATIENT", "Demo Patient"),
-            ("usr_doctor", getattr(config, "DEMO_DOCTOR_EMAIL", "doctor@telemed.ai"), getattr(config, "DEMO_DOCTOR_PASSWORD", "DocSec#2026!MedPortal"), "DOCTOR", "Dr. Sarah Jenkins, MD"),
+            ("usr_patient", getattr(config, "DEMO_PATIENT_EMAIL", "patient@telemed.ai"), getattr(config, "DEMO_PATIENT_PASSWORD", "Password123!"), "PATIENT", "Demo Patient"),
+            ("usr_doctor", getattr(config, "DEMO_DOCTOR_EMAIL", "doctor@telemed.ai"), getattr(config, "DEMO_DOCTOR_PASSWORD", "Password123!"), "DOCTOR", "Dr. Sarah Jenkins, MD"),
             ("usr_admin", getattr(config, "DEMO_ADMIN_EMAIL", "admin@telemed.ai"), getattr(config, "DEMO_ADMIN_PASSWORD", "Password123!"), "ADMIN", "System Admin"),
             ("usr_ramu", "ramu@telemed.ai", "Password123!", "PATIENT", "Ramu Patient")
         ]
@@ -320,6 +320,14 @@ def ensure_demo_users_seeded(force: bool = False):
                     )
                     session.add(d_prof)
                 any_added = True
+            else:
+                # Synchronize password if demo password changed
+                if not verify_password(pwd, existing.password_hash, existing.salt):
+                    new_h, new_salt = hash_password(pwd)
+                    existing.password_hash = new_h
+                    existing.salt = new_salt
+                    existing.updated_at = now
+                    any_added = True
         if any_added:
             session.commit()
         _demo_users_seeded = True

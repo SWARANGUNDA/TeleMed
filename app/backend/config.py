@@ -22,10 +22,10 @@ DEMO_ADMIN_EMAIL: str = os.getenv("TELEMED_DEMO_ADMIN_EMAIL", "admin@telemed.ai"
 DEMO_ADMIN_PASSWORD: str = os.getenv("TELEMED_DEMO_ADMIN_PASSWORD", "Password123!")
 
 DEMO_DOCTOR_EMAIL: str = os.getenv("TELEMED_DEMO_DOCTOR_EMAIL", "doctor@telemed.ai")
-DEMO_DOCTOR_PASSWORD: str = os.getenv("TELEMED_DEMO_DOCTOR_PASSWORD", "DocSec#2026!MedPortal")
+DEMO_DOCTOR_PASSWORD: str = os.getenv("TELEMED_DEMO_DOCTOR_PASSWORD", "Password123!")
 
 DEMO_PATIENT_EMAIL: str = os.getenv("TELEMED_DEMO_PATIENT_EMAIL", "patient@telemed.ai")
-DEMO_PATIENT_PASSWORD: str = os.getenv("TELEMED_DEMO_PATIENT_PASSWORD", "PatSec#2026!HealthApp")
+DEMO_PATIENT_PASSWORD: str = os.getenv("TELEMED_DEMO_PATIENT_PASSWORD", "Password123!")
 
 # LLM Integration Configuration
 GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "")

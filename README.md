@@ -76,8 +76,8 @@ npm --prefix app/frontend run dev
 
 | Role | Email | Password |
 |---|---|---|
-| **Patient** | `patient@telemed.ai` | `PatSec#2026!HealthApp` |
-| **Doctor** | `doctor@telemed.ai` | `DocSec#2026!MedPortal` |
+| **Patient** | `patient@telemed.ai` | `Password123!` |
+| **Doctor** | `doctor@telemed.ai` | `Password123!` |
 | **Admin** | `admin@telemed.ai` | `Password123!` |
 
 ---

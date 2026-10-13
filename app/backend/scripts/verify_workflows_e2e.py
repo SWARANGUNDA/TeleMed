@@ -156,7 +156,7 @@ def main():
     # 2.1 Patient Authentication
     pat_token = None
     for pat_email, pat_pwd in [
-        ("patient@telemed.ai", "PatSec#2026!HealthApp"),
+        ("patient@telemed.ai", "Password123!"),
         ("ramu@telemed.ai", "Password123!"),
     ]:
         pat_login = session.post(f"{BASE_URL}/api/v1/auth/login", json={
@@ -207,7 +207,6 @@ def main():
     # 2.3 Doctor Authentication
     doc_token = None
     for doc_email, doc_pwd in [
-        ("doctor@telemed.ai", "DocSec#2026!MedPortal"),
         ("doctor@telemed.ai", "Password123!"),
     ]:
         doc_login = session.post(f"{BASE_URL}/api/v1/auth/login", json={

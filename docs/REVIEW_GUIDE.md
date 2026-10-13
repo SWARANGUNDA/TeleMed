@@ -43,8 +43,8 @@ The system comes pre-seeded with three distinct role accounts for live demonstra
 
 | Role | Email | Password | Primary Capabilities |
 |---|---|---|---|
-| **Patient** | `patient@telemed.ai` | `PatSec#2026!HealthApp` | Upload reports, view 5-disease risk scores, inspect TreeSHAP XAI charts, query RAG Copilot, book consultations. |
-| **Doctor** | `doctor@telemed.ai` | `DocSec#2026!MedPortal` | Verify medical license, review patient longitudinal records, annotate AI findings, host teleconsultations. |
+| **Patient** | `patient@telemed.ai` | `Password123!` | Upload reports, view 5-disease risk scores, inspect TreeSHAP XAI charts, query RAG Copilot, book consultations. |
+| **Doctor** | `doctor@telemed.ai` | `Password123!` | Verify medical license, review patient longitudinal records, annotate AI findings, host teleconsultations. |
 | **Admin** | `admin@telemed.ai` | `Password123!` | System health monitoring, user governance, audit logging, doctor verification approvals, database ops. |
 
 ---
