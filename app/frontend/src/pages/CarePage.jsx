@@ -62,7 +62,7 @@ export default function CarePage({ user, predictionData, onNavigate, activeSubNa
       />
 
       {/* Main Evidence Recommendations */}
-      <PersonalizedRecommendations predictionData={predictionData} />
+      <PersonalizedRecommendations predictionData={predictionData} userProfile={user} />
 
       {/* Bottom Specialist & Doctor Network Action Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">

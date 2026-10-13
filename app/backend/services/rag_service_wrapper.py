@@ -150,46 +150,88 @@ def generate_v3_rag_report(predict_response: Dict[str, Any]) -> Dict[str, Any]:
     # Structured Level 6 Recommendation Cards (WHAT, WHY, EVIDENCE, PRIORITY)
     structured_recs = []
 
-    # Glycemic & Nutrition Recommendations
+    # Cross-Modality Extraction
     hba1c = c_data.get("HbA1c") or c_data.get("hba1c")
     fbg = c_data.get("Fasting_Blood_Glucose") or c_data.get("fasting_blood_glucose")
+    sbp = c_data.get("Systolic_BP") or c_data.get("systolic_bp")
+    dbp = c_data.get("Diastolic_BP") or c_data.get("diastolic_bp")
+    trig = c_data.get("Triglycerides") or c_data.get("triglycerides")
+    hdl = c_data.get("HDL") or c_data.get("HDL_Cholesterol") or c_data.get("hdl")
+    alt = c_data.get("ALT") or c_data.get("alt")
+    ast = c_data.get("AST") or c_data.get("ast")
+    steps = w_data.get("Average_Daily_Steps") or w_data.get("average_daily_steps")
+    sed = w_data.get("Sedentary_Time_Minutes") or w_data.get("sedentary_time_minutes")
+    sleep_dur = w_data.get("Sleep_Duration") or w_data.get("sleep_duration") or w_data.get("Sleep_Duration_Hours")
+    akker = g_data.get("Akkermansia") or g_data.get("akkermansia")
+    faecal = g_data.get("Faecalibacterium") or g_data.get("faecalibacterium")
+
+    # MULTI-OMICS CROSS-TALK 1: Autonomic-Glycemic Axis
+    is_glycemic_elevated = (hba1c is not None and float(hba1c) >= 5.7) or (fbg is not None and float(fbg) >= 100)
+    has_short_sleep = ("wearable" in modalities_supplied and sleep_dur is not None and float(sleep_dur) < 6.8)
+    if is_glycemic_elevated and has_short_sleep:
+        structured_recs.append({
+            "category": "Autonomic-Glycemic Axis",
+            "what": "Prioritize circadian cortisol regulation: anchor a 7.5-hour sleep window and avoid late-evening simple carbohydrates.",
+            "why": f"Measured Fasting Glucose/HbA1c ({fbg if fbg else hba1c}{' mg/dL' if fbg else '%'}) is compounded by wearable sleep deficit ({float(sleep_dur):.1f} hrs/night), triggering early morning cortisol surges and blunting insulin sensitivity.",
+            "evidence": get_ref(0),
+            "priority": "HIGH"
+        })
+
+    # MULTI-OMICS CROSS-TALK 2: Gut-Metabolic Endotoxemia Axis
+    has_low_akk = ("gut" in modalities_supplied and akker is not None and float(akker) < 1.0)
+    if has_low_akk and (is_glycemic_elevated or (alt is not None and float(alt) >= 35)):
+        structured_recs.append({
+            "category": "Gut-Mucosal Endotoxin Axis",
+            "what": "Introduce polyphenol ellagitannins (dark berries, pomegranate) and 28–35g/day fermentable prebiotic fiber.",
+            "why": f"Depleted Akkermansia muciniphila ({akker}%) compromises gut mucosal tightness, allowing lipopolysaccharide (LPS) endotoxins into circulation that inflame insulin receptors and hepatic parenchyma.",
+            "evidence": get_ref(4),
+            "priority": "HIGH"
+        })
+
+    # Glycemic & Nutrition Recommendations
     if hba1c is not None and float(hba1c) >= 5.7:
         structured_recs.append({
             "category": "Nutrition",
-            "what": "Prioritize low-glycemic index complex carbohydrates and increase dietary fiber to 25–35 g/day.",
-            "why": f"Verified HbA1c is {hba1c}% ({'Elevated Diabetes Range' if float(hba1c) >= 6.5 else 'Prediabetes Range'}).",
+            "what": "Sequence meals with dietary fiber and protein consumed 10–15 minutes prior to complex carbohydrates.",
+            "why": f"Verified HbA1c is {hba1c}% ({'Elevated Diabetes Range' if float(hba1c) >= 6.5 else 'Prediabetes Range'}). Sequence blunts postprandial glucose excursions by 20–30%.",
             "evidence": get_ref(0),
             "priority": "HIGH"
         })
     elif fbg is not None and float(fbg) >= 100:
         structured_recs.append({
             "category": "Nutrition",
-            "what": "Consume fiber-rich, high-protein meals to minimize postprandial blood glucose spikes.",
-            "why": f"Fasting Blood Glucose measured at {fbg} mg/dL.",
+            "what": "Consume fiber-rich, high-protein meals and engage in a 15-minute post-meal walk to activate GLUT-4 glucose transporters.",
+            "why": f"Fasting Blood Glucose measured at {fbg} mg/dL ({float(fbg) - 99:.0f} mg/dL above optimal threshold < 100 mg/dL).",
             "evidence": get_ref(0),
-            "priority": "MEDIUM"
+            "priority": "HIGH" if float(fbg) >= 126 else "MEDIUM"
         })
 
     # Blood Pressure & Cardiometabolic Monitoring Recommendations
-    sbp = c_data.get("Systolic_BP") or c_data.get("systolic_bp")
-    dbp = c_data.get("Diastolic_BP") or c_data.get("diastolic_bp")
     if (sbp is not None and float(sbp) >= 130) or (dbp is not None and float(dbp) >= 80):
         structured_recs.append({
             "category": "Cardiometabolic Monitoring",
-            "what": "Adopt DASH dietary guidelines with dietary sodium restriction under 2,000 mg/day.",
-            "why": f"Blood Pressure vitals show {sbp if sbp else 'N/A'}/{dbp if dbp else 'N/A'} mmHg.",
+            "what": "Adopt DASH dietary guidelines with dietary sodium restriction under 2,000 mg/day and potassium increase (>3,500 mg/day).",
+            "why": f"Blood Pressure vitals show {sbp if sbp else 'N/A'}/{dbp if dbp else 'N/A'} mmHg ({'Stage 1 Hypertension' if float(sbp or 0) < 140 else 'Stage 2 Hypertension'}).",
+            "evidence": get_ref(1),
+            "priority": "HIGH"
+        })
+
+    # MULTI-OMICS CROSS-TALK 3: Endothelial Shear-Stress Axis
+    if (sbp is not None and float(sbp) >= 130) and ("wearable" in modalities_supplied and sed is not None and float(sed) >= 480):
+        structured_recs.append({
+            "category": "Endothelial Hemodynamics",
+            "what": "Implement 120-second active soleus calf raises or brisk walking breaks every 45 minutes of desk work.",
+            "why": f"Arterial pressure ({sbp} mmHg) is intensified by prolonged seated vascular resistance ({int(float(sed))} sedentary mins/day). Movement restores laminar shear stress and eNOS nitric oxide dilation.",
             "evidence": get_ref(1),
             "priority": "HIGH"
         })
 
     # Lipid Profile Recommendations
-    trig = c_data.get("Triglycerides") or c_data.get("triglycerides")
-    hdl = c_data.get("HDL") or c_data.get("HDL_Cholesterol") or c_data.get("hdl")
     if trig is not None and float(trig) >= 150:
         structured_recs.append({
             "category": "Cardiometabolic Monitoring",
-            "what": "Limit refined carbohydrates and alcohol; discuss dietary omega-3 intake.",
-            "why": f"Serum Triglycerides measured at {trig} mg/dL.",
+            "what": "Substitute saturated fats with 2 tbsp extra virgin olive oil and incorporate 2g marine EPA/DHA omega-3 fatty acids daily.",
+            "why": f"Serum Triglycerides measured at {trig} mg/dL (target < 150 mg/dL), elevating atherogenic remnant particles.",
             "evidence": get_ref(2),
             "priority": "MEDIUM"
         })
@@ -197,20 +239,18 @@ def generate_v3_rag_report(predict_response: Dict[str, Any]) -> Dict[str, Any]:
         structured_recs.append({
             "category": "Physical Activity",
             "what": "Engage in regular aerobic physical activity to elevate high-density lipoprotein (HDL).",
-            "why": f"HDL Cholesterol measured at {hdl} mg/dL (Low).",
+            "why": f"HDL Cholesterol measured at {hdl} mg/dL (Low, target >= 40-50 mg/dL).",
             "evidence": get_ref(2),
             "priority": "MEDIUM"
         })
 
     # Physical Activity & Wearable Recommendations (Only if Wearables supplied or general)
-    steps = w_data.get("Average_Daily_Steps") or w_data.get("average_daily_steps")
-    sed = w_data.get("Sedentary_Time_Minutes") or w_data.get("sedentary_time_minutes")
     if "wearable" in modalities_supplied and steps is not None:
         if float(steps) < 7000:
             structured_recs.append({
                 "category": "Physical Activity",
-                "what": "Gradually increase walking volume by +1,000 steps/day weekly targeting 7,500–10,000 steps baseline.",
-                "why": f"Wearable telemetry records average daily steps at {int(float(steps))} steps/day.",
+                "what": f"Gradually increase walking volume from {int(float(steps))} by +1,500 steps/day weekly targeting 8,500+ daily steps baseline.",
+                "why": f"Wearable telemetry records average daily steps at {int(float(steps))} steps/day ({8500 - int(float(steps))} steps below target).",
                 "evidence": get_ref(3),
                 "priority": "HIGH"
             })
@@ -231,7 +271,7 @@ def generate_v3_rag_report(predict_response: Dict[str, Any]) -> Dict[str, Any]:
             "priority": "MEDIUM"
         })
 
-    if "wearable" in modalities_supplied and sed is not None and float(sed) >= 480:
+    if "wearable" in modalities_supplied and sed is not None and float(sed) >= 480 and not any(r["category"] == "Endothelial Hemodynamics" for r in structured_recs):
         structured_recs.append({
             "category": "Physical Activity",
             "what": "Break up continuous sedentary desk periods with 2-minute light walking breaks every 60 minutes.",
@@ -241,8 +281,7 @@ def generate_v3_rag_report(predict_response: Dict[str, Any]) -> Dict[str, Any]:
         })
 
     # Sleep & Rest Recommendations (Only if Sleep data present in Wearables)
-    sleep_dur = w_data.get("Sleep_Duration") or w_data.get("sleep_duration") or w_data.get("Sleep_Duration_Hours")
-    if "wearable" in modalities_supplied and sleep_dur is not None and float(sleep_dur) < 7.0:
+    if "wearable" in modalities_supplied and sleep_dur is not None and float(sleep_dur) < 7.0 and not any(r["category"] == "Autonomic-Glycemic Axis" for r in structured_recs):
         structured_recs.append({
             "category": "Sleep",
             "what": "Optimize sleep hygiene to achieve 7–8 hours of uninterrupted nocturnal rest.",
@@ -253,13 +292,11 @@ def generate_v3_rag_report(predict_response: Dict[str, Any]) -> Dict[str, Any]:
 
     # Microbiome & Gut Health Recommendations (STRICTLY ONLY WHEN GUT DATA IS SUPPLIED)
     if "gut" in modalities_supplied:
-        akker = g_data.get("Akkermansia") or g_data.get("akkermansia")
-        faecal = g_data.get("Faecalibacterium") or g_data.get("faecalibacterium")
-        if akker is not None and float(akker) < 1.0:
+        if akker is not None and float(akker) < 1.0 and not any(r["category"] == "Gut-Mucosal Endotoxin Axis" for r in structured_recs):
             structured_recs.append({
                 "category": "Gut Health",
                 "what": "Incorporate polyphenol-rich foods (pomegranate, green tea, dark berries) into daily diet.",
-                "why": f"Akkermansia muciniphila relative abundance is low ({akker}%).",
+                "why": f"Akkermansia muciniphila relative abundance is low ({akker}% vs target > 1.2%).",
                 "evidence": get_ref(4),
                 "priority": "MEDIUM"
             })
@@ -273,13 +310,11 @@ def generate_v3_rag_report(predict_response: Dict[str, Any]) -> Dict[str, Any]:
             })
 
     # Liver Health Recommendation (for NAFLD positive screening signal)
-    alt = c_data.get("ALT") or c_data.get("alt")
-    ast = c_data.get("AST") or c_data.get("ast")
     if "NAFLD" in positive_diseases or (alt is not None and float(alt) >= 40):
         structured_recs.append({
             "category": "Liver Health Follow-up",
             "what": "Discuss hepatic biomarker monitoring (ALT, AST, Bilirubin) and liver ultrasound evaluation with your physician.",
-            "why": f"Model-estimated screening signal detected for NAFLD (ALT: {alt if alt else 'Elevated Signal'}).",
+            "why": f"Model-estimated screening signal detected for NAFLD (ALT: {alt if alt else 'Elevated Signal'} U/L).",
             "evidence": get_ref(0),
             "priority": "HIGH"
         })

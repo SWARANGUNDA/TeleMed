@@ -3,7 +3,8 @@ import {
   ArrowRight, Brain, FileText, Activity, ShieldCheck, ChevronDown, ChevronUp,
   PlusCircle, Watch, Dna, Info, UserCheck, AlertCircle, FileSpreadsheet, Stethoscope,
   Calendar, Clock, CheckCircle, TrendingUp, Sparkles, Filter, ChevronRight, BookmarkCheck,
-  Award, RefreshCw, GitCompare, FolderClock, Heart, ActivitySquare, Droplet, Eye
+  Award, RefreshCw, GitCompare, FolderClock, Heart, ActivitySquare, Droplet, Eye,
+  Compass, Shuffle, Utensils, Moon, Flame, Zap
 } from 'lucide-react';
 import {
   Button, Card, CardHeader, CardBody, CardFooter, Badge, Avatar,
@@ -20,6 +21,7 @@ import {
   detectEarlyWarnings,
   generateCrossModalityInsights
 } from '../utils/healthIntelligence';
+import { generatePersonalizedRecommendations } from '../utils/personalizedRecommender';
 
 export default function DashboardPage({
   session,
@@ -80,6 +82,7 @@ export default function DashboardPage({
   const longitudinalShifts = analyzeLongitudinalShifts(savedRecords);
   const earlyWarnings = detectEarlyWarnings(activePredictionData, savedRecords);
   const crossModalityInsights = generateCrossModalityInsights(activePredictionData);
+  const personalizedRecs = generatePersonalizedRecommendations(activePredictionData, user);
 
 
 
@@ -688,150 +691,158 @@ export default function DashboardPage({
         </div>
       </ContentSection>
 
-      {/* 6 & 7. RECOMMENDATIONS & APPOINTMENTS SIDE-BY-SIDE */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Recommendations Card */}
-        <Card isGlass={true} className="p-6 h-full flex flex-col justify-between">
-          <div>
-            <CardHeader className="!mb-4 !pb-3">
-              <div className="flex items-center gap-2">
-                <Sparkles className="w-5 h-5 text-[var(--accent)]" />
-                <h4 className="text-base font-bold text-[var(--text-main)]">Personalized Care Recommendations</h4>
+      {/* 6. PERSONALIZED CARE PROTOCOLS & LIFESTYLE HIGHLIGHTS (EXECUTIVE BRIEFING) */}
+      <Card isGlass={true} className="p-5 sm:p-6 border border-blue-500/30 bg-gradient-to-br from-[var(--bg-surface)] via-[var(--bg-primary)] to-blue-500/5 shadow-md space-y-4">
+        {/* Header Strip */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-[var(--border-subtle)]">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 shrink-0">
+              <Sparkles className="w-5 h-5 animate-pulse" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h4 className="text-base font-black text-[var(--text-main)]">Personalized Care Protocols &amp; Lifestyle Highlights</h4>
+                <Badge variant={personalizedRecs.phenotype.variant} size="sm" className="font-mono text-[9px] uppercase font-bold">
+                  {personalizedRecs.phenotype.badge}
+                </Badge>
               </div>
-              <Badge variant="accent" size="sm">Evidence Grounded</Badge>
-            </CardHeader>
-            <CardBody className="space-y-3">
-              {(() => {
-                const recs = [];
-                const glucose = clinFeats?.Glucose ?? clinFeats?.Fasting_Blood_Glucose ?? clinFeats?.Fasting_Glucose;
-                const hba1c = clinFeats?.HbA1c;
-                const bmi = clinFeats?.BMI;
-                const steps = wearFeats?.Total_Steps ?? wearFeats?.Daily_Steps ?? wearFeats?.Average_Daily_Steps;
-                const akk = gutFeats?.Akkermansia_muciniphila ?? gutFeats?.Akkermansia;
-
-                if (glucose !== undefined && glucose !== null) {
-                  recs.push(
-                    <div key="glyc" className="p-4 bg-[var(--bg-primary)] rounded-xl border border-[var(--border-subtle)] space-y-1.5">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <Badge variant={glucose >= 126 || (hba1c && hba1c >= 6.5) ? "danger" : glucose >= 100 ? "warning" : "success"} size="sm">
-                            {glucose >= 126 ? "High Priority" : glucose >= 100 ? "Watch Closely" : "Optimal"}
-                          </Badge>
-                          <span className="text-[10px] font-mono text-[var(--text-muted)] uppercase font-semibold">Glycemic Protocol</span>
-                        </div>
-                      </div>
-                      <p className="text-xs font-semibold text-[var(--text-main)]">Post-Prandial Glycemic Management</p>
-                      <p className="text-xs text-[var(--text-muted)]">
-                        Why this recommendation: Measured Fasting Glucose is <span className="font-mono font-bold text-[var(--primary)]">{glucose} mg/dL</span>{hba1c ? ` and HbA1c is ${hba1c}%` : ''}. A 15–20 minute post-meal walk is recommended to optimize glycemic response.
-                      </p>
-                    </div>
-                  );
-                }
-
-                if (steps !== undefined && steps !== null) {
-                  recs.push(
-                    <div key="step" className="p-4 bg-[var(--bg-primary)] rounded-xl border border-[var(--border-subtle)] space-y-1.5">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <Badge variant={steps < 7500 ? "warning" : "success"} size="sm">
-                            {steps < 7500 ? "Room to Improve" : "Active Target"}
-                          </Badge>
-                          <span className="text-[10px] font-mono text-[var(--text-muted)] uppercase font-semibold">Telemetry Goal</span>
-                        </div>
-                      </div>
-                      <p className="text-xs font-semibold text-[var(--text-main)]">Target Physical Activity</p>
-                      <p className="text-xs text-[var(--text-muted)]">
-                        Why this recommendation: Measured daily activity is <span className="font-mono text-[var(--secondary)] font-bold">{Number(steps).toLocaleString()} steps/day</span>{bmi ? ` (BMI: ${bmi})` : ''}. Target 8,500+ steps/day with structured recovery.
-                      </p>
-                    </div>
-                  );
-                }
-
-                if (akk !== undefined && akk !== null) {
-                  recs.push(
-                    <div key="gut" className="p-4 bg-[var(--bg-primary)] rounded-xl border border-[var(--border-subtle)] space-y-1.5">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <Badge variant={akk < 2.0 ? "warning" : "accent"} size="sm">Microbiome Protocol</Badge>
-                          <span className="text-[10px] font-mono text-[var(--text-muted)] uppercase font-semibold">Gut Support</span>
-                        </div>
-                      </div>
-                      <p className="text-xs font-semibold text-[var(--text-main)]">Prebiotic Fiber & Gut Flora Support</p>
-                      <p className="text-xs text-[var(--text-muted)]">
-                        Why this recommendation: Measured Akkermansia muciniphila relative abundance is <span className="font-mono text-[var(--accent)] font-bold">{akk}%</span>. Increase dietary polyphenol and prebiotic fiber intake (25-30g/day).
-                      </p>
-                    </div>
-                  );
-                }
-
-                if (recs.length === 0) {
-                  return (
-                    <div className="p-6 bg-[var(--bg-primary)] rounded-xl border border-dashed border-[var(--border-subtle)] text-center space-y-2">
-                      <Sparkles className="w-8 h-8 text-[var(--accent)] mx-auto opacity-70" />
-                      <p className="text-xs font-semibold text-[var(--text-main)]">Personalized Recommendations Ready</p>
-                      <p className="text-[11px] text-[var(--text-muted)]">
-                        Upload your health reports in New Analysis to receive clinical-grade, evidence-grounded care steps tailored to your exact measurements.
-                      </p>
-                    </div>
-                  );
-                }
-
-                return recs;
-              })()}
-            </CardBody>
+              <p className="text-xs text-[var(--text-muted)] mt-0.5">
+                Executive briefing synthesized from your active multi-omics panel and quantified risk drivers.
+              </p>
+            </div>
           </div>
 
-          <CardFooter className="!mt-6 !pt-4">
+          <button
+            onClick={() => onNavigate ? onNavigate('care') : null}
+            className="flex items-center gap-1.5 text-xs font-bold text-blue-600 dark:text-blue-400 hover:underline cursor-pointer self-start sm:self-auto shrink-0"
+          >
+            <span>Explore All {personalizedRecs.personalizedCards.length} Protocols &amp; {personalizedRecs.precisionSwaps.length} Swaps</span>
+            <ArrowRight className="w-3.5 h-3.5" />
+          </button>
+        </div>
+
+        {/* 3-Column Compact Highlights Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
+          {/* Card 1: Diagnosed Phenotype */}
+          <div className="p-3.5 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-subtle)] hover:border-blue-400/40 transition-colors flex flex-col justify-between space-y-2">
+            <div className="space-y-1">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-mono uppercase font-bold text-blue-600 dark:text-blue-400 flex items-center gap-1">
+                  <Compass className="w-3 h-3" />
+                  Primary Phenotype
+                </span>
+                <span className="text-[9px] font-mono text-[var(--text-muted)]">Target: {personalizedRecs.phenotype.axis}</span>
+              </div>
+              <h5 className="text-xs font-bold text-[var(--text-main)]">
+                {personalizedRecs.phenotype.title}
+              </h5>
+              <p className="text-[11px] text-[var(--text-muted)] leading-relaxed line-clamp-3">
+                {personalizedRecs.phenotype.mechanisticSummary}
+              </p>
+            </div>
+            <div className="pt-2 border-t border-[var(--border-subtle)] text-[10px] font-mono text-blue-600 dark:text-blue-400 font-semibold flex items-center justify-between">
+              <span>Status: Active Multi-Omics Axis</span>
+              <span>100% Calibrated</span>
+            </div>
+          </div>
+
+          {/* Card 2: Priority Clinical Action */}
+          {personalizedRecs.personalizedCards.length > 0 ? (
+            <div className="p-3.5 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-subtle)] hover:border-blue-400/40 transition-colors flex flex-col justify-between space-y-2">
+              <div className="space-y-1">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-mono uppercase font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                    <CheckCircle className="w-3 h-3" />
+                    Top Clinical Protocol
+                  </span>
+                  <Badge variant={personalizedRecs.personalizedCards[0].variant} size="sm" className="text-[9px] px-1 py-0">
+                    {personalizedRecs.personalizedCards[0].badge}
+                  </Badge>
+                </div>
+                <h5 className="text-xs font-bold text-[var(--text-main)]">
+                  {personalizedRecs.personalizedCards[0].title}
+                </h5>
+                <p className="text-[11px] text-[var(--text-muted)] leading-relaxed line-clamp-2">
+                  Action: {personalizedRecs.personalizedCards[0].precisionPrescription}
+                </p>
+              </div>
+              <div className="pt-2 border-t border-[var(--border-subtle)] text-[10.5px] font-mono text-emerald-600 dark:text-emerald-400 font-bold flex items-center justify-between">
+                <span>{personalizedRecs.personalizedCards[0].quantifiedExpectedShift.split(';')[0]}</span>
+                <span className="text-[9.5px] text-[var(--text-muted)] font-normal italic">Ref: {personalizedRecs.personalizedCards[0].medicalCitation.split('(')[0]}</span>
+              </div>
+            </div>
+          ) : (
+            <div className="p-3.5 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-subtle)] text-center text-xs text-[var(--text-muted)] flex items-center justify-center">
+              Upload reports in New Analysis to generate protocols.
+            </div>
+          )}
+
+          {/* Card 3: Top Precision Swap */}
+          {personalizedRecs.precisionSwaps.length > 0 ? (
+            <div className="p-3.5 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-subtle)] hover:border-emerald-400/40 transition-colors flex flex-col justify-between space-y-2">
+              <div className="space-y-1">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-mono uppercase font-bold text-amber-600 dark:text-amber-400 flex items-center gap-1">
+                    <Shuffle className="w-3 h-3" />
+                    #1 Lifestyle Swap
+                  </span>
+                  <span className="text-[10px] font-mono font-bold text-emerald-600 dark:text-emerald-400 px-1.5 py-0.2 rounded bg-emerald-500/10">
+                    {personalizedRecs.precisionSwaps[0].expectedDelta}
+                  </span>
+                </div>
+                <div className="text-xs text-[var(--text-main)] leading-relaxed">
+                  <span className="text-[var(--text-muted)] line-through block text-[11px] truncate">
+                    ❌ {personalizedRecs.precisionSwaps[0].currentHabit}
+                  </span>
+                  <strong className="text-emerald-600 dark:text-emerald-400 block mt-0.5 line-clamp-2 font-semibold">
+                    ✅ {personalizedRecs.precisionSwaps[0].precisionSwap}
+                  </strong>
+                </div>
+              </div>
+              <div className="pt-2 border-t border-[var(--border-subtle)] text-[10px] text-[var(--text-muted)] flex items-center justify-between">
+                <span>⏰ {personalizedRecs.precisionSwaps[0].timeOfDay}</span>
+                <span className="font-semibold text-blue-600 dark:text-blue-400">1-to-1 Matched</span>
+              </div>
+            </div>
+          ) : (
+            <div className="p-3.5 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-subtle)] text-center text-xs text-[var(--text-muted)] flex items-center justify-center">
+              Personalized swaps will appear upon report upload.
+            </div>
+          )}
+        </div>
+
+        {/* Footer Actions */}
+        <div className="pt-2 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs border-t border-[var(--border-subtle)]">
+          <div className="flex items-center gap-2 text-[var(--text-muted)] text-[11px]">
+            <ShieldCheck className="w-4 h-4 text-emerald-500 shrink-0" />
+            <span>Full protocols, 24-hr daily swaps matrix &amp; 90-day quantified milestones available in Care Recommendations.</span>
+          </div>
+
+          <div className="flex items-center gap-2 shrink-0">
+            {onDiscussWithDoctor && (
+              <Button
+                variant="outline"
+                size="sm"
+                leftIcon={<Stethoscope className="w-3.5 h-3.5" />}
+                onClick={() => onDiscussWithDoctor({ what: `${personalizedRecs.phenotype.title} Personalized Protocol` })}
+                className="text-xs font-bold"
+              >
+                Discuss with Doctor
+              </Button>
+            )}
+
             <Button
-              variant="accent"
-              size="md"
-              className="w-full"
-              leftIcon={<Stethoscope className="w-4 h-4" />}
-              onClick={() => onDiscussWithDoctor && onDiscussWithDoctor({ what: 'Glycemic and Gut Prebiotic Recommendations' })}
+              variant="primary"
+              size="sm"
+              rightIcon={<ArrowRight className="w-3.5 h-3.5" />}
+              onClick={() => onNavigate ? onNavigate('care') : null}
+              className="text-xs font-bold"
             >
-              Discuss Recommendations with Doctor →
+              View Full Care Protocols
             </Button>
-          </CardFooter>
-        </Card>
-
-        {/* Upcoming Appointments Card */}
-        <Card isGlass={true} className="p-6 h-full flex flex-col justify-between">
-          <div>
-            <CardHeader className="!mb-4 !pb-3">
-              <div className="flex items-center gap-2">
-                <Calendar className="w-5 h-5 text-[var(--primary)]" />
-                <h4 className="text-base font-bold text-[var(--text-main)]">Scheduled Doctor Consultations</h4>
-              </div>
-              <Badge variant="primary" size="sm">{appointments.length} Active</Badge>
-            </CardHeader>
-            <CardBody className="space-y-3">
-              {appointments.length > 0 ? (
-                appointments.slice(0, 2).map((appt, idx) => (
-                  <div key={idx} className="p-4 bg-[var(--bg-primary)] rounded-xl border border-[var(--border-subtle)] flex items-center justify-between gap-3">
-                    <div className="space-y-0.5">
-                      <h5 className="text-xs font-bold text-[var(--text-main)]">{appt.doctor_name || 'Dr. Medical Specialist'}</h5>
-                      <p className="text-[11px] text-[var(--text-muted)]">{appt.specialty || 'Internal Medicine'} • {appt.appointment_date}</p>
-                    </div>
-                    <Badge variant="success" size="sm">{appt.status || 'CONFIRMED'}</Badge>
-                  </div>
-                ))
-              ) : (
-                <EmptyState
-                  icon={<Stethoscope className="w-6 h-6 text-[var(--text-muted)]" />}
-                  title="No Upcoming Consultations"
-                  description="Book a teleconsultation with a verified physician to discuss your AI report findings."
-                />
-              )}
-            </CardBody>
           </div>
-
-          <CardFooter className="!mt-6 !pt-4">
-            <Button variant="outline" size="md" className="w-full" onClick={() => onNavigate('appointments')}>
-              Manage Appointments & Consultations →
-            </Button>
-          </CardFooter>
-        </Card>
-      </div>
+        </div>
+      </Card>
 
       {/* 8. RECENT ASSESSMENTS TIMELINE */}
       <ContentSection title="Assessment History Timeline" subtitle="Historical report uploads and trend comparisons">

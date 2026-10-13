@@ -672,7 +672,7 @@ export default function HealthCopilotPage({ user, session, predictionData: propP
                   </div>
 
                   {/* Card 2: AI Insights & Risk Estimate Disclaimer */}
-                  <PersonalizedRecommendations predictionData={activeAssessment} />
+                  <PersonalizedRecommendations predictionData={activeAssessment} userProfile={user} />
 
                   {/* Clinical Disclaimer Box */}
                   <div className="p-4 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-[11px] text-amber-800 dark:text-amber-300 space-y-1">

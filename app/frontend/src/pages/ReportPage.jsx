@@ -425,9 +425,9 @@ export default function ReportPage({ user, session, predictionData, onDiscussWit
         </ContentSection>
 
         {/* SECTION 5: EVIDENCE-GROUNDED RECOMMENDATIONS */}
-        <ContentSection title="3. Evidence-Grounded Clinical Recommendations" subtitle="Dynamic clinical guidelines and interactive what-if risk simulations powered by Copilot">
+        <ContentSection title="3. Evidence-Grounded Clinical Recommendations" subtitle="Individualized clinical guidelines, precision lifestyle swaps, and 90-day quantified milestones">
           <div className="space-y-6">
-            <PersonalizedRecommendations predictionData={predictionData} />
+            <PersonalizedRecommendations predictionData={predictionData} userProfile={user} />
           </div>
         </ContentSection>
 
