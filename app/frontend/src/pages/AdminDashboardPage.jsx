@@ -308,24 +308,31 @@ export default function AdminDashboardPage({ onNavigate }) {
             </Card>
           </div>
 
-          {/* 2-COLUMN BALANCED ENTERPRISE OPERATIONS CENTER GRID */}
+          {/* ROW 1: INFRASTRUCTURE & RUNTIME HOST (Height-matched side-by-side) */}
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-            
-            {/* Left Column (7 cols) — Subsystems & Real-Time Operations Feed */}
-            <div className="lg:col-span-7 space-y-6">
+            <div className="lg:col-span-7">
               <InfrastructureHealth systemHealth={systemHealth} />
-              <OperationsFeed recentActivity={stats?.recent_activity} />
             </div>
-
-            {/* Right Column (5 cols) — Platform Analytics, User Distribution, Compliance & Maintenance */}
             <div className="lg:col-span-5 space-y-6">
-              <PlatformAnalytics stats={stats} />
-              <UserAnalytics stats={stats} />
-              <CompliancePanel stats={stats} />
               <MaintenancePanel systemHealth={systemHealth} />
               <AIPlatformInsights systemHealth={systemHealth} />
             </div>
+          </div>
 
+          {/* ROW 2: MULTIMODAL DIAGNOSTICS & POPULATION GOVERNANCE (Height-matched side-by-side) */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+            <div className="lg:col-span-7">
+              <PlatformAnalytics stats={stats} />
+            </div>
+            <div className="lg:col-span-5 space-y-6">
+              <CompliancePanel stats={stats} />
+              <UserAnalytics stats={stats} />
+            </div>
+          </div>
+
+          {/* ROW 3: LIVE IMMUTABLE AUDIT TRAIL & OPERATIONS (Full width 100%) */}
+          <div className="w-full">
+            <OperationsFeed recentActivity={stats?.recent_activity} />
           </div>
 
           {/* System Telemetry & Performance Gauges */}
