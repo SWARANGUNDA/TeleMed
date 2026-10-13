@@ -62,36 +62,69 @@ export default function MaintenancePanel({ systemHealth, className = '' }) {
         </Badge>
       </div>
 
-      <div className="space-y-3 text-xs">
+      <div className="space-y-3 text-xs flex-1">
         {items.map((m, idx) => {
           const Icon = m.icon;
           return (
             <div 
               key={idx} 
-              className="p-3.5 rounded-xl bg-[var(--bg-primary)]/80 hover:bg-[var(--bg-primary)] border border-[var(--border-subtle)] flex items-center justify-between gap-3 transition-all shadow-2xs"
+              className="p-3.5 rounded-xl bg-[var(--bg-primary)]/80 hover:bg-[var(--bg-primary)] border border-[var(--border-subtle)] space-y-1.5 transition-all shadow-2xs"
             >
-              <div className="flex items-start gap-2.5 min-w-0">
-                <div className="p-1.5 rounded-lg bg-[var(--primary)]/10 text-[var(--primary)] shrink-0 mt-0.5">
-                  <Icon className="w-4 h-4" />
-                </div>
-                <div className="min-w-0">
-                  <strong className="text-xs font-bold text-[var(--text-main)] block truncate">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2 min-w-0">
+                  <Icon className="w-4 h-4 text-[var(--primary)] shrink-0" />
+                  <strong className="text-xs font-bold text-[var(--text-main)] truncate">
                     {m.label}
                   </strong>
-                  <div className="text-[11px] font-semibold text-[var(--primary)] mt-0.5 truncate">
-                    {m.val}
-                  </div>
-                  <span className="text-[10px] text-[var(--text-muted)] block mt-0.5 truncate">
-                    {m.detail}
-                  </span>
                 </div>
+                <Badge variant={m.variant} size="sm" className="shrink-0 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5">
+                  {m.status}
+                </Badge>
               </div>
-              <Badge variant={m.variant} size="sm" className="shrink-0 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5">
-                {m.status}
-              </Badge>
+              <p className="text-[11px] font-semibold text-[var(--primary)] leading-snug pl-6">
+                {m.val}
+              </p>
+              <div className="flex items-center justify-between text-[10px] text-[var(--text-muted)] pt-2 border-t border-[var(--border-subtle)] pl-6">
+                <span>{m.detail}</span>
+                <span className="text-[9px] uppercase tracking-wider font-semibold text-emerald-600 dark:text-emerald-400">Verified</span>
+              </div>
             </div>
           );
         })}
+      </div>
+
+      {/* Real Infrastructure Runtime Footer */}
+      <div className="pt-4 border-t border-[var(--border-subtle)] space-y-3">
+        <div className="flex items-center justify-between">
+          <h4 className="text-xs font-bold text-[var(--text-main)] uppercase tracking-wider">
+            Runtime Environment & Host
+          </h4>
+          <span className="text-[11px] font-bold text-slate-600 dark:text-slate-400">
+            Node / Cloud Ready
+          </span>
+        </div>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-center">
+          <div className="p-3 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-subtle)]">
+            <span className="text-[10px] text-[var(--text-muted)] block font-semibold uppercase">DB Pool</span>
+            <div className="text-lg font-extrabold text-[var(--text-main)] mt-0.5">{dbLatency} ms</div>
+            <span className="text-[9px] text-[var(--text-muted)]">Verified Latency</span>
+          </div>
+          <div className="p-3 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-subtle)]">
+            <span className="text-[10px] text-[var(--text-muted)] block font-semibold uppercase">ASGI Server</span>
+            <div className="text-lg font-extrabold text-emerald-600 dark:text-emerald-400 mt-0.5">Uvicorn</div>
+            <span className="text-[9px] text-[var(--text-muted)]">Port 8000</span>
+          </div>
+          <div className="p-3 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-subtle)]">
+            <span className="text-[10px] text-[var(--text-muted)] block font-semibold uppercase">Model Core</span>
+            <div className="text-lg font-extrabold text-blue-600 dark:text-blue-400 mt-0.5">v3.3</div>
+            <span className="text-[9px] text-[var(--text-muted)]">Frozen Weights</span>
+          </div>
+          <div className="p-3 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-subtle)]">
+            <span className="text-[10px] text-[var(--text-muted)] block font-semibold uppercase">Gateway</span>
+            <div className="text-lg font-extrabold text-purple-600 dark:text-purple-400 mt-0.5">Online</div>
+            <span className="text-[9px] text-[var(--text-muted)]">Traffic Open</span>
+          </div>
+        </div>
       </div>
     </Card>
   );

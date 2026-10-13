@@ -313,15 +313,15 @@ export default function AdminDashboardPage({ onNavigate }) {
             <InfrastructureHealth systemHealth={systemHealth} />
           </div>
 
-          {/* BALANCED ROW 1: MULTIMODAL DIAGNOSTICS & AI ARCHITECTURE (50/50 Split) */}
+          {/* BALANCED ROW 1: MULTIMODAL DIAGNOSTICS & REGULATORY COMPLIANCE (50/50 Split) */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
             <PlatformAnalytics stats={stats} className="h-full" />
-            <AIPlatformInsights className="h-full" />
+            <CompliancePanel stats={stats} className="h-full" />
           </div>
 
-          {/* BALANCED ROW 2: GOVERNANCE, COMPLIANCE & USER POPULATION (50/50 Split) */}
+          {/* BALANCED ROW 2: AI ARCHITECTURE & USER DIRECTORY (50/50 Split) */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
-            <CompliancePanel stats={stats} className="h-full" />
+            <AIPlatformInsights className="h-full" />
             <UserAnalytics stats={stats} className="h-full" />
           </div>
 
