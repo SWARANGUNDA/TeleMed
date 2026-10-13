@@ -256,8 +256,15 @@ export default function DashboardPage({
     return keys.map(k => {
       const item = clinFeats[k];
       const val = (typeof item === 'object' && item !== null) ? (item.value ?? item.raw_value ?? '') : item;
-      const cls = classifyBiomarker ? classifyBiomarker(k, val) : { status: 'NORMAL', category: 'normal', referenceRange: 'Standard' };
-      return { name: k, value: val, unit: cls.unit || '', range: cls.referenceRange, status: cls.status };
+      const cls = classifyBiomarker ? classifyBiomarker(k, val) : { status: 'NORMAL', category: 'normal', refRange: 'Standard reference' };
+      return { 
+        name: cls.friendlyName || k.replace(/_/g, ' '), 
+        rawKey: k,
+        value: val, 
+        unit: cls.unit || '', 
+        range: cls.refRange || cls.referenceRange || cls.range || 'Standard reference', 
+        status: cls.status || 'NORMAL' 
+      };
     });
   };
 
@@ -267,8 +274,15 @@ export default function DashboardPage({
     return keys.map(k => {
       const item = wearFeats[k];
       const val = (typeof item === 'object' && item !== null) ? (item.value ?? item.raw_value ?? '') : item;
-      const cls = classifyWearable ? classifyWearable(k, val) : { status: 'OPTIMAL', range: 'Normal Telemetry' };
-      return { name: k, value: val, unit: cls.unit || 'units', range: cls.range, status: cls.status };
+      const cls = classifyWearable ? classifyWearable(k, val) : { status: 'OPTIMAL', refRange: 'Target Met' };
+      return { 
+        name: cls.friendlyName || k.replace(/_/g, ' '), 
+        rawKey: k,
+        value: val, 
+        unit: cls.unit || 'units', 
+        range: cls.refRange || cls.referenceRange || cls.range || 'Target Met', 
+        status: cls.status || 'OPTIMAL' 
+      };
     });
   };
 
@@ -278,8 +292,15 @@ export default function DashboardPage({
     return keys.map(k => {
       const item = gutFeats[k];
       const val = (typeof item === 'object' && item !== null) ? (item.value ?? item.raw_value ?? '') : item;
-      const cls = classifyGut ? classifyGut(k, val) : { status: 'BALANCED', range: 'Normal Abundance' };
-      return { name: k, value: val, unit: cls.unit || '%', range: cls.range, status: cls.status };
+      const cls = classifyGut ? classifyGut(k, val) : { status: 'BALANCED', refRange: '0.1–15.0%' };
+      return { 
+        name: cls.friendlyName || k.replace(/_/g, ' '), 
+        rawKey: k,
+        value: val, 
+        unit: cls.unit || '%', 
+        range: cls.refRange || cls.referenceRange || cls.range || '0.1–15.0%', 
+        status: cls.status || 'BALANCED' 
+      };
     });
   };
 

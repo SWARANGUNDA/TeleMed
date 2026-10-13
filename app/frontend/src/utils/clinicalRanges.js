@@ -165,20 +165,134 @@ export const CLINICAL_REFERENCE_RANGES = {
   Age: {
     friendlyName: 'Age',
     unit: 'years',
-    refRange: 'Standard',
+    refRange: '18–120 years',
     classify: (val) => CLINICAL_STATUS_TYPES.NORMAL
   },
   Height: {
     friendlyName: 'Height',
     unit: 'cm',
-    refRange: 'Standard',
+    refRange: '140–200 cm',
     classify: (val) => CLINICAL_STATUS_TYPES.NORMAL
   },
   Weight: {
     friendlyName: 'Weight',
     unit: 'kg',
-    refRange: 'Standard',
+    refRange: '50–90 kg',
     classify: (val) => CLINICAL_STATUS_TYPES.NORMAL
+  },
+  Total_Cholesterol: {
+    friendlyName: 'Total Cholesterol',
+    unit: 'mg/dL',
+    refRange: '< 200 mg/dL',
+    classify: (val) => {
+      const num = parseFloat(val);
+      if (isNaN(num)) return CLINICAL_STATUS_TYPES.NOT_PROVIDED;
+      if (num >= 240) return CLINICAL_STATUS_TYPES.ELEVATED;
+      if (num >= 200) return CLINICAL_STATUS_TYPES.AT_RISK;
+      return CLINICAL_STATUS_TYPES.NORMAL;
+    }
+  },
+  Fasting_Insulin: {
+    friendlyName: 'Fasting Insulin',
+    unit: 'µIU/mL',
+    refRange: '2.6–24.9 µIU/mL',
+    classify: (val) => {
+      const num = parseFloat(val);
+      if (isNaN(num)) return CLINICAL_STATUS_TYPES.NOT_PROVIDED;
+      if (num > 25) return CLINICAL_STATUS_TYPES.ELEVATED;
+      return CLINICAL_STATUS_TYPES.NORMAL;
+    }
+  },
+  HOMA_IR: {
+    friendlyName: 'HOMA-IR',
+    unit: '',
+    refRange: '< 2.0',
+    classify: (val) => {
+      const num = parseFloat(val);
+      if (isNaN(num)) return CLINICAL_STATUS_TYPES.NOT_PROVIDED;
+      if (num >= 2.5) return CLINICAL_STATUS_TYPES.ELEVATED;
+      if (num >= 2.0) return CLINICAL_STATUS_TYPES.AT_RISK;
+      return CLINICAL_STATUS_TYPES.NORMAL;
+    }
+  },
+  Pulse_Rate: {
+    friendlyName: 'Pulse Rate',
+    unit: 'bpm',
+    refRange: '60–100 bpm',
+    classify: (val) => {
+      const num = parseFloat(val);
+      if (isNaN(num)) return CLINICAL_STATUS_TYPES.NOT_PROVIDED;
+      if (num < 60 || num > 100) return CLINICAL_STATUS_TYPES.ELEVATED;
+      return CLINICAL_STATUS_TYPES.NORMAL;
+    }
+  },
+  Heart_Rate: {
+    friendlyName: 'Heart Rate',
+    unit: 'bpm',
+    refRange: '60–100 bpm',
+    classify: (val) => {
+      const num = parseFloat(val);
+      if (isNaN(num)) return CLINICAL_STATUS_TYPES.NOT_PROVIDED;
+      if (num < 60 || num > 100) return CLINICAL_STATUS_TYPES.ELEVATED;
+      return CLINICAL_STATUS_TYPES.NORMAL;
+    }
+  },
+  Creatinine: {
+    friendlyName: 'Serum Creatinine',
+    unit: 'mg/dL',
+    refRange: '0.7–1.3 mg/dL',
+    classify: (val) => {
+      const num = parseFloat(val);
+      if (isNaN(num)) return CLINICAL_STATUS_TYPES.NOT_PROVIDED;
+      if (num > 1.3) return CLINICAL_STATUS_TYPES.ELEVATED;
+      return CLINICAL_STATUS_TYPES.NORMAL;
+    }
+  },
+  eGFR: {
+    friendlyName: 'eGFR',
+    unit: 'mL/min/1.73m²',
+    refRange: '≥ 90 mL/min/1.73m²',
+    classify: (val) => {
+      const num = parseFloat(val);
+      if (isNaN(num)) return CLINICAL_STATUS_TYPES.NOT_PROVIDED;
+      if (num < 60) return CLINICAL_STATUS_TYPES.ELEVATED;
+      if (num < 90) return CLINICAL_STATUS_TYPES.AT_RISK;
+      return CLINICAL_STATUS_TYPES.NORMAL;
+    }
+  },
+  hs_CRP: {
+    friendlyName: 'High-Sensitivity CRP',
+    unit: 'mg/L',
+    refRange: '< 1.0 mg/L',
+    classify: (val) => {
+      const num = parseFloat(val);
+      if (isNaN(num)) return CLINICAL_STATUS_TYPES.NOT_PROVIDED;
+      if (num >= 3.0) return CLINICAL_STATUS_TYPES.ELEVATED;
+      if (num >= 1.0) return CLINICAL_STATUS_TYPES.AT_RISK;
+      return CLINICAL_STATUS_TYPES.NORMAL;
+    }
+  },
+  CRP: {
+    friendlyName: 'C-Reactive Protein',
+    unit: 'mg/L',
+    refRange: '< 3.0 mg/L',
+    classify: (val) => {
+      const num = parseFloat(val);
+      if (isNaN(num)) return CLINICAL_STATUS_TYPES.NOT_PROVIDED;
+      if (num >= 3.0) return CLINICAL_STATUS_TYPES.ELEVATED;
+      return CLINICAL_STATUS_TYPES.NORMAL;
+    }
+  },
+  Uric_Acid: {
+    friendlyName: 'Serum Uric Acid',
+    unit: 'mg/dL',
+    refRange: '3.5–7.2 mg/dL',
+    classify: (val) => {
+      const num = parseFloat(val);
+      if (isNaN(num)) return CLINICAL_STATUS_TYPES.NOT_PROVIDED;
+      if (num > 7.2) return CLINICAL_STATUS_TYPES.ELEVATED;
+      return CLINICAL_STATUS_TYPES.NORMAL;
+    }
   }
 };
 
@@ -187,20 +301,25 @@ export const CLINICAL_REFERENCE_RANGES = {
  */
 export function classifyBiomarker(biomarkerKey, val, secondaryVal = null) {
   if (val === null || val === undefined || val === '' || val === 'N/A') {
+    const defaultMeta = CLINICAL_REFERENCE_RANGES[biomarkerKey] || {};
+    const fallbackRange = defaultMeta.refRange || 'Standard reference';
     return {
       ...CLINICAL_STATUS_TYPES.NOT_PROVIDED,
       status: 'NOT_PROVIDED',
-      refRange: (CLINICAL_REFERENCE_RANGES[biomarkerKey] || {}).refRange || 'Standard range',
-      friendlyName: (CLINICAL_REFERENCE_RANGES[biomarkerKey] || {}).friendlyName || biomarkerKey?.replace(/_/g, ' ') || 'Measurement',
-      unit: (CLINICAL_REFERENCE_RANGES[biomarkerKey] || {}).unit || ''
+      refRange: fallbackRange,
+      referenceRange: fallbackRange,
+      range: fallbackRange,
+      friendlyName: defaultMeta.friendlyName || biomarkerKey?.replace(/_/g, ' ') || 'Measurement',
+      unit: defaultMeta.unit || ''
     };
   }
 
   const meta = CLINICAL_REFERENCE_RANGES[biomarkerKey];
   if (!meta) {
     const num = parseFloat(val);
-    if (isNaN(num)) return { ...CLINICAL_STATUS_TYPES.NOT_PROVIDED, refRange: 'Standard range', friendlyName: biomarkerKey, unit: '' };
-    return { ...CLINICAL_STATUS_TYPES.NORMAL, refRange: 'Standard range', friendlyName: biomarkerKey, unit: '' };
+    const fallbackRange = 'Standard reference';
+    if (isNaN(num)) return { ...CLINICAL_STATUS_TYPES.NOT_PROVIDED, refRange: fallbackRange, referenceRange: fallbackRange, range: fallbackRange, friendlyName: biomarkerKey?.replace(/_/g, ' '), unit: '' };
+    return { ...CLINICAL_STATUS_TYPES.NORMAL, refRange: fallbackRange, referenceRange: fallbackRange, range: fallbackRange, friendlyName: biomarkerKey?.replace(/_/g, ' '), unit: '' };
   }
 
   const result = secondaryVal !== null ? meta.classify(val, secondaryVal) : meta.classify(val);
@@ -208,6 +327,8 @@ export function classifyBiomarker(biomarkerKey, val, secondaryVal = null) {
     ...result,
     status: result.key,
     refRange: meta.refRange,
+    referenceRange: meta.refRange,
+    range: meta.refRange,
     friendlyName: meta.friendlyName,
     unit: meta.unit
   };
@@ -256,7 +377,8 @@ export function classifyWearable(wearableKey, val) {
 
   const meta = WEARABLE_REFERENCE_RANGES[wearableKey];
   if (!meta) {
-    return { ...CLINICAL_STATUS_TYPES.NORMAL, refRange: 'Standard target', friendlyName: wearableKey, unit: '' };
+    const defaultRange = 'Standard target';
+    return { ...CLINICAL_STATUS_TYPES.NORMAL, refRange: defaultRange, referenceRange: defaultRange, range: defaultRange, friendlyName: wearableKey, unit: '' };
   }
 
   const res = meta.classify(num);
@@ -264,6 +386,8 @@ export function classifyWearable(wearableKey, val) {
     ...res,
     status: res.key,
     refRange: meta.refRange,
+    referenceRange: meta.refRange,
+    range: meta.refRange,
     friendlyName: meta.friendlyName,
     unit: meta.unit
   };
@@ -283,10 +407,13 @@ export const GUT_REFERENCE_RANGES = {
  */
 export function classifyGut(gutKey, val) {
   if (val === null || val === undefined || val === '' || val === 'N/A') {
+    const defaultRange = (GUT_REFERENCE_RANGES[gutKey] || {}).refRange || '0.1–15.0%';
     return {
       ...CLINICAL_STATUS_TYPES.NOT_PROVIDED,
       status: 'NOT_PROVIDED',
-      refRange: (GUT_REFERENCE_RANGES[gutKey] || {}).refRange || '0.1–15.0%',
+      refRange: defaultRange,
+      referenceRange: defaultRange,
+      range: defaultRange,
       friendlyName: (GUT_REFERENCE_RANGES[gutKey] || {}).friendlyName || gutKey?.replace(/_/g, ' ') || 'Taxon',
       unit: (GUT_REFERENCE_RANGES[gutKey] || {}).unit || '%'
     };
@@ -294,10 +421,13 @@ export function classifyGut(gutKey, val) {
 
   const num = parseFloat(val);
   if (isNaN(num)) {
+    const defaultRange = (GUT_REFERENCE_RANGES[gutKey] || {}).refRange || '0.1–15.0%';
     return {
       ...CLINICAL_STATUS_TYPES.NOT_PROVIDED,
       status: 'NOT_PROVIDED',
-      refRange: (GUT_REFERENCE_RANGES[gutKey] || {}).refRange || '0.1–15.0%',
+      refRange: defaultRange,
+      referenceRange: defaultRange,
+      range: defaultRange,
       friendlyName: (GUT_REFERENCE_RANGES[gutKey] || {}).friendlyName || gutKey?.replace(/_/g, ' '),
       unit: (GUT_REFERENCE_RANGES[gutKey] || {}).unit || '%'
     };
@@ -306,13 +436,16 @@ export function classifyGut(gutKey, val) {
   const meta = GUT_REFERENCE_RANGES[gutKey];
   if (!meta) {
     const isHigh = num > 15.0;
+    const defaultRange = '0.1–15.0%';
     return {
       key: isHigh ? 'PREDIABETES' : 'NORMAL',
       status: isHigh ? 'PREDIABETES' : 'NORMAL',
       label: isHigh ? 'Elevated Abundance' : 'Normal',
       color: isHigh ? '#fbbf24' : '#10b981',
       bg: isHigh ? 'rgba(245, 158, 11, 0.15)' : 'rgba(16, 185, 129, 0.15)',
-      refRange: '0.1–15.0%',
+      refRange: defaultRange,
+      referenceRange: defaultRange,
+      range: defaultRange,
       friendlyName: gutKey.replace(/_/g, ' '),
       unit: '%'
     };
@@ -323,6 +456,8 @@ export function classifyGut(gutKey, val) {
     ...res,
     status: res.key,
     refRange: meta.refRange,
+    referenceRange: meta.refRange,
+    range: meta.refRange,
     friendlyName: meta.friendlyName,
     unit: meta.unit
   };
