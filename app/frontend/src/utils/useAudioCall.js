@@ -74,6 +74,8 @@ export default function useAudioCall(consultationId, user) {
   const [peerRole, setPeerRole] = useState('');
   const [incomingCallInfo, setIncomingCallInfo] = useState(null);
   const [error, setError] = useState(null);
+  const [cameraNotice, setCameraNotice] = useState(null);
+  const [remoteReaction, setRemoteReaction] = useState(null);
 
   // Screen sharing & telemetry state
   const [isScreenSharing, setIsScreenSharing] = useState(false);
@@ -541,7 +543,7 @@ export default function useAudioCall(consultationId, user) {
           const audioOnlyStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
           localStreamRef.current = audioOnlyStream;
           setIsVideoEnabled(false);
-          setError('Camera was busy or unavailable. Connected with microphone audio.');
+          setCameraNotice('Webcam occupied or in use by another tab. Connected with microphone audio.');
           return audioOnlyStream;
         } catch (audioErr) {}
       }
@@ -847,6 +849,19 @@ export default function useAudioCall(consultationId, user) {
         break;
       }
 
+      case 'CALL_REACTION': {
+        setRemoteReaction({
+          emoji: data.emoji || '👍',
+          label: data.label || '',
+          senderName: data.sender_name || 'Participant',
+          senderRole: data.sender_role || '',
+          senderId: data.sender_id,
+          timestamp: data.timestamp || Date.now(),
+          id: `${Date.now()}-${Math.random()}`
+        });
+        break;
+      }
+
       case 'CALL_END': {
         updateCallState(CALL_STATES.ENDED);
         cleanupCall();
@@ -1074,19 +1089,34 @@ export default function useAudioCall(consultationId, user) {
             attachLocalStream(localStreamRef.current);
           }
         } catch (e) {
-          setError('Could not enable webcam.');
+          setCameraNotice('Could not enable webcam. Camera may be in use by another tab or app.');
         }
       }
     }
   }, [attachLocalStream]);
 
+  /** Send reaction to peer (Zoom-style real-time reactions) */
+  const sendReaction = useCallback((emoji, label) => {
+    sendSignal({
+      event: 'CALL_REACTION',
+      emoji,
+      label,
+      timestamp: Date.now(),
+    });
+  }, [sendSignal]);
+
   /** Clear error */
   const clearError = useCallback(() => setError(null), []);
+
+  /** Clear camera notice */
+  const clearCameraNotice = useCallback(() => setCameraNotice(null), []);
 
   /** Reset to idle */
   const resetToIdle = useCallback(() => {
     cleanupCall();
     setError(null);
+    setCameraNotice(null);
+    setRemoteReaction(null);
     setIncomingCallInfo(null);
     updateCallState(CALL_STATES.IDLE);
   }, [cleanupCall, updateCallState]);
@@ -1109,6 +1139,8 @@ export default function useAudioCall(consultationId, user) {
     }
 
     setError(null);
+    setCameraNotice(null);
+    setRemoteReaction(null);
     setIncomingCallInfo(null);
     setPeerName('');
     setPeerRole('');
@@ -1137,6 +1169,8 @@ export default function useAudioCall(consultationId, user) {
     peerRole,
     incomingCallInfo,
     error,
+    cameraNotice,
+    remoteReaction,
 
     // Screen Sharing & Telemetry
     isScreenSharing,
@@ -1161,6 +1195,8 @@ export default function useAudioCall(consultationId, user) {
     toggleVideo,
     toggleScreenShare,
     stopScreenShare,
+    sendReaction,
+    clearCameraNotice,
     clearError,
     resetToIdle,
     fullCleanup,

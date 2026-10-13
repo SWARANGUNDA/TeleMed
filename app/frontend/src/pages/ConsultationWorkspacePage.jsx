@@ -9,7 +9,7 @@ import {
   ArrowLeft, BadgeCheck, Phone, PhoneCall, PhoneOff, ShieldCheck, Zap, Search, AlertCircle,
   FileCheck, Heart, Sparkle, Mic, MicOff, Copy, Thermometer,
   Volume2, VolumeX, Minimize2, Maximize2, Radio, Wifi, Sliders, Waves, Headphones,
-  Monitor, MonitorUp, ClipboardList
+  Monitor, MonitorUp, ClipboardList, Smile, Info
 } from 'lucide-react';
 import { PageContainer } from '../components/layout';
 import {
@@ -264,17 +264,9 @@ export default function ConsultationWorkspacePage({ user, consultationContext, i
   const [showInCallNotes, setShowInCallNotes] = useState(false);
   const [inCallNoteText, setInCallNoteText] = useState('');
   const [callReactions, setCallReactions] = useState([]);
+  const [showReactionPicker, setShowReactionPicker] = useState(false);
   const [isCallFullscreen, setIsCallFullscreen] = useState(false);
   const callOverlayRef = useRef(null);
-
-  const triggerCallReaction = (emoji, label) => {
-    const id = Date.now() + Math.random();
-    const xPos = Math.floor(Math.random() * 50) + 25;
-    setCallReactions((prev) => [...prev, { id, emoji, label, x: xPos }]);
-    setTimeout(() => {
-      setCallReactions((prev) => prev.filter((r) => r.id !== id));
-    }, 2200);
-  };
 
   const toggleCallFullscreen = () => {
     if (!document.fullscreenElement) {
@@ -835,6 +827,58 @@ export default function ConsultationWorkspacePage({ user, consultationContext, i
     };
   }, [audioCall.fullCleanup]);
 
+  // Synchronize remote peer reactions (Zoom-style real-time floating reactions)
+  useEffect(() => {
+    if (audioCall.remoteReaction) {
+      const incoming = audioCall.remoteReaction;
+      const id = incoming.id || `${Date.now()}-${Math.random()}`;
+      const xPos = Math.floor(Math.random() * 50) + 25;
+      const drift = (Math.random() * 60 - 30).toFixed(0) + 'px';
+      setCallReactions((prev) => [
+        ...prev,
+        {
+          id,
+          emoji: incoming.emoji,
+          label: incoming.label,
+          senderName: incoming.senderName || (isDoctor ? patientDisplayName : doctorDisplayName),
+          isSelf: false,
+          x: xPos,
+          drift
+        }
+      ]);
+      setTimeout(() => {
+        setCallReactions((prev) => prev.filter((r) => r.id !== id));
+      }, 3000);
+    }
+  }, [audioCall.remoteReaction, isDoctor, patientDisplayName, doctorDisplayName]);
+
+  const triggerCallReaction = (emoji, label) => {
+    const id = `${Date.now()}-${Math.random()}`;
+    const xPos = Math.floor(Math.random() * 50) + 25;
+    const drift = (Math.random() * 60 - 30).toFixed(0) + 'px';
+    // Add locally for instant responsive display
+    setCallReactions((prev) => [
+      ...prev,
+      {
+        id,
+        emoji,
+        label,
+        senderName: 'You',
+        isSelf: true,
+        x: xPos,
+        drift
+      }
+    ]);
+    setTimeout(() => {
+      setCallReactions((prev) => prev.filter((r) => r.id !== id));
+    }, 3000);
+
+    // Relay over WebRTC signaling channel to remote participant
+    if (audioCall?.sendReaction) {
+      audioCall.sendReaction(emoji, label);
+    }
+  };
+
   // ── Render Ultra-Premium Teleconsultation Calling Suite ──
   const renderTeleconsultationSuite = () => {
     if (audioCall.callState === 'IDLE') return null;
@@ -926,16 +970,41 @@ export default function ConsultationWorkspacePage({ user, consultationContext, i
           <div className="absolute top-1/2 -right-28 w-96 h-96 bg-violet-600/20 rounded-full blur-3xl pointer-events-none call-aura-glow" style={{ animationDelay: '2.5s' }} />
           <div className="absolute -bottom-28 left-1/3 w-80 h-80 bg-emerald-500/15 rounded-full blur-3xl pointer-events-none call-aura-glow" style={{ animationDelay: '5s' }} />
 
-          {/* Floating User Reactions Overlay */}
-          <div className="absolute inset-x-0 bottom-24 top-16 pointer-events-none overflow-hidden z-40">
+          {/* Floating User Reactions Overlay (Zoom/FaceTime Grade) */}
+          <div className="absolute inset-x-0 bottom-24 top-14 pointer-events-none overflow-hidden z-50">
             {callReactions.map((r) => (
               <div
                 key={r.id}
-                style={{ left: `${r.x}%` }}
-                className="absolute bottom-4 z-50 pointer-events-none animate-reaction-float flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-900/90 backdrop-blur-md border border-cyan-400/40 text-white font-bold text-sm shadow-[0_0_20px_rgba(6,182,212,0.5)]"
+                style={{
+                  left: `${r.x}%`,
+                  '--drift-x': r.drift || '20px'
+                }}
+                className="absolute bottom-6 pointer-events-none animate-zoom-reaction flex flex-col items-center gap-1.5 select-none"
               >
-                <span className="text-lg">{r.emoji}</span>
-                <span className="text-[11px] font-mono text-cyan-200">{r.label}</span>
+                {/* Floating Big Emoji with Pop Animation & Glow */}
+                <div className="relative">
+                  <div className="text-4xl sm:text-5xl animate-emoji-pop drop-shadow-[0_10px_25px_rgba(0,0,0,0.7)]">
+                    {r.emoji}
+                  </div>
+                  {/* Floating sparkles */}
+                  <span className="absolute -top-1 -right-2 text-xs animate-drift-particle opacity-80">✨</span>
+                  <span className="absolute -bottom-1 -left-2 text-xs animate-drift-particle opacity-80" style={{ animationDelay: '0.25s' }}>✨</span>
+                </div>
+
+                {/* Author & Label Pill Chip */}
+                <div className={`px-3 py-1 rounded-full backdrop-blur-xl border shadow-xl flex items-center gap-1.5 text-xs font-bold transition-all ${
+                  r.isSelf
+                    ? 'bg-gradient-to-r from-cyan-600/90 to-blue-600/90 border-cyan-300/50 text-white shadow-cyan-500/30'
+                    : 'bg-gradient-to-r from-violet-600/90 to-indigo-600/90 border-violet-300/50 text-white shadow-violet-500/30'
+                }`}>
+                  <span className="text-[10px] font-bold text-cyan-100 uppercase tracking-wider">
+                    {r.senderName}
+                  </span>
+                  <span className="text-slate-300 text-[10px]">•</span>
+                  <span className="text-[11px] text-white font-medium">
+                    {r.label}
+                  </span>
+                </div>
               </div>
             ))}
           </div>
@@ -1148,7 +1217,7 @@ export default function ConsultationWorkspacePage({ user, consultationContext, i
                   )}
 
                   {/* Local Camera Picture-in-Picture (PiP) Floating Preview */}
-                  <div className="absolute bottom-4 right-4 z-20 w-36 sm:w-48 aspect-video rounded-2xl bg-slate-900 border-2 border-cyan-500/50 shadow-[0_10px_35px_rgba(0,0,0,0.85)] overflow-hidden group">
+                  <div className="absolute bottom-4 right-4 z-20 w-40 sm:w-52 aspect-video rounded-2xl bg-slate-900/90 backdrop-blur-xl border border-white/20 hover:border-cyan-400/60 shadow-[0_15px_40px_rgba(0,0,0,0.8)] overflow-hidden transition-all duration-300 group">
                     <video
                       ref={audioCall.localVideoRef}
                       autoPlay
@@ -1157,15 +1226,22 @@ export default function ConsultationWorkspacePage({ user, consultationContext, i
                       className={`w-full h-full object-cover -scale-x-100 ${audioCall.isVideoEnabled ? 'block' : 'hidden'}`}
                     />
                     {!audioCall.isVideoEnabled && (
-                      <div className="w-full h-full flex flex-col items-center justify-center bg-slate-900/90 text-slate-400 p-2 text-center">
-                        <CameraOff className="w-5 h-5 mb-1 text-slate-500" />
-                        <span className="text-[10px] font-bold">Camera Off</span>
+                      <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-slate-900 via-indigo-950/70 to-slate-950 p-2 text-center relative overflow-hidden">
+                        <div className="w-10 h-10 rounded-full bg-slate-800/80 border border-slate-700/60 flex items-center justify-center mb-1 shadow-inner">
+                          <CameraOff className="w-4 h-4 text-slate-400" />
+                        </div>
+                        <span className="text-[10px] font-semibold text-slate-300">Camera Off</span>
+                        <span className="text-[9px] text-emerald-400 font-mono font-bold">Audio Active</span>
                       </div>
                     )}
-                    <div className="absolute bottom-1.5 left-2 px-2 py-0.5 rounded-md bg-black/75 backdrop-blur-xs text-[9px] font-bold text-white flex items-center gap-1 border border-white/10">
+                    <div className="absolute bottom-2 left-2 px-2.5 py-0.5 rounded-full bg-black/70 backdrop-blur-md text-[9px] font-bold text-white flex items-center gap-1.5 border border-white/10 shadow-sm">
                       {audioCall.isScreenSharing && <Monitor className="w-2.5 h-2.5 text-cyan-300" />}
                       <span className="text-cyan-300">You</span>
-                      {audioCall.isMuted && <span className="text-amber-400">• Muted</span>}
+                      {audioCall.isMuted ? (
+                        <span className="text-amber-400 font-semibold">• Muted</span>
+                      ) : (
+                        <span className="text-emerald-400 font-semibold">• Mic On</span>
+                      )}
                     </div>
                   </div>
 
@@ -1399,105 +1475,178 @@ export default function ConsultationWorkspacePage({ user, consultationContext, i
             )}
           </div>
 
-          {/* Error Message Alert */}
-          {audioCall.error && (
-            <div className="mx-6 mb-2 px-4 py-2 bg-rose-500/20 border border-rose-500/30 rounded-xl text-xs text-rose-300 font-medium text-center shrink-0">
-              {audioCall.error}
+          {/* Advisory / Camera Notice Bar (Polite, Non-intrusive) */}
+          {audioCall.cameraNotice && (
+            <div className="mx-6 mb-2 px-4 py-2 bg-amber-500/15 border border-amber-500/30 rounded-2xl text-xs text-amber-200 font-medium flex items-center justify-between shrink-0 shadow-sm animate-fade-in">
+              <span className="flex items-center gap-2">
+                <Info className="w-4 h-4 text-amber-400 shrink-0" />
+                <span>{audioCall.cameraNotice}</span>
+              </span>
+              <button
+                type="button"
+                onClick={audioCall.clearCameraNotice}
+                className="text-amber-400 hover:text-white ml-2 text-xs font-bold cursor-pointer px-2 py-0.5 rounded-lg hover:bg-amber-500/20 transition-all"
+              >
+                ✕
+              </button>
             </div>
           )}
 
-          {/* ── QUICK REACTIONS BAR (Active in connected or calling states) ──── */}
+          {/* Error Message Alert */}
+          {audioCall.error && (
+            <div className="mx-6 mb-2 px-4 py-2 bg-rose-500/20 border border-rose-500/30 rounded-2xl text-xs text-rose-300 font-medium text-center shrink-0 flex items-center justify-between shadow-sm animate-fade-in">
+              <span className="flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
+                <span>{audioCall.error}</span>
+              </span>
+              <button
+                type="button"
+                onClick={audioCall.clearError}
+                className="text-rose-400 hover:text-white ml-2 text-xs font-bold cursor-pointer px-2 py-0.5 rounded-lg hover:bg-rose-500/20 transition-all"
+              >
+                ✕
+              </button>
+            </div>
+          )}
+
+          {/* ── QUICK REACTIONS BAR (Zoom-style quick floating pills) ──── */}
           {(audioCall.callState === 'CONNECTED' || audioCall.callState === 'CALLING') && (
-            <div className="px-4 py-1.5 bg-slate-950/60 border-t border-indigo-500/20 flex items-center justify-center gap-2 overflow-x-auto shrink-0">
+            <div className="px-4 py-2 bg-slate-950/40 border-t border-white/5 flex items-center justify-center gap-2 overflow-x-auto shrink-0 select-none">
               <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 hidden sm:inline mr-1">
-                Reactions:
+                Quick React:
               </span>
               {[
                 { emoji: '👋', label: 'Wave' },
                 { emoji: '👍', label: 'All Good' },
                 { emoji: '🩺', label: 'Audio Clear' },
                 { emoji: '📋', label: 'Taking Notes' },
-                { emoji: '❤️', label: 'Thank You' }
+                { emoji: '❤️', label: 'Thank You' },
+                { emoji: '👏', label: 'Bravo' }
               ].map((btn) => (
                 <button
                   key={btn.label}
                   type="button"
                   onClick={() => triggerCallReaction(btn.emoji, btn.label)}
-                  className="px-2.5 py-1 rounded-xl bg-slate-800/80 hover:bg-slate-700/90 border border-slate-700/50 hover:border-cyan-400/50 text-white text-xs font-semibold flex items-center gap-1 transition-all transform hover:scale-105 active:scale-95 cursor-pointer shadow-xs"
+                  className="px-3 py-1.5 rounded-full bg-slate-800/80 hover:bg-indigo-600/40 border border-slate-700/60 hover:border-cyan-400/60 text-white text-xs font-semibold flex items-center gap-1.5 transition-all transform hover:scale-105 active:scale-95 cursor-pointer shadow-sm hover:shadow-cyan-500/20"
                 >
-                  <span>{btn.emoji}</span>
-                  <span className="text-[10px] text-slate-300">{btn.label}</span>
+                  <span className="text-sm">{btn.emoji}</span>
+                  <span className="text-[11px] text-slate-200">{btn.label}</span>
                 </button>
               ))}
             </div>
           )}
 
-          {/* ── BOTTOM ERGONOMIC ACTION DOCK ──────────────────────────────────── */}
-          <div className="p-3.5 sm:p-5 pt-2.5 bg-slate-950/95 border-t border-indigo-500/30 flex items-center justify-center gap-3 sm:gap-4 relative z-20 shrink-0">
+          {/* ── BOTTOM ERGONOMIC FLOATING ACTION DOCK (Zoom/FaceTime Grade) ───── */}
+          <div className="p-3 sm:p-5 pt-2 bg-gradient-to-t from-slate-950 via-slate-950/95 to-transparent flex items-center justify-center relative z-20 shrink-0">
+            {/* Zoom Reactions Popover */}
+            {showReactionPicker && (
+              <div className="absolute bottom-20 z-50 bg-slate-900/95 backdrop-blur-2xl border border-indigo-400/40 rounded-3xl p-3 shadow-[0_20px_50px_rgba(0,0,0,0.85)] flex flex-col gap-2 min-w-[290px] animate-fade-in">
+                <div className="flex items-center justify-between pb-1.5 border-b border-slate-800 px-1">
+                  <span className="text-[11px] font-black uppercase tracking-wider text-cyan-300 flex items-center gap-1.5">
+                    <Smile className="w-3.5 h-3.5 text-amber-400" />
+                    <span>Meeting Reactions</span>
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setShowReactionPicker(false)}
+                    className="text-slate-400 hover:text-white text-xs font-bold cursor-pointer"
+                  >
+                    ✕
+                  </button>
+                </div>
+                <div className="grid grid-cols-4 gap-2">
+                  {[
+                    { emoji: '👍', label: 'All Good' },
+                    { emoji: '👋', label: 'Wave' },
+                    { emoji: '🩺', label: 'Audio Clear' },
+                    { emoji: '❤️', label: 'Thank You' },
+                    { emoji: '📋', label: 'Taking Notes' },
+                    { emoji: '👏', label: 'Bravo' },
+                    { emoji: '💡', label: 'Question' },
+                    { emoji: '🔥', label: 'Great' },
+                  ].map((item) => (
+                    <button
+                      key={item.label}
+                      type="button"
+                      onClick={() => {
+                        triggerCallReaction(item.emoji, item.label);
+                        setShowReactionPicker(false);
+                      }}
+                      className="flex flex-col items-center justify-center p-2 rounded-2xl bg-slate-800/60 hover:bg-indigo-600/30 border border-slate-700/50 hover:border-cyan-400/50 text-white transition-all transform hover:scale-110 active:scale-95 cursor-pointer group"
+                      title={item.label}
+                    >
+                      <span className="text-2xl group-hover:scale-125 transition-transform">{item.emoji}</span>
+                      <span className="text-[9px] font-medium text-slate-300 mt-1 truncate max-w-[55px]">{item.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* RINGING State Actions */}
             {audioCall.callState === 'RINGING' && (
-              <>
+              <div className="flex items-center gap-4">
                 <button
                   onClick={audioCall.declineCall}
-                  className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-rose-600 to-red-500 hover:from-rose-700 hover:to-red-600 text-white flex flex-col items-center justify-center shadow-xl shadow-rose-600/40 hover:scale-105 active:scale-95 transition-all cursor-pointer border border-rose-400/30"
+                  className="px-6 py-3.5 rounded-full bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-700 hover:to-red-700 text-white flex items-center gap-2 shadow-xl shadow-rose-600/40 hover:scale-105 active:scale-95 transition-all cursor-pointer border border-rose-400/30 font-bold text-xs uppercase tracking-wider"
                   title="Decline Call"
                 >
-                  <PhoneOff className="w-6 h-6" />
-                  <span className="text-[10px] font-bold mt-1">Decline</span>
+                  <PhoneOff className="w-5 h-5" />
+                  <span>Decline</span>
                 </button>
                 <button
                   onClick={() => audioCall.acceptCall(audioCall.incomingCallInfo?.callType || 'video')}
-                  className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-emerald-600 to-teal-500 hover:from-emerald-700 hover:to-teal-600 text-white flex flex-col items-center justify-center shadow-2xl shadow-emerald-500/50 hover:scale-105 active:scale-95 transition-all cursor-pointer animate-pulse border border-emerald-400/40"
+                  className="px-8 py-3.5 rounded-full bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-700 hover:to-teal-600 text-white flex items-center gap-2 shadow-2xl shadow-emerald-500/50 hover:scale-105 active:scale-95 transition-all cursor-pointer animate-pulse border border-emerald-400/40 font-bold text-xs uppercase tracking-wider"
                   title={audioCall.incomingCallInfo?.callType === 'video' ? 'Accept Video Call' : 'Accept Audio Call'}
                 >
-                  {audioCall.incomingCallInfo?.callType === 'video' ? <Video className="w-6 h-6" /> : <Phone className="w-6 h-6" />}
-                  <span className="text-[10px] font-bold mt-1">Accept</span>
+                  {audioCall.incomingCallInfo?.callType === 'video' ? <Video className="w-5 h-5" /> : <Phone className="w-5 h-5" />}
+                  <span>Accept Call</span>
                 </button>
-              </>
+              </div>
             )}
 
             {/* CALLING State Actions */}
             {audioCall.callState === 'CALLING' && (
-              <button
-                onClick={audioCall.cancelCall}
-                className="px-8 py-4 rounded-2xl bg-gradient-to-tr from-rose-600 via-rose-500 to-red-600 hover:from-rose-700 hover:to-red-700 text-white flex items-center justify-center space-x-2.5 shadow-2xl shadow-rose-600/50 hover:scale-105 active:scale-95 transition-all cursor-pointer border border-rose-400/40"
-                title="Cancel Call"
-              >
-                <PhoneOff className="w-6 h-6" />
-                <span className="text-xs font-black uppercase tracking-wider">Cancel Call</span>
-              </button>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={audioCall.cancelCall}
+                  className="px-8 py-3.5 rounded-full bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-700 hover:to-red-700 text-white flex items-center gap-2 shadow-2xl shadow-rose-600/50 hover:scale-105 active:scale-95 transition-all cursor-pointer border border-rose-400/40 font-bold text-xs uppercase tracking-wider"
+                  title="Cancel Call"
+                >
+                  <PhoneOff className="w-5 h-5" />
+                  <span>Cancel Calling</span>
+                </button>
+              </div>
             )}
 
-            {/* CONNECTED & RECONNECTING State Actions */}
+            {/* CONNECTED & RECONNECTING State Actions (Zoom-Style Pill Dock) */}
             {(audioCall.callState === 'CONNECTED' || audioCall.callState === 'RECONNECTING') && (
-              <>
+              <div className="call-glass-dock rounded-full px-4 sm:px-6 py-2.5 flex items-center gap-2.5 sm:gap-3.5 shadow-2xl">
                 {/* Microphone Mute */}
                 <button
                   onClick={audioCall.toggleMute}
-                  className={`w-14 h-14 rounded-2xl flex flex-col items-center justify-center transition-all cursor-pointer ${
+                  className={`call-control-btn w-12 h-12 rounded-full flex items-center justify-center cursor-pointer transition-all ${
                     audioCall.isMuted
-                      ? 'bg-amber-500 hover:bg-amber-600 text-white shadow-xl shadow-amber-500/40 ring-2 ring-amber-400/60 scale-105'
-                      : 'bg-slate-800/90 hover:bg-slate-700 text-emerald-400 border border-slate-700/80 shadow-md'
+                      ? 'bg-rose-500/20 hover:bg-rose-500/30 text-rose-400 border border-rose-500/50 shadow-[0_0_15px_rgba(244,63,94,0.3)]'
+                      : 'bg-slate-800/80 hover:bg-slate-700/90 text-emerald-400 border border-emerald-500/30 shadow-[0_0_15px_rgba(16,185,129,0.2)]'
                   }`}
                   title={audioCall.isMuted ? 'Unmute Microphone' : 'Mute Microphone'}
                 >
-                  {audioCall.isMuted ? <MicOff className="w-5 h-5 text-white" /> : <Mic className="w-5 h-5" />}
-                  <span className="text-[10px] font-bold mt-0.5">{audioCall.isMuted ? 'Muted' : 'Mute'}</span>
+                  {audioCall.isMuted ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
                 </button>
 
                 {/* Camera Video Toggle (For Video Calls) */}
                 {audioCall.callType === 'video' && (
                   <button
                     onClick={audioCall.toggleVideo}
-                    className={`w-14 h-14 rounded-2xl flex flex-col items-center justify-center transition-all cursor-pointer ${
+                    className={`call-control-btn w-12 h-12 rounded-full flex items-center justify-center cursor-pointer transition-all ${
                       !audioCall.isVideoEnabled
-                        ? 'bg-amber-500 hover:bg-amber-600 text-white shadow-xl shadow-amber-500/40 ring-2 ring-amber-400/50'
-                        : 'bg-slate-800/90 hover:bg-slate-700 text-purple-400 border border-slate-700/80 shadow-md'
+                        ? 'bg-slate-800/90 hover:bg-slate-700 text-slate-400 border border-slate-700/60'
+                        : 'bg-slate-800/80 hover:bg-slate-700/90 text-cyan-400 border border-cyan-500/30 shadow-[0_0_15px_rgba(6,182,212,0.2)]'
                     }`}
                     title={audioCall.isVideoEnabled ? 'Turn Off Camera' : 'Turn On Camera'}
                   >
-                    {audioCall.isVideoEnabled ? <Camera className="w-5 h-5 text-purple-400" /> : <CameraOff className="w-5 h-5" />}
-                    <span className="text-[10px] font-bold mt-0.5">{audioCall.isVideoEnabled ? 'Camera' : 'Cam Off'}</span>
+                    {audioCall.isVideoEnabled ? <Camera className="w-5 h-5" /> : <CameraOff className="w-5 h-5" />}
                   </button>
                 )}
 
@@ -1505,42 +1654,68 @@ export default function ConsultationWorkspacePage({ user, consultationContext, i
                 {audioCall.callType === 'video' && (
                   <button
                     onClick={audioCall.toggleScreenShare}
-                    className={`w-14 h-14 rounded-2xl flex flex-col items-center justify-center transition-all cursor-pointer ${
+                    className={`call-control-btn w-12 h-12 rounded-full flex items-center justify-center cursor-pointer transition-all ${
                       audioCall.isScreenSharing
-                        ? 'bg-cyan-600 hover:bg-cyan-700 text-white shadow-xl shadow-cyan-600/40 ring-2 ring-cyan-400/60 scale-105'
-                        : 'bg-slate-800/90 hover:bg-slate-700 text-slate-200 border border-slate-700/80 shadow-md'
+                        ? 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-xl shadow-indigo-600/40 ring-2 ring-indigo-400/60'
+                        : 'bg-slate-800/80 hover:bg-slate-700/90 text-slate-200 border border-slate-700/60'
                     }`}
                     title={audioCall.isScreenSharing ? 'Stop Screen Sharing' : 'Share Screen'}
                   >
-                    <MonitorUp className={`w-5 h-5 ${audioCall.isScreenSharing ? 'text-white' : 'text-cyan-400'}`} />
-                    <span className="text-[10px] font-bold mt-0.5">{audioCall.isScreenSharing ? 'Sharing' : 'Share'}</span>
+                    <MonitorUp className={`w-5 h-5 ${audioCall.isScreenSharing ? 'text-white' : 'text-indigo-300'}`} />
                   </button>
                 )}
+
+                {/* Zoom Reactions Popover Trigger */}
+                <button
+                  onClick={() => setShowReactionPicker(!showReactionPicker)}
+                  className={`call-control-btn w-12 h-12 rounded-full flex items-center justify-center cursor-pointer transition-all ${
+                    showReactionPicker
+                      ? 'bg-amber-500/25 text-amber-300 border border-amber-400/60 shadow-[0_0_15px_rgba(245,158,11,0.3)]'
+                      : 'bg-slate-800/80 hover:bg-slate-700/90 text-amber-300 border border-slate-700/60'
+                  }`}
+                  title="Reactions (Emojis)"
+                >
+                  <Smile className="w-5 h-5" />
+                </button>
 
                 {/* Speaker Output Toggle */}
                 <button
                   onClick={() => setIsSpeakerOn(!isSpeakerOn)}
-                  className={`w-14 h-14 rounded-2xl flex flex-col items-center justify-center transition-all cursor-pointer ${
+                  className={`call-control-btn w-12 h-12 rounded-full flex items-center justify-center cursor-pointer transition-all ${
                     isSpeakerOn
-                      ? 'bg-slate-800/90 hover:bg-slate-700 text-blue-400 border border-slate-700/80 shadow-md'
+                      ? 'bg-slate-800/80 hover:bg-slate-700/90 text-blue-400 border border-slate-700/60'
                       : 'bg-slate-900 text-slate-500 border border-slate-800'
                   }`}
                   title="Toggle Speaker Output"
                 >
                   {isSpeakerOn ? <Volume2 className="w-5 h-5" /> : <VolumeX className="w-5 h-5 text-slate-500" />}
-                  <span className="text-[10px] font-bold mt-0.5">Speaker</span>
                 </button>
+
+                {/* Toggle In-Call Clinical Notes Drawer */}
+                <button
+                  onClick={() => setShowInCallNotes(!showInCallNotes)}
+                  className={`call-control-btn w-12 h-12 rounded-full flex items-center justify-center cursor-pointer transition-all ${
+                    showInCallNotes
+                      ? 'bg-indigo-600 text-white border border-indigo-400 shadow-md shadow-indigo-600/40'
+                      : 'bg-slate-800/80 hover:bg-slate-700/90 text-slate-300 border border-slate-700/60'
+                  }`}
+                  title="Clinical Notes & Scratchpad"
+                >
+                  <ClipboardList className="w-5 h-5" />
+                </button>
+
+                <div className="h-6 w-px bg-white/15 hidden sm:block mx-1" />
 
                 {/* End Call Button */}
                 <button
                   onClick={audioCall.endCall}
-                  className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-rose-600 via-rose-500 to-red-600 hover:from-rose-700 hover:to-red-700 text-white flex flex-col items-center justify-center shadow-xl shadow-rose-600/50 hover:scale-105 active:scale-95 transition-all cursor-pointer ring-2 ring-rose-400/30"
+                  className="px-5 sm:px-6 h-12 rounded-full bg-gradient-to-r from-rose-600 via-rose-500 to-red-600 hover:from-rose-700 hover:to-red-700 text-white flex items-center gap-2 shadow-xl shadow-rose-600/50 hover:scale-105 active:scale-95 transition-all cursor-pointer font-bold text-xs uppercase tracking-wider border border-rose-400/40"
                   title="End Teleconsultation"
                 >
-                  <PhoneOff className="w-6 h-6" />
-                  <span className="text-[10px] font-black mt-0.5">End</span>
+                  <PhoneOff className="w-5 h-5" />
+                  <span className="hidden sm:inline">End Call</span>
                 </button>
-              </>
+              </div>
             )}
 
             {/* CONNECTING / ACCEPTED State Action */}
