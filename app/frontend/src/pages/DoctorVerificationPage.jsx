@@ -77,18 +77,31 @@ export default function DoctorVerificationPage({ currentUser }) {
     setLoading(true);
     setErrorMsg(null);
     try {
-      const savedStatus = localStorage.getItem(`telemed_doctor_status_${doctorUserId}`);
-      if (savedStatus) {
-        setAppData(prev => ({ ...(prev || {}), verification_status: savedStatus }));
+      // 1. Fetch authoritative live status from backend API
+      const res = await fetchDoctorVerificationStatus().catch(() => null);
+      if (res?.application) {
+        setAppData(res.application);
+        const serverStatus = res.application.verification_status || res.verification_status;
+        if (serverStatus) {
+          try { localStorage.setItem(`telemed_doctor_status_${doctorUserId}`, serverStatus); } catch (e) {}
+        }
+      } else if (res?.verification_status) {
+        setAppData(prev => ({ ...(prev || {}), verification_status: res.verification_status }));
+        try { localStorage.setItem(`telemed_doctor_status_${doctorUserId}`, res.verification_status); } catch (e) {}
+      } else if (doctorProf.verification_status) {
+        setAppData(prev => ({ ...(prev || {}), verification_status: doctorProf.verification_status }));
+      } else {
+        const savedStatus = localStorage.getItem(`telemed_doctor_status_${doctorUserId}`);
+        if (savedStatus) {
+          setAppData(prev => ({ ...(prev || {}), verification_status: savedStatus }));
+        }
       }
 
-      // 1. Load from IndexedDB (High quota storage)
-      const vaultDocs = await getAllVaultDocuments(doctorUserId);
+      // 2. Load vault documents from IndexedDB
+      const vaultDocs = await getAllVaultDocuments(doctorUserId).catch(() => []);
       if (vaultDocs && vaultDocs.length > 0) {
         setCredentials(vaultDocs);
       } else {
-        const res = await fetchDoctorVerificationStatus().catch(() => null);
-        if (res?.application) setAppData(res.application);
         const savedMeta = localStorage.getItem(`telemed_doctor_creds_meta_${doctorUserId}`);
         if (savedMeta) {
           try { setCredentials(JSON.parse(savedMeta)); } catch (e) {}
@@ -99,10 +112,32 @@ export default function DoctorVerificationPage({ currentUser }) {
     } finally {
       setLoading(false);
     }
-  }, [doctorUserId]);
+  }, [doctorUserId, doctorProf.verification_status]);
 
   useEffect(() => {
     loadStatus();
+
+    const handleSync = () => loadStatus();
+    window.addEventListener('focus', handleSync);
+    window.addEventListener('storage', handleSync);
+    window.addEventListener('telemed:doctor-updated', handleSync);
+
+    let bc;
+    try {
+      bc = new BroadcastChannel('telemed_sync');
+      bc.onmessage = (e) => {
+        if (e.data?.type === 'DOCTOR_STATUS_UPDATED' || e.data?.type === 'DOCTOR_APPLICATION_SUBMITTED') {
+          loadStatus();
+        }
+      };
+    } catch (e) {}
+
+    return () => {
+      window.removeEventListener('focus', handleSync);
+      window.removeEventListener('storage', handleSync);
+      window.removeEventListener('telemed:doctor-updated', handleSync);
+      if (bc) bc.close();
+    };
   }, [loadStatus]);
 
   const readFileAsDataURL = (file) => {

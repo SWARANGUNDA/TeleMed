@@ -306,6 +306,18 @@ export default function AdminDoctorVerificationPage() {
       }
 
       await transitionDoctorStatus(docId, newStatus, transitionReason || (newStatus === 'VERIFIED' ? 'Credentials verified against official medical registry' : ''));
+      try {
+        localStorage.setItem(`telemed_doctor_status_${docId}`, newStatus);
+        if (selectedApp?.user_id) {
+          localStorage.setItem(`telemed_doctor_status_${selectedApp.user_id}`, newStatus);
+        }
+      } catch (e) {}
+      window.dispatchEvent(new Event('telemed:doctor-updated'));
+      try {
+        const bc = new BroadcastChannel('telemed_sync');
+        bc.postMessage({ type: 'DOCTOR_STATUS_UPDATED', doctorId: docId, status: newStatus });
+        bc.close();
+      } catch (e) {}
       alert(`Doctor Status Updated to ${newStatus.replace(/_/g, ' ')}`);
       setSelectedApp(null);
       await loadApplications();

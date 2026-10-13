@@ -356,7 +356,7 @@ def authenticate_user(email: str, password: str) -> Optional[Dict[str, Any]]:
         session.close()
 
 
-def create_auth_session(user_id: str, expiry_seconds: int = 86400) -> str:
+def create_auth_session(user_id: str, expiry_seconds: int = 86400 * 30) -> str:
     """Create a new session token for user in PostgreSQL 17."""
     token = f"tok_{secrets.token_hex(24)}"
     now_dt = datetime.datetime.now(datetime.timezone.utc)
@@ -515,8 +515,39 @@ def get_user_by_id(user_id: str) -> Optional[Dict[str, Any]]:
                 user_dict["full_name"] = email_clean.split("@")[0].replace(".", " ").replace("_", " ").title()
 
         elif role == "DOCTOR":
-            d = session.query(pg_models.DoctorProfile).filter_by(user_id=user_id).first()
-            if d:
+            d = session.query(pg_models.DoctorProfile).filter(
+                (pg_models.DoctorProfile.user_id == user_id) | (pg_models.DoctorProfile.doctor_id == user_id)
+            ).first()
+            if not d:
+                try:
+                    c_conn = get_db_connection()
+                    d_row = c_conn.execute("SELECT * FROM doctor_profiles WHERE user_id = ? OR doctor_id = ?", (user_id, user_id)).fetchone()
+                    if d_row:
+                        d_dict = dict(d_row)
+                        user_dict["doctor_profile"] = {
+                            "doctor_id": d_dict.get("doctor_id"),
+                            "user_id": d_dict.get("user_id"),
+                            "full_name": d_dict.get("full_name"),
+                            "specialization": d_dict.get("specialization"),
+                            "qualification": d_dict.get("qualification"),
+                            "registration_number": d_dict.get("registration_number"),
+                            "registration_council": d_dict.get("registration_council"),
+                            "experience_years": d_dict.get("experience_years"),
+                            "contact_number": d_dict.get("contact_number"),
+                            "hospital_affiliation": d_dict.get("hospital_affiliation"),
+                            "verification_status": d_dict.get("verification_status", "PENDING"),
+                            "credential_notes": d_dict.get("credential_notes"),
+                            "created_at": d_dict.get("created_at")
+                        }
+                        user_dict["full_name"] = (d_dict.get("full_name", "").strip() or email_clean.split("@")[0].replace(".", " ").replace("_", " ").title())
+                    else:
+                        user_dict["doctor_profile"] = None
+                        user_dict["full_name"] = email_clean.split("@")[0].replace(".", " ").replace("_", " ").title()
+                    c_conn.close()
+                except Exception:
+                    user_dict["doctor_profile"] = None
+                    user_dict["full_name"] = email_clean.split("@")[0].replace(".", " ").replace("_", " ").title()
+            else:
                 user_dict["doctor_profile"] = {
                     "doctor_id": d.doctor_id,
                     "user_id": d.user_id,
@@ -533,9 +564,6 @@ def get_user_by_id(user_id: str) -> Optional[Dict[str, Any]]:
                     "created_at": d.created_at
                 }
                 user_dict["full_name"] = (d.full_name.strip() if d.full_name and d.full_name.strip() else email_clean.split("@")[0].replace(".", " ").replace("_", " ").title())
-            else:
-                user_dict["doctor_profile"] = None
-                user_dict["full_name"] = email_clean.split("@")[0].replace(".", " ").replace("_", " ").title()
         else:
             user_dict["full_name"] = email_clean.split("@")[0].replace(".", " ").replace("_", " ").title()
 
@@ -1809,9 +1837,20 @@ def update_doctor_verification_status(
                     reason=reason_clean,
                     timestamp=now
                 )
-                session.add(audit)
                 session.commit()
-                logger.info("Admin %s updated doctor %s verification status to %s in PostgreSQL", admin_user_id, doc.doctor_id, new_status_clean)
+                try:
+                    c_conn = get_db_connection()
+                    with c_conn:
+                        c_conn.execute("""
+                            UPDATE doctor_profiles SET
+                                verification_status = ?,
+                                credential_notes = ?
+                            WHERE doctor_id = ? OR user_id = ?
+                        """, (new_status_clean, reason_clean, doc.doctor_id, doc.user_id))
+                    c_conn.close()
+                except Exception:
+                    pass
+                logger.info("Admin %s updated doctor %s verification status to %s", admin_user_id, doc.doctor_id, new_status_clean)
                 return get_doctor_application_detail(doc.doctor_id)
         finally:
             session.close()
@@ -1822,17 +1861,18 @@ def update_doctor_verification_status(
 
     conn = get_db_connection()
     try:
-        cursor = conn.execute("SELECT doctor_id, user_id, verification_status FROM doctor_profiles WHERE doctor_id = ?", (doctor_id,))
+        cursor = conn.execute("SELECT doctor_id, user_id, verification_status FROM doctor_profiles WHERE doctor_id = ? OR user_id = ?", (doctor_id, doctor_id))
         doc_row = cursor.fetchone()
         if not doc_row:
             raise ValueError(f"Doctor application '{doctor_id}' not found.")
 
+        target_doctor_id = doc_row["doctor_id"]
         user_id = doc_row["user_id"]
         current_status = doc_row["verification_status"]
 
         if current_status == new_status_clean:
-            logger.info("Doctor %s is already in status %s (idempotent request)", doctor_id, new_status_clean)
-            return get_doctor_application_detail(doctor_id)
+            logger.info("Doctor %s is already in status %s (idempotent request)", target_doctor_id, new_status_clean)
+            return get_doctor_application_detail(target_doctor_id)
 
         allowed = ALLOWED_DOCTOR_STATUS_TRANSITIONS.get(current_status, set())
         if new_status_clean not in allowed:
@@ -1848,8 +1888,8 @@ def update_doctor_verification_status(
                 UPDATE doctor_profiles SET
                     verification_status = ?,
                     credential_notes = ?
-                WHERE doctor_id = ?
-            """, (new_status_clean, reason_clean, doctor_id))
+                WHERE doctor_id = ? OR user_id = ?
+            """, (new_status_clean, reason_clean, target_doctor_id, user_id))
 
             # Audit log
             log_id = f"aud_{secrets.token_hex(6)}"
@@ -1857,10 +1897,10 @@ def update_doctor_verification_status(
                 INSERT INTO doctor_audit_logs (
                     log_id, doctor_id, user_id, action, old_status, new_status, actor_user_id, actor_role, reason, timestamp
                 ) VALUES (?, ?, ?, 'STATUS_CHANGED', ?, ?, ?, 'ADMIN', ?, ?)
-            """, (log_id, doctor_id, user_id, current_status, new_status_clean, admin_user_id, reason_clean, now))
+            """, (log_id, target_doctor_id, user_id, current_status, new_status_clean, admin_user_id, reason_clean, now))
 
-        logger.info("Admin %s updated doctor %s verification status to %s in SQLite", admin_user_id, doctor_id, new_status_clean)
-        return get_doctor_application_detail(doctor_id)
+        logger.info("Admin %s updated doctor %s verification status to %s in SQLite", admin_user_id, target_doctor_id, new_status_clean)
+        return get_doctor_application_detail(target_doctor_id)
     finally:
         conn.close()
 

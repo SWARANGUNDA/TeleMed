@@ -218,18 +218,18 @@ export default function App() {
   // Check active user session on startup & trigger silent backend warmup
   useEffect(() => {
     async function initApp() {
-      const online = await warmupBackend();
-      if (online) {
-        try {
-          const user = await getCurrentUser();
-          if (user) {
-            setCurrentUser(user);
-          }
-        } catch (e) {
-          setCurrentUser(null);
+      // Fire non-blocking backend warmup ping
+      warmupBackend().catch(() => {});
+      try {
+        const user = await getCurrentUser();
+        if (user) {
+          setCurrentUser(user);
         }
+      } catch (e) {
+        // Keep auth checking completed
+      } finally {
+        setAuthChecking(false);
       }
-      setAuthChecking(false);
     }
     initApp();
   }, []);
@@ -366,7 +366,10 @@ export default function App() {
     const data = await loginUser(email, password, role);
     const user = data.user || data;
     if (data.refresh_token) {
-      try { sessionStorage.setItem('telemed_refresh_token', data.refresh_token); } catch (e) {}
+      try {
+        sessionStorage.setItem('telemed_refresh_token', data.refresh_token);
+        localStorage.setItem('telemed_refresh_token', data.refresh_token);
+      } catch (e) {}
     }
     handleLoginSuccess(user);
     return user;
@@ -387,6 +390,8 @@ export default function App() {
     try {
       sessionStorage.clear();
       localStorage.removeItem('telemed_token');
+      localStorage.removeItem('telemed_auth_token');
+      localStorage.removeItem('telemed_refresh_token');
       localStorage.removeItem('telemed_user');
     } catch (e) {}
     navigate('/');

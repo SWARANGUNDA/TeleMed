@@ -37,7 +37,7 @@ export default function Sidebar({
       { key: 'account', label: 'Patient Profile', icon: UserCheck, nav: 'account', subNav: 'settings' }
     ];
   } else if (role === 'DOCTOR') {
-    const docStatus = user?.doctor_profile?.verification_status || 'PENDING';
+    const docStatus = user?.doctor_profile?.verification_status || (user?.user_id ? localStorage.getItem(`telemed_doctor_status_${user.user_id}`) : null) || 'PENDING';
     primaryItems = [
       { key: 'dashboard', label: 'Doctor Dashboard', icon: LayoutDashboard, nav: 'dashboard', subNav: '' },
       { key: 'verification', label: 'Verification Status', icon: Clock, nav: 'verification', subNav: '', badge: docStatus },

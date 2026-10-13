@@ -102,14 +102,21 @@ export default function AdminDashboardPage({ onNavigate }) {
 
   const handleDoctorStatusChange = async (docId, newStatus) => {
     try {
-      await updateDoctorVerificationStatus(docId, newStatus).catch(() => null);
+      await updateDoctorVerificationStatus(docId, newStatus);
       setSuccessNotice(`Doctor credential application '${docId}' status set to ${newStatus}.`);
-      setPendingDoctors(prev => prev.map(d => d && (d.id === docId || d.doctor_id === docId) ? { ...d, status: newStatus } : d));
+      setPendingDoctors(prev => prev.map(d => d && (d.id === docId || d.doctor_id === docId || d.user_id === docId) ? { ...d, status: newStatus, verification_status: newStatus } : d));
       setTimeout(() => setSuccessNotice(null), 5000);
+      try {
+        localStorage.setItem(`telemed_doctor_status_${docId}`, newStatus);
+      } catch (e) {}
+      window.dispatchEvent(new Event('telemed:doctor-updated'));
+      try {
+        const bc = new BroadcastChannel('telemed_sync');
+        bc.postMessage({ type: 'DOCTOR_STATUS_UPDATED', doctorId: docId, status: newStatus });
+        bc.close();
+      } catch (e) {}
     } catch (err) {
-      setSuccessNotice(`Doctor credential application updated to ${newStatus}.`);
-      setPendingDoctors(prev => prev.map(d => d && (d.id === docId || d.doctor_id === docId) ? { ...d, status: newStatus } : d));
-      setTimeout(() => setSuccessNotice(null), 5000);
+      alert(`Failed to update doctor status: ${err.message || 'Unknown error'}`);
     }
   };
 

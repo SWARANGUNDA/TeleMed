@@ -81,6 +81,21 @@ export function getWsBaseUrl() {
   return 'wss://telemed-3koh.onrender.com';
 }
 
+export function getRefreshToken() {
+  try {
+    let token = '';
+    if (typeof sessionStorage !== 'undefined') {
+      token = sessionStorage.getItem('telemed_refresh_token') || '';
+    }
+    if (!token && typeof localStorage !== 'undefined') {
+      token = localStorage.getItem('telemed_refresh_token') || '';
+    }
+    return token || '';
+  } catch (e) {
+    return '';
+  }
+}
+
 export function getAuthToken() {
   let token = _inMemoryAccessToken;
   if (!token) {
@@ -99,7 +114,7 @@ export function getAuthToken() {
       if (parts.length === 3) {
         const payload = JSON.parse(atob(parts[1]));
         if (payload.exp && payload.exp * 1000 < Date.now()) {
-          setAuthToken(null);
+          // Token is expired. If refresh token is available, don't purge; return empty string to trigger silent refresh.
           return '';
         }
       }
@@ -108,14 +123,24 @@ export function getAuthToken() {
   return token || '';
 }
 
-export function setAuthToken(token) {
+export function setAuthToken(token, refreshToken = null) {
   _inMemoryAccessToken = token || '';
   try {
     if (token) {
-      sessionStorage.setItem('telemed_auth_token', token);
+      if (typeof sessionStorage !== 'undefined') sessionStorage.setItem('telemed_auth_token', token);
+      if (typeof localStorage !== 'undefined') localStorage.setItem('telemed_auth_token', token);
     } else {
-      localStorage.removeItem('telemed_auth_token');
-      sessionStorage.removeItem('telemed_auth_token');
+      if (typeof sessionStorage !== 'undefined') sessionStorage.removeItem('telemed_auth_token');
+      if (typeof localStorage !== 'undefined') localStorage.removeItem('telemed_auth_token');
+    }
+    if (refreshToken !== null) {
+      if (refreshToken) {
+        if (typeof sessionStorage !== 'undefined') sessionStorage.setItem('telemed_refresh_token', refreshToken);
+        if (typeof localStorage !== 'undefined') localStorage.setItem('telemed_refresh_token', refreshToken);
+      } else {
+        if (typeof sessionStorage !== 'undefined') sessionStorage.removeItem('telemed_refresh_token');
+        if (typeof localStorage !== 'undefined') localStorage.removeItem('telemed_refresh_token');
+      }
     }
   } catch (e) {}
 }
@@ -184,26 +209,31 @@ export async function handleApiResponse(res, fallbackMsg = 'Request failed', _re
   if (res.status === 401) {
     const isAuthRoute = res.url && (res.url.includes('/auth/login') || res.url.includes('/auth/register') || res.url.includes('/auth/google') || res.url.includes('/auth/refresh'));
 
-    setAuthToken(null);
     if (!isAuthRoute && typeof window !== 'undefined' && !window._telemedSessionExpired) {
-      // Attempt one silent token refresh before clearing session
+      // Attempt silent token refresh before clearing session
       try {
         if (!window._telemedRefreshingPromise) {
           window._telemedRefreshingPromise = refreshToken().finally(() => { window._telemedRefreshingPromise = null; });
         }
         const refreshResult = await window._telemedRefreshingPromise;
         if (refreshResult && (refreshResult.access_token || refreshResult.token)) {
-          // Refresh succeeded — don't clear session, just throw a retryable error
+          // Refresh succeeded — session preserved
           throw new Error('Token refreshed. Please retry your action.');
         }
       } catch (refreshErr) {
         if (refreshErr.message === 'Token refreshed. Please retry your action.') throw refreshErr;
       }
+      // Refresh genuinely failed -> clear tokens and notify
+      setAuthToken(null, null);
       window._telemedSessionExpired = true;
       window.dispatchEvent(new CustomEvent('telemed:session-expired', { detail }));
       throw new Error('Session expired. Please log in again.');
     }
-    throw new Error(detail || 'Invalid email address or password.');
+    if (isAuthRoute) {
+      throw new Error(detail || 'Invalid email address or password.');
+    }
+    setAuthToken(null, null);
+    throw new Error(detail || 'Unauthorized.');
   }
   if (res.status === 429) {
     const retryAfter = res.headers?.get ? (res.headers.get('Retry-After') || '60') : '60';
@@ -258,8 +288,7 @@ export function withSubmitGuard(key, fn) {
 
 export async function refreshToken(tokenParam = null) {
   try {
-    const token = tokenParam || (typeof sessionStorage !== 'undefined' ? sessionStorage.getItem('telemed_refresh_token') || '' : '');
-    // If no refresh token exists, do not fire an unauthorized request that triggers a 401 console error
+    const token = tokenParam || getRefreshToken();
     if (!token) {
       return null;
     }
@@ -269,21 +298,19 @@ export async function refreshToken(tokenParam = null) {
       headers: { 'Content-Type': 'application/json' },
       body: bodyPayload,
       credentials: 'include',
-    }, 4000);
+    }, 8000);
     if (!res.ok) {
-      if (res.status === 401 && typeof sessionStorage !== 'undefined') {
-        try { sessionStorage.removeItem('telemed_refresh_token'); } catch (e) {}
-        try { localStorage.removeItem('telemed_refresh_token'); } catch (e) {}
+      if (res.status === 401) {
+        setAuthToken(null, null);
       }
       return null;
     }
     const data = await parseJsonSafely(res);
     if (!data) return null;
-    if (data.access_token || data.token) {
-      setAuthToken(data.access_token || data.token);
-    }
-    if (data.refresh_token && typeof sessionStorage !== 'undefined') {
-      try { sessionStorage.setItem('telemed_refresh_token', data.refresh_token); } catch (e) {}
+    const newAccess = data.access_token || data.token || '';
+    const newRefresh = data.refresh_token || token;
+    if (newAccess) {
+      setAuthToken(newAccess, newRefresh);
     }
     return data;
   } catch (e) {
@@ -303,7 +330,7 @@ export async function loginUser(email, password, portalRole = null) {
   });
   const data = await handleApiResponse(res, 'Invalid email address or password.');
   if (data.access_token || data.token) {
-    setAuthToken(data.access_token || data.token);
+    setAuthToken(data.access_token || data.token, data.refresh_token || null);
   }
   return data;
 }
@@ -317,7 +344,7 @@ export async function loginWithGoogle(payload) {
   });
   const data = await handleApiResponse(res, 'Google Single Sign-On failed.');
   if (data.access_token || data.token) {
-    setAuthToken(data.access_token || data.token);
+    setAuthToken(data.access_token || data.token, data.refresh_token || null);
   }
   return data;
 }
@@ -331,7 +358,7 @@ export async function registerPatient(payload) {
   });
   const data = await handleApiResponse(res, 'An account with this email address already exists.');
   if (data.access_token || data.token) {
-    setAuthToken(data.access_token || data.token);
+    setAuthToken(data.access_token || data.token, data.refresh_token || null);
   }
   return data;
 }
@@ -345,7 +372,7 @@ export async function registerDoctor(payload) {
   });
   const data = await handleApiResponse(res, 'An account with this email address already exists.');
   if (data.access_token || data.token) {
-    setAuthToken(data.access_token || data.token);
+    setAuthToken(data.access_token || data.token, data.refresh_token || null);
   }
   return data;
 }
@@ -358,13 +385,13 @@ export async function logoutUser() {
       credentials: 'include',
     }, 2500);
   } catch (e) {}
-  setAuthToken(null);
+  setAuthToken(null, null);
 }
 
 export async function getCurrentUser() {
   try {
     let token = getAuthToken();
-    const storedRefresh = typeof sessionStorage !== 'undefined' ? sessionStorage.getItem('telemed_refresh_token') || '' : '';
+    const storedRefresh = getRefreshToken();
     if (!token) {
       if (!storedRefresh) {
         return null;
@@ -376,7 +403,7 @@ export async function getCurrentUser() {
     const res = await fetchWithTimeout(`${API_BASE}/auth/me`, {
       headers: getAuthHeaders(),
       credentials: 'include',
-    }, 3500);
+    }, 8000);
     if (!res.ok) {
       if (res.status === 401 && storedRefresh) {
         const refreshRes = await refreshToken();
@@ -384,14 +411,16 @@ export async function getCurrentUser() {
           const retryRes = await fetchWithTimeout(`${API_BASE}/auth/me`, {
             headers: getAuthHeaders(),
             credentials: 'include',
-          }, 3500);
+          }, 8000);
           if (retryRes.ok) {
             const retryData = await parseJsonSafely(retryRes);
             return retryData?.user || null;
           }
         }
+        setAuthToken(null, null);
+        return null;
       }
-      setAuthToken(null);
+      // On non-401 errors (500/503/timeout), do not wipe out tokens
       return null;
     }
     const data = await parseJsonSafely(res);

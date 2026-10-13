@@ -23,7 +23,7 @@ export default function TopNavigation({
   setThemeMode
 }) {
   const role = user?.role || 'PATIENT';
-  const docStatus = user?.doctor_profile?.verification_status || 'PENDING';
+  const docStatus = user?.doctor_profile?.verification_status || (user?.user_id ? localStorage.getItem(`telemed_doctor_status_${user.user_id}`) : null) || 'PENDING';
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showHealthMenu, setShowHealthMenu] = useState(false);

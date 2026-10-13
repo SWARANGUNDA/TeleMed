@@ -31,8 +31,8 @@ class Settings(BaseSettings):
     JWT_ALGORITHM: str = "HS256"
     JWT_ISSUER: str = "telemed.ai"
     JWT_AUDIENCE: str = "telemed_app"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = int(os.getenv("TELEMED_ACCESS_TOKEN_EXPIRE_MINUTES", "15"))
-    REFRESH_TOKEN_EXPIRE_DAYS: int = int(os.getenv("TELEMED_REFRESH_TOKEN_EXPIRE_DAYS", "7"))
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = int(os.getenv("TELEMED_ACCESS_TOKEN_EXPIRE_MINUTES", os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "10080")))  # 7 days default
+    REFRESH_TOKEN_EXPIRE_DAYS: int = int(os.getenv("TELEMED_REFRESH_TOKEN_EXPIRE_DAYS", os.getenv("REFRESH_TOKEN_EXPIRE_DAYS", "60")))  # 60 days default
 
     model_config = SettingsConfigDict(
         env_file=str(BASE_DIR / ".env"),
