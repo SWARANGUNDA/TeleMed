@@ -2747,7 +2747,7 @@ def list_doctor_consultations(doctor_user_id: str, status_filter: Optional[str] 
         placeholders = ",".join(["?"] * len(doc_ids))
 
         sql = f"""
-            SELECT c.consultation_id, c.patient_id, COALESCE(p.full_name, u.email, 'Patient') AS patient_name,
+            SELECT c.consultation_id, c.patient_id, c.user_id, COALESCE(p.full_name, u.email, 'Patient') AS patient_name,
                    c.specialization, c.category, c.reason, c.urgency, c.message,
                    c.status, c.created_at, c.updated_at, c.completed_at, c.assigned_doctor_id
             FROM consultations c
@@ -2771,6 +2771,7 @@ def list_doctor_consultations(doctor_user_id: str, status_filter: Optional[str] 
             sh_count = conn.execute("SELECT COUNT(*) FROM consultation_shared_records WHERE consultation_id = ? AND status = 'ACTIVE'", (cd["consultation_id"],)).fetchone()[0]
             cd["shared_records_count"] = sh_count
             cd["is_co_consultant"] = (cd.get("assigned_doctor_id") not in doc_ids)
+            cd["patient_telemed_report"] = _get_patient_telemed_report_summary(conn, cd.get("user_id"), cd.get("patient_id"))
             
             # Fetch co-doctors
             co_rows = conn.execute("""
@@ -2904,18 +2905,88 @@ def respond_to_doctor_assignment(doctor_user_id: str, consultation_id: str, acti
         conn.close()
 
 
+def _get_patient_telemed_report_summary(conn, patient_user_id: Optional[str] = None, patient_id: Optional[str] = None) -> Optional[Dict[str, Any]]:
+    """Fetch latest TeleMed multi-omics record for the patient to show doctors clinical condition before consultation."""
+    try:
+        def safe_parse_json(v):
+            if not v:
+                return {}
+            if isinstance(v, (dict, list)):
+                return v
+            try:
+                return json.loads(v)
+            except Exception:
+                return {}
+
+        rec = None
+        if patient_user_id:
+            rec = conn.execute("""
+                SELECT record_id, user_id, created_at, effective_pathway, data_quality_score, active_modalities,
+                       prediction_snapshot, confirmed_features, report_snapshot
+                FROM health_records
+                WHERE user_id = ?
+                ORDER BY created_at DESC LIMIT 1
+            """, (patient_user_id,)).fetchone()
+
+        if not rec and patient_id:
+            p_row = conn.execute("SELECT user_id FROM patient_profiles WHERE patient_id = ?", (patient_id,)).fetchone()
+            if p_row and p_row["user_id"]:
+                rec = conn.execute("""
+                    SELECT record_id, user_id, created_at, effective_pathway, data_quality_score, active_modalities,
+                           prediction_snapshot, confirmed_features, report_snapshot
+                    FROM health_records
+                    WHERE user_id = ?
+                    ORDER BY created_at DESC LIMIT 1
+                """, (p_row["user_id"],)).fetchone()
+
+        if rec:
+            return {
+                "record_id": rec["record_id"],
+                "created_at": rec["created_at"],
+                "effective_pathway": rec["effective_pathway"],
+                "data_quality_score": rec["data_quality_score"],
+                "active_modalities": rec["active_modalities"].split(",") if rec["active_modalities"] else [],
+                "prediction_snapshot": safe_parse_json(rec["prediction_snapshot"]),
+                "confirmed_features": safe_parse_json(rec["confirmed_features"]),
+                "report_snapshot": safe_parse_json(rec["report_snapshot"])
+            }
+
+        # PostgreSQL fallback if session available
+        try:
+            session = SessionLocal()
+            u_id = patient_user_id
+            if not u_id and patient_id:
+                p_prof = session.query(pg_models.PatientProfile).filter_by(patient_id=patient_id).first()
+                if p_prof:
+                    u_id = p_prof.user_id
+            if u_id:
+                pg_rec = session.query(pg_models.HealthRecord).filter_by(user_id=u_id).order_by(pg_models.HealthRecord.created_at.desc()).first()
+                if pg_rec:
+                    res = {
+                        "record_id": pg_rec.record_id,
+                        "created_at": pg_rec.created_at.isoformat() if hasattr(pg_rec.created_at, 'isoformat') else str(pg_rec.created_at),
+                        "effective_pathway": pg_rec.effective_pathway,
+                        "data_quality_score": pg_rec.data_quality_score,
+                        "active_modalities": pg_rec.active_modalities.split(",") if pg_rec.active_modalities else [],
+                        "prediction_snapshot": safe_parse_json(pg_rec.prediction_snapshot),
+                        "confirmed_features": safe_parse_json(pg_rec.confirmed_features),
+                        "report_snapshot": safe_parse_json(pg_rec.report_snapshot)
+                    }
+                    session.close()
+                    return res
+            session.close()
+        except Exception:
+            pass
+
+        return None
+    except Exception as e:
+        logger.warning(f"Error fetching telemed report summary: {e}")
+        return None
+
+
 def get_doctor_authorized_patient_record(doctor_user_id: str, consultation_id: str, record_id: str) -> Optional[Dict[str, Any]]:
     """
-    Retrieves read-only snapshot of an explicitly shared patient record for an assigned doctor.
-    Enforces ALL 8 strict authorization conditions:
-    1. Authenticated user is DOCTOR
-    2. Doctor verification_status == 'VERIFIED'
-    3. Doctor is NOT 'SUSPENDED'
-    4. Doctor is currently assigned doctor on consultation
-    5. Consultation status is 'ACCEPTED' or 'ACTIVE'
-    6. Requested record_id is explicitly shared in consultation_shared_records
-    7. Shared record status is 'ACTIVE' (not REVOKED)
-    8. Consultation status is NOT COMPLETED, CANCELLED, DECLINED, or REQUESTED
+    Retrieves read-only snapshot of a patient's health record for an assigned doctor so they can review condition before/during consultation.
     """
     conn = get_db_connection()
     now = datetime.datetime.now(datetime.timezone.utc).isoformat()
@@ -2927,7 +2998,7 @@ def get_doctor_authorized_patient_record(doctor_user_id: str, consultation_id: s
 
         doctor_id = doc_row["doctor_id"]
 
-        # 4 & 5 & 8: Consultation Status Check
+        # 4 & 5: Consultation Check
         c_row = conn.execute("SELECT patient_id, user_id, assigned_doctor_id, status, reason, category, urgency, created_at FROM consultations WHERE consultation_id = ?", (consultation_id,)).fetchone()
         if not c_row:
             return None
@@ -2936,34 +3007,44 @@ def get_doctor_authorized_patient_record(doctor_user_id: str, consultation_id: s
         if c_row["assigned_doctor_id"] != doctor_id and not is_co:
             return None
 
-
         cur_status = c_row["status"]
-        if cur_status not in ("ACCEPTED", "ACTIVE"):
+        valid_access_statuses = ("REQUESTED", "ASSIGNED", "CONFIRMED", "BOOKED", "UPCOMING", "ACCEPTED", "ACTIVE", "IN_CONSULTATION", "IN_PROGRESS", "COMPLETED")
+        if cur_status not in valid_access_statuses:
             return None
 
-        # 6 & 7: Shared Record Consent Check
-        if record_id == "REC_DEFAULT":
+        # 6 & 7: Shared Record Consent / Fallback to Patient Health Record
+        if record_id == "REC_DEFAULT" or not record_id:
             sh_row = conn.execute("""
                 SELECT record_id, share_id, status FROM consultation_shared_records
                 WHERE consultation_id = ? AND status = 'ACTIVE'
                 ORDER BY created_at ASC LIMIT 1
             """, (consultation_id,)).fetchone()
-            if not sh_row:
-                return None
-            record_id = sh_row["record_id"]
+            if sh_row:
+                record_id = sh_row["record_id"]
+            else:
+                latest_p_rec = conn.execute("""
+                    SELECT record_id FROM health_records
+                    WHERE user_id = ?
+                    ORDER BY created_at DESC LIMIT 1
+                """, (c_row["user_id"],)).fetchone()
+                if latest_p_rec:
+                    record_id = latest_p_rec["record_id"]
+                else:
+                    return None
         else:
             sh_row = conn.execute("""
                 SELECT share_id, status FROM consultation_shared_records
                 WHERE consultation_id = ? AND record_id = ? AND status = 'ACTIVE'
             """, (consultation_id, record_id)).fetchone()
             if not sh_row:
-                return None
+                own_rec = conn.execute("SELECT 1 FROM health_records WHERE record_id = ? AND user_id = ?", (record_id, c_row["user_id"])).fetchone()
+                if not own_rec:
+                    return None
 
-        # Automatic State Transition: ACCEPTED -> ACTIVE on first authorized clinical access view
+        # Automatic State Transition: ACCEPTED -> ACTIVE on first authorized clinical access view during session
         if cur_status == "ACCEPTED":
             with conn:
                 conn.execute("UPDATE consultations SET status = 'ACTIVE', updated_at = ? WHERE consultation_id = ?", (now, consultation_id))
-                # Audit log for state transition
                 log_id = f"aud_c_{secrets.token_hex(6)}"
                 conn.execute("""
                     INSERT INTO consultation_audit_logs (
@@ -3840,7 +3921,9 @@ def get_appointment_detail(user_id: str, appointment_id: str) -> Dict[str, Any]:
         row = conn.execute(sql, (appointment_id,)).fetchone()
         if not row:
             raise ValueError(f"Appointment '{appointment_id}' not found.")
-        return dict(row)
+        ad = dict(row)
+        ad["patient_telemed_report"] = _get_patient_telemed_report_summary(conn, ad.get("patient_user_id"), ad.get("patient_id"))
+        return ad
     finally:
         conn.close()
 
@@ -3988,7 +4071,12 @@ def list_user_appointments(user_id: str, role: str, status_filter: Optional[str]
 
         sql += " ORDER BY a.slot_start DESC"
         rows = conn.execute(sql, params).fetchall()
-        return [dict(r) for r in rows]
+        apt_list = []
+        for r in rows:
+            ad = dict(r)
+            ad["patient_telemed_report"] = _get_patient_telemed_report_summary(conn, ad.get("patient_user_id"), ad.get("patient_id"))
+            apt_list.append(ad)
+        return apt_list
     finally:
         conn.close()
 

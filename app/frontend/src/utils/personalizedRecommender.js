@@ -144,16 +144,17 @@ export function generatePersonalizedRecommendations(rawPredictionData, userProfi
     if (delta > 0) {
       driverEvaluations.push({
         id: 'glucose',
-        name: 'Fasting Blood Glucose',
-        domain: 'Glycemic',
+        name: 'Morning Blood Sugar',
+        clinicalName: 'Fasting Blood Glucose',
+        domain: 'Blood Sugar',
         measured: `${glucose} mg/dL`,
         val: glucose,
         target: '< 100 mg/dL',
         deviationScore: delta / 99,
-        deltaStr: `+${delta} mg/dL elevated`,
+        deltaStr: `+${delta} mg/dL above normal`,
         isAbnormal: true,
         priority: glucose >= 126 ? 'URGENT' : 'HIGH',
-        status: glucose >= 126 ? 'Elevated Diabetes Range' : 'Impaired Fasting Glucose'
+        status: glucose >= 126 ? 'Elevated Diabetes Range' : 'Slightly Above Normal'
       });
     }
   }
@@ -163,16 +164,17 @@ export function generatePersonalizedRecommendations(rawPredictionData, userProfi
     if (delta > 0) {
       driverEvaluations.push({
         id: 'hba1c',
-        name: 'Glycated Hemoglobin (HbA1c)',
-        domain: 'Glycemic',
+        name: '3-Month Blood Sugar (HbA1c)',
+        clinicalName: 'Glycated Hemoglobin (HbA1c)',
+        domain: 'Blood Sugar',
         measured: `${hba1c}%`,
         val: hba1c,
         target: '< 5.7%',
         deviationScore: delta / 5.6,
-        deltaStr: `+${delta}% elevated`,
+        deltaStr: `+${delta}% above target`,
         isAbnormal: true,
         priority: hba1c >= 6.5 ? 'URGENT' : 'HIGH',
-        status: hba1c >= 6.5 ? 'Clinical Diabetes' : 'Prediabetes Corridor'
+        status: hba1c >= 6.5 ? 'Clinical Diabetes' : 'Prediabetes Range'
       });
     }
   }
@@ -182,16 +184,17 @@ export function generatePersonalizedRecommendations(rawPredictionData, userProfi
     if (delta > 0) {
       driverEvaluations.push({
         id: 'bp',
-        name: 'Vascular Blood Pressure',
-        domain: 'Cardiovascular',
+        name: 'Blood Pressure',
+        clinicalName: 'Vascular Blood Pressure',
+        domain: 'Heart Health',
         measured: `${sysBp}/${diaBp || 80} mmHg`,
         val: sysBp,
         target: '< 120/80 mmHg',
         deviationScore: delta / 119,
-        deltaStr: `+${delta} mmHg systolic above normal`,
+        deltaStr: `+${delta} mmHg above normal`,
         isAbnormal: true,
         priority: sysBp >= 140 ? 'URGENT' : 'HIGH',
-        status: sysBp >= 140 ? 'Stage 2 Hypertension' : (sysBp >= 130 ? 'Stage 1 Hypertension' : 'Elevated Blood Pressure')
+        status: sysBp >= 140 ? 'Stage 2 Hypertension' : (sysBp >= 130 ? 'Stage 1 Hypertension' : 'Slightly Elevated')
       });
     }
   }
@@ -202,16 +205,17 @@ export function generatePersonalizedRecommendations(rawPredictionData, userProfi
       const deficit = Number((targetAkk - akkermansia).toFixed(2));
       driverEvaluations.push({
         id: 'akkermansia',
-        name: 'Akkermansia muciniphila Abundance',
-        domain: 'Microbiome',
+        name: 'Healthy Gut Bacteria',
+        clinicalName: 'Akkermansia muciniphila',
+        domain: 'Gut Health',
         measured: `${akkermansia}%`,
         val: akkermansia,
-        target: '> 1.20% relative abundance',
+        target: '> 1.20% in gut',
         deviationScore: deficit / targetAkk,
-        deltaStr: `-${Math.round((deficit / targetAkk) * 100)}% mucosal deficit`,
+        deltaStr: `-${Math.round((deficit / targetAkk) * 100)}% below healthy level`,
         isAbnormal: true,
         priority: akkermansia < 0.5 ? 'HIGH' : 'MODERATE',
-        status: akkermansia < 0.5 ? 'Severe Mucosal Depletion' : 'Suboptimal Abundance'
+        status: akkermansia < 0.5 ? 'Low Gut Bacteria' : 'Slightly Below Target'
       });
     }
   }
@@ -222,8 +226,9 @@ export function generatePersonalizedRecommendations(rawPredictionData, userProfi
       const deficit = targetSteps - steps;
       driverEvaluations.push({
         id: 'steps',
-        name: 'Daily Ambulation Cadence',
-        domain: 'Wearable Telemetry',
+        name: 'Daily Steps Walked',
+        clinicalName: 'Daily Ambulation Cadence',
+        domain: 'Daily Movement',
         measured: `${Math.round(steps).toLocaleString()} steps/day`,
         val: steps,
         target: '≥ 8,500 steps/day',
@@ -231,7 +236,7 @@ export function generatePersonalizedRecommendations(rawPredictionData, userProfi
         deltaStr: `-${deficit.toLocaleString()} steps below target`,
         isAbnormal: true,
         priority: steps < 5000 ? 'HIGH' : 'MODERATE',
-        status: steps < 5000 ? 'Sedentary Threshold' : 'Moderate Activity'
+        status: steps < 5000 ? 'Low Daily Activity' : 'Moderate Activity'
       });
     }
   }
@@ -242,8 +247,9 @@ export function generatePersonalizedRecommendations(rawPredictionData, userProfi
       const deficit = Number((targetSleep - sleepHours).toFixed(1));
       driverEvaluations.push({
         id: 'sleep',
-        name: 'Nocturnal Sleep Duration',
-        domain: 'Circadian Rest',
+        name: 'Nightly Sleep Time',
+        clinicalName: 'Nocturnal Sleep Duration',
+        domain: 'Sleep & Rest',
         measured: `${sleepHours} hrs/night`,
         val: sleepHours,
         target: '7.0–8.5 hrs/night',
@@ -251,7 +257,7 @@ export function generatePersonalizedRecommendations(rawPredictionData, userProfi
         deltaStr: `-${deficit} hrs sleep deficit`,
         isAbnormal: true,
         priority: sleepHours < 6.0 ? 'HIGH' : 'MODERATE',
-        status: sleepHours < 6.0 ? 'Short Sleep Duration' : 'Mild Sleep Restriction'
+        status: sleepHours < 6.0 ? 'Short Sleep Duration' : 'Mild Sleep Deficit'
       });
     }
   }
@@ -260,16 +266,17 @@ export function generatePersonalizedRecommendations(rawPredictionData, userProfi
     const deficit = 35 - hrv;
     driverEvaluations.push({
       id: 'hrv',
-      name: 'Heart Rate Variability (RMSSD)',
-      domain: 'Autonomic Tone',
+      name: 'Heart Stress Recovery (HRV)',
+      clinicalName: 'Heart Rate Variability (RMSSD)',
+      domain: 'Stress Recovery',
       measured: `${hrv} ms`,
       val: hrv,
       target: '≥ 35–50 ms',
       deviationScore: deficit / 35,
-      deltaStr: `-${deficit} ms parasympathetic suppression`,
+      deltaStr: `-${deficit} ms below optimal`,
       isAbnormal: true,
       priority: hrv < 25 ? 'HIGH' : 'MODERATE',
-      status: hrv < 25 ? 'Sympathetic Dominance' : 'Low Vagal Tone'
+      status: hrv < 25 ? 'High Stress / Low Recovery' : 'Needs Better Rest'
     });
   }
 
@@ -277,8 +284,9 @@ export function generatePersonalizedRecommendations(rawPredictionData, userProfi
     const delta = trig - 149;
     driverEvaluations.push({
       id: 'trig',
-      name: 'Serum Triglycerides',
-      domain: 'Lipid Profile',
+      name: 'Blood Fats (Triglycerides)',
+      clinicalName: 'Serum Triglycerides',
+      domain: 'Blood Fats',
       measured: `${trig} mg/dL`,
       val: trig,
       target: '< 150 mg/dL',
@@ -286,7 +294,7 @@ export function generatePersonalizedRecommendations(rawPredictionData, userProfi
       deltaStr: `+${delta} mg/dL above normal`,
       isAbnormal: true,
       priority: trig >= 200 ? 'HIGH' : 'MODERATE',
-      status: trig >= 200 ? 'High Triglycerides' : 'Borderline Elevated'
+      status: trig >= 200 ? 'High Blood Fats' : 'Slightly Elevated'
     });
   }
 
@@ -294,8 +302,9 @@ export function generatePersonalizedRecommendations(rawPredictionData, userProfi
     const delta = alt - 30;
     driverEvaluations.push({
       id: 'alt',
-      name: 'Hepatic Transaminase (ALT)',
-      domain: 'Liver Parenchyma',
+      name: 'Liver Enzyme (ALT)',
+      clinicalName: 'Hepatic Transaminase (ALT)',
+      domain: 'Liver Health',
       measured: `${alt} U/L`,
       val: alt,
       target: '≤ 30 U/L',
@@ -303,32 +312,36 @@ export function generatePersonalizedRecommendations(rawPredictionData, userProfi
       deltaStr: `+${delta} U/L above optimal`,
       isAbnormal: true,
       priority: alt >= 45 ? 'HIGH' : 'MODERATE',
-      status: alt >= 45 ? 'Hepatic Inflammation Signal' : 'Mild Transaminase Elevation'
+      status: alt >= 45 ? 'High Liver Enzyme' : 'Slightly Overworked Liver'
     });
   }
 
   // Sort drivers by deviation score descending (most severe deviation first)
   driverEvaluations.sort((a, b) => b.deviationScore - a.deviationScore);
 
-  // 9. Multi-Omics Metabolic Phenotype Detection
+  // 9. Multi-Omics Metabolic Phenotype Detection (Simple + Clinical)
   let phenotype = {
     key: 'metabolic_resilience',
-    title: 'Metabolic Equilibrium & Longevity Optimization',
-    subtitle: 'Balanced biomarkers across clinical, wearable, and microbiome modalities',
+    title: 'Healthy Balance & Longevity',
+    clinicalTitle: 'Metabolic Equilibrium & Longevity Optimization',
+    subtitle: 'Your test results look steady, healthy, and well-balanced',
+    clinicalSubtitle: 'Balanced biomarkers across clinical, wearable, and microbiome modalities',
     badge: 'HEALTHY HOMEOSTASIS',
     variant: 'success',
-    axis: 'Longevity & Cellular Maintenance Axis',
-    mechanisticSummary: 'Your current multi-modal data exhibits well-regulated glycemic control, stable autonomic circadian rhythms, and healthy microbial diversity. Interventions should focus on sustained longevity preservation and progressive aerobic fitness.',
+    axis: 'Overall Wellness & Energy',
+    clinicalAxis: 'Longevity & Cellular Maintenance Axis',
+    simpleSummary: 'Your test results look very healthy and balanced. Your blood sugar, heart health, and digestion are functioning smoothly. Follow the daily habits below to stay energized, strong, and maintain this great foundation.',
+    mechanisticSummary: 'Your current multi-modal data exhibits well-regulated glycemic control, stable autonomic circadian rhythms, and healthy microbial diversity. Interventions focus on sustained longevity preservation and progressive aerobic fitness.',
     crossModalInteractions: [
       {
-        modalities: 'Clinical + Wearable',
-        finding: 'Optimal sleep duration and daily steps align with normal fasting glucose.',
-        impact: 'Preserves high baseline insulin sensitivity.'
+        modalities: 'Lab Tests + Activity Tracker',
+        finding: 'Your regular daily movement aligns with steady morning blood sugar.',
+        impact: 'Maintains healthy energy levels all day.'
       },
       {
-        modalities: 'Microbiome + Nutrition',
-        finding: 'Robust gut biodiversity buffers against metabolic endotoxemia.',
-        impact: 'Protects vascular endothelium and hepatic transaminases.'
+        modalities: 'Gut Health + Diet',
+        finding: 'Good gut bacteria help protect your digestion and liver.',
+        impact: 'Protects blood vessels and liver health.'
       }
     ]
   };
@@ -340,203 +353,259 @@ export function generatePersonalizedRecommendations(rawPredictionData, userProfi
   const isLiverStressed = (alt && alt > 32) || (nafldRisk && nafldRisk >= 0.38);
   const isSedentary = (steps && steps < 6000) || (sedentary && sedentary > 480);
 
-  // Phenotype Hierarchy Decision Tree
+  // Phenotype Hierarchy Decision Tree (Plain-English + Clinical)
   if (isGlycemicElevated && isAutonomicDisturbed) {
     phenotype = {
       key: 'autonomic_glycemic',
-      title: 'Neuro-Endocrine / Autonomic Glycemic Strain',
-      subtitle: 'Cortisol-driven dawn phenomenon and sympathetic blunting of insulin sensitivity',
-      badge: 'AUTONOMIC-GLYCEMIC AXIS',
+      title: 'Sleep & Morning Blood Sugar Connection',
+      clinicalTitle: 'Neuro-Endocrine / Autonomic Glycemic Strain',
+      subtitle: 'Better rest helps lower morning fasting blood sugar naturally',
+      clinicalSubtitle: 'Cortisol-driven dawn phenomenon and sympathetic blunting of insulin sensitivity',
+      badge: 'SLEEP & SUGAR FOCUS',
       variant: 'danger',
-      axis: 'Hypothalamic-Pituitary-Adrenal (HPA) & Glycemic Axis',
+      axis: 'Sleep Quality & Blood Sugar',
+      clinicalAxis: 'Hypothalamic-Pituitary-Adrenal (HPA) & Glycemic Axis',
+      simpleSummary: `Your morning blood sugar (${glucose ?? 'slightly elevated'} mg/dL) is directly linked to sleep (${sleepHours ?? 'short'} hours/night). When you get less sleep, your body naturally makes morning stress hormones that raise blood sugar before you even eat. Getting 7 to 8 hours of sleep brings your morning sugar down without extra medication.`,
       mechanisticSummary: `Your elevated fasting glucose (${glucose ?? 'elevated'} mg/dL) is compounded by sleep restriction (${sleepHours ?? 'short'} hrs) and reduced autonomic HRV (${hrv ?? 'low'} ms). Nocturnal sleep deficit triggers compensatory sympathetic tone and early-morning cortisol surges, driving liver gluconeogenesis and blunting peripheral insulin sensitivity.`,
       crossModalInteractions: [
         {
-          modalities: 'Wearable Sleep ↔ Clinical Glucose',
-          finding: `Short nocturnal sleep (${sleepHours ?? '5.8'} hrs) impairs next-day peripheral glucose uptake by up to 25%.`,
-          impact: 'Addresses the hidden driver behind elevated morning fasting blood glucose.'
+          modalities: 'Sleep Tracker ↔ Morning Sugar',
+          finding: `Short sleep (${sleepHours ?? 'short'} hrs) makes it 25% harder for your body to process food the next day.`,
+          impact: 'Getting an extra hour of rest directly lowers morning fasting sugar.'
         },
         {
-          modalities: 'Autonomic HRV ↔ Vascular Tone',
-          finding: `Low HRV RMSSD (${hrv ?? '22'} ms) reflects sustained sympathetic overdrive, elevating evening vascular tension.`,
-          impact: 'Requires parasympathetic vagal stimulation prior to bedtime.'
+          modalities: 'Stress Recovery ↔ Blood Pressure',
+          finding: `Low stress recovery (${hrv ?? 'low'} ms) keeps your body in high gear late in the evening.`,
+          impact: 'Winding down 30 minutes before bed helps your heart and blood vessels relax.'
         }
       ]
     };
   } else if (isGutCompromised && (isGlycemicElevated || isLiverStressed)) {
     phenotype = {
       key: 'gut_mucosal_endotoxemia',
-      title: 'Gut-Mucosal Endotoxin & Metabolic Inflammation',
-      subtitle: 'Depleted Akkermansia mucus barrier permitting lipopolysaccharide (LPS) translocation',
-      badge: 'GUT-METABOLIC AXIS',
+      title: 'Healthy Gut & Digestive Balance',
+      clinicalTitle: 'Gut-Mucosal Endotoxin & Metabolic Inflammation',
+      subtitle: 'Strengthening your natural gut lining to protect digestion and liver',
+      clinicalSubtitle: 'Depleted Akkermansia mucus barrier permitting lipopolysaccharide (LPS) translocation',
+      badge: 'GUT & METABOLISM FOCUS',
       variant: 'warning',
-      axis: 'Enteric Mucosal Barrier & Gut-Liver Axis',
-      mechanisticSummary: `Your Akkermansia muciniphila relative abundance is markedly depleted at ${akkermansia ?? 'suboptimal'}% (optimal > 1.20%). Thinning of the enteric mucin layer permits gram-negative lipopolysaccharides (LPS) into portal venous circulation, activating hepatic Kupffer cells and inciting low-grade insulin receptor resistance.`,
+      axis: 'Gut Lining & Digestive Health',
+      clinicalAxis: 'Enteric Mucosal Barrier & Gut-Liver Axis',
+      simpleSummary: `Your gut has friendly bacteria (Akkermansia) that protect your stomach lining. Right now, your friendly bacteria level is ${akkermansia ?? 'suboptimal'}% (healthy target is above 1.2%). Adding colorful berries, oats, and whole foods feeds these good bacteria, strengthening your gut wall and reducing body-wide inflammation.`,
+      mechanisticSummary: `Your Akkermansia muciniphila relative abundance is depleted at ${akkermansia ?? 'suboptimal'}% (optimal > 1.20%). Thinning of the enteric mucin layer permits gram-negative lipopolysaccharides (LPS) into portal venous circulation, activating hepatic Kupffer cells and inciting low-grade insulin receptor resistance.`,
       crossModalInteractions: [
         {
-          modalities: 'Gut Microbiome ↔ Clinical Glycemia',
-          finding: `Akkermansia depletion (${akkermansia ?? '0.35'}%) correlates directly with subclinical receptor inflammation.`,
-          impact: 'Nourishing the mucus layer with polyphenol ellagitannins lowers systemic endotoxemia.'
+          modalities: 'Gut Bacteria ↔ Blood Sugar',
+          finding: `Lower gut bacteria (${akkermansia ?? '0.35'}%) is linked to mild inflammation after eating.`,
+          impact: 'Eating berries and whole grains helps your gut protect against sugar spikes.'
         },
         {
-          modalities: 'Gut Flora ↔ Hepatic Transaminases',
-          finding: `Translocated endotoxins travel via the portal vein directly into hepatic tissue${alt ? ` (Current ALT: ${alt} U/L)` : ''}.`,
-          impact: 'Targeting gut tight-junctions shields liver architecture from steatotic inflammation.'
+          modalities: 'Digestion ↔ Liver Health',
+          finding: `A healthy gut lining prevents irritated particles from traveling to your liver${alt ? ` (Current Liver ALT: ${alt} U/L)` : ''}.`,
+          impact: 'Protecting your gut wall gives your liver the relief it needs.'
         }
       ]
     };
   } else if (isVascularStressed) {
     phenotype = {
       key: 'atherogenic_vascular',
-      title: 'Atherogenic Dyslipidemia & Vascular Shear Stress Strain',
-      subtitle: 'Elevated arterial pressure paired with triglyceride-rich lipoprotein remnant burden',
-      badge: 'CARDIOVASCULAR AXIS',
+      title: 'Heart Health & Blood Circulation',
+      clinicalTitle: 'Atherogenic Dyslipidemia & Vascular Shear Stress Strain',
+      subtitle: 'Keeping your blood pressure and blood vessels flexible and healthy',
+      clinicalSubtitle: 'Elevated arterial pressure paired with triglyceride-rich lipoprotein remnant burden',
+      badge: 'HEART & CIRCULATION FOCUS',
       variant: 'warning',
-      axis: 'Endothelial Hemodynamics & Lipid Remnant Axis',
+      axis: 'Blood Pressure & Heart Health',
+      clinicalAxis: 'Endothelial Hemodynamics & Lipid Remnant Axis',
+      simpleSummary: `Your blood pressure (${sysBp ?? 135} mmHg) or blood fats${trig ? ` (Triglycerides: ${trig} mg/dL)` : ''} are slightly higher than optimal. Sitting for long periods tightens blood vessels. Adding 15-minute walks and switching to extra virgin olive oil helps keep your arteries flexible, relaxed, and clear.`,
       mechanisticSummary: `Your hemodynamic readings show elevated systolic pressure (${sysBp ?? 135} mmHg) alongside altered lipid remnants${trig ? ` (Triglycerides: ${trig} mg/dL)` : ''}. Prolonged sedentary periods reduce shear-stress mediated endothelial nitric oxide synthase (eNOS), stiffening arterial conduits.`,
       crossModalInteractions: [
         {
-          modalities: 'Wearable Sedentary Cadence ↔ Arterial Pressure',
-          finding: `Prolonged sitting without micro-breaks elevates peripheral vascular resistance and daytime systolic blood pressure.`,
-          impact: 'Introducing 2-minute post-meal walks stimulates soleus muscle pumps and lowers arterial tension.'
+          modalities: 'Daily Movement ↔ Blood Pressure',
+          finding: 'Sitting for hours without breaks makes blood vessels stiffer during the day.',
+          impact: 'Taking quick 2-minute walking breaks relaxes blood vessels and lowers pressure.'
         },
         {
-          modalities: 'Lipid Remnants ↔ Endothelial Function',
-          finding: `Elevated Triglycerides (${trig ?? 'elevated'} mg/dL) relative to HDL heighten small dense LDL formation.`,
-          impact: 'Replacing saturated cooking fats with extra virgin olive oil accelerates hepatic remnant clearance.'
+          modalities: 'Cooking Oils ↔ Blood Fats',
+          finding: `Elevated triglycerides (${trig ?? 'elevated'} mg/dL) show your body has excess circulating fats.`,
+          impact: 'Swapping butter or vegetable oils for extra virgin olive oil clears blood fats faster.'
         }
       ]
     };
   } else if (isLiverStressed) {
     phenotype = {
       key: 'hepatic_steatosis',
-      title: 'Hepatic Metabolic Overload & De-Novo Lipogenesis',
-      subtitle: 'Transaminase elevation signaling hepatic triglyceride accumulation',
-      badge: 'GUT-LIVER METABOLIC AXIS',
+      title: 'Liver Health & Energy Processing',
+      clinicalTitle: 'Hepatic Metabolic Overload & De-Novo Lipogenesis',
+      subtitle: 'Simple steps to give your liver a rest and clear stored fats',
+      clinicalSubtitle: 'Transaminase elevation signaling hepatic triglyceride accumulation',
+      badge: 'LIVER HEALTH FOCUS',
       variant: 'warning',
-      axis: 'Hepatic Parenchyma & De-Novo Lipogenesis Axis',
+      axis: 'Liver Function & Metabolism',
+      clinicalAxis: 'Hepatic Parenchyma & De-Novo Lipogenesis Axis',
+      simpleSummary: `Your liver enzyme (ALT ${alt ?? 38} U/L) shows your liver is working a bit extra hard processing energy from foods. When we eat lots of sweets, sodas, or refined carbs, the liver has to store the extra energy as fat. Cutting sugary drinks and walking after meals gives your liver the rest it needs to clean itself out.`,
       mechanisticSummary: `Your liver transaminase (ALT ${alt ?? 38} U/L) signals metabolic stress on hepatocytes. Excessive dietary fructose and refined starches feed hepatic de-novo lipogenesis, outpacing VLDL export and inducing mild steatotic inflammation.`,
       crossModalInteractions: [
         {
-          modalities: 'Clinical ALT ↔ Dietary Carbohydrates',
-          finding: `High dietary glycemic surges accelerate hepatic triglyceride accumulation, raising ALT enzymes.`,
-          impact: 'Restricting liquid sugars and dietary fructose halts hepatic fat deposition.'
+          modalities: 'Liver Enzymes ↔ Daily Carbs',
+          finding: 'Sugary drinks and processed snacks make the liver work double-time.',
+          impact: 'Switching to water, sparkling water, and whole foods halts fat buildup in the liver.'
         }
       ]
     };
   } else if (isSedentary && isGlycemicElevated) {
     phenotype = {
       key: 'locomotor_insulin_resistance',
-      title: 'Locomotor Inactivity & Sarcopenic Insulin Resistance',
-      subtitle: 'Sub-threshold muscular contraction failing to stimulate GLUT-4 translocation',
-      badge: 'LOCOMOTOR-INSULIN AXIS',
+      title: 'Daily Movement & Blood Sugar Control',
+      clinicalTitle: 'Locomotor Inactivity & Sarcopenic Insulin Resistance',
+      subtitle: 'Short walks after meals naturally soak up blood sugar',
+      clinicalSubtitle: 'Sub-threshold muscular contraction failing to stimulate GLUT-4 translocation',
+      badge: 'ACTIVITY & SUGAR FOCUS',
       variant: 'warning',
-      axis: 'Skeletal Muscle GLUT-4 & Activity Axis',
+      axis: 'Daily Steps & Muscle Health',
+      clinicalAxis: 'Skeletal Muscle GLUT-4 & Activity Axis',
+      simpleSummary: `Your tracker recorded ${steps ? Math.round(steps).toLocaleString() : 'sub-target'} steps/day. When we sit for hours after eating, blood sugar stays in the bloodstream longer. Taking a gentle 15-minute walk right after meals allows your leg muscles to naturally absorb that sugar like a sponge.`,
       mechanisticSummary: `Your recorded daily ambulation of ${steps ? Math.round(steps).toLocaleString() : 'sub-target'} steps/day fails to sufficiently trigger non-insulin dependent skeletal muscle glucose disposal. Postprandial glucose remains elevated for prolonged intervals.`,
       crossModalInteractions: [
         {
-          modalities: 'Wearable Steps ↔ Post-Meal Glycemia',
-          finding: `Low step cadence concentrates glycemic excursions in the 2-hour window following meals.`,
-          impact: 'Timing brisk movement within 30 minutes of meal completion activates skeletal muscle GLUT-4.'
+          modalities: 'Step Tracker ↔ Post-Meal Sugar',
+          finding: 'Blood sugar stays high mostly in the 2 hours right after eating.',
+          impact: 'A brisk 15-minute walk right after eating soaks up sugar without requiring extra insulin.'
         }
       ]
     };
   }
 
-  // 10. Deeply Personalized Recommendation Cards
+  // 10. Deeply Personalized Recommendation Cards (Simple + Clinical)
   const personalizedCards = [];
 
   // Card A: Glycemic & Insulin Management
   if (glucose !== null || hba1c !== null || isGlycemicElevated) {
     const isUrgent = (glucose && glucose >= 126) || (hba1c && hba1c >= 6.5);
     const gVal = glucose ? `${glucose} mg/dL` : (hba1c ? `${hba1c}%` : 'Elevated');
-    const targetVal = '< 100 mg/dL (HbA1c < 5.7%)';
-    const deltaNote = glucose ? `${glucose > 99 ? `+${glucose - 99} mg/dL above optimal` : 'Within normal limits'}` : '';
+    const targetVal = 'Under 100 mg/dL (HbA1c < 5.7%)';
+    const deltaNote = glucose ? `${glucose > 99 ? `+${glucose - 99} mg/dL above normal` : 'In normal range'}` : '';
 
     personalizedCards.push({
       id: 'glycemic_protocol',
-      domain: 'Glycemic Regulation',
+      domain: 'Blood Sugar Balance',
       priority: isUrgent ? 'URGENT' : 'HIGH',
-      badge: isUrgent ? 'HIGH PRIORITY' : 'EVIDENCE PROTOCOL',
+      badge: isUrgent ? 'IMPORTANT ACTION' : 'DAILY HABIT',
       variant: isUrgent ? 'danger' : 'warning',
       iconName: 'Utensils',
-      title: 'Carbohydrate Sequencing & GLUT-4 Ambulation Protocol',
-      exactMeasured: `Measured Fasting Glucose: ${gVal} ${deltaNote ? `(${deltaNote})` : ''}`,
+      title: 'Eat Veggies First & Take a 15-Minute Walk',
+      clinicalTitle: 'Carbohydrate Sequencing & GLUT-4 Ambulation Protocol',
+      simpleSubtitle: 'Keeps your blood sugar steady after meals',
+      exactMeasured: `Your Morning Sugar: ${gVal} ${deltaNote ? `(${deltaNote})` : ''}`,
+      simpleWhy: `Your morning blood sugar is ${gVal}. Changing the order you eat your food and walking after meals prevents sugar spikes without you having to go on an extreme diet.`,
       whyMatchesYou: `Directly targets your primary risk driver (${gVal}). For your metabolic profile, meal sequencing (fiber and protein first, complex starches last) slows gastric emptying and reduces postprandial glucose peaks by 20–30%.`,
-      mechanisticAction: 'Skeletal muscle contraction during a 15–20 minute walk directly after meals recruits GLUT-4 glucose transporters to cell membranes completely independent of insulin signaling, blunting postprandial glucose spikes.',
+      simpleActions: [
+        'Eat salad, veggies, or protein first before eating rice, bread, or pasta.',
+        'Take a light 15-minute walk within 30 minutes after lunch or dinner.'
+      ],
       precisionPrescription: 'Consume greens/fiber first. Walk for 15 minutes within 30 minutes of lunch and dinner.',
+      simpleGoal: 'Morning fasting sugar under 100 mg/dL',
       targetCorridor: targetVal,
+      simpleResult: 'Cuts post-meal sugar spikes by 20% to 30% and keeps afternoon energy steady.',
       quantifiedExpectedShift: 'Expected: -14 to -22 mg/dL reduction in peak post-meal glucose; -0.3% to -0.5% HbA1c over 90 days',
+      mechanisticAction: 'Skeletal muscle contraction during a 15–20 minute walk directly after meals recruits GLUT-4 glucose transporters to cell membranes completely independent of insulin signaling, blunting postprandial glucose spikes.',
       medicalCitation: 'ADA Standards of Care 2024 (§6 Glycemic Targets & Lifestyle Management)'
     });
   }
 
   // Card B: Autonomic Tone & Sleep Restoration
   if (sleepHours !== null || hrv !== null || isAutonomicDisturbed) {
-    const sVal = sleepHours ? `${sleepHours} hrs/night` : 'Suboptimal duration';
-    const hVal = hrv ? `${hrv} ms` : 'Low vagal tone';
+    const sVal = sleepHours ? `${sleepHours} hrs/night` : 'Short sleep';
+    const hVal = hrv ? `${hrv} ms` : 'Low recovery';
     const sDelta = sleepHours && sleepHours < 7.0 ? `-${Number((7.5 - sleepHours).toFixed(1))} hrs deficit` : '';
 
     personalizedCards.push({
       id: 'autonomic_sleep_protocol',
-      domain: 'Autonomic & Circadian Health',
+      domain: 'Sleep & Stress Recovery',
       priority: sleepHours && sleepHours < 6.0 ? 'HIGH' : 'ACTIVE TARGET',
-      badge: sleepHours && sleepHours < 6.0 ? 'CIRCADIAN PRIORITY' : 'RECOVERY TARGET',
+      badge: sleepHours && sleepHours < 6.0 ? 'REST PRIORITY' : 'DAILY ROUTINE',
       variant: sleepHours && sleepHours < 6.0 ? 'danger' : 'primary',
       iconName: 'Moon',
-      title: 'Circadian Cortisol Reset & Vagal Nerve Rebound',
-      exactMeasured: `Measured Sleep: ${sVal} ${sDelta ? `(${sDelta})` : ''} | Nocturnal HRV: ${hVal}`,
+      title: 'Consistent Bedtime & 30-Min Screen Unwind',
+      clinicalTitle: 'Circadian Cortisol Reset & Vagal Nerve Rebound',
+      simpleSubtitle: 'Lowers morning stress hormones so you wake up refreshed',
+      exactMeasured: `Sleep Duration: ${sVal} ${sDelta ? `(${sDelta})` : ''} | Stress Recovery: ${hVal}`,
+      simpleWhy: `You are averaging ${sVal} of sleep. Getting 7 to 8 hours of solid rest helps your body naturally reset your blood sugar, mood, and daytime focus.`,
       whyMatchesYou: `Your sleep logs confirm a nocturnal deficit that elevates next-morning cortisol and free fatty acids, inducing cellular insulin resistance before your first meal. Restoring sleep window is clinically proven to restore morning insulin sensitivity.`,
-      mechanisticAction: 'Deep slow-wave sleep restores parasympathetic vagal dominance, recharges growth hormone pulses for cellular repair, and downregulates hypothalamic cortisol synthesis.',
+      simpleActions: [
+        'Aim to be in bed by 10:30 PM for a steady, predictable sleep schedule.',
+        'Put phones and laptops away 30 minutes before bed to let your brain wind down.'
+      ],
       precisionPrescription: 'Anchor sleep schedule: bed at 10:30 PM, wake at 6:30 AM. 30-minute digital screen cessation with amber light exposure.',
+      simpleGoal: '7.2 to 8.0 hours of sound sleep per night',
       targetCorridor: '7.2–8.0 hrs uninterrupted sleep; HRV RMSSD ≥ 35 ms',
+      simpleResult: 'Improves morning energy and helps your body process breakfast 20% better.',
       quantifiedExpectedShift: 'Expected: +18–25% improvement in morning insulin sensitivity; +8–12 ms restoration in nocturnal HRV',
+      mechanisticAction: 'Deep slow-wave sleep restores parasympathetic vagal dominance, recharges growth hormone pulses for cellular repair, and downregulates hypothalamic cortisol synthesis.',
       medicalCitation: "AHA Life's Essential 8 / Sleep Research Society Consensus Guidelines 2023"
     });
   }
 
   // Card C: Gut Mucosal Barrier Restoration
   if (akkermansia !== null || faecalibacterium !== null || isGutCompromised) {
-    const akkVal = akkermansia !== null ? `${akkermansia}%` : 'Suboptimal';
+    const akkVal = akkermansia !== null ? `${akkermansia}%` : 'Low';
     const akkDeficit = akkermansia !== null ? Math.round(((1.2 - akkermansia) / 1.2) * 100) : null;
 
     personalizedCards.push({
       id: 'gut_mucosal_protocol',
-      domain: 'Gut Microbiome & Mucosal Layer',
-      priority: akkermansia !== null && akkermansia < 0.6 ? 'HIGH' : 'MICROBIOME TARGET',
-      badge: akkermansia !== null && akkermansia < 0.6 ? 'BARRIER INTEGRITY' : 'ECOLOGY PROTOCOL',
+      domain: 'Gut Health & Digestion',
+      priority: akkermansia !== null && akkermansia < 0.6 ? 'HIGH' : 'HEALTHY TARGET',
+      badge: akkermansia !== null && akkermansia < 0.6 ? 'GUT REBUILD' : 'DIGESTION PROTOCOL',
       variant: akkermansia !== null && akkermansia < 0.6 ? 'warning' : 'accent',
       iconName: 'Dna',
-      title: 'Akkermansia Muciniphila Polyphenol & Prebiotic Restoration',
-      exactMeasured: `Akkermansia relative abundance: ${akkVal} ${akkDeficit ? `(${akkDeficit}% below 1.20% benchmark)` : ''}`,
+      title: 'Feed Healthy Gut Bacteria with Berries & Fiber',
+      clinicalTitle: 'Akkermansia Muciniphila Polyphenol & Prebiotic Restoration',
+      simpleSubtitle: 'Protects your digestive lining and fights inflammation',
+      exactMeasured: `Gut Bacteria Level: ${akkVal} ${akkDeficit ? `(${akkDeficit}% below healthy level)` : ''}`,
+      simpleWhy: 'Your gut has friendly bacteria (Akkermansia) that protect your stomach lining. Adding colorful berries and fiber helps these good bacteria multiply quickly.',
       whyMatchesYou: `Your metagenomic sequencing reveals depletion in primary mucin-degrading bacteria (Akkermansia). When this layer thins, bacterial endotoxins leak into circulation, sustaining systemic inflammation that damages both liver tissue and vascular walls.`,
-      mechanisticAction: 'Ellagitannins (from pomegranate) and anthocyanins (from wild blueberries) stimulate Akkermansia proliferation, fortifying intestinal tight-junction proteins (claudin-1, occludin) and stopping endotoxemia.',
+      simpleActions: [
+        'Eat 1/2 cup of wild blueberries, raspberries, or pure pomegranate juice daily.',
+        `Include whole oats, beans, chia seeds, or leafy greens to get ${targetFiberGrams}g of daily fiber.`
+      ],
       precisionPrescription: `Consume 1/2 cup dark berries or 100ml pure pomegranate juice daily, along with ${targetFiberGrams}g/day of fermentable fiber.`,
+      simpleGoal: 'Healthy gut bacteria levels and easy daily digestion',
       targetCorridor: 'Akkermansia muciniphila > 1.20%; Shannon Diversity ≥ 3.20',
+      simpleResult: 'Strengthens your digestive wall and reduces inflammation in 4 to 8 weeks.',
       quantifiedExpectedShift: 'Expected: 2.5x to 4x increase in Akkermansia relative abundance; -15% reduction in circulating endotoxin markers',
+      mechanisticAction: 'Ellagitannins (from pomegranate) and anthocyanins (from wild blueberries) stimulate Akkermansia proliferation, fortifying intestinal tight-junction proteins (claudin-1, occludin) and stopping endotoxemia.',
       medicalCitation: 'ISAPP International Consensus on Prebiotics & Mucosal Immunology 2023'
     });
   }
 
   // Card D: Vascular & Physical Cadence Protocol
   if (steps !== null || sysBp !== null || isVascularStressed || isSedentary) {
-    const stepsVal = steps ? `${Math.round(steps).toLocaleString()} steps/day` : 'Suboptimal';
+    const stepsVal = steps ? `${Math.round(steps).toLocaleString()} steps/day` : 'Low';
     const bpVal = sysBp ? `${sysBp}/${diaBp || 80} mmHg` : 'Normal';
 
     personalizedCards.push({
       id: 'vascular_cadence_protocol',
-      domain: 'Vascular Hemodynamics & Activity',
-      priority: sysBp && sysBp >= 135 ? 'HIGH' : 'CADENCE TARGET',
-      badge: sysBp && sysBp >= 135 ? 'VASCULAR DEFENSE' : 'ACTIVITY CADENCE',
+      domain: 'Heart & Daily Movement',
+      priority: sysBp && sysBp >= 135 ? 'HIGH' : 'MOVEMENT TARGET',
+      badge: sysBp && sysBp >= 135 ? 'HEART DEFENSE' : 'DAILY STEPS',
       variant: sysBp && sysBp >= 135 ? 'warning' : 'primary',
       iconName: 'Activity',
-      title: `Zone 2 Aerobic Conditioning (${zone2Low}–${zone2High} bpm) & Step Cadence`,
-      exactMeasured: `Daily Movement: ${stepsVal} | Blood Pressure: ${bpVal}`,
+      title: 'Walk 8,500 Steps Daily & Add Light Brisk Walking',
+      clinicalTitle: `Zone 2 Aerobic Conditioning (${zone2Low}–${zone2High} bpm) & Step Cadence`,
+      simpleSubtitle: 'Strengthens your heart and keeps blood pressure in check',
+      exactMeasured: `Current Movement: ${stepsVal} | Blood Pressure: ${bpVal}`,
+      simpleWhy: `Your body does best with regular movement throughout the day. Right now you average ${stepsVal}. Adding extra daily steps keeps your heart strong and arteries relaxed.`,
       whyMatchesYou: `Calibrated specifically for your age (${age} yrs) and cardiovascular profile. Sustained Zone 2 aerobic activity (${zone2Low}–${zone2High} bpm) stimulates mitochondrial density in type I muscle fibers and stimulates vascular nitric oxide release.`,
-      mechanisticAction: 'Aerobic shear stress dilates microvascular capillary beds, lowers peripheral vascular resistance, and stimulates skeletal muscle fatty acid beta-oxidation.',
+      simpleActions: [
+        'Add 1,500 extra steps during the day (take stairs, stroll during phone calls).',
+        `Do 30 minutes of comfortable brisk walking (${zone2Low}–${zone2High} heart rate) 3 days a week.`
+      ],
       precisionPrescription: `Target 8,500+ steps/day. Accumulate 35 minutes of Zone 2 cardio (${zone2Low}–${zone2High} bpm) 3 days per week.`,
+      simpleGoal: '8,500+ daily steps and blood pressure under 120/80',
       targetCorridor: `≥ 8,500 daily steps; Blood Pressure < 120/80 mmHg`,
+      simpleResult: 'Naturally lowers daytime blood pressure by 4 to 8 points.',
       quantifiedExpectedShift: 'Expected: -4 to -8 mmHg reduction in daytime systolic BP; +16% improvement in muscular fatty acid oxidation',
+      mechanisticAction: 'Aerobic shear stress dilates microvascular capillary beds, lowers peripheral vascular resistance, and stimulates skeletal muscle fatty acid beta-oxidation.',
       medicalCitation: 'ACC / AHA Cardiovascular Prevention Guidelines 2023 & WHO Physical Activity Guidelines'
     });
   }
@@ -548,18 +617,27 @@ export function generatePersonalizedRecommendations(rawPredictionData, userProfi
 
     personalizedCards.push({
       id: 'hepatic_lipid_protocol',
-      domain: 'Hepatic & Lipid Metabolism',
-      priority: alt && alt > 35 ? 'HIGH' : 'LIVER PROTOCOL',
-      badge: alt && alt > 35 ? 'HEPATOPROTECTION' : 'LIPID REMNANTS',
+      domain: 'Liver Health & Blood Fats',
+      priority: alt && alt > 35 ? 'HIGH' : 'LIVER ACTION',
+      badge: alt && alt > 35 ? 'LIVER RECOVERY' : 'HEALTHY FATS',
       variant: alt && alt > 35 ? 'warning' : 'info',
       iconName: 'Flame',
-      title: 'Hepatic De-Novo Lipogenesis Suppression Protocol',
-      exactMeasured: `ALT Transaminase: ${altVal} (Target: ≤ 30 U/L) | Triglycerides: ${trigVal}`,
+      title: 'Cut Liquid Sugars & Switch to Healthy Olive Oil',
+      clinicalTitle: 'Hepatic De-Novo Lipogenesis Suppression Protocol',
+      simpleSubtitle: 'Gives your liver a rest so it can clear out stored fat',
+      exactMeasured: `Liver Enzyme (ALT): ${altVal} (Goal: ≤ 30) | Blood Fats: ${trigVal}`,
+      simpleWhy: `Your liver enzyme (ALT ${altVal}) shows your liver is working overtime processing sugars. Eliminating sweet drinks and using olive oil allows your liver to recover.`,
       whyMatchesYou: `Elevated transaminases (${altVal}) paired with lipid remnants indicate hepatic lipid accumulation. Eliminating liquid refined sugars and adding marine omega-3s downregulates SREBP-1c, halting liver fat accumulation.`,
-      mechanisticAction: 'EPA/DHA omega-3 fatty acids activate PPAR-alpha receptors in the liver, accelerating mitochondrial fatty acid oxidation and reducing VLDL synthesis.',
+      simpleActions: [
+        'Replace soda, fruit juices, and sweetened drinks with water, sparkling water, or tea.',
+        'Use extra virgin olive oil for cooking instead of butter or vegetable seed oils.'
+      ],
       precisionPrescription: 'Eliminate high-fructose corn syrup and sweetened beverages. Incorporate 2g EPA/DHA omega-3 daily via wild fish or supplements.',
+      simpleGoal: 'Healthy liver enzyme (ALT under 30 U/L)',
       targetCorridor: 'ALT ≤ 25 U/L (F) / ≤ 30 U/L (M); Triglycerides < 150 mg/dL',
+      simpleResult: 'Halts fat storage in the liver and lowers enzyme levels in 6 to 12 weeks.',
       quantifiedExpectedShift: 'Expected: -18% to -28% reduction in serum ALT transaminases; -22% reduction in circulating triglycerides',
+      mechanisticAction: 'EPA/DHA omega-3 fatty acids activate PPAR-alpha receptors in the liver, accelerating mitochondrial fatty acid oxidation and reducing VLDL synthesis.',
       medicalCitation: 'AASLD Practice Guidance on MASLD / NAFLD 2023 & NCEP ATP III Guidelines'
     });
   }

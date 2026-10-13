@@ -186,19 +186,57 @@ export default function PersonalizedRecommendations({ predictionData, userProfil
     return <Clock className="w-3.5 h-3.5 text-blue-500" />;
   };
 
+  // View mode: 'simple' (default for normal users) | 'clinical' (for doctors or advanced science view)
+  const [viewMode, setViewMode] = useState('simple');
+  const [showClinicalMap, setShowClinicalMap] = useState({});
+
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
+
+      {/* ======================================================== */}
+      {/* 0. VIEW MODE TOGGLE (SIMPLE VS CLINICAL)                 */}
+      {/* ======================================================== */}
+      <div className="flex items-center justify-between flex-wrap gap-2.5 pb-0.5">
+        <div className="flex items-center gap-1.5 p-1 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] text-xs">
+          <button
+            onClick={() => setViewMode('simple')}
+            className={`px-3 py-1.5 rounded-lg font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+              viewMode === 'simple'
+                ? 'bg-emerald-600 text-white shadow-xs'
+                : 'text-[var(--text-muted)] hover:text-[var(--text-main)]'
+            }`}
+          >
+            <CheckCircle2 className="w-3.5 h-3.5" />
+            <span>Simple & Easy to Follow</span>
+          </button>
+          <button
+            onClick={() => setViewMode('clinical')}
+            className={`px-3 py-1.5 rounded-lg font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+              viewMode === 'clinical'
+                ? 'bg-blue-600 text-white shadow-xs'
+                : 'text-[var(--text-muted)] hover:text-[var(--text-main)]'
+            }`}
+          >
+            <BookOpen className="w-3.5 h-3.5" />
+            <span>Clinical Science (Doctor View)</span>
+          </button>
+        </div>
+
+        <span className="text-xs text-[var(--text-muted)] hidden sm:inline">
+          {viewMode === 'simple' ? '💡 Written in clear, everyday language' : '🔬 Includes molecular pathways and guidelines'}
+        </span>
+      </div>
 
       {/* ======================================================== */}
       {/* 1. TOP MULTI-OMICS PHENOTYPE & DRIVER SYNTHESIS BANNER */}
       {/* ======================================================== */}
-      <Card isGlass={true} className="p-5 border-2 border-blue-500/40 bg-gradient-to-br from-[var(--bg-surface)] via-[var(--bg-primary)] to-blue-500/5 shadow-lg space-y-4">
+      <Card isGlass={true} className="p-4 sm:p-5 border-2 border-emerald-500/30 bg-gradient-to-br from-[var(--bg-surface)] via-[var(--bg-primary)] to-emerald-500/5 shadow-md space-y-3.5">
         
         {/* Phenotype Classification Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 pb-3 border-b border-[var(--border-subtle)]">
           <div className="flex items-start gap-3">
-            <div className="p-3 rounded-2xl bg-blue-500/10 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5">
-              <Compass className="w-6 h-6 animate-pulse" />
+            <div className="p-2.5 rounded-2xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5">
+              <Compass className="w-5 h-5 animate-pulse" />
             </div>
             <div>
               <div className="flex items-center gap-2 flex-wrap">
@@ -206,37 +244,37 @@ export default function PersonalizedRecommendations({ predictionData, userProfil
                   {phenotype.badge}
                 </Badge>
                 <span className="text-[11px] font-mono text-[var(--text-muted)] font-semibold">
-                  Multi-Omics Phenotype
+                  {viewMode === 'simple' ? 'Your Primary Health Focus' : 'Multi-Omics Phenotype'}
                 </span>
               </div>
               <h3 className="text-base sm:text-lg font-black text-[var(--text-main)] mt-1">
-                {phenotype.title}
+                {viewMode === 'simple' ? phenotype.title : (phenotype.clinicalTitle || phenotype.title)}
               </h3>
               <p className="text-xs text-[var(--text-muted)] font-medium">
-                {phenotype.subtitle}
+                {viewMode === 'simple' ? phenotype.subtitle : (phenotype.clinicalSubtitle || phenotype.subtitle)}
               </p>
             </div>
           </div>
 
           <div className="flex items-center gap-2 self-start md:self-auto text-[11px] font-mono bg-[var(--bg-primary)] px-3 py-1.5 rounded-xl border border-[var(--border-subtle)] text-[var(--text-muted)]">
             <ShieldCheck className="w-4 h-4 text-emerald-500 shrink-0" />
-            <span>Target Axis: <strong className="text-[var(--text-main)]">{phenotype.axis}</strong></span>
+            <span>Focus Area: <strong className="text-[var(--text-main)]">{viewMode === 'simple' ? phenotype.axis : (phenotype.clinicalAxis || phenotype.axis)}</strong></span>
           </div>
         </div>
 
-        {/* Biological Causal Synthesis Narrative */}
-        <div className="p-3.5 rounded-xl bg-[var(--bg-primary)] border border-blue-200/40 dark:border-blue-900/40 space-y-2">
-          <div className="flex items-center gap-2 text-xs font-bold text-blue-600 dark:text-blue-400">
+        {/* Narrative Box */}
+        <div className="p-3.5 rounded-xl bg-[var(--bg-primary)] border border-emerald-500/20 space-y-1.5">
+          <div className="flex items-center gap-2 text-xs font-bold text-emerald-600 dark:text-emerald-400">
             <Sparkles className="w-3.5 h-3.5" />
-            <span>Why Your Recommendations Are Different: Causal Multi-Omics Interplay</span>
+            <span>{viewMode === 'simple' ? 'What this means for you in plain words:' : 'Why Your Recommendations Are Different: Causal Multi-Omics Interplay'}</span>
           </div>
-          <p className="text-xs text-[var(--text-main)] leading-relaxed font-normal">
-            {phenotype.mechanisticSummary}
+          <p className="text-xs text-[var(--text-main)] leading-relaxed">
+            {viewMode === 'simple' ? (phenotype.simpleSummary || phenotype.mechanisticSummary) : phenotype.mechanisticSummary}
           </p>
         </div>
 
-        {/* Cross-Modal Synergies Grid */}
-        {phenotype.crossModalInteractions && phenotype.crossModalInteractions.length > 0 && (
+        {/* Cross-Modal Synergies Grid (In Clinical Mode or collapsed in simple mode) */}
+        {viewMode === 'clinical' && phenotype.crossModalInteractions && phenotype.crossModalInteractions.length > 0 && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
             {phenotype.crossModalInteractions.map((cmi, idx) => (
               <div key={idx} className="p-3 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] space-y-1">
@@ -253,14 +291,14 @@ export default function PersonalizedRecommendations({ predictionData, userProfil
           </div>
         )}
 
-        {/* Patient's Top Measured Risk Drivers (Unique to this individual) */}
+        {/* Patient's Top Measured Risk Drivers (Friendly cards) */}
         {topDrivers.length > 0 && (
           <div className="pt-2 border-t border-[var(--border-subtle)] space-y-2">
             <div className="flex items-center justify-between">
-              <span className="text-[11px] font-bold uppercase font-mono tracking-wider text-[var(--text-muted)]">
-                Your Primary Measured Risk Drivers (Prioritized by Magnitude of Deviation):
+              <span className="text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)]">
+                {viewMode === 'simple' ? 'Your Key Measured Health Numbers:' : 'Your Primary Measured Risk Drivers (Prioritized by Magnitude of Deviation):'}
               </span>
-              <span className="text-[10px] font-mono text-blue-600 dark:text-blue-400">
+              <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold">
                 Calibrated to your lab & wearable panels
               </span>
             </div>
@@ -269,11 +307,11 @@ export default function PersonalizedRecommendations({ predictionData, userProfil
               {topDrivers.map((driver) => (
                 <div
                   key={driver.id}
-                  className="p-3 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] hover:border-blue-400/50 transition-colors space-y-1"
+                  className="p-3 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] hover:border-emerald-400/50 transition-colors space-y-1"
                 >
                   <div className="flex items-center justify-between gap-1">
-                    <span className="text-[10.5px] font-bold text-[var(--text-main)] truncate" title={driver.name}>
-                      {driver.name}
+                    <span className="text-[11px] font-bold text-[var(--text-main)] truncate" title={driver.name}>
+                      {viewMode === 'simple' ? driver.name : (driver.clinicalName || driver.name)}
                     </span>
                     <Badge variant={driver.priority === 'URGENT' ? 'danger' : 'warning'} size="sm" className="text-[9px] px-1.5 py-0 shrink-0">
                       {driver.priority}
@@ -281,9 +319,9 @@ export default function PersonalizedRecommendations({ predictionData, userProfil
                   </div>
                   <div className="flex items-baseline justify-between pt-0.5">
                     <span className="font-mono text-sm font-black text-rose-500">{driver.measured}</span>
-                    <span className="font-mono text-[10px] text-[var(--text-muted)]">Target: {driver.target}</span>
+                    <span className="text-[10px] text-[var(--text-muted)]">Goal: {driver.target}</span>
                   </div>
-                  <div className="text-[10px] font-mono font-semibold text-rose-500 dark:text-rose-400 flex items-center gap-1">
+                  <div className="text-[10px] font-semibold text-rose-500 dark:text-rose-400 flex items-center gap-1">
                     <AlertCircle className="w-3 h-3 shrink-0" />
                     <span>{driver.deltaStr}</span>
                   </div>
@@ -294,12 +332,12 @@ export default function PersonalizedRecommendations({ predictionData, userProfil
         )}
 
         {/* Demographic Context Calibration Strip */}
-        <div className="flex items-center justify-between flex-wrap gap-2 pt-2 text-[11px] text-[var(--text-muted)] font-mono border-t border-[var(--border-subtle)]">
+        <div className="flex items-center justify-between flex-wrap gap-2 pt-2 text-[11px] text-[var(--text-muted)] border-t border-[var(--border-subtle)]">
           <div className="flex items-center gap-4 flex-wrap">
             <span>Demographics: <strong className="text-[var(--text-main)]">{demographicContext.age} yrs, {demographicContext.gender}</strong>{demographicContext.bmi ? ` (BMI: ${demographicContext.bmi})` : ''}</span>
-            <span>Target Zone 2 Heart Rate: <strong className="text-emerald-500">{demographicContext.zone2Range}</strong></span>
-            <span>Fiber Target: <strong className="text-blue-500">{demographicContext.targetFiberGrams}g/day</strong></span>
-            <span>Target Hydration: <strong className="text-indigo-500">{demographicContext.targetWaterLiters}L/day</strong></span>
+            <span>Target Cardio Zone: <strong className="text-emerald-500">{demographicContext.zone2Range}</strong></span>
+            <span>Daily Fiber Target: <strong className="text-blue-500">{demographicContext.targetFiberGrams}g/day</strong></span>
+            <span>Daily Hydration: <strong className="text-indigo-500">{demographicContext.targetWaterLiters}L/day</strong></span>
           </div>
           <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1">
             <CheckCircle2 className="w-3 h-3" />
@@ -323,7 +361,7 @@ export default function PersonalizedRecommendations({ predictionData, userProfil
             }`}
           >
             <BookOpen className="w-3.5 h-3.5" />
-            <span>Targeted Clinical Protocols</span>
+            <span>Targeted Health Actions</span>
             <Badge variant="primary" size="sm" className="ml-1 text-[9px] px-1 py-0">{personalizedCards.length}</Badge>
           </button>
 
@@ -351,7 +389,7 @@ export default function PersonalizedRecommendations({ predictionData, userProfil
             }`}
           >
             <Target className="w-3.5 h-3.5" />
-            <span>90-Day Clinical Milestones</span>
+            <span>90-Day Milestones</span>
           </button>
         </div>
 
@@ -365,9 +403,10 @@ export default function PersonalizedRecommendations({ predictionData, userProfil
       {/* TAB 1: TARGETED CLINICAL PROTOCOLS                      */}
       {/* ======================================================== */}
       {activeTab === 'protocols' && (
-        <div className="space-y-3.5">
+        <div className="space-y-3">
           {personalizedCards.map((card, idx) => {
             const isExpanded = expandedIdx === idx;
+            const isClinicalOpen = showClinicalMap[card.id];
 
             return (
               <Card
@@ -375,8 +414,8 @@ export default function PersonalizedRecommendations({ predictionData, userProfil
                 isGlass={true}
                 className={`p-4 space-y-3 transition-all border ${
                   isExpanded
-                    ? 'border-blue-500/70 bg-[var(--bg-surface)] shadow-md'
-                    : 'border-[var(--border-subtle)] bg-[var(--bg-primary)] hover:border-blue-300 dark:hover:border-blue-800'
+                    ? 'border-emerald-500/60 bg-[var(--bg-surface)] shadow-md'
+                    : 'border-[var(--border-subtle)] bg-[var(--bg-primary)] hover:border-emerald-300 dark:hover:border-emerald-800'
                 }`}
               >
                 {/* Protocol Header */}
@@ -385,22 +424,24 @@ export default function PersonalizedRecommendations({ predictionData, userProfil
                   onClick={() => setExpandedIdx(isExpanded ? null : idx)}
                 >
                   <div className="flex items-center gap-3 min-w-0">
-                    <div className="p-2.5 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 shrink-0">
-                      {card.domain.includes('Glycemic') && <Utensils className="w-5 h-5" />}
-                      {card.domain.includes('Autonomic') && <Moon className="w-5 h-5" />}
-                      {card.domain.includes('Microbiome') && <Dna className="w-5 h-5" />}
-                      {card.domain.includes('Vascular') && <HeartPulse className="w-5 h-5" />}
-                      {card.domain.includes('Hepatic') && <Flame className="w-5 h-5" />}
+                    <div className="p-2.5 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 shrink-0">
+                      {card.domain.includes('Blood Sugar') && <Utensils className="w-5 h-5" />}
+                      {card.domain.includes('Sleep') && <Moon className="w-5 h-5" />}
+                      {card.domain.includes('Gut') && <Dna className="w-5 h-5" />}
+                      {card.domain.includes('Heart') && <HeartPulse className="w-5 h-5" />}
+                      {card.domain.includes('Liver') && <Flame className="w-5 h-5" />}
                     </div>
                     <div>
                       <div className="flex items-center gap-2 flex-wrap">
-                        <h4 className="text-xs sm:text-sm font-black text-[var(--text-main)]">{card.title}</h4>
-                        <Badge variant={card.variant} size="sm" className="text-[9.5px] font-mono uppercase tracking-wider">
+                        <h4 className="text-sm font-bold text-[var(--text-main)]">
+                          {viewMode === 'simple' ? card.title : (card.clinicalTitle || card.title)}
+                        </h4>
+                        <Badge variant={card.variant} size="sm" className="text-[9.5px]">
                           {card.badge}
                         </Badge>
                       </div>
-                      <p className="text-[11px] font-mono text-blue-600 dark:text-blue-400 mt-0.5">
-                        {card.exactMeasured}
+                      <p className="text-xs text-[var(--text-muted)] mt-0.5">
+                        {card.simpleSubtitle || card.exactMeasured}
                       </p>
                     </div>
                   </div>
@@ -413,59 +454,132 @@ export default function PersonalizedRecommendations({ predictionData, userProfil
                 {/* Expanded Protocol Details */}
                 {isExpanded && (
                   <div className="pt-3 border-t border-[var(--border-subtle)] space-y-3">
-                    
-                    {/* Personalized Causal Rationale */}
-                    <div className="p-3 rounded-xl bg-[var(--bg-primary)] border border-blue-200/40 dark:border-blue-900/40 space-y-1">
-                      <div className="text-[10.5px] font-mono font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400 flex items-center gap-1.5">
-                        <Sparkles className="w-3.5 h-3.5" />
-                        <span>Why This Recommendation Specifically Matches Your Profile</span>
-                      </div>
-                      <p className="text-xs text-[var(--text-main)] leading-relaxed">
-                        {card.whyMatchesYou}
-                      </p>
-                    </div>
+                    {viewMode === 'simple' ? (
+                      <>
+                        {/* Simple Why Box */}
+                        <div className="p-3 rounded-xl bg-blue-50/70 dark:bg-blue-950/20 border border-blue-200/50 dark:border-blue-900/40 space-y-1">
+                          <span className="text-[11px] font-bold text-blue-700 dark:text-blue-300 flex items-center gap-1.5">
+                            <Lightbulb className="w-3.5 h-3.5 text-amber-500" />
+                            Why this helps you:
+                          </span>
+                          <p className="text-xs text-[var(--text-main)] leading-relaxed">
+                            {card.simpleWhy || card.whyMatchesYou}
+                          </p>
+                        </div>
 
-                    {/* Biological Mechanism */}
-                    <div className="p-3 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] space-y-1">
-                      <div className="text-[10px] font-mono uppercase font-bold text-[var(--text-muted)] tracking-wider">
-                        Cellular & Physiological Mechanism
-                      </div>
-                      <p className="text-xs text-[var(--text-muted)] leading-relaxed">
-                        {card.mechanisticAction}
-                      </p>
-                    </div>
+                        {/* Simple Daily Steps */}
+                        <div className="p-3.5 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-subtle)] space-y-2">
+                          <span className="text-xs font-bold text-[var(--text-main)] flex items-center gap-1.5">
+                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+                            What to do today (Daily Steps):
+                          </span>
+                          <div className="space-y-1.5 pl-1">
+                            {(card.simpleActions || [card.precisionPrescription]).map((step, sIdx) => (
+                              <div key={sIdx} className="flex items-start gap-2 text-xs text-[var(--text-main)]">
+                                <span className="w-4 h-4 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[10px] font-bold flex items-center justify-center shrink-0 mt-0.5">
+                                  {sIdx + 1}
+                                </span>
+                                <span>{step}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
 
-                    {/* Actionable Prescription & Targets */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      <div className="p-3 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] space-y-1">
-                        <span className="text-[10px] font-mono uppercase font-bold text-[var(--text-muted)] tracking-wider">
-                          Prescribed Daily Routine Action
-                        </span>
-                        <p className="text-xs font-bold text-[var(--text-main)]">
-                          {card.precisionPrescription}
-                        </p>
-                      </div>
+                        {/* Goals & Expected Result */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                          <div className="p-2.5 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-subtle)]">
+                            <span className="text-[10.5px] font-bold text-[var(--text-muted)] block">🎯 Healthy Target:</span>
+                            <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 mt-0.5 block">
+                              {card.simpleGoal || card.targetCorridor}
+                            </span>
+                          </div>
+                          <div className="p-2.5 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-subtle)]">
+                            <span className="text-[10.5px] font-bold text-[var(--text-muted)] block">✨ Expected Benefit:</span>
+                            <span className="text-xs font-semibold text-[var(--text-main)] mt-0.5 block">
+                              {card.simpleResult || card.quantifiedExpectedShift}
+                            </span>
+                          </div>
+                        </div>
 
-                      <div className="p-3 rounded-xl bg-emerald-500/5 border border-emerald-500/20 space-y-1">
-                        <span className="text-[10px] font-mono uppercase font-bold text-emerald-600 dark:text-emerald-400 tracking-wider">
-                          Target Clinical Corridor
-                        </span>
-                        <p className="text-xs font-mono font-bold text-emerald-600 dark:text-emerald-400">
-                          {card.targetCorridor}
-                        </p>
-                      </div>
-                    </div>
+                        {/* Expandable Clinical Science Toggle */}
+                        <div className="pt-1">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setShowClinicalMap(prev => ({ ...prev, [card.id]: !prev[card.id] }));
+                            }}
+                            className="text-[11px] font-semibold text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1 cursor-pointer"
+                          >
+                            <span>{isClinicalOpen ? 'Hide medical science' : '🔬 Show medical science & study guidelines'}</span>
+                            {isClinicalOpen ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                          </button>
 
-                    {/* Expected Shift & Medical Citation */}
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-2.5 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-subtle)] text-[10.5px]">
-                      <div className="font-mono font-bold text-emerald-600 dark:text-emerald-400">
-                        {card.quantifiedExpectedShift}
-                      </div>
-                      <div className="text-[10px] font-mono text-[var(--text-muted)] italic">
-                        Ref: {card.medicalCitation}
-                      </div>
-                    </div>
+                          {isClinicalOpen && (
+                            <div className="mt-2.5 p-3 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] space-y-2 text-xs">
+                              <div>
+                                <span className="text-[10px] font-mono uppercase font-bold text-[var(--text-muted)] block">Cellular & Physiological Mechanism:</span>
+                                <p className="text-[11px] text-[var(--text-muted)] mt-0.5 leading-relaxed">{card.mechanisticAction}</p>
+                              </div>
+                              <div className="pt-2 border-t border-[var(--border-subtle)] flex items-center justify-between flex-wrap gap-2 text-[10px] font-mono text-[var(--text-muted)]">
+                                <span>Clinical Corridor: {card.targetCorridor}</span>
+                                <span className="italic">Ref: {card.medicalCitation}</span>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </>
+                    ) : (
+                      /* Full Clinical Mode */
+                      <>
+                        <div className="p-3 rounded-xl bg-[var(--bg-primary)] border border-blue-200/40 dark:border-blue-900/40 space-y-1">
+                          <div className="text-[10.5px] font-mono font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400 flex items-center gap-1.5">
+                            <Sparkles className="w-3.5 h-3.5" />
+                            <span>Why This Recommendation Specifically Matches Your Profile</span>
+                          </div>
+                          <p className="text-xs text-[var(--text-main)] leading-relaxed">
+                            {card.whyMatchesYou}
+                          </p>
+                        </div>
 
+                        <div className="p-3 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] space-y-1">
+                          <div className="text-[10px] font-mono uppercase font-bold text-[var(--text-muted)] tracking-wider">
+                            Cellular & Physiological Mechanism
+                          </div>
+                          <p className="text-xs text-[var(--text-muted)] leading-relaxed">
+                            {card.mechanisticAction}
+                          </p>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          <div className="p-3 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] space-y-1">
+                            <span className="text-[10px] font-mono uppercase font-bold text-[var(--text-muted)] tracking-wider">
+                              Prescribed Daily Routine Action
+                            </span>
+                            <p className="text-xs font-bold text-[var(--text-main)]">
+                              {card.precisionPrescription}
+                            </p>
+                          </div>
+
+                          <div className="p-3 rounded-xl bg-emerald-500/5 border border-emerald-500/20 space-y-1">
+                            <span className="text-[10px] font-mono uppercase font-bold text-emerald-600 dark:text-emerald-400 tracking-wider">
+                              Target Clinical Corridor
+                            </span>
+                            <p className="text-xs font-mono font-bold text-emerald-600 dark:text-emerald-400">
+                              {card.targetCorridor}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-2.5 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-subtle)] text-[10.5px]">
+                          <div className="font-mono font-bold text-emerald-600 dark:text-emerald-400">
+                            {card.quantifiedExpectedShift}
+                          </div>
+                          <div className="text-[10px] font-mono text-[var(--text-muted)] italic">
+                            Ref: {card.medicalCitation}
+                          </div>
+                        </div>
+                      </>
+                    )}
                   </div>
                 )}
               </Card>
