@@ -4,13 +4,37 @@
  * Hardened with safe JSON response handling and resilient error recovery.
  */
 
-const API_BASE = (typeof window !== 'undefined' && ['5173', '5174', '5175', '5176'].includes(window.location.port))
+const isLocalhost = typeof window !== 'undefined' && (
+  window.location.hostname === 'localhost' ||
+  window.location.hostname === '127.0.0.1' ||
+  window.location.hostname === '0.0.0.0'
+);
+
+const API_BASE = isLocalhost
   ? 'http://127.0.0.1:8000/api/v1'
   : (import.meta.env?.VITE_API_URL || '/api/v1');
 
 const V3_API_BASE = API_BASE.replace(/\/api\/v1$/, '/api/v3');
 
 let _inMemoryAccessToken = '';
+
+function decodeJwtPayload(token) {
+  if (!token || typeof token !== 'string') return null;
+  const parts = token.split('.');
+  if (parts.length !== 3) return null;
+  try {
+    const base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+    const jsonStr = decodeURIComponent(
+      atob(base64)
+        .split('')
+        .map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+        .join('')
+    );
+    return JSON.parse(jsonStr);
+  } catch {
+    return null;
+  }
+}
 
 /**
  * Resilient fetch wrapper with AbortController timeout.
@@ -70,8 +94,7 @@ export function getCsrfToken() {
 
 export function getWsBaseUrl() {
   if (typeof window === 'undefined') return '';
-  const isDev = ['localhost', '127.0.0.1'].includes(window.location.hostname) && ['5173', '5174', '5175', '5176'].includes(window.location.port);
-  if (isDev) {
+  if (isLocalhost) {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     return `${protocol}//127.0.0.1:8000`;
   }
@@ -89,6 +112,15 @@ export function getRefreshToken() {
     }
     if (!token && typeof localStorage !== 'undefined') {
       token = localStorage.getItem('telemed_refresh_token') || '';
+    }
+    if (token) {
+      const payload = decodeJwtPayload(token);
+      if (payload && payload.exp && payload.exp * 1000 < Date.now()) {
+        // Stale or expired refresh token: clear from storage cleanly so we never trigger 401 network errors
+        if (typeof sessionStorage !== 'undefined') sessionStorage.removeItem('telemed_refresh_token');
+        if (typeof localStorage !== 'undefined') localStorage.removeItem('telemed_refresh_token');
+        return '';
+      }
     }
     return token || '';
   } catch (e) {
@@ -109,16 +141,11 @@ export function getAuthToken() {
     } catch (e) {}
   }
   if (token) {
-    try {
-      const parts = token.split('.');
-      if (parts.length === 3) {
-        const payload = JSON.parse(atob(parts[1]));
-        if (payload.exp && payload.exp * 1000 < Date.now()) {
-          // Token is expired. If refresh token is available, don't purge; return empty string to trigger silent refresh.
-          return '';
-        }
-      }
-    } catch (e) {}
+    const payload = decodeJwtPayload(token);
+    if (payload && payload.exp && payload.exp * 1000 < Date.now()) {
+      // Access token expired; return empty to trigger silent refresh without purging refresh token
+      return '';
+    }
   }
   return token || '';
 }
