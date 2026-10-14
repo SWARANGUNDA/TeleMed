@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useLocation, useSearchParams } from 'react-router-dom';
+import { useLocation, useSearchParams, useNavigate } from 'react-router-dom';
 import {
   Brain, RefreshCw, AlertTriangle, ShieldCheck, TrendingUp, TrendingDown,
   Search, Filter, Download, Printer, Copy, Check, ChevronDown, ChevronUp,
   Activity, Watch, Dna, FileText, Info, Sparkles, Layers, ArrowRight, Eye, X,
   HelpCircle, CheckCircle2, Flame, Shield, Stethoscope, SlidersHorizontal,
-  LayoutGrid, BarChart3, Table as TableIcon, Lightbulb, MessageSquareQuote
+  LayoutGrid, BarChart3, Table as TableIcon, Lightbulb, MessageSquareQuote, Award
 } from 'lucide-react';
 import HighlightMatch from '../components/ui/HighlightMatch';
 import {
@@ -27,6 +27,7 @@ export default function XAIPage({
   onStartAnalysis
 }) {
   const location = useLocation();
+  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const targetFromRoute = location.state?.disease || searchParams.get('disease');
 
@@ -222,8 +223,14 @@ export default function XAIPage({
   const diseaseOutcome = predictionData?.disease_outcomes?.[selectedDisease] || predictionData?.predictions?.[selectedDisease] || {};
   const probVal = diseaseOutcome.probability !== undefined ? diseaseOutcome.probability : (diseaseOutcome.calibrated_probability !== undefined ? diseaseOutcome.calibrated_probability : 0);
   const probPct = Math.round(probVal * 100);
-  const rawRiskLvl = diseaseOutcome.risk_level || (probPct >= 60 ? 'High' : probPct >= 30 ? 'Moderate' : 'Low');
-  const cleanRiskLvl = rawRiskLvl.replace(/Risk Level/gi, '').trim();
+  const rawRiskLvl = String(diseaseOutcome.risk_level || '').trim();
+  const normalizedRisk = useMemo(() => {
+    const lower = rawRiskLvl.toLowerCase();
+    if (lower.includes('high') || lower.includes('positive') || probPct >= 60) return 'High';
+    if (lower.includes('mod') || lower.includes('elevated') || (probPct >= 30 && probPct < 60)) return 'Moderate';
+    return 'Low';
+  }, [rawRiskLvl, probPct]);
+  const cleanRiskLvl = normalizedRisk;
 
   // Disease Meta Details
   const diseaseInfo = DISEASE_LABELS[selectedDisease] || {
@@ -317,6 +324,14 @@ export default function XAIPage({
               Print Report
             </Button>
             <Button
+              variant="outline"
+              size="sm"
+              leftIcon={<Award className="w-4 h-4 text-emerald-400" />}
+              onClick={() => navigate('/results')}
+            >
+              Model Benchmarks
+            </Button>
+            <Button
               variant="primary"
               size="sm"
               rightIcon={<ArrowRight className="w-4 h-4" />}
@@ -339,7 +354,7 @@ export default function XAIPage({
           </span>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-5 gap-2.5">
+        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-5 gap-3">
           {displayDiseases.map((d) => {
             const isSelected = selectedDisease === d.key;
             const outcome = predictionData?.disease_outcomes?.[d.key] || predictionData?.predictions?.[d.key] || {};
@@ -352,28 +367,33 @@ export default function XAIPage({
               <button
                 key={d.key}
                 onClick={() => setSelectedDisease(d.key)}
-                className={`flex flex-col text-left p-3 rounded-2xl border transition-all text-xs relative ${
+                className={`flex flex-col text-left p-3.5 rounded-2xl border transition-all duration-200 text-xs relative cursor-pointer group ${
                   isSelected
-                    ? 'bg-gradient-to-br from-[var(--bg-surface)] to-[var(--bg-primary)] border-[var(--primary)] shadow-md ring-2 ring-[var(--primary)]/20'
-                    : 'bg-[var(--bg-primary)] border-[var(--border-subtle)] hover:border-[var(--border-medium)] hover:bg-[var(--bg-surface)]'
+                    ? 'bg-gradient-to-br from-indigo-50/80 via-white to-purple-50/50 dark:from-indigo-950/40 dark:via-gray-900 dark:to-purple-950/30 border-indigo-500 dark:border-indigo-400 shadow-md ring-2 ring-indigo-500/30 dark:ring-indigo-400/30 transform -translate-y-0.5'
+                    : 'bg-[var(--bg-surface)] border-[var(--border-subtle)] hover:border-[var(--border-medium)] hover:bg-[var(--bg-primary)] hover:-translate-y-0.5'
                 }`}
               >
-                <div className="flex items-center justify-between w-full mb-1">
-                  <span className="text-base">{d.icon || '🩺'}</span>
-                  <span className={`inline-flex items-center gap-1 text-[10px] font-bold font-mono px-2 py-0.5 rounded-full ${
+                <div className="flex items-center justify-between w-full mb-1.5">
+                  <span className="text-xl p-1 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-subtle)] shadow-xs">
+                    {d.icon || '🩺'}
+                  </span>
+                  <span className={`inline-flex items-center gap-1.5 text-[11px] font-black font-mono px-2.5 py-0.5 rounded-full border shadow-xs ${
                     isHigh
-                      ? 'bg-red-100 text-red-800 dark:bg-red-950/40 dark:text-red-300'
+                      ? 'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-900/50'
                       : isMod
-                      ? 'bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300'
-                      : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300'
+                      ? 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-900/50'
+                      : 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-900/50'
                   }`}>
-                    <span className={`w-1.5 h-1.5 rounded-full ${isHigh ? 'bg-red-500 animate-pulse' : isMod ? 'bg-amber-500' : 'bg-emerald-500'}`} />
+                    <span className={`w-1.5 h-1.5 rounded-full ${isHigh ? 'bg-rose-500 animate-pulse' : isMod ? 'bg-amber-500' : 'bg-emerald-500'}`} />
                     {pPct}%
                   </span>
                 </div>
-                <strong className={`font-bold truncate mt-0.5 ${isSelected ? 'text-[var(--text-main)] font-extrabold' : 'text-[var(--text-muted)]'}`}>
+                <strong className={`font-extrabold truncate text-xs mt-1 ${isSelected ? 'text-[var(--text-main)] font-black' : 'text-[var(--text-muted)] group-hover:text-[var(--text-main)]'}`}>
                   {d.title}
                 </strong>
+                <span className="text-[10px] text-[var(--text-muted)] font-mono mt-0.5">
+                  {isHigh ? 'High Risk Band' : isMod ? 'Moderate Band' : 'Low Risk Band'}
+                </span>
               </button>
             );
           })}
@@ -382,50 +402,50 @@ export default function XAIPage({
 
       {/* EDUCATIONAL GUIDE CALLOUT (COLLAPSIBLE) */}
       {showGuide && (
-        <Card isGlass={true} className="p-6 bg-gradient-to-r from-indigo-50/80 via-purple-50/50 to-blue-50/80 dark:from-indigo-950/30 dark:via-purple-950/20 dark:to-blue-950/30 border border-indigo-200 dark:border-indigo-800 animate-fade-in space-y-4">
+        <Card isGlass={true} className="p-6 bg-gradient-to-r from-indigo-50/80 via-purple-50/50 to-blue-50/80 dark:from-indigo-950/30 dark:via-purple-950/20 dark:to-blue-950/30 border border-indigo-200 dark:border-indigo-800 animate-fade-in space-y-4 shadow-sm">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-xl bg-indigo-600 text-white flex items-center justify-center shrink-0">
+              <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-indigo-600 to-purple-600 text-white flex items-center justify-center shrink-0 shadow-xs">
                 <Lightbulb className="w-4 h-4" />
               </div>
               <div>
-                <h4 className="text-sm font-bold text-indigo-950 dark:text-indigo-200">How to Understand Your Health Drivers</h4>
-                <p className="text-xs text-indigo-900/80 dark:text-indigo-300/80">Every health measurement below influenced your final risk probability</p>
+                <h4 className="text-sm font-extrabold text-indigo-950 dark:text-indigo-200">How to Read Your AI Health Drivers</h4>
+                <p className="text-xs text-indigo-900/80 dark:text-indigo-300/80">Every biological parameter evaluated influenced your final calibrated risk probability</p>
               </div>
             </div>
             <button
               onClick={() => setShowGuide(false)}
-              className="text-xs text-indigo-700 dark:text-indigo-300 hover:underline font-bold"
+              className="text-xs text-indigo-700 dark:text-indigo-300 hover:underline font-extrabold px-3 py-1 rounded-lg hover:bg-indigo-100/50 dark:hover:bg-indigo-900/30 transition-all cursor-pointer"
             >
-              Got it, close guide
+              Close guide
             </button>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
-            <div className="p-3.5 rounded-xl bg-white/70 dark:bg-gray-900/60 border border-red-200 dark:border-red-900/40 space-y-1">
-              <div className="flex items-center gap-2 text-xs font-bold text-red-700 dark:text-red-300">
-                <Flame className="w-4 h-4 text-red-500" />
-                <span>Risk Escalators (Red / Warm)</span>
+            <div className="p-4 rounded-xl bg-white/80 dark:bg-gray-900/70 border border-rose-200 dark:border-rose-900/40 space-y-1.5 shadow-xs">
+              <div className="flex items-center gap-2 text-xs font-black text-rose-700 dark:text-rose-300">
+                <Flame className="w-4 h-4 text-rose-500 animate-pulse" />
+                <span>Risk Escalators (Warm Colors)</span>
               </div>
               <p className="text-[11px] text-gray-700 dark:text-gray-300 leading-relaxed">
                 Biomarkers or habits that <strong>pushed your risk score higher</strong>. These are prime targets where personalized lifestyle improvements or clinical care can reduce risk.
               </p>
             </div>
 
-            <div className="p-3.5 rounded-xl bg-white/70 dark:bg-gray-900/60 border border-emerald-200 dark:border-emerald-900/40 space-y-1">
-              <div className="flex items-center gap-2 text-xs font-bold text-emerald-700 dark:text-emerald-300">
-                <Shield className="w-4 h-4 text-emerald-500" />
-                <span>Protective Shields (Green / Cool)</span>
+            <div className="p-4 rounded-xl bg-white/80 dark:bg-gray-900/70 border border-emerald-200 dark:border-emerald-900/40 space-y-1.5 shadow-xs">
+              <div className="flex items-center gap-2 text-xs font-black text-emerald-700 dark:text-emerald-300">
+                <ShieldCheck className="w-4 h-4 text-emerald-500" />
+                <span>Protective Shields (Cool Colors)</span>
               </div>
               <p className="text-[11px] text-gray-700 dark:text-gray-300 leading-relaxed">
                 Healthy measurements or favorable bacteria that <strong>actively lowered your score</strong>. These are personal biological superpowers you should maintain!
               </p>
             </div>
 
-            <div className="p-3.5 rounded-xl bg-white/70 dark:bg-gray-900/60 border border-blue-200 dark:border-blue-900/40 space-y-1">
-              <div className="flex items-center gap-2 text-xs font-bold text-blue-700 dark:text-blue-300">
-                <BarChart3 className="w-4 h-4 text-blue-500" />
-                <span>Impact Strength</span>
+            <div className="p-4 rounded-xl bg-white/80 dark:bg-gray-900/70 border border-indigo-200 dark:border-indigo-900/40 space-y-1.5 shadow-xs">
+              <div className="flex items-center gap-2 text-xs font-black text-indigo-700 dark:text-indigo-300">
+                <BarChart3 className="w-4 h-4 text-indigo-500" />
+                <span>Impact Strength (TreeSHAP)</span>
               </div>
               <p className="text-[11px] text-gray-700 dark:text-gray-300 leading-relaxed">
                 The longer the impact bar, the more weight the AI model assigned to that factor when evaluating your multi-modal profile.
@@ -436,27 +456,29 @@ export default function XAIPage({
       )}
 
       {/* SECTION 1: PREDICTION HERO CARD */}
-      <Card isGlass={true} className="p-6 bg-gradient-to-br from-[var(--bg-surface)] via-[var(--bg-primary)] to-[var(--bg-surface)] border border-[var(--border-medium)] shadow-md">
+      <Card isGlass={true} className="p-6 bg-gradient-to-br from-[var(--bg-surface)] via-[var(--bg-primary)] to-[var(--bg-surface)] border border-[var(--border-medium)] shadow-lg">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
           {/* Col 1: Disease Info */}
-          <div className="lg:col-span-5 space-y-3">
+          <div className="lg:col-span-4 space-y-3">
             <div className="flex items-center gap-2 flex-wrap">
               <Badge
-                variant={cleanRiskLvl === 'High' ? 'danger' : cleanRiskLvl === 'Moderate' ? 'warning' : 'success'}
+                variant={normalizedRisk === 'High' ? 'danger' : normalizedRisk === 'Moderate' ? 'warning' : 'success'}
                 size="sm"
-                className="font-bold flex items-center gap-1.5"
+                className="font-black flex items-center gap-1.5 px-3 py-1 tracking-wide shadow-xs"
               >
-                <span className="w-2 h-2 rounded-full bg-current" />
-                {cleanRiskLvl} Risk Profile
+                <span className="w-2 h-2 rounded-full bg-current animate-pulse" />
+                {normalizedRisk} Risk Profile
               </Badge>
-              <Badge variant="accent" size="sm" className="font-mono text-[10px]">
-                Pathway: {predictionData?.effective_pathway || 'Clinical + Wearables + Gut'}
+              <Badge variant="accent" size="sm" className="font-mono text-[10px] font-bold">
+                Pathway: {predictionData?.effective_pathway || 'C+W+G'}
               </Badge>
             </div>
 
             <div>
-              <h2 className="text-2xl font-black text-[var(--text-main)] flex items-center gap-2">
-                <span>{diseaseInfo.icon}</span>
+              <h2 className="text-2xl font-black text-[var(--text-main)] flex items-center gap-2 tracking-tight">
+                <span className="p-1 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-subtle)] shadow-xs">
+                  {diseaseInfo.icon}
+                </span>
                 {diseaseInfo.title} Assessment
               </h2>
               <p className="text-xs text-[var(--text-muted)] mt-1.5 leading-relaxed">
@@ -465,67 +487,128 @@ export default function XAIPage({
             </div>
           </div>
 
-          {/* Col 2: Risk Probability Wheel */}
-          <div className="lg:col-span-3 flex flex-col items-center justify-center py-4 lg:py-0 border-y lg:border-y-0 lg:border-x border-[var(--border-subtle)] px-4">
+          {/* Col 2: High Risk Probability Band & Calibrated Wheel */}
+          <div className="lg:col-span-4 flex flex-col items-center justify-center py-4 lg:py-0 border-y lg:border-y-0 lg:border-x border-[var(--border-subtle)] px-6">
             <div className="relative flex items-center justify-center">
               <CircularProgress
                 value={probPct}
-                size={88}
-                strokeWidth={8}
-                variant={cleanRiskLvl === 'High' ? 'danger' : cleanRiskLvl === 'Moderate' ? 'warning' : 'success'}
-              />
-              <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-                <span className="text-xl font-black text-[var(--text-main)] leading-none">{probPct}%</span>
-                <span className="text-[9px] uppercase font-bold text-[var(--text-muted)] mt-0.5">Risk</span>
-              </div>
+                size={98}
+                strokeWidth={9}
+                variant={normalizedRisk === 'High' ? 'danger' : normalizedRisk === 'Moderate' ? 'warning' : 'success'}
+              >
+                <span className={`text-2xl font-black leading-none tracking-tight ${
+                  normalizedRisk === 'High' ? 'text-rose-600 dark:text-rose-400' :
+                  normalizedRisk === 'Moderate' ? 'text-amber-600 dark:text-amber-400' :
+                  'text-emerald-600 dark:text-emerald-400'
+                }`}>
+                  {probPct}%
+                </span>
+                <span className="text-[10px] uppercase font-black tracking-wider text-[var(--text-muted)] mt-1">
+                  {normalizedRisk} Risk
+                </span>
+              </CircularProgress>
             </div>
-            <div className="mt-2 text-center">
-              <span className={`text-xs font-bold ${cleanRiskLvl === 'High' ? 'text-red-500' : cleanRiskLvl === 'Moderate' ? 'text-amber-500' : 'text-emerald-500'}`}>
-                {cleanRiskLvl} Probability Band
+
+            {/* Dedicated High Risk Probability Band Representation */}
+            <div className="mt-3.5 w-full flex flex-col items-center text-center space-y-2">
+              <span className={`inline-flex items-center gap-1.5 text-xs font-black px-3.5 py-1 rounded-full border shadow-xs ${
+                normalizedRisk === 'High'
+                  ? 'bg-rose-50 text-rose-700 border-rose-300 dark:bg-rose-950/50 dark:text-rose-300 dark:border-rose-800'
+                  : normalizedRisk === 'Moderate'
+                  ? 'bg-amber-50 text-amber-700 border-amber-300 dark:bg-amber-950/50 dark:text-amber-300 dark:border-amber-800'
+                  : 'bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-950/50 dark:text-emerald-300 dark:border-emerald-800'
+              }`}>
+                <span className={`w-2 h-2 rounded-full ${
+                  normalizedRisk === 'High' ? 'bg-rose-600 animate-ping' :
+                  normalizedRisk === 'Moderate' ? 'bg-amber-500' : 'bg-emerald-500'
+                }`} />
+                {normalizedRisk} Risk Probability Band ({normalizedRisk === 'High' ? '≥ 60%' : normalizedRisk === 'Moderate' ? '30% – 59%' : '0% – 29%'})
               </span>
-              <p className="text-[10px] text-[var(--text-muted)] font-mono">Calibrated Multi-Modal Model</p>
+
+              {/* Visual 3-Stage Risk Spectrum Bar */}
+              <div className="w-52 max-w-full space-y-1 pt-1">
+                <div className="relative h-2 w-full rounded-full overflow-hidden flex bg-gray-200 dark:bg-gray-800 border border-[var(--border-subtle)] shadow-inner">
+                  <div className="h-full bg-emerald-500" style={{ width: '30%' }} title="Low Risk: 0-29%" />
+                  <div className="h-full bg-amber-500" style={{ width: '30%' }} title="Moderate Risk: 30-59%" />
+                  <div className="h-full bg-rose-500" style={{ width: '40%' }} title="High Risk: 60-100%" />
+                </div>
+                {/* Visual Position Pin */}
+                <div className="relative w-full h-2">
+                  <div
+                    className="absolute top-0 -translate-x-1/2 transition-all duration-700 ease-out"
+                    style={{ left: `${Math.min(97, Math.max(3, probPct))}%` }}
+                  >
+                    <div className={`w-2.5 h-2.5 rounded-full border-2 border-white dark:border-gray-900 shadow-md ${
+                      normalizedRisk === 'High' ? 'bg-rose-600 ring-2 ring-rose-400/50' :
+                      normalizedRisk === 'Moderate' ? 'bg-amber-500 ring-2 ring-amber-400/50' :
+                      'bg-emerald-500 ring-2 ring-emerald-400/50'
+                    }`} />
+                  </div>
+                </div>
+                <div className="flex justify-between text-[9px] text-[var(--text-muted)] font-mono px-0.5">
+                  <span className="text-emerald-600 dark:text-emerald-400 font-bold">Low (0-29%)</span>
+                  <span className="text-amber-600 dark:text-amber-400 font-bold">Mod (30-59%)</span>
+                  <span className="text-rose-600 dark:text-rose-400 font-bold">High (≥60%)</span>
+                </div>
+              </div>
+
+              <p className="text-[10px] text-[var(--text-muted)] font-mono">
+                Calibrated Multi-Modal Model (Optimal Threshold: 50%)
+              </p>
             </div>
           </div>
 
           {/* Col 3: Quick Metric Tiles */}
-          <div className="lg:col-span-4 grid grid-cols-2 gap-2.5">
-            <div className="p-3 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-subtle)]">
-              <span className="text-[10px] uppercase font-bold text-[var(--text-muted)] block">Data Quality</span>
-              <strong className="text-base font-extrabold text-emerald-600 dark:text-emerald-400 block mt-0.5">
+          <div className="lg:col-span-4 grid grid-cols-2 gap-3">
+            <div className="p-3.5 rounded-2xl bg-[var(--bg-primary)] border border-[var(--border-subtle)] hover:border-emerald-300 dark:hover:border-emerald-800 transition-all shadow-xs">
+              <span className="text-[10px] uppercase font-bold text-[var(--text-muted)] block tracking-wider">Data Quality</span>
+              <strong className="text-lg font-black text-emerald-600 dark:text-emerald-400 block mt-0.5">
                 {Math.round((predictionData?.data_quality_score || 0.92) * 100)}%
               </strong>
               <span className="text-[10px] text-[var(--text-muted)]">High fidelity signals</span>
             </div>
 
-            <div className="p-3 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-subtle)]">
-              <span className="text-[10px] uppercase font-bold text-[var(--text-muted)] block">Active Drivers</span>
-              <strong className="text-base font-extrabold text-[var(--primary)] block mt-0.5">
+            <div className="p-3.5 rounded-2xl bg-[var(--bg-primary)] border border-[var(--border-subtle)] hover:border-indigo-300 dark:hover:border-indigo-800 transition-all shadow-xs">
+              <span className="text-[10px] uppercase font-bold text-[var(--text-muted)] block tracking-wider">Active Drivers</span>
+              <strong className="text-lg font-black text-indigo-600 dark:text-indigo-400 block mt-0.5">
                 {allDrivers.length}
               </strong>
               <span className="text-[10px] text-[var(--text-muted)]">Biomarkers analyzed</span>
             </div>
 
-            <div className="p-3 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-subtle)]">
-              <span className="text-[10px] uppercase font-bold text-[var(--text-muted)] block">Risk Escalators</span>
-              <strong className="text-base font-extrabold text-red-600 dark:text-red-400 block mt-0.5">
+            <div className="p-3.5 rounded-2xl bg-rose-50/40 dark:bg-rose-950/20 border border-rose-200/80 dark:border-rose-900/40 hover:border-rose-400 transition-all shadow-xs">
+              <span className="text-[10px] uppercase font-bold text-rose-700 dark:text-rose-300 block tracking-wider flex items-center gap-1">
+                <Flame className="w-3 h-3 text-rose-500" />
+                Risk Escalators
+              </span>
+              <strong className="text-lg font-black text-rose-600 dark:text-rose-400 block mt-0.5">
                 {riskDriversCount}
               </strong>
-              <span className="text-[10px] text-[var(--text-muted)]">Pushed score up</span>
+              <span className="text-[10px] text-rose-600/80 dark:text-rose-400/80">Pushed score up</span>
             </div>
 
-            <div className="p-3 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-subtle)]">
-              <span className="text-[10px] uppercase font-bold text-[var(--text-muted)] block">Protective Shields</span>
-              <strong className="text-base font-extrabold text-emerald-600 dark:text-emerald-400 block mt-0.5">
+            <div className="p-3.5 rounded-2xl bg-emerald-50/40 dark:bg-emerald-950/20 border border-emerald-200/80 dark:border-emerald-900/40 hover:border-emerald-400 transition-all shadow-xs">
+              <span className="text-[10px] uppercase font-bold text-emerald-700 dark:text-emerald-300 block tracking-wider flex items-center gap-1">
+                <ShieldCheck className="w-3 h-3 text-emerald-500" />
+                Protective Shields
+              </span>
+              <strong className="text-lg font-black text-emerald-600 dark:text-emerald-400 block mt-0.5">
                 {protectiveDriversCount}
               </strong>
-              <span className="text-[10px] text-[var(--text-muted)]">Lowered score</span>
+              <span className="text-[10px] text-emerald-600/80 dark:text-emerald-400/80">Lowered score</span>
             </div>
           </div>
         </div>
       </Card>
 
       {/* SECTION 2: ASSESSMENT PROVENANCE (MODALITY CONTRIBUTION) */}
-      <ModalityContributionChart attributions={attributions} selectedDisease={selectedDisease} />
+      <ModalityContributionChart
+        attributions={attributions}
+        selectedDisease={selectedDisease}
+        predictionData={predictionData}
+        effectivePathway={predictionData?.effective_pathway}
+        metaLearnerWeights={xaiData?.meta_learner_weights}
+      />
 
       {/* SECTION 3: INTERACTIVE HEALTH DRIVERS EXPLORER */}
       <ContentSection
@@ -745,19 +828,19 @@ export default function XAIPage({
                     </div>
 
                     {/* Proportional Impact Bar */}
-                    <div className="mt-3 space-y-1">
+                    <div className="mt-3 space-y-1.5">
                       <div className="flex justify-between items-center text-[10px] text-[var(--text-muted)] font-mono">
                         <span className="flex items-center gap-1">
                           <strong className={d.impactColor}>{d.impactTier}</strong> on prediction
                         </span>
-                        <span>SHAP Influence Score: {d.shapValue > 0 ? `+${d.shapValue.toFixed(3)}` : d.shapValue.toFixed(3)}</span>
+                        <span className="font-bold text-[var(--text-main)]">SHAP Influence: {d.shapValue > 0 ? `+${d.shapValue.toFixed(3)}` : d.shapValue.toFixed(3)}</span>
                       </div>
-                      <div className="w-full h-2 rounded-full bg-gray-100 dark:bg-gray-800 overflow-hidden">
+                      <div className="w-full h-2.5 rounded-full bg-slate-100 dark:bg-slate-800/80 border border-slate-200/80 dark:border-slate-700/60 overflow-hidden shadow-inner p-0.5 flex items-center">
                         <div
-                          className={`h-full rounded-full transition-all duration-500 ${
+                          className={`h-full rounded-full transition-all duration-700 ease-out ${
                             d.isRiskIncreasing
-                              ? 'bg-gradient-to-r from-amber-500 to-red-500'
-                              : 'bg-gradient-to-r from-teal-400 to-emerald-500'
+                              ? 'bg-gradient-to-r from-amber-400 via-rose-500 to-red-600 shadow-[0_0_10px_rgba(239,68,68,0.5)]'
+                              : 'bg-gradient-to-r from-emerald-400 via-teal-400 to-cyan-400 shadow-[0_0_10px_rgba(16,185,129,0.5)]'
                           }`}
                           style={{ width: `${impactWidth}%` }}
                         />
@@ -768,7 +851,7 @@ export default function XAIPage({
                     <div className="mt-3 pt-2.5 border-t border-[var(--border-subtle)]">
                       <button
                         onClick={() => toggleCard(idx)}
-                        className="text-xs font-bold text-[var(--primary)] hover:underline flex items-center gap-1"
+                        className="text-xs font-bold text-[var(--primary)] hover:underline flex items-center gap-1 cursor-pointer"
                       >
                         {isExpanded ? (
                           <>Hide Plain-English Explanation <ChevronUp className="w-3.5 h-3.5" /></>
@@ -778,8 +861,8 @@ export default function XAIPage({
                       </button>
 
                       {isExpanded && (
-                        <div className="mt-2.5 p-3 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] space-y-2 animate-fade-in text-xs leading-relaxed">
-                          <p className="text-[var(--text-main)]">
+                        <div className="mt-2.5 p-3.5 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] space-y-2 animate-fade-in text-xs leading-relaxed">
+                          <p className="text-[var(--text-main)] font-medium">
                             {d.plainExplanation}
                           </p>
                           <div className="flex items-start gap-2 pt-1 border-t border-[var(--border-subtle)] text-[11px] text-[var(--text-muted)]">
@@ -795,54 +878,173 @@ export default function XAIPage({
             </div>
           )}
 
-          {/* VIEW 2: VISUAL IMPACT METER CHART */}
+          {/* VIEW 2: VISUAL IMPACT METER CHART (REDESIGNED WITH EYE-CATCHING LUMINOUS POLES) */}
           {viewMode === 'barchart' && (
-            <div className="space-y-3 pt-2">
-              <div className="flex justify-between text-xs font-bold text-[var(--text-muted)] px-2">
-                <span className="text-emerald-600 flex items-center gap-1">
-                  <Shield className="w-3.5 h-3.5" /> ← Protective Shields (Decreases Risk)
-                </span>
-                <span className="text-red-600 flex items-center gap-1">
-                  Risk Escalators (Increases Risk) → <Flame className="w-3.5 h-3.5" />
-                </span>
+            <div className="space-y-4 pt-1">
+              {/* Eye-Catching Calibrated Baseline Ruler */}
+              <div className="p-3.5 rounded-2xl bg-gradient-to-r from-emerald-500/10 via-[var(--bg-surface)] to-rose-500/10 border border-[var(--border-medium)] shadow-sm space-y-2">
+                <div className="flex items-center justify-between text-xs font-black">
+                  <span className="text-emerald-700 dark:text-emerald-300 flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/15 border border-emerald-500/30 shadow-xs">
+                    <Shield className="w-3.5 h-3.5 text-emerald-500" />
+                    <span>← Protective Shields (Reduces Risk)</span>
+                  </span>
+
+                  <span className="text-rose-700 dark:text-rose-300 flex items-center gap-1.5 px-3 py-1 rounded-full bg-rose-500/15 border border-rose-500/30 shadow-xs">
+                    <span>Risk Escalators (Increases Risk) →</span>
+                    <Flame className="w-3.5 h-3.5 text-rose-500 animate-pulse" />
+                  </span>
+                </div>
+
+                {/* Sub-scale ticks & Zero Baseline Pill */}
+                <div className="relative flex justify-between items-center text-[10px] font-mono text-[var(--text-muted)] pt-1 px-1">
+                  <span className="text-emerald-600 dark:text-emerald-400 font-bold">-0.50 Max Shield</span>
+                  <span className="hidden sm:inline opacity-70">-0.25</span>
+                  <span className="text-[var(--text-main)] font-black px-2.5 py-0.5 rounded-md bg-[var(--bg-primary)] border border-[var(--border-medium)] shadow-xs">
+                    0.00 Neutral Baseline
+                  </span>
+                  <span className="hidden sm:inline opacity-70">+0.25</span>
+                  <span className="text-rose-600 dark:text-rose-400 font-bold">+0.50 Max Risk</span>
+                </div>
               </div>
 
+              {/* Impact Meter Rows */}
               {displayedDrivers.map((d, idx) => {
                 const barWidth = Math.min(50, Math.round((d.absShap / maxAbsShap) * 50));
+                const isExpanded = expandedCards[`bar_${idx}`];
 
                 return (
                   <div
                     key={d.rawName + idx}
-                    className="p-3 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-subtle)] space-y-1.5"
+                    className={`p-4 rounded-2xl border transition-all duration-300 ${
+                      d.isRiskIncreasing
+                        ? 'bg-gradient-to-r from-rose-50/20 via-[var(--bg-surface)] to-[var(--bg-primary)] border-rose-200/80 dark:border-rose-950/50 hover:border-rose-400 dark:hover:border-rose-700'
+                        : 'bg-gradient-to-r from-emerald-50/20 via-[var(--bg-surface)] to-[var(--bg-primary)] border-emerald-200/80 dark:border-emerald-950/50 hover:border-emerald-400 dark:hover:border-emerald-700'
+                    } hover:shadow-md space-y-3 group`}
                   >
-                    <div className="flex items-center justify-between text-xs">
-                      <div className="flex items-center gap-2">
-                        <span className="font-mono text-[var(--text-muted)] text-[11px]">#{idx + 1}</span>
-                        <strong className="text-[var(--text-main)]">{d.displayName}</strong>
-                        <span className="text-[10px] font-mono text-[var(--text-muted)]">({d.observedValue} {d.unit})</span>
+                    {/* Top Info Bar */}
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                      <div className="flex items-center gap-2.5 flex-wrap">
+                        <span className={`w-7 h-7 rounded-xl flex items-center justify-center font-mono font-black text-xs shadow-xs ${
+                          d.isRiskIncreasing
+                            ? 'bg-rose-500/15 text-rose-700 dark:text-rose-300 border border-rose-500/30'
+                            : 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30'
+                        }`}>
+                          #{idx + 1}
+                        </span>
+
+                        <Badge
+                          variant={d.modality === 'clinical' ? 'primary' : d.modality === 'wearable' ? 'secondary' : 'accent'}
+                          size="sm"
+                          className="text-[10px] font-bold"
+                        >
+                          {d.modality === 'clinical' ? '🩺 Clinical Lab' : d.modality === 'wearable' ? '⌚ Wearables & CGM' : '🧬 Gut Microbiome'}
+                        </Badge>
+
+                        <strong className="text-sm font-extrabold text-[var(--text-main)] tracking-tight">
+                          <HighlightMatch text={d.displayName} query={searchQuery} />
+                        </strong>
+
+                        <span className="px-2 py-0.5 rounded-lg text-[11px] font-mono font-bold bg-[var(--bg-primary)] border border-[var(--border-subtle)] text-[var(--text-main)] shadow-2xs">
+                          {d.observedValue} {d.unit}
+                        </span>
                       </div>
-                      <div className="font-mono text-xs font-extrabold">
-                        <span className={d.isRiskIncreasing ? 'text-red-500' : 'text-emerald-500'}>
-                          {d.shapValue > 0 ? `+${d.shapValue.toFixed(3)}` : d.shapValue.toFixed(3)}
+
+                      {/* Right: Eye-Catching SHAP Score Pill */}
+                      <div className="flex items-center gap-2 self-start sm:self-auto shrink-0">
+                        <span className={`px-3 py-1 rounded-full text-xs font-black font-mono flex items-center gap-1.5 shadow-xs ${
+                          d.isRiskIncreasing
+                            ? 'bg-gradient-to-r from-amber-500/15 via-rose-500/20 to-red-500/20 text-rose-700 dark:text-rose-300 border border-rose-500/40'
+                            : 'bg-gradient-to-r from-teal-500/15 via-emerald-500/20 to-cyan-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-500/40'
+                        }`}>
+                          {d.isRiskIncreasing ? (
+                            <>
+                              <Flame className="w-3.5 h-3.5 text-rose-500 animate-pulse" />
+                              <span>+{d.shapValue.toFixed(3)}</span>
+                              <span className="text-[10px] uppercase font-bold opacity-80 hidden md:inline">({d.impactTier})</span>
+                            </>
+                          ) : (
+                            <>
+                              <Shield className="w-3.5 h-3.5 text-emerald-500" />
+                              <span>{d.shapValue.toFixed(3)}</span>
+                              <span className="text-[10px] uppercase font-bold opacity-80 hidden md:inline">({d.impactTier})</span>
+                            </>
+                          )}
                         </span>
                       </div>
                     </div>
 
-                    {/* Centered Bidirectional Bar */}
-                    <div className="w-full h-3 rounded-full bg-gray-100 dark:bg-gray-800 relative overflow-hidden">
-                      <div className="absolute left-1/2 top-0 bottom-0 w-px bg-gray-400 dark:bg-gray-600 z-10" />
-                      {d.isRiskIncreasing ? (
-                        <div
-                          className="absolute top-0 bottom-0 rounded-r-full bg-gradient-to-r from-amber-500 to-red-500 transition-all duration-500"
-                          style={{ left: '50%', width: `${barWidth}%` }}
-                        />
-                      ) : (
-                        <div
-                          className="absolute top-0 bottom-0 rounded-l-full bg-gradient-to-l from-teal-400 to-emerald-500 transition-all duration-500"
-                          style={{ right: '50%', width: `${barWidth}%` }}
-                        />
-                      )}
+                    {/* Centered Bidirectional Impact Meter Poll (The Glowing Bar) */}
+                    <div className="relative pt-1 pb-1">
+                      {/* Recessed Track Container */}
+                      <div className="w-full h-5 rounded-full bg-slate-100 dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 shadow-inner relative overflow-hidden flex items-center">
+                        {/* Ambient Zone Washes */}
+                        <div className="absolute left-0 top-0 bottom-0 w-1/2 bg-gradient-to-r from-emerald-500/10 to-emerald-500/25 dark:from-emerald-950/30 dark:to-emerald-900/40 pointer-events-none" />
+                        <div className="absolute right-0 top-0 bottom-0 w-1/2 bg-gradient-to-l from-rose-500/10 to-rose-500/25 dark:from-rose-950/30 dark:to-rose-900/40 pointer-events-none" />
+
+                        {/* Scale Reference Ticks (-25% and +25%) */}
+                        <div className="absolute left-1/4 top-0 bottom-0 w-px bg-slate-300/60 dark:bg-slate-700/60 z-10 border-r border-dashed border-slate-300 dark:border-slate-700" title="-0.25 SHAP" />
+                        <div className="absolute left-3/4 top-0 bottom-0 w-px bg-slate-300/60 dark:bg-slate-700/60 z-10 border-r border-dashed border-slate-300 dark:border-slate-700" title="+0.25 SHAP" />
+
+                        {/* Central Zero Baseline Marker Pillar */}
+                        <div className="absolute left-1/2 top-0 bottom-0 w-0.5 bg-slate-400 dark:bg-slate-500 z-20 shadow-xs" />
+                        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-slate-700 dark:bg-slate-200 border border-white dark:border-gray-900 z-30 shadow-xs" title="Neutral Baseline (0.00)" />
+
+                        {/* Dynamic Active Bar */}
+                        {d.isRiskIncreasing ? (
+                          <div
+                            className="absolute top-0.5 bottom-0.5 rounded-r-full bg-gradient-to-r from-amber-400 via-rose-500 to-red-600 transition-all duration-700 ease-out shadow-[0_0_14px_rgba(239,68,68,0.55)] flex items-center justify-end pr-1.5"
+                            style={{ left: '50%', width: `${barWidth}%` }}
+                          >
+                            {/* Inner 3D Gloss Highlight */}
+                            <div className="absolute top-0.5 left-0 right-1 h-1 rounded-full bg-white/30 pointer-events-none" />
+                          </div>
+                        ) : (
+                          <div
+                            className="absolute top-0.5 bottom-0.5 rounded-l-full bg-gradient-to-l from-emerald-400 via-teal-400 to-cyan-400 transition-all duration-700 ease-out shadow-[0_0_14px_rgba(16,185,129,0.55)] flex items-center justify-start pl-1.5"
+                            style={{ right: '50%', width: `${barWidth}%` }}
+                          >
+                            {/* Inner 3D Gloss Highlight */}
+                            <div className="absolute top-0.5 left-1 right-0 h-1 rounded-full bg-white/30 pointer-events-none" />
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Bottom Micro Ticks Label */}
+                      <div className="flex justify-between text-[9px] font-mono text-[var(--text-muted)] px-1 pt-1 opacity-70">
+                        <span>Shield Effect</span>
+                        <span className="text-[var(--text-main)] font-bold">0.00 Neutral</span>
+                        <span>Escalation Effect</span>
+                      </div>
                     </div>
+
+                    {/* Expandable Explanation Drawer */}
+                    <div className="pt-2 border-t border-[var(--border-subtle)] flex items-center justify-between">
+                      <button
+                        onClick={() => setExpandedCards(prev => ({ ...prev, [`bar_${idx}`]: !prev[`bar_${idx}`] }))}
+                        className="text-xs font-bold text-[var(--primary)] hover:underline flex items-center gap-1 cursor-pointer"
+                      >
+                        {isExpanded ? (
+                          <>Hide Clinical Rationale <ChevronUp className="w-3.5 h-3.5" /></>
+                        ) : (
+                          <>💡 Clinical takeaway for this biomarker <ChevronDown className="w-3.5 h-3.5" /></>
+                        )}
+                      </button>
+                      <span className="text-[10px] font-mono text-[var(--text-muted)]">
+                        {d.category}
+                      </span>
+                    </div>
+
+                    {isExpanded && (
+                      <div className="p-3.5 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] space-y-2 animate-fade-in text-xs leading-relaxed">
+                        <p className="text-[var(--text-main)] font-medium">
+                          {d.plainExplanation}
+                        </p>
+                        <div className="flex items-start gap-2 pt-1.5 border-t border-[var(--border-subtle)] text-[11px] text-[var(--text-muted)]">
+                          <strong className="text-[var(--primary)] shrink-0">🎯 Actionable Guidance:</strong>
+                          <span>{d.actionTip}</span>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 );
               })}
