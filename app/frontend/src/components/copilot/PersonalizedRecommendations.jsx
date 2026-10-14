@@ -22,6 +22,9 @@ export default function PersonalizedRecommendations({ predictionData, userProfil
   const [copiedGrocery, setCopiedGrocery] = useState(false);
   const [copiedSchedule, setCopiedSchedule] = useState(false);
   const [expandedRationale, setExpandedRationale] = useState({});
+  // View mode: 'simple' (default for normal users) | 'clinical' (for doctors or advanced science view)
+  const [viewMode, setViewMode] = useState('simple');
+  const [showClinicalMap, setShowClinicalMap] = useState({});
 
   // Local storage persisted habit tracking
   const [adoptedSwaps, setAdoptedSwaps] = useState(() => {
@@ -186,9 +189,6 @@ export default function PersonalizedRecommendations({ predictionData, userProfil
     return <Clock className="w-3.5 h-3.5 text-blue-500" />;
   };
 
-  // View mode: 'simple' (default for normal users) | 'clinical' (for doctors or advanced science view)
-  const [viewMode, setViewMode] = useState('simple');
-  const [showClinicalMap, setShowClinicalMap] = useState({});
 
   return (
     <div className="space-y-4">
