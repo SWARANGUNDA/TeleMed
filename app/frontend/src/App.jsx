@@ -18,6 +18,7 @@ const IntakePage = lazyWithRetry(() => import('./pages/IntakePage'));
 
 // Lazy-loaded secondary & role-specific pages
 const XAIPage = lazyWithRetry(() => import('./pages/XAIPage'));
+const ModelResultsPage = lazyWithRetry(() => import('./pages/ModelResultsPage'));
 const ReportPage = lazyWithRetry(() => import('./pages/ReportPage'));
 const HealthRecordsPage = lazyWithRetry(() => import('./pages/HealthRecordsPage'));
 const CarePage = lazyWithRetry(() => import('./pages/CarePage'));
@@ -68,6 +69,8 @@ function getNavFromPath(path, role) {
       return { activeNav: 'analysis', activeSubNav: 'new_analysis' };
     case '/xai':
       return { activeNav: 'results', activeSubNav: 'xai' };
+    case '/results':
+      return { activeNav: 'results', activeSubNav: 'benchmarks' };
     case '/report':
       return { activeNav: 'results', activeSubNav: 'report' };
     case '/records':
@@ -116,7 +119,7 @@ function getPathFromNav(primaryNav, subNav, role) {
   if (primaryNav === 'results') {
     if (subNav === 'xai') return '/xai';
     if (subNav === 'report') return '/report';
-    return '/dashboard';
+    return '/results';
   }
   if (primaryNav === 'xai') return '/xai';
   if (primaryNav === 'report') return '/report';
@@ -578,6 +581,17 @@ export default function App() {
                   setXaiData={setXaiData}
                   onStartAnalysis={handleStartNewAssessment}
                   onNavigateReport={() => navigate('/report')}
+                />
+              </ProtectedRoute>
+            } />
+
+            <Route path="/results" element={
+              <ProtectedRoute currentUser={currentUser} authChecking={authChecking} allowedRoles={['PATIENT', 'DOCTOR', 'ADMIN']}>
+                <ModelResultsPage
+                  session={session}
+                  predictionData={predictionData}
+                  xaiData={xaiData}
+                  onNavigate={handleNavigate}
                 />
               </ProtectedRoute>
             } />

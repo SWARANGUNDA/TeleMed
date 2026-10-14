@@ -11,14 +11,15 @@ import {
   ShieldCheck,
   Users,
   Cpu,
-  FileCheck2,
+  Award,
   ChevronLeft,
   ChevronRight,
   Activity,
   UserCheck,
   Calendar,
   Sparkles,
-  MessageSquare
+  MessageSquare,
+  FileCheck2
 } from 'lucide-react';
 
 export function Sidebar({ isCollapsed, onToggleCollapse, userRole = 'PATIENT', user, className = '' }) {
@@ -39,6 +40,7 @@ export function Sidebar({ isCollapsed, onToggleCollapse, userRole = 'PATIENT', u
         { id: "pat-overview", label: "Overview", icon: LayoutDashboard, path: "/dashboard" },
         { id: "pat-intake", label: "New Analysis", icon: FilePlus, path: "/intake" },
         { id: "pat-xai", label: "XAI Driver Analysis", icon: BarChart3, path: "/xai" },
+        { id: "pat-results", label: "Model Benchmark Results", icon: Award, path: "/results" },
         { id: "pat-report", label: "Comprehensive Report", icon: FileText, path: "/report" },
       ]
     },

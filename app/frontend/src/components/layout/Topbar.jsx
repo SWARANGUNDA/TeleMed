@@ -61,6 +61,7 @@ export function Topbar({ user, onLogout, onToggleTheme, theme = 'dark', onOpenMo
     if (path === '/') return ['Overview'];
     if (path === '/intake') return ['Intake', 'New Multimodal Analysis'];
     if (path === '/xai') return ['Analytics', 'XAI Driver Analysis'];
+    if (path === '/results') return ['Research & Benchmarks', 'Model Results & Evaluation'];
     if (path === '/report') return ['Reports', 'Comprehensive Diagnostic Report'];
     if (path === '/records') return ['Records', 'Health History'];
     if (path === '/consultations') return ['Clinical', 'Doctor Consultations'];

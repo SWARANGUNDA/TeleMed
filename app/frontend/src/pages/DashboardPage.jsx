@@ -364,11 +364,41 @@ export default function DashboardPage({
             <Button variant="accent" size="sm" className="w-full" leftIcon={<Brain className="w-4 h-4" />} onClick={() => onNavigate('xai')}>
               View SHAP Explainability
             </Button>
+            <Button variant="primary" size="sm" className="w-full" leftIcon={<Award className="w-4 h-4 text-emerald-300" />} onClick={() => onNavigate('results')}>
+              Model Benchmark Results
+            </Button>
             <Button variant="outline" size="sm" className="w-full" leftIcon={<FileText className="w-4 h-4" />} onClick={() => onNavigate('report')}>
               View Full Report
             </Button>
           </div>
         </div>
+      </Card>
+
+      {/* REVIEWER SPOTLIGHT BANNER: MULTIMODAL MODEL BENCHMARKS */}
+      <Card isGlass={true} className="p-4 sm:p-5 border border-indigo-200/80 dark:border-indigo-900/50 bg-gradient-to-r from-indigo-50/90 via-purple-50/50 to-blue-50/90 dark:from-indigo-950/40 dark:via-purple-950/20 dark:to-blue-950/40 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-sm">
+        <div className="flex items-center gap-3.5">
+          <div className="w-10 h-10 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shrink-0 shadow-md">
+            <Award className="w-5 h-5" />
+          </div>
+          <div className="space-y-0.5">
+            <div className="flex items-center gap-2">
+              <h4 className="text-sm font-extrabold text-[var(--text-main)]">Multimodal Model Results & Reviewer Matrix</h4>
+              <Badge variant="accent" size="sm" className="font-mono">Reviewer Matrix</Badge>
+            </div>
+            <p className="text-xs text-[var(--text-muted)]">
+              Inspect live patient multi-disease decisions, 100k cohort metrics, AUROC [95% CIs], and meta-learner stacking weights across all 7 pathways.
+            </p>
+          </div>
+        </div>
+        <Button
+          variant="primary"
+          size="sm"
+          rightIcon={<ArrowRight className="w-4 h-4" />}
+          onClick={() => onNavigate('results')}
+          className="shrink-0 shadow-sm"
+        >
+          View Model Results →
+        </Button>
       </Card>
 
       {/* PATIENT HEALTH INTELLIGENCE SECTION */}
