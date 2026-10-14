@@ -320,6 +320,72 @@ def generate_v3_xai_attribution(v3_engine: Any, validated_intake: Dict[str, Any]
 
 
 
+    c_p = bool(validated_intake.get("clinical_present"))
+    w_p = bool(validated_intake.get("wearable_present"))
+    g_p = bool(validated_intake.get("gut_present") and not validated_intake.get("gut_validation_error"))
+
+    if c_p and w_p and g_p:
+        eff_pathway = "C+W+G"
+    elif c_p and w_p:
+        eff_pathway = "C+W"
+    elif c_p and g_p:
+        eff_pathway = "C+G"
+    elif w_p and g_p:
+        eff_pathway = "W+G"
+    elif c_p:
+        eff_pathway = "C"
+    elif w_p:
+        eff_pathway = "W"
+    elif g_p:
+        eff_pathway = "G"
+    else:
+        eff_pathway = "UNKNOWN"
+
+    # Exact verified V4 multimodal fusion weights from v4_fusion_modality_weights.json
+    V4_FULL_WEIGHTS = {
+        "Type2_Diabetes": {"clinical": 0.8047, "wearable": 0.1953, "gut": 0.0},
+        "Prediabetes": {"clinical": 0.6571, "wearable": 0.3250, "gut": 0.0179},
+        "High_Adiposity_Risk": {"clinical": 0.8204, "wearable": 0.1396, "gut": 0.0400},
+        "Metabolic_Syndrome": {"clinical": 0.9029, "wearable": 0.0453, "gut": 0.0518},
+        "NAFLD": {"clinical": 0.9538, "wearable": 0.0462, "gut": 0.0},
+    }
+
+    # Verified W+G logistic regression stacker weights
+    WG_WEIGHTS = {
+        "Type2_Diabetes": {"wearable": 0.3807, "gut": 0.6193},
+        "Prediabetes": {"wearable": 0.2708, "gut": 0.7292},
+        "High_Adiposity_Risk": {"wearable": 0.2123, "gut": 0.7877},
+        "Metabolic_Syndrome": {"wearable": 0.3851, "gut": 0.6149},
+        "NAFLD": {"wearable": 0.3833, "gut": 0.6167},
+    }
+
+    if eff_pathway == "C+W+G":
+        mod_weights = V4_FULL_WEIGHTS.get(disease, {"clinical": 0.8047, "wearable": 0.1953, "gut": 0.0})
+    elif eff_pathway == "W+G":
+        mod_weights = WG_WEIGHTS.get(disease, {"wearable": 0.3807, "gut": 0.6193})
+    elif eff_pathway == "C+W":
+        base = V4_FULL_WEIGHTS.get(disease, {"clinical": 0.8, "wearable": 0.2, "gut": 0.0})
+        tot = base["clinical"] + base["wearable"]
+        mod_weights = {
+            "clinical": round(base["clinical"] / tot, 4) if tot > 0 else 0.8047,
+            "wearable": round(base["wearable"] / tot, 4) if tot > 0 else 0.1953
+        }
+    elif eff_pathway == "C+G":
+        base = V4_FULL_WEIGHTS.get(disease, {"clinical": 0.9, "wearable": 0.0, "gut": 0.1})
+        tot = base["clinical"] + base["gut"]
+        mod_weights = {
+            "clinical": round(base["clinical"] / tot, 4) if tot > 0 else 0.95,
+            "gut": round(base["gut"] / tot, 4) if tot > 0 else 0.05
+        }
+    elif eff_pathway == "C":
+        mod_weights = {"clinical": 1.0}
+    elif eff_pathway == "W":
+        mod_weights = {"wearable": 1.0}
+    elif eff_pathway == "G":
+        mod_weights = {"gut": 1.0}
+    else:
+        mod_weights = {"clinical": 0.8047, "wearable": 0.1953, "gut": 0.0}
+
     wg_stacker_audit = None
     if validated_intake.get("wearable_present") and validated_intake.get("gut_present"):
         wg_stacker_audit = {
@@ -331,6 +397,8 @@ def generate_v3_xai_attribution(v3_engine: Any, validated_intake: Dict[str, Any]
     return {
         "patient_id": validated_intake["patient_id"],
         "target_disease": disease,
+        "effective_pathway": eff_pathway,
+        "meta_learner_weights": mod_weights,
         "attribution_type": "Statistical Predictor Contributions",
         "output_space": "pre-calibration tree log-odds margin",
         "safe_ui_label": "SHAP contribution to expert model output",
