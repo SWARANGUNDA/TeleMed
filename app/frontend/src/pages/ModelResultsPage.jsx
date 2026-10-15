@@ -4,38 +4,39 @@ import {
   Award, Layers, CheckCircle2, ShieldCheck, TrendingUp,
   BarChart3, FileText, ArrowRight, SlidersHorizontal, Sparkles,
   Search, Copy, Check, Cpu, Stethoscope, Crown, Scale, GitCompare,
-  CheckCheck, Lightbulb, Users
+  CheckCheck, Lightbulb, Users, Database, PieChart, Binary, Zap,
+  ExternalLink, ChevronDown, ChevronUp, Activity, Watch, Dna
 } from 'lucide-react';
 import { Button, Card, Badge, ProgressBar } from '../components/ui';
 import { PageContainer, PageHeader } from '../components/layout';
 import { fetchPatientRecords } from '../api/client';
 
 // =============================================================================
-// GROUND-TRUTH EMPIRICAL BENCHMARK DATASET (100,000 PATIENT COHORT)
+// GROUND-TRUTH EMPIRICAL BENCHMARK DATASET (100,000 PATIENT MASTER COHORT)
 // =============================================================================
 
-// Stage 1: Modality Expert Models (15 Expert Payloads across Clinical, Wearable, Gut)
+// Stage 1: Modality Expert Models (15 Deployed Winners with Full Classification Reports)
 const STAGE1_EXPERT_WINNERS = [
   // Clinical Experts (18 features)
-  { modality: 'Clinical', disease: 'Type2_Diabetes', diseaseTitle: 'Type 2 Diabetes', winner: 'LogisticRegression', cutoff: 0.33, auroc: 0.7777, aurocCI: '[0.771, 0.785]', auprc: 0.7810, topFeat1: 'HbA1c', topFeat1Pct: '+11.4%', topFeat2: 'Waist', topFeat2Pct: '+3.3%' },
-  { modality: 'Clinical', disease: 'Prediabetes', diseaseTitle: 'Prediabetes Risk', winner: 'LogisticRegression', cutoff: 0.34, auroc: 0.7499, aurocCI: '[0.742, 0.757]', auprc: 0.7831, topFeat1: 'HbA1c', topFeat1Pct: '+9.7%', topFeat2: 'Waist', topFeat2Pct: '+2.6%' },
-  { modality: 'Clinical', disease: 'High_Adiposity_Risk', diseaseTitle: 'Adiposity & Obesity', winner: 'XGBoost', cutoff: 0.41, auroc: 0.7533, aurocCI: '[0.746, 0.761]', auprc: 0.6393, topFeat1: 'BMI', topFeat1Pct: '+14.2%', topFeat2: 'Waist', topFeat2Pct: '+1.9%' },
-  { modality: 'Clinical', disease: 'Metabolic_Syndrome', diseaseTitle: 'Metabolic Syndrome', winner: 'LogisticRegression', cutoff: 0.31, auroc: 0.7581, aurocCI: '[0.750, 0.766]', auprc: 0.7931, topFeat1: 'Waist', topFeat1Pct: '+3.3%', topFeat2: 'Triglycerides', topFeat2Pct: '+1.6%' },
-  { modality: 'Clinical', disease: 'NAFLD', diseaseTitle: 'NAFLD Liver Health', winner: 'XGBoost', cutoff: 0.31, auroc: 0.7740, aurocCI: '[0.766, 0.782]', auprc: 0.8233, topFeat1: 'Waist', topFeat1Pct: '+3.3%', topFeat2: 'AST', topFeat2Pct: '+2.6%' },
+  { modality: 'Clinical', disease: 'Type2_Diabetes', diseaseTitle: 'Type 2 Diabetes', winner: 'LogisticRegression', cutoff: 0.33, auroc: 0.7777, aurocCI: '[0.771, 0.785]', auprc: 0.7810, accuracy: 0.6800, precision: 0.6425, recall: 0.8800, specificity: 0.4592, f1: 0.7427, brier: 0.1921, topFeat1: 'HbA1c', topFeat1Imp: '+11.4%', topFeat2: 'Waist', topFeat2Imp: '+3.3%' },
+  { modality: 'Clinical', disease: 'Prediabetes', diseaseTitle: 'Prediabetes Risk', winner: 'LogisticRegression', cutoff: 0.34, auroc: 0.7499, aurocCI: '[0.742, 0.757]', auprc: 0.7831, accuracy: 0.6765, precision: 0.6622, recall: 0.8716, specificity: 0.4234, f1: 0.7526, brier: 0.2032, topFeat1: 'HbA1c', topFeat1Imp: '+9.7%', topFeat2: 'Waist', topFeat2Imp: '+2.6%' },
+  { modality: 'Clinical', disease: 'High_Adiposity_Risk', diseaseTitle: 'Adiposity & Obesity', winner: 'XGBoost', cutoff: 0.41, auroc: 0.7533, aurocCI: '[0.746, 0.761]', auprc: 0.6393, accuracy: 0.6549, precision: 0.5374, recall: 0.8108, specificity: 0.5556, f1: 0.6464, brier: 0.2024, topFeat1: 'BMI', topFeat1Imp: '+14.2%', topFeat2: 'Waist', topFeat2Imp: '+1.9%' },
+  { modality: 'Clinical', disease: 'Metabolic_Syndrome', diseaseTitle: 'Metabolic Syndrome', winner: 'LogisticRegression', cutoff: 0.31, auroc: 0.7581, aurocCI: '[0.750, 0.766]', auprc: 0.7931, accuracy: 0.6778, precision: 0.6597, recall: 0.8939, specificity: 0.3937, f1: 0.7591, brier: 0.2001, topFeat1: 'Waist', topFeat1Imp: '+3.3%', topFeat2: 'Triglycerides', topFeat2Imp: '+1.6%' },
+  { modality: 'Clinical', disease: 'NAFLD', diseaseTitle: 'NAFLD Liver Health', winner: 'XGBoost', cutoff: 0.31, auroc: 0.7740, aurocCI: '[0.766, 0.782]', auprc: 0.8233, accuracy: 0.7052, precision: 0.6986, recall: 0.8918, specificity: 0.4277, f1: 0.7834, brier: 0.1938, topFeat1: 'Waist', topFeat1Imp: '+3.3%', topFeat2: 'AST', topFeat2Imp: '+2.6%' },
 
   // Wearables Experts (15 features)
-  { modality: 'Wearable', disease: 'Type2_Diabetes', diseaseTitle: 'Type 2 Diabetes', winner: 'LogisticRegression', cutoff: 0.32, auroc: 0.6772, aurocCI: '[0.669, 0.686]', auprc: 0.6974, topFeat1: 'HRV RMSSD', topFeat1Pct: '+3.6%', topFeat2: 'CGM Glucose CV', topFeat2Pct: '+2.5%' },
-  { modality: 'Wearable', disease: 'Prediabetes', diseaseTitle: 'Prediabetes Risk', winner: 'XGBoost', cutoff: 0.28, auroc: 0.6588, aurocCI: '[0.651, 0.667]', auprc: 0.7118, topFeat1: 'HRV RMSSD', topFeat1Pct: '+3.7%', topFeat2: 'CGM Glucose CV', topFeat2Pct: '+2.5%' },
-  { modality: 'Wearable', disease: 'High_Adiposity_Risk', diseaseTitle: 'Adiposity & Obesity', winner: 'LogisticRegression', cutoff: 0.38, auroc: 0.6602, aurocCI: '[0.651, 0.669]', auprc: 0.5395, topFeat1: 'Sedentary Time', topFeat1Pct: '+7.2%', topFeat2: 'Autonomic Stress', topFeat2Pct: '+0.9%' },
-  { modality: 'Wearable', disease: 'Metabolic_Syndrome', diseaseTitle: 'Metabolic Syndrome', winner: 'LogisticRegression', cutoff: 0.28, auroc: 0.6207, aurocCI: '[0.611, 0.630]', auprc: 0.6708, topFeat1: 'CGM Glucose CV', topFeat1Pct: '+5.0%', topFeat2: 'Sedentary Time', topFeat2Pct: '+3.9%' },
-  { modality: 'Wearable', disease: 'NAFLD', diseaseTitle: 'NAFLD Liver Health', winner: 'CatBoost', cutoff: 0.33, auroc: 0.5999, aurocCI: '[0.591, 0.609]', auprc: 0.6787, topFeat1: 'HRV RMSSD', topFeat1Pct: '+2.0%', topFeat2: 'CGM Glucose CV', topFeat2Pct: '+1.0%' },
+  { modality: 'Wearable', disease: 'Type2_Diabetes', diseaseTitle: 'Type 2 Diabetes', winner: 'LogisticRegression', cutoff: 0.32, auroc: 0.6772, aurocCI: '[0.669, 0.686]', auprc: 0.6974, accuracy: 0.5752, precision: 0.5563, recall: 0.9418, specificity: 0.1703, f1: 0.6994, brier: 0.2255, topFeat1: 'HRV RMSSD', topFeat1Imp: '+3.6%', topFeat2: 'CGM Glucose CV', topFeat2Imp: '+2.5%' },
+  { modality: 'Wearable', disease: 'Prediabetes', diseaseTitle: 'Prediabetes Risk', winner: 'XGBoost', cutoff: 0.28, auroc: 0.6588, aurocCI: '[0.651, 0.667]', auprc: 0.7118, accuracy: 0.5823, precision: 0.5762, recall: 0.9834, specificity: 0.0622, f1: 0.7266, brier: 0.2299, topFeat1: 'HRV RMSSD', topFeat1Imp: '+3.7%', topFeat2: 'CGM Glucose CV', topFeat2Imp: '+2.5%' },
+  { modality: 'Wearable', disease: 'High_Adiposity_Risk', diseaseTitle: 'Adiposity & Obesity', winner: 'LogisticRegression', cutoff: 0.38, auroc: 0.6602, aurocCI: '[0.651, 0.669]', auprc: 0.5395, accuracy: 0.5273, precision: 0.4447, recall: 0.8655, specificity: 0.3121, f1: 0.5876, brier: 0.2306, topFeat1: 'Sedentary Time', topFeat1Imp: '+7.2%', topFeat2: 'Autonomic Stress', topFeat2Imp: '+0.9%' },
+  { modality: 'Wearable', disease: 'Metabolic_Syndrome', diseaseTitle: 'Metabolic Syndrome', winner: 'LogisticRegression', cutoff: 0.28, auroc: 0.6207, aurocCI: '[0.611, 0.630]', auprc: 0.6708, accuracy: 0.5757, precision: 0.5732, recall: 0.9898, specificity: 0.0312, f1: 0.7260, brier: 0.2388, topFeat1: 'CGM Glucose CV', topFeat1Imp: '+5.0%', topFeat2: 'Sedentary Time', topFeat2Imp: '+3.9%' },
+  { modality: 'Wearable', disease: 'NAFLD', diseaseTitle: 'NAFLD Liver Health', winner: 'CatBoost', cutoff: 0.33, auroc: 0.5999, aurocCI: '[0.591, 0.609]', auprc: 0.6787, accuracy: 0.6042, precision: 0.6033, recall: 0.9872, specificity: 0.0345, f1: 0.7489, brier: 0.2422, topFeat1: 'HRV RMSSD', topFeat1Imp: '+2.0%', topFeat2: 'CGM Glucose CV', topFeat2Imp: '+1.0%' },
 
   // Gut Microbiome Experts (49 taxa)
-  { modality: 'Gut', disease: 'Type2_Diabetes', diseaseTitle: 'Type 2 Diabetes', winner: 'RandomForest', cutoff: 0.15, auroc: 0.5922, aurocCI: '[0.583, 0.601]', auprc: 0.6070, topFeat1: 'Inflammation Index', topFeat1Pct: '+1.1%', topFeat2: 'E. coli', topFeat2Pct: '+0.1%' },
-  { modality: 'Gut', disease: 'Prediabetes', diseaseTitle: 'Prediabetes Risk', winner: 'LogisticRegression', cutoff: 0.30, auroc: 0.5975, aurocCI: '[0.589, 0.606]', auprc: 0.6462, topFeat1: 'F/B Ratio', topFeat1Pct: '+2.4%', topFeat2: 'B. vulgatus', topFeat2Pct: '+1.2%' },
-  { modality: 'Gut', disease: 'High_Adiposity_Risk', diseaseTitle: 'Adiposity & Obesity', winner: 'LogisticRegression', cutoff: 0.39, auroc: 0.5263, aurocCI: '[0.516, 0.536]', auprc: 0.4111, topFeat1: 'Shannon Index', topFeat1Pct: '+1.0%', topFeat2: 'E. faecalis', topFeat2Pct: '+0.8%' },
-  { modality: 'Gut', disease: 'Metabolic_Syndrome', diseaseTitle: 'Metabolic Syndrome', winner: 'LogisticRegression', cutoff: 0.33, auroc: 0.5777, aurocCI: '[0.570, 0.587]', auprc: 0.6321, topFeat1: 'Simpson Index', topFeat1Pct: '+0.5%', topFeat2: 'E. coli', topFeat2Pct: '+0.3%' },
-  { modality: 'Gut', disease: 'NAFLD', diseaseTitle: 'NAFLD Liver Health', winner: 'ExtraTrees', cutoff: 0.35, auroc: 0.6488, aurocCI: '[0.640, 0.658]', auprc: 0.7182, topFeat1: 'Inflammation Index', topFeat1Pct: '+1.0%', topFeat2: 'K. pneumoniae', topFeat2Pct: '+0.2%' },
+  { modality: 'Gut', disease: 'Type2_Diabetes', diseaseTitle: 'Type 2 Diabetes', winner: 'RandomForest', cutoff: 0.15, auroc: 0.5922, aurocCI: '[0.583, 0.601]', auprc: 0.6070, accuracy: 0.5248, precision: 0.5248, recall: 1.0000, specificity: 0.0000, f1: 0.6884, brier: 0.2434, topFeat1: 'Inflammation Index', topFeat1Imp: '+1.1%', topFeat2: 'E. coli', topFeat2Imp: '+0.1%' },
+  { modality: 'Gut', disease: 'Prediabetes', diseaseTitle: 'Prediabetes Risk', winner: 'LogisticRegression', cutoff: 0.30, auroc: 0.5975, aurocCI: '[0.589, 0.606]', auprc: 0.6462, accuracy: 0.5646, precision: 0.5646, recall: 1.0000, specificity: 0.0000, f1: 0.7217, brier: 0.2431, topFeat1: 'F/B Ratio', topFeat1Imp: '+2.4%', topFeat2: 'B. vulgatus', topFeat2Imp: '+1.2%' },
+  { modality: 'Gut', disease: 'High_Adiposity_Risk', diseaseTitle: 'Adiposity & Obesity', winner: 'LogisticRegression', cutoff: 0.39, auroc: 0.5263, aurocCI: '[0.516, 0.536]', auprc: 0.4111, accuracy: 0.3897, precision: 0.3892, recall: 0.9993, specificity: 0.0015, f1: 0.5602, brier: 0.2494, topFeat1: 'Shannon Index', topFeat1Imp: '+1.0%', topFeat2: 'E. faecalis', topFeat2Imp: '+0.8%' },
+  { modality: 'Gut', disease: 'Metabolic_Syndrome', diseaseTitle: 'Metabolic Syndrome', winner: 'LogisticRegression', cutoff: 0.33, auroc: 0.5777, aurocCI: '[0.570, 0.587]', auprc: 0.6321, accuracy: 0.5682, precision: 0.5681, recall: 0.9995, specificity: 0.0011, f1: 0.7245, brier: 0.2454, topFeat1: 'Simpson Index', topFeat1Imp: '+0.5%', topFeat2: 'E. coli', topFeat2Imp: '+0.3%' },
+  { modality: 'Gut', disease: 'NAFLD', diseaseTitle: 'NAFLD Liver Health', winner: 'ExtraTrees', cutoff: 0.35, auroc: 0.6488, aurocCI: '[0.640, 0.658]', auprc: 0.7182, accuracy: 0.6167, precision: 0.6162, recall: 0.9521, specificity: 0.1177, f1: 0.7481, brier: 0.2337, topFeat1: 'Inflammation Index', topFeat1Imp: '+1.0%', topFeat2: 'K. pneumoniae', topFeat2Imp: '+0.2%' },
 ];
 
 // Complete 90-Classifier Tournament Matrix from v4_expert_classifier_comparison.csv
@@ -149,13 +150,16 @@ const ALL_90_CLASSIFIERS = [
   { modality: 'Gut', disease: 'NAFLD', diseaseTitle: 'NAFLD Liver Health', classifier: 'LightGBM', auroc: 0.6470, auprc: 0.7130, fitTime: 1.05, isWinner: false, family: 'Boosting' },
 ];
 
-// Stage 2: Meta-Learner Weights across ALL 7 PATHWAYS
+// Stage 2: Meta-Learner Weights across ALL 7 PATHWAYS (C, W, G, C+W, C+G, W+G, C+W+G)
 const ALL_PATHWAY_WEIGHTS = {
   'Clinical_Only': {
     id: 'C',
     name: 'Pathway 1: Clinical (C)',
     features: 18,
+    badgeBg: 'bg-violet-600',
     color: '#8b5cf6',
+    tag: 'Baseline Lab Anchor',
+    tagClass: 'bg-violet-100 text-violet-800 dark:bg-violet-950/70 dark:text-violet-300',
     weights: {
       Type2_Diabetes: { c: 100, w: 0, g: 0, beta: '[8.37]', note: 'Diagnostic laboratory standard (HbA1c & Fasting Glucose)' },
       Prediabetes: { c: 100, w: 0, g: 0, beta: '[6.97]', note: 'Blood glucose anchor for early dysglycemia' },
@@ -168,7 +172,10 @@ const ALL_PATHWAY_WEIGHTS = {
     id: 'W',
     name: 'Pathway 2: Wearables (W)',
     features: 15,
+    badgeBg: 'bg-cyan-600',
     color: '#06b6d4',
+    tag: 'Continuous Sensors',
+    tagClass: 'bg-cyan-100 text-cyan-800 dark:bg-cyan-950/70 dark:text-cyan-300',
     weights: {
       Type2_Diabetes: { c: 0, w: 100, g: 0, beta: '[0.75]', note: 'Continuous CGM volatility & resting heart rate telemetry' },
       Prediabetes: { c: 0, w: 100, g: 0, beta: '[0.24]', note: 'Dynamic glycemic excursions and autonomic dips' },
@@ -181,7 +188,10 @@ const ALL_PATHWAY_WEIGHTS = {
     id: 'G',
     name: 'Pathway 3: Gut (G)',
     features: 49,
+    badgeBg: 'bg-emerald-600',
     color: '#10b981',
+    tag: 'Metagenomic Taxa',
+    tagClass: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/70 dark:text-emerald-300',
     weights: {
       Type2_Diabetes: { c: 0, w: 0, g: 100, beta: '[0.31]', note: 'Metagenomic dysbiosis & low-grade systemic endotoxemia' },
       Prediabetes: { c: 0, w: 0, g: 100, beta: '[0.27]', note: 'Firmicutes/Bacteroidetes shift and SCFA producers' },
@@ -194,7 +204,10 @@ const ALL_PATHWAY_WEIGHTS = {
     id: 'C+W',
     name: 'Pathway 4: Clinical + Wearable (C+W)',
     features: 33,
+    badgeBg: 'bg-blue-600',
     color: '#3b82f6',
+    tag: 'Labs + Sensors',
+    tagClass: 'bg-blue-100 text-blue-700 dark:bg-blue-950/70 dark:text-blue-300',
     weights: {
       Type2_Diabetes: { c: 97.4, w: 2.6, g: 0, beta: '[8.32, 0.22]', note: 'Clinical Blood Chemistry (97.4%) + CGM Glycemic Volatility (2.6%)' },
       Prediabetes: { c: 97.4, w: 2.6, g: 0, beta: '[6.42, 0.17]', note: 'Fasting glucose anchor reinforced by continuous glycemic variability' },
@@ -207,7 +220,10 @@ const ALL_PATHWAY_WEIGHTS = {
     id: 'C+G',
     name: 'Pathway 5: Clinical + Gut (C+G)',
     features: 67,
+    badgeBg: 'bg-purple-600',
     color: '#a855f7',
+    tag: 'Labs + Microbiome',
+    tagClass: 'bg-purple-100 text-purple-700 dark:bg-purple-950/70 dark:text-purple-300',
     weights: {
       Type2_Diabetes: { c: 99.0, w: 0, g: 1.0, beta: '[8.39, -0.09]', note: 'Blood chemistry provides dominant discriminative power over microbial taxa' },
       Prediabetes: { c: 99.7, w: 0, g: 0.3, beta: '[6.67, -0.02]', note: 'Fasting biomarkers saturate prediabetic classification' },
@@ -220,7 +236,10 @@ const ALL_PATHWAY_WEIGHTS = {
     id: 'W+G',
     name: 'Pathway 6: Wearable + Gut Remote Triage (W+G)',
     features: 64,
+    badgeBg: 'bg-amber-500',
     color: '#f59e0b',
+    tag: '⚡ Remote Triage (No Blood Draw)',
+    tagClass: 'bg-amber-100 text-amber-800 dark:bg-amber-950/80 dark:text-amber-300',
     weights: {
       Type2_Diabetes: { c: 0, w: 75.2, g: 24.8, beta: '[0.72, 0.24]', note: 'Continuous CGM telemetry (75.2%) + Metagenomic taxa (24.8%)' },
       Prediabetes: { c: 0, w: 88.6, g: 11.4, beta: '[0.23, 0.03]', note: 'Dynamic postprandial excursions lead over taxonomic shifts' },
@@ -233,7 +252,10 @@ const ALL_PATHWAY_WEIGHTS = {
     id: 'C+W+G',
     name: 'Pathway 7: Full Multimodal Fusion (C+W+G)',
     features: 82,
+    badgeBg: 'bg-indigo-600',
     color: '#ec4899',
+    tag: '★ Gold Standard Triple Fusion',
+    tagClass: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-950/70 dark:text-indigo-300',
     weights: {
       Type2_Diabetes: { c: 96.3, w: 2.6, g: 1.1, beta: '[8.33, 0.23, -0.10]', note: 'Clinical Blood Chemistry (96.3%) + CGM Volatility (2.6%) + Gut (1.1%)' },
       Prediabetes: { c: 97.0, w: 2.6, g: 0.4, beta: '[6.42, 0.17, -0.02]', note: 'Laboratory glucose anchor with CGM volatility fine-tuning' },
@@ -315,19 +337,19 @@ export default function ModelResultsPage({ session, predictionData, xaiData, onN
   const navigate = useNavigate();
 
   // Primary Navigation
-  const [activeTab, setActiveTab] = useState('all_pathways'); // 'all_pathways' | 'expert_models' | 'pathway_weights' | 'statistical_audit' | 'patient_results'
+  const [activeTab, setActiveTab] = useState('all_pathways'); // 'all_pathways' | 'pathway_weights' | 'expert_models' | 'datasets_info' | 'statistical_audit' | 'patient_results'
 
   // Tab 1 Filters
   const [progressionDisease, setProgressionDisease] = useState('Type2_Diabetes');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedDiseaseFilter, setSelectedDiseaseFilter] = useState('all');
 
-  // Tab 2 Filters
+  // Tab 2 Weights Disease Filter
+  const [selectedWeightDisease, setSelectedWeightDisease] = useState('Type2_Diabetes');
+
+  // Tab 3 Classifiers Filter
   const [expertSubTab, setExpertSubTab] = useState('winners'); // 'winners' | 'all90'
   const [selectedExpertModality, setSelectedExpertModality] = useState('all');
-
-  // Tab 3 State (Compact Attribution Studio)
-  const [selectedWeightDisease, setSelectedWeightDisease] = useState('Type2_Diabetes');
 
   // Clipboard State
   const [copiedSummary, setCopiedSummary] = useState(false);
@@ -358,29 +380,31 @@ export default function ModelResultsPage({ session, predictionData, xaiData, onN
   const handleCopyReviewerBrief = () => {
     const brief = `TeleMed-M3 Multimodal AI Benchmark Brief\n` +
       `-----------------------------------------\n` +
-      `Validation Cohort: 100,000 Patients (70k / 15k / 15k Split)\n` +
+      `Validation Cohort: 100,000 Patients (70,000 Train / 15,000 Val / 15,000 Test)\n` +
       `Evaluated: 195 Total Models (90 Stage-1 Experts + 105 Stage-2 Stackers)\n` +
       `Top Fusion AUROC: 0.7825 [0.776, 0.790] (Type 2 Diabetes, C+W+G)\n` +
+      `Meta-Learner Weights: All 7 Pathways evaluated per disease target.\n` +
       `Remote Triage (W+G): Gut carries 63.7% weight for NAFLD (+0.0364 AUROC, p < 0.0001)\n` +
-      `Regression Rigor: 147/147 Verified Unit/Security Tests Passing.`;
+      `Verification Protocol: Stratified 5-Fold CV + OOF Stacking + Isotonic Calibration.`;
     navigator.clipboard.writeText(brief);
     setCopiedSummary(true);
     setTimeout(() => setCopiedSummary(false), 2000);
   };
 
   return (
-    <PageContainer className="space-y-6">
+    <PageContainer className="space-y-5 max-w-7xl mx-auto">
       {/* 1. COMPACT OBSERVATORY HEADER */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-[var(--border-subtle)]">
         <div>
           <div className="flex items-center gap-2">
-            <span className="text-xs font-mono font-bold px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-800 dark:bg-indigo-950/60 dark:text-indigo-300">
-              TeleMed-M3 Benchmark Suite
+            <span className="text-xs font-mono font-bold px-2.5 py-0.5 rounded-full bg-indigo-100 text-indigo-800 dark:bg-indigo-950/60 dark:text-indigo-300">
+              TeleMed V4 Benchmark Observatory
             </span>
-            <span className="text-xs text-[var(--text-muted)] font-mono">100k Cohort</span>
+            <span className="text-xs text-[var(--text-muted)] font-mono">100,000 Cohort &bull; 7 Care Pathways</span>
           </div>
-          <h1 className="text-xl font-black text-[var(--text-main)] mt-0.5">
-            Model Results & Multimodal Benchmarks
+          <h1 className="text-xl font-black text-[var(--text-main)] mt-0.5 flex items-center gap-2">
+            <Award className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+            Model Benchmark Results & Architectural Evaluation
           </h1>
         </div>
 
@@ -388,72 +412,80 @@ export default function ModelResultsPage({ session, predictionData, xaiData, onN
           <Button
             variant="outline"
             size="sm"
+            className="text-xs h-8 px-2.5"
             leftIcon={copiedSummary ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
             onClick={handleCopyReviewerBrief}
           >
-            {copiedSummary ? 'Copied Brief' : 'Copy Brief'}
+            {copiedSummary ? 'Copied Brief' : 'Copy Examiner Brief'}
           </Button>
           <Button
             variant="primary"
             size="sm"
+            className="text-xs h-8 px-3 font-bold"
             rightIcon={<ArrowRight className="w-3.5 h-3.5" />}
             onClick={() => onNavigate ? onNavigate('xai') : navigate('/xai')}
           >
-            Inspect XAI
+            Inspect XAI Drivers
           </Button>
         </div>
       </div>
 
-      {/* 2. COMPACT EXECUTIVE KPI STRIP (SLIM, NON-CLUMSY) */}
+      {/* 2. COMPACT EXECUTIVE KPI STRIP */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-2.5">
-        <div className="p-3 rounded-xl border border-indigo-200/50 dark:border-indigo-900/40 bg-[var(--bg-surface)] flex items-center justify-between">
+        <div className="p-2.5 rounded-xl border border-indigo-200/50 dark:border-indigo-900/40 bg-[var(--bg-surface)] flex items-center justify-between">
           <div>
-            <span className="text-[10px] uppercase font-bold text-[var(--text-muted)] block">Cohort Size</span>
-            <strong className="text-base font-black text-indigo-600 dark:text-indigo-400 font-mono">100,000</strong>
+            <span className="text-[9px] uppercase font-bold text-[var(--text-muted)] block">Cohort Size</span>
+            <strong className="text-sm font-black text-indigo-600 dark:text-indigo-400 font-mono">100,000</strong>
+            <span className="text-[9px] text-[var(--text-muted)] block">70k/15k/15k Split</span>
           </div>
           <Users className="w-4 h-4 text-indigo-500 opacity-80" />
         </div>
 
-        <div className="p-3 rounded-xl border border-purple-200/50 dark:border-purple-900/40 bg-[var(--bg-surface)] flex items-center justify-between">
+        <div className="p-2.5 rounded-xl border border-purple-200/50 dark:border-purple-900/40 bg-[var(--bg-surface)] flex items-center justify-between">
           <div>
-            <span className="text-[10px] uppercase font-bold text-[var(--text-muted)] block">Models Tested</span>
-            <strong className="text-base font-black text-purple-600 dark:text-purple-400 font-mono">195 Total</strong>
+            <span className="text-[9px] uppercase font-bold text-[var(--text-muted)] block">Models Evaluated</span>
+            <strong className="text-sm font-black text-purple-600 dark:text-purple-400 font-mono">195 Total</strong>
+            <span className="text-[9px] text-[var(--text-muted)] block">90 Stage-1 + 105 Stackers</span>
           </div>
           <Cpu className="w-4 h-4 text-purple-500 opacity-80" />
         </div>
 
-        <div className="p-3 rounded-xl border border-cyan-200/50 dark:border-cyan-900/40 bg-[var(--bg-surface)] flex items-center justify-between">
+        <div className="p-2.5 rounded-xl border border-cyan-200/50 dark:border-cyan-900/40 bg-[var(--bg-surface)] flex items-center justify-between">
           <div>
-            <span className="text-[10px] uppercase font-bold text-[var(--text-muted)] block">Dynamic Pathways</span>
-            <strong className="text-base font-black text-cyan-600 dark:text-cyan-400 font-mono">7 Pathways</strong>
+            <span className="text-[9px] uppercase font-bold text-[var(--text-muted)] block">Care Pathways</span>
+            <strong className="text-sm font-black text-cyan-600 dark:text-cyan-400 font-mono">7 Pathways</strong>
+            <span className="text-[9px] text-[var(--text-muted)] block">C, W, G, Dual, Trimodal</span>
           </div>
           <Layers className="w-4 h-4 text-cyan-500 opacity-80" />
         </div>
 
-        <div className="p-3 rounded-xl border border-emerald-200/50 dark:border-emerald-900/40 bg-[var(--bg-surface)] flex items-center justify-between">
+        <div className="p-2.5 rounded-xl border border-emerald-200/50 dark:border-emerald-900/40 bg-[var(--bg-surface)] flex items-center justify-between">
           <div>
-            <span className="text-[10px] uppercase font-bold text-[var(--text-muted)] block">Peak AUROC</span>
-            <strong className="text-base font-black text-emerald-600 dark:text-emerald-400 font-mono">0.7825</strong>
+            <span className="text-[9px] uppercase font-bold text-[var(--text-muted)] block">Peak AUROC</span>
+            <strong className="text-sm font-black text-emerald-600 dark:text-emerald-400 font-mono">0.7825</strong>
+            <span className="text-[9px] text-[var(--text-muted)] block">T2D Full Fusion</span>
           </div>
           <Award className="w-4 h-4 text-emerald-500 opacity-80" />
         </div>
 
-        <div className="p-3 rounded-xl border border-amber-200/50 dark:border-amber-900/40 bg-[var(--bg-surface)] flex items-center justify-between">
+        <div className="p-2.5 rounded-xl border border-amber-200/50 dark:border-amber-900/40 bg-[var(--bg-surface)] flex items-center justify-between">
           <div>
-            <span className="text-[10px] uppercase font-bold text-[var(--text-muted)] block">Remote Triage Lift</span>
-            <strong className="text-base font-black text-amber-600 dark:text-amber-400 font-mono">+0.0364</strong>
+            <span className="text-[9px] uppercase font-bold text-[var(--text-muted)] block">Remote Triage Lift</span>
+            <strong className="text-sm font-black text-amber-600 dark:text-amber-400 font-mono">+0.0364</strong>
+            <span className="text-[9px] text-[var(--text-muted)] block">Gut Surrogacy (p&lt;0.0001)</span>
           </div>
           <Sparkles className="w-4 h-4 text-amber-500 opacity-80" />
         </div>
       </div>
 
-      {/* 3. CLEAN TAB NAVIGATION */}
+      {/* 3. CLEAN TAB NAVIGATION (WITH DATASETS INFO & ALL 7 PATHWAYS) */}
       <div className="flex border-b border-[var(--border-medium)] gap-1.5 overflow-x-auto custom-scrollbar">
         {[
           { id: 'all_pathways', label: '7-Pathway Benchmark', count: '35 Configs', icon: Award },
-          { id: 'expert_models', label: 'Stage 1: Expert Models', count: '90 Models', icon: Cpu },
           { id: 'pathway_weights', label: 'Meta-Learner Weights', count: 'All 7 Pathways', icon: SlidersHorizontal },
-          { id: 'statistical_audit', label: 'Statistical Rigor', count: '147/147 Verified', icon: ShieldCheck },
+          { id: 'expert_models', label: 'Classifier Reports', count: 'Acc, Pre, F1, AUROC', icon: Cpu },
+          { id: 'datasets_info', label: 'Datasets & Cohort Split', count: 'N=100k Splits', icon: Database },
+          { id: 'statistical_audit', label: 'Statistical Rigor', count: 'p < 0.05 Verified', icon: ShieldCheck },
           { id: 'patient_results', label: 'Live Patient Demo', count: 'Active Session', icon: Stethoscope },
         ].map((tab) => {
           const Icon = tab.icon;
@@ -462,7 +494,7 @@ export default function ModelResultsPage({ session, predictionData, xaiData, onN
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold border-b-2 transition-all whitespace-nowrap cursor-pointer ${
+              className={`flex items-center gap-1.5 px-3 py-2 text-xs font-bold border-b-2 transition-all whitespace-nowrap cursor-pointer ${
                 isActive
                   ? 'border-[var(--primary)] text-[var(--primary)] bg-[var(--primary-light)]/15'
                   : 'border-transparent text-[var(--text-muted)] hover:text-[var(--text-main)]'
@@ -470,7 +502,7 @@ export default function ModelResultsPage({ session, predictionData, xaiData, onN
             >
               <Icon className="w-3.5 h-3.5" />
               <span>{tab.label}</span>
-              <span className={`text-[9.5px] font-mono px-1.5 py-0.2 rounded-full ${
+              <span className={`text-[9px] font-mono px-1.5 py-0.2 rounded-full ${
                 isActive ? 'bg-[var(--primary)] text-white' : 'bg-[var(--bg-primary)] text-[var(--text-muted)] border border-[var(--border-subtle)]'
               }`}>
                 {tab.count}
@@ -481,19 +513,19 @@ export default function ModelResultsPage({ session, predictionData, xaiData, onN
       </div>
 
       {/* =========================================================================
-          TAB 1: 7-PATHWAY BENCHMARK MATRIX (COMPACT & SCANNABLE)
+          TAB 1: 7-PATHWAY BENCHMARK MATRIX (35 CONFIGURATIONS)
           ========================================================================= */}
       {activeTab === 'all_pathways' && (
-        <div className="space-y-5">
-          {/* Compact Progression Stepper */}
-          <div className="p-4 rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] space-y-3">
+        <div className="space-y-4">
+          {/* Progression Stepper Across 7 Pathways */}
+          <div className="p-3.5 rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] space-y-3">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-[var(--border-subtle)]">
               <div>
                 <strong className="text-xs font-black uppercase text-[var(--text-main)] tracking-wider">
-                  Multi-Modal AUROC Progression Across All 7 Pathways
+                  Multi-Modal AUROC Progression Across All 7 Care Pathways
                 </strong>
                 <p className="text-[11px] text-[var(--text-muted)]">
-                  Compare how discriminative ability progresses from Single Modalities → Dual Stackers → Full Triple Fusion.
+                  Observe performance lift: Single Modalities &rarr; Dual Combinations &rarr; Full Triple Stacking Fusion.
                 </p>
               </div>
 
@@ -537,7 +569,7 @@ export default function ModelResultsPage({ session, predictionData, xaiData, onN
                       <span className="font-mono text-xs font-black" style={{ color: p.color }}>{p.id}</span>
                       {conf.isBest && (
                         <span className="text-[8.5px] font-black px-1.5 py-0.2 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950/80 dark:text-emerald-300">
-                          ★ Peak
+                          ★ Best
                         </span>
                       )}
                     </div>
@@ -559,7 +591,7 @@ export default function ModelResultsPage({ session, predictionData, xaiData, onN
           </div>
 
           {/* Compact 35-Row Table */}
-          <div className="p-4 rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] space-y-3">
+          <div className="p-3.5 rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] space-y-3">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-[var(--border-subtle)]">
               <div className="flex items-center gap-2 flex-wrap">
                 <div className="relative min-w-[200px]">
@@ -629,96 +661,329 @@ export default function ModelResultsPage({ session, predictionData, xaiData, onN
       )}
 
       {/* =========================================================================
-          TAB 2: STAGE 1 EXPERT MODELS (COMPACT & SCANNABLE)
+          TAB 2: META-LEARNER WEIGHTS ACROSS ALL 7 PATHWAYS (EXHAUSTIVE & BEAUTIFUL)
           ========================================================================= */}
-      {activeTab === 'expert_models' && (
-        <div className="space-y-5">
-          <div className="p-4 rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] space-y-4">
+      {activeTab === 'pathway_weights' && (() => {
+        const diseases = [
+          { id: 'Type2_Diabetes', label: 'Type 2 Diabetes', icon: '🩺' },
+          { id: 'Prediabetes', label: 'Prediabetes Risk', icon: '📈' },
+          { id: 'High_Adiposity_Risk', label: 'Adiposity & Obesity', icon: '⚖️' },
+          { id: 'Metabolic_Syndrome', label: 'Metabolic Syndrome', icon: '🧬' },
+          { id: 'NAFLD', label: 'NAFLD Liver Health', icon: '🫀' },
+        ];
+
+        // All 7 Pathways cleanly assembled
+        const allSevenPathways = [
+          {
+            key: 'Full_Multimodal_Fusion',
+            id: 'C + W + G',
+            badgeBg: 'bg-indigo-600',
+            name: 'Pathway 7: Full Multimodal Fusion (C+W+G)',
+            features: 82,
+            tag: '★ Gold Standard Triple Fusion',
+            tagClass: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-950/70 dark:text-indigo-300',
+            data: ALL_PATHWAY_WEIGHTS['Full_Multimodal_Fusion'].weights[selectedWeightDisease]
+          },
+          {
+            key: 'Wearable_Gut',
+            id: 'W + G',
+            badgeBg: 'bg-amber-500',
+            name: 'Pathway 6: Wearables + Gut Remote Triage (W+G)',
+            features: 64,
+            tag: '⚡ Remote Triage (No Blood Draw)',
+            tagClass: selectedWeightDisease === 'NAFLD' ? 'bg-amber-500 text-white animate-pulse' : 'bg-amber-100 text-amber-800 dark:bg-amber-950/80 dark:text-amber-300',
+            isSurge: selectedWeightDisease === 'NAFLD',
+            data: ALL_PATHWAY_WEIGHTS['Wearable_Gut'].weights[selectedWeightDisease]
+          },
+          {
+            key: 'Clinical_Wearable',
+            id: 'C + W',
+            badgeBg: 'bg-blue-600',
+            name: 'Pathway 4: Clinical + Wearables (C+W)',
+            features: 33,
+            tag: 'Labs + Sensors',
+            tagClass: 'bg-blue-100 text-blue-700 dark:bg-blue-950/70 dark:text-blue-300',
+            data: ALL_PATHWAY_WEIGHTS['Clinical_Wearable'].weights[selectedWeightDisease]
+          },
+          {
+            key: 'Clinical_Gut',
+            id: 'C + G',
+            badgeBg: 'bg-purple-600',
+            name: 'Pathway 5: Clinical + Gut (C+G)',
+            features: 67,
+            tag: 'Labs + Taxa',
+            tagClass: 'bg-purple-100 text-purple-700 dark:bg-purple-950/70 dark:text-purple-300',
+            data: ALL_PATHWAY_WEIGHTS['Clinical_Gut'].weights[selectedWeightDisease]
+          },
+          {
+            key: 'Clinical_Only',
+            id: 'C',
+            badgeBg: 'bg-violet-600',
+            name: 'Pathway 1: Clinical Only (C)',
+            features: 18,
+            tag: 'Single Modality Baseline',
+            tagClass: 'bg-violet-100 text-violet-700 dark:bg-violet-950/70 dark:text-violet-300',
+            data: ALL_PATHWAY_WEIGHTS['Clinical_Only'].weights[selectedWeightDisease]
+          },
+          {
+            key: 'Wearable_Only',
+            id: 'W',
+            badgeBg: 'bg-cyan-600',
+            name: 'Pathway 2: Wearables Only (W)',
+            features: 15,
+            tag: 'Single Modality Baseline',
+            tagClass: 'bg-cyan-100 text-cyan-700 dark:bg-cyan-950/70 dark:text-cyan-300',
+            data: ALL_PATHWAY_WEIGHTS['Wearable_Only'].weights[selectedWeightDisease]
+          },
+          {
+            key: 'Gut_Only',
+            id: 'G',
+            badgeBg: 'bg-emerald-600',
+            name: 'Pathway 3: Gut Microbiome Only (G)',
+            features: 49,
+            tag: 'Single Modality Baseline',
+            tagClass: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/70 dark:text-emerald-300',
+            data: ALL_PATHWAY_WEIGHTS['Gut_Only'].weights[selectedWeightDisease]
+          },
+        ];
+
+        return (
+          <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-3.5 space-y-3 shadow-xs">
+            {/* Top Bar: Target Selection Pills */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-[var(--border-subtle)]">
               <div>
-                <strong className="text-xs font-black uppercase text-[var(--text-main)] tracking-wider">
-                  Stage 1 Pre-Fusion Expert Models
-                </strong>
+                <h3 className="text-xs font-black uppercase text-[var(--text-main)] tracking-wider flex items-center gap-1.5">
+                  <SlidersHorizontal className="w-3.5 h-3.5 text-indigo-500" />
+                  Meta-Learner Weights for All 7 Pathways
+                </h3>
                 <p className="text-[11px] text-[var(--text-muted)]">
-                  15 deployed winners selected after evaluating 6 machine learning algorithms across 70,000 training patients.
+                  Level-1 Stacking weights allocated to each expert model per care pathway.
                 </p>
               </div>
 
-              {/* Sub Tab Switcher */}
+              {/* Target Pills */}
+              <div className="flex items-center gap-1 p-0.5 rounded-lg bg-[var(--bg-primary)] border border-[var(--border-subtle)] overflow-x-auto">
+                {diseases.map((d) => (
+                  <button
+                    key={d.id}
+                    onClick={() => setSelectedWeightDisease(d.id)}
+                    className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-bold transition-all whitespace-nowrap cursor-pointer ${
+                      selectedWeightDisease === d.id
+                        ? 'bg-[var(--primary)] text-white shadow-2xs'
+                        : 'text-[var(--text-muted)] hover:text-[var(--text-main)]'
+                    }`}
+                  >
+                    <span>{d.icon}</span>
+                    <span>{d.label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Compact Legend */}
+            <div className="flex items-center justify-between text-[11px] px-1 font-bold text-[var(--text-muted)]">
+              <span className="text-[10px] uppercase font-black tracking-wider">All 7 Stacking Configurations</span>
+              <div className="flex items-center gap-3">
+                <span className="flex items-center gap-1 text-violet-600 dark:text-violet-400">
+                  <span className="w-2 h-2 rounded-full bg-violet-600" /> Clinical Labs
+                </span>
+                <span className="flex items-center gap-1 text-cyan-600 dark:text-cyan-400">
+                  <span className="w-2 h-2 rounded-full bg-cyan-500" /> Wearable Sensors
+                </span>
+                <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500" /> Gut Microbiome
+                </span>
+              </div>
+            </div>
+
+            {/* Exhaustive 7-Pathway List */}
+            <div className="divide-y divide-[var(--border-subtle)] rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-primary)]/40 overflow-hidden">
+              {allSevenPathways.map((p) => {
+                const wObj = p.data;
+                const weights = [
+                  { label: 'Labs', pct: wObj.c, color: 'bg-violet-600', textCol: 'text-violet-600 dark:text-violet-400' },
+                  { label: 'Sensors', pct: wObj.w, color: 'bg-cyan-500', textCol: 'text-cyan-600 dark:text-cyan-400' },
+                  { label: 'Gut', pct: wObj.g, color: 'bg-emerald-500', textCol: 'text-emerald-600 dark:text-emerald-400' },
+                ];
+
+                return (
+                  <div
+                    key={p.key}
+                    className={`p-2.5 sm:px-3.5 transition-colors ${
+                      p.isSurge
+                        ? 'bg-amber-50/50 dark:bg-amber-950/25'
+                        : 'hover:bg-[var(--bg-surface)]/80'
+                    }`}
+                  >
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      {/* Left: Badge + Pathway Name */}
+                      <div className="flex items-center gap-2 min-w-[210px]">
+                        <span className={`font-mono text-[10.5px] font-black px-1.5 py-0.5 rounded-md text-white shadow-2xs ${p.badgeBg}`}>
+                          {p.id}
+                        </span>
+                        <div>
+                          <div className="flex items-center gap-1.5">
+                            <strong className="text-xs font-bold text-[var(--text-main)]">
+                              {p.name}
+                            </strong>
+                            <span className={`text-[9px] font-black px-1.5 py-0.2 rounded-full ${p.tagClass}`}>
+                              {p.tag}
+                            </span>
+                          </div>
+                          <span className="text-[9.5px] text-[var(--text-muted)] font-mono block">
+                            {p.features} features &bull; &beta; vector: {wObj.beta}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Center: Slim Segmented Bar */}
+                      <div className="w-full sm:w-48 lg:w-64">
+                        <div className="h-2 w-full rounded-full overflow-hidden flex bg-gray-200 dark:bg-gray-800 shadow-inner">
+                          {weights.map((w, idx) =>
+                            w.pct > 0 ? (
+                              <div
+                                key={w.label}
+                                style={{ width: `${w.pct}%` }}
+                                className={`h-full ${w.color} transition-all duration-300 ${idx > 0 ? 'ml-0.5' : ''}`}
+                                title={`${w.label}: ${w.pct.toFixed(1)}%`}
+                              />
+                            ) : null
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Right: Exact Percentage Numbers */}
+                      <div className="flex items-center gap-2.5 font-mono text-[11px] font-black shrink-0 sm:min-w-[170px] justify-end">
+                        {weights.map((w) =>
+                          w.pct > 0 ? (
+                            <span key={w.label} className={w.textCol}>
+                              {w.pct.toFixed(1)}% <span className="text-[9px] font-sans font-normal text-[var(--text-muted)]">{w.label}</span>
+                            </span>
+                          ) : null
+                        )}
+                      </div>
+                    </div>
+
+                    {/* 1-Line Subtext Insight */}
+                    <p className="text-[10px] text-[var(--text-muted)] mt-1 truncate">
+                      {wObj.note}
+                    </p>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Footer Summary */}
+            <div className="pt-1 flex flex-col sm:flex-row sm:items-center justify-between gap-1 text-[10.5px] text-[var(--text-muted)] font-mono">
+              <span>
+                <strong>Stacking Formulation:</strong> P(Y=1|X) = &sigma;(&beta;₀ + &beta;_c &middot; p_c + &beta;_w &middot; p_w + &beta;_g &middot; p_g)
+              </span>
+              <span className="text-[10px] text-indigo-600 dark:text-indigo-400 font-bold">
+                ✓ All 7 pathways evaluated on 15,000 holdout test cohort
+              </span>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* =========================================================================
+          TAB 3: CLASSIFIER REPORTS (ACCURACY, PRECISION, RECALL, F1, AUROC, AUPRC)
+          ========================================================================= */}
+      {activeTab === 'expert_models' && (
+        <div className="space-y-4">
+          <div className="p-3.5 rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] space-y-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-[var(--border-subtle)]">
+              <div>
+                <strong className="text-xs font-black uppercase text-[var(--text-main)] tracking-wider flex items-center gap-1.5">
+                  <Cpu className="w-3.5 h-3.5 text-indigo-500" />
+                  Full Classification Performance Reports
+                </strong>
+                <p className="text-[11px] text-[var(--text-muted)]">
+                  Evaluated on 15,000 independent test patients: Accuracy, Precision, Recall/Sensitivity, Specificity, F1, AUROC, AUPRC, and Brier Score.
+                </p>
+              </div>
+
+              {/* Sub-Tab Switcher */}
               <div className="flex items-center gap-1 p-0.5 rounded-lg bg-[var(--bg-primary)] border border-[var(--border-subtle)]">
                 <button
                   onClick={() => setExpertSubTab('winners')}
-                  className={`px-3 py-1 rounded-md text-xs font-bold transition-all ${
+                  className={`px-3 py-1 rounded-md text-xs font-bold transition-all cursor-pointer ${
                     expertSubTab === 'winners' ? 'bg-[var(--primary)] text-white shadow-xs' : 'text-[var(--text-muted)]'
                   }`}
                 >
-                  15 Deployed Winners
+                  15 Deployed Expert Champions
                 </button>
                 <button
                   onClick={() => setExpertSubTab('all90')}
-                  className={`px-3 py-1 rounded-md text-xs font-bold transition-all ${
+                  className={`px-3 py-1 rounded-md text-xs font-bold transition-all cursor-pointer ${
                     expertSubTab === 'all90' ? 'bg-[var(--primary)] text-white shadow-xs' : 'text-[var(--text-muted)]'
                   }`}
                 >
-                  All 90 Classifier Matrix
+                  All 90 Classifier Tournament
                 </button>
               </div>
             </div>
 
-            {/* View 1: 15 Winners in Compact 3 Columns */}
+            {/* View 1: 15 Deployed Champions Classification Report Table */}
             {expertSubTab === 'winners' && (
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
-                {[
-                  { key: 'Clinical', label: 'Clinical Labs', feats: '18 features', color: '#8b5cf6', icon: '🩺' },
-                  { key: 'Wearable', label: 'Wearables & CGM', feats: '15 features', color: '#06b6d4', icon: '⌚' },
-                  { key: 'Gut', label: 'Gut Microbiome', feats: '49 taxa', color: '#10b981', icon: '🧬' },
-                ].map((mod) => {
-                  const experts = STAGE1_EXPERT_WINNERS.filter(e => e.modality === mod.key);
-                  return (
-                    <div key={mod.key} className="p-3 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-primary)] space-y-2">
-                      <div className="flex items-center justify-between pb-1.5 border-b border-[var(--border-subtle)]">
-                        <div className="flex items-center gap-1.5">
-                          <span>{mod.icon}</span>
-                          <strong className="text-xs font-black text-[var(--text-main)]">{mod.label}</strong>
-                        </div>
-                        <span className="text-[10px] font-mono text-[var(--text-muted)]">{mod.feats}</span>
-                      </div>
-
-                      <div className="space-y-1.5">
-                        {experts.map((e) => (
-                          <div key={e.disease} className="p-2 rounded-lg bg-[var(--bg-surface)] border border-[var(--border-subtle)] space-y-1">
-                            <div className="flex items-center justify-between text-xs">
-                              <span className="font-bold text-[var(--text-main)] truncate">{e.diseaseTitle}</span>
-                              <span className="font-mono font-bold text-[10px] px-1.5 py-0.2 rounded-md bg-emerald-100 text-emerald-800 dark:bg-emerald-950/70 dark:text-emerald-300">
-                                {e.winner}
-                              </span>
-                            </div>
-                            <div className="flex items-center justify-between text-[10px] font-mono text-[var(--text-muted)]">
-                              <span>AUROC: <strong className="text-indigo-600 dark:text-indigo-400">{e.auroc.toFixed(4)}</strong></span>
-                              <span>Cutoff: <strong>{e.cutoff.toFixed(2)}</strong></span>
-                            </div>
-                            <div className="text-[9.5px] font-mono text-[var(--text-muted)] truncate pt-0.5 border-t border-[var(--border-subtle)]">
-                              Top: <strong className="text-[var(--text-main)]">{e.topFeat1}</strong> ({e.topFeat1Pct}), {e.topFeat2} ({e.topFeat2Pct})
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  );
-                })}
+              <div className="overflow-x-auto max-h-[460px] custom-scrollbar">
+                <table className="w-full text-xs text-left">
+                  <thead className="sticky top-0 bg-[var(--bg-surface)] z-10 border-b border-[var(--border-medium)] text-[10px] font-black uppercase text-[var(--text-muted)]">
+                    <tr>
+                      <th className="py-2 px-2.5">Modality</th>
+                      <th className="py-2 px-2.5">Target Disease</th>
+                      <th className="py-2 px-2.5">Winner Model</th>
+                      <th className="py-2 px-2.5 text-right font-mono">Accuracy</th>
+                      <th className="py-2 px-2.5 text-right font-mono">Precision</th>
+                      <th className="py-2 px-2.5 text-right font-mono">Recall (Sens)</th>
+                      <th className="py-2 px-2.5 text-right font-mono">Specificity</th>
+                      <th className="py-2 px-2.5 text-right font-mono">F1-Score</th>
+                      <th className="py-2 px-2.5 text-right font-mono text-indigo-600 dark:text-indigo-400">AUROC [95% CI]</th>
+                      <th className="py-2 px-2.5 text-right font-mono text-cyan-600 dark:text-cyan-400">AUPRC</th>
+                      <th className="py-2 px-2.5 text-right font-mono">Threshold</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[var(--border-subtle)] font-mono text-[11px]">
+                    {STAGE1_EXPERT_WINNERS.map((e, idx) => (
+                      <tr key={idx} className="hover:bg-[var(--bg-primary)]/50">
+                        <td className="py-1.5 px-2.5">
+                          <span className={`text-[10px] font-bold px-1.5 py-0.2 rounded ${
+                            e.modality === 'Clinical' ? 'bg-violet-100 text-violet-800 dark:bg-violet-950/70 dark:text-violet-300' :
+                            e.modality === 'Wearable' ? 'bg-cyan-100 text-cyan-800 dark:bg-cyan-950/70 dark:text-cyan-300' :
+                            'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/70 dark:text-emerald-300'
+                          }`}>
+                            {e.modality}
+                          </span>
+                        </td>
+                        <td className="py-1.5 px-2.5 font-sans font-bold text-[var(--text-main)]">{e.diseaseTitle}</td>
+                        <td className="py-1.5 px-2.5 font-bold text-emerald-600 dark:text-emerald-400">{e.winner}</td>
+                        <td className="py-1.5 px-2.5 text-right font-bold text-[var(--text-main)]">{(e.accuracy * 100).toFixed(1)}%</td>
+                        <td className="py-1.5 px-2.5 text-right text-[var(--text-main)]">{(e.precision * 100).toFixed(1)}%</td>
+                        <td className="py-1.5 px-2.5 text-right text-[var(--text-main)]">{(e.recall * 100).toFixed(1)}%</td>
+                        <td className="py-1.5 px-2.5 text-right text-[var(--text-muted)]">{(e.specificity * 100).toFixed(1)}%</td>
+                        <td className="py-1.5 px-2.5 text-right font-bold text-emerald-600 dark:text-emerald-400">{e.f1.toFixed(3)}</td>
+                        <td className="py-1.5 px-2.5 text-right font-bold text-indigo-600 dark:text-indigo-400">
+                          {e.auroc.toFixed(4)} <span className="text-[9px] text-[var(--text-muted)] font-normal">{e.aurocCI}</span>
+                        </td>
+                        <td className="py-1.5 px-2.5 text-right text-cyan-600 dark:text-cyan-400">{e.auprc.toFixed(4)}</td>
+                        <td className="py-1.5 px-2.5 text-right text-[var(--text-muted)]">{e.cutoff.toFixed(2)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             )}
 
-            {/* View 2: All 90 Classifier Matrix */}
+            {/* View 2: All 90 Classifier Tournament Matrix */}
             {expertSubTab === 'all90' && (
               <div className="space-y-3">
                 <div className="flex items-center gap-2">
-                  <span className="text-xs font-bold text-[var(--text-muted)]">Filter:</span>
+                  <span className="text-xs font-bold text-[var(--text-muted)]">Modality Filter:</span>
                   {['all', 'Clinical', 'Wearable', 'Gut'].map((m) => (
                     <button
                       key={m}
                       onClick={() => setSelectedExpertModality(m)}
-                      className={`px-2 py-0.5 rounded-md text-[11px] font-mono font-bold border ${
+                      className={`px-2 py-0.5 rounded-md text-[11px] font-mono font-bold border cursor-pointer ${
                         selectedExpertModality === m ? 'bg-[var(--primary)] text-white border-[var(--primary)]' : 'bg-[var(--bg-primary)] border-[var(--border-subtle)] text-[var(--text-muted)]'
                       }`}
                     >
@@ -755,7 +1020,7 @@ export default function ModelResultsPage({ session, predictionData, xaiData, onN
                             <td className="py-1 px-2.5 text-right font-mono text-[var(--text-muted)]">{c.fitTime.toFixed(2)}s</td>
                             <td className="py-1 px-2.5 text-center">
                               {c.isWinner ? (
-                                <span className="text-emerald-600 dark:text-emerald-400 text-[10px] font-bold">★ Deployed</span>
+                                <span className="text-emerald-600 dark:text-emerald-400 text-[10px] font-bold">★ Deployed Champion</span>
                               ) : (
                                 <span className="text-[10px] text-[var(--text-muted)]">-</span>
                               )}
@@ -772,218 +1037,146 @@ export default function ModelResultsPage({ session, predictionData, xaiData, onN
       )}
 
       {/* =========================================================================
-          TAB 3: META-LEARNER WEIGHTS (SUPER SIMPLE, SMALL, COMPACT & BEAUTIFUL)
+          TAB 4: DATASETS & COHORT SPLIT INFO (SIZE, SPLITS, PROTOCOL)
           ========================================================================= */}
-      {activeTab === 'pathway_weights' && (() => {
-        const fullFusion = ALL_PATHWAY_WEIGHTS['Full_Multimodal_Fusion']?.weights[selectedWeightDisease] || { c: 96.3, w: 2.6, g: 1.1, note: '' };
-        const cw = ALL_PATHWAY_WEIGHTS['Clinical_Wearable']?.weights[selectedWeightDisease] || { c: 97.4, w: 2.6, g: 0, note: '' };
-        const cg = ALL_PATHWAY_WEIGHTS['Clinical_Gut']?.weights[selectedWeightDisease] || { c: 99.0, w: 0, g: 1.0, note: '' };
-        const wg = ALL_PATHWAY_WEIGHTS['Wearable_Gut']?.weights[selectedWeightDisease] || { c: 0, w: 75.2, g: 24.8, note: '' };
-        const isRemoteNAFLD = selectedWeightDisease === 'NAFLD';
-
-        const diseases = [
-          { id: 'Type2_Diabetes', label: 'Diabetes', icon: '🩸' },
-          { id: 'Prediabetes', label: 'Prediabetes', icon: '📈' },
-          { id: 'High_Adiposity_Risk', label: 'Obesity', icon: '⚖️' },
-          { id: 'Metabolic_Syndrome', label: 'MetSyn', icon: '🩺' },
-          { id: 'NAFLD', label: 'NAFLD Liver', icon: '🧬' },
-        ];
-
-        const pathways = [
-          {
-            id: 'C + W + G',
-            badgeBg: 'bg-indigo-600',
-            name: 'Full Hospital Fusion',
-            features: 82,
-            tag: 'Hospital Standard',
-            tagClass: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-950/70 dark:text-indigo-300',
-            weights: [
-              { label: 'Labs', pct: fullFusion.c, color: 'bg-violet-600', textCol: 'text-violet-600 dark:text-violet-400' },
-              { label: 'Sensors', pct: fullFusion.w, color: 'bg-cyan-500', textCol: 'text-cyan-600 dark:text-cyan-400' },
-              { label: 'Gut', pct: fullFusion.g, color: 'bg-emerald-500', textCol: 'text-emerald-600 dark:text-emerald-400' },
-            ],
-            note: fullFusion.note,
-          },
-          {
-            id: 'W + G',
-            badgeBg: 'bg-amber-500',
-            name: 'Remote At-Home Triage',
-            features: 64,
-            tag: '⚡ No Blood Draw',
-            tagClass: isRemoteNAFLD ? 'bg-amber-500 text-white animate-pulse' : 'bg-amber-100 text-amber-800 dark:bg-amber-950/80 dark:text-amber-300',
-            isSurge: isRemoteNAFLD,
-            weights: [
-              { label: 'Sensors', pct: wg.w, color: 'bg-cyan-500', textCol: 'text-cyan-600 dark:text-cyan-400' },
-              { label: 'Gut', pct: wg.g, color: 'bg-emerald-500', textCol: 'text-emerald-600 dark:text-emerald-400' },
-            ],
-            note: isRemoteNAFLD
-              ? '⭐ Gut microbiome surges to 63.7% weight (+0.0364 AUROC lift) to substitute for missing blood tests!'
-              : wg.note,
-          },
-          {
-            id: 'C + W',
-            badgeBg: 'bg-blue-600',
-            name: 'Clinical + Wearables',
-            features: 33,
-            tag: 'Labs + Sensors',
-            tagClass: 'bg-blue-100 text-blue-700 dark:bg-blue-950/70 dark:text-blue-300',
-            weights: [
-              { label: 'Labs', pct: cw.c, color: 'bg-violet-600', textCol: 'text-violet-600 dark:text-violet-400' },
-              { label: 'Sensors', pct: cw.w, color: 'bg-cyan-500', textCol: 'text-cyan-600 dark:text-cyan-400' },
-            ],
-            note: cw.note,
-          },
-          {
-            id: 'C + G',
-            badgeBg: 'bg-purple-600',
-            name: 'Clinical + Gut',
-            features: 67,
-            tag: 'Labs + Taxa',
-            tagClass: 'bg-purple-100 text-purple-700 dark:bg-purple-950/70 dark:text-purple-300',
-            weights: [
-              { label: 'Labs', pct: cg.c, color: 'bg-violet-600', textCol: 'text-violet-600 dark:text-violet-400' },
-              { label: 'Gut', pct: cg.g, color: 'bg-emerald-500', textCol: 'text-emerald-600 dark:text-emerald-400' },
-            ],
-            note: cg.note,
-          },
-        ];
-
-        return (
-          <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-3.5 space-y-3 shadow-xs">
-            {/* Ultra-Compact Top Bar: Title, Target Pills, Legend */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2.5 border-b border-[var(--border-subtle)]">
-              <div className="flex items-center gap-2">
-                <SlidersHorizontal className="w-3.5 h-3.5 text-[var(--primary)] shrink-0" />
-                <h3 className="text-xs font-black uppercase text-[var(--text-main)] tracking-wider">
-                  Modality Attribution
-                </h3>
-                <span className="hidden sm:inline text-[11px] text-[var(--text-muted)]">
-                  • Weight distribution per care pathway
-                </span>
+      {activeTab === 'datasets_info' && (
+        <div className="space-y-4">
+          {/* Cohort Overview Card */}
+          <div className="p-4 rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] space-y-4 shadow-xs">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-[var(--border-subtle)]">
+              <div>
+                <strong className="text-xs font-black uppercase text-[var(--text-main)] tracking-wider flex items-center gap-1.5">
+                  <Database className="w-3.5 h-3.5 text-indigo-500" />
+                  Multimodal Cohort Dataset & Validation Splits
+                </strong>
+                <p className="text-[11px] text-[var(--text-muted)]">
+                  Master synchronized cohort specifications, data splitting protocols, and cross-validation integrity.
+                </p>
               </div>
-
-              {/* Disease Filter Pills */}
-              <div className="flex items-center gap-1 p-0.5 rounded-lg bg-[var(--bg-primary)] border border-[var(--border-subtle)] overflow-x-auto">
-                {diseases.map((d) => (
-                  <button
-                    key={d.id}
-                    onClick={() => setSelectedWeightDisease(d.id)}
-                    className={`flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-bold transition-all whitespace-nowrap cursor-pointer ${
-                      selectedWeightDisease === d.id
-                        ? 'bg-[var(--primary)] text-white shadow-2xs'
-                        : 'text-[var(--text-muted)] hover:text-[var(--text-main)]'
-                    }`}
-                  >
-                    <span>{d.icon}</span>
-                    <span>{d.label}</span>
-                  </button>
-                ))}
-              </div>
+              <Badge variant="accent" size="sm">N = 100,000 Synchronized Patients</Badge>
             </div>
 
-            {/* Compact Legend Bar */}
-            <div className="flex items-center justify-between text-[11px] px-1 font-bold text-[var(--text-muted)]">
-              <span className="text-[10px] uppercase font-black tracking-wider">Multimodal Pathways</span>
-              <div className="flex items-center gap-2.5">
-                <span className="flex items-center gap-1 text-violet-600 dark:text-violet-400">
-                  <span className="w-2 h-2 rounded-full bg-violet-600" /> Clinical Labs
-                </span>
-                <span className="flex items-center gap-1 text-cyan-600 dark:text-cyan-400">
-                  <span className="w-2 h-2 rounded-full bg-cyan-500" /> Wearable Sensors
-                </span>
-                <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400">
-                  <span className="w-2 h-2 rounded-full bg-emerald-500" /> Gut Microbiome
-                </span>
+            {/* Visual 3-Way Split Bar */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between text-xs font-mono font-bold">
+                <span className="text-indigo-600 dark:text-indigo-400">Train Set: 70,000 (70%)</span>
+                <span className="text-purple-600 dark:text-purple-400">Validation Set: 15,000 (15%)</span>
+                <span className="text-emerald-600 dark:text-emerald-400">Test Benchmark: 15,000 (15%)</span>
               </div>
-            </div>
 
-            {/* Sleek, Compact 4-Pathway List (No Big Boxes!) */}
-            <div className="divide-y divide-[var(--border-subtle)] rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-primary)]/40 overflow-hidden">
-              {pathways.map((p) => (
-                <div
-                  key={p.id}
-                  className={`p-2.5 sm:px-3.5 transition-colors ${
-                    p.isSurge
-                      ? 'bg-amber-50/50 dark:bg-amber-950/25'
-                      : 'hover:bg-[var(--bg-surface)]/80'
-                  }`}
-                >
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                    {/* Left: Badge + Pathway Name */}
-                    <div className="flex items-center gap-2 min-w-[190px]">
-                      <span className={`font-mono text-[10.5px] font-black px-1.5 py-0.5 rounded-md text-white shadow-2xs ${p.badgeBg}`}>
-                        {p.id}
-                      </span>
-                      <div>
-                        <div className="flex items-center gap-1.5">
-                          <strong className="text-xs font-bold text-[var(--text-main)]">
-                            {p.name}
-                          </strong>
-                          <span className={`text-[9px] font-black px-1.5 py-0.2 rounded-full ${p.tagClass}`}>
-                            {p.tag}
-                          </span>
-                        </div>
-                        <span className="text-[9.5px] text-[var(--text-muted)] font-mono block">
-                          {p.features} features
-                        </span>
-                      </div>
-                    </div>
+              <div className="w-full h-4 rounded-full overflow-hidden flex bg-gray-200 dark:bg-gray-800 p-0.5 shadow-inner">
+                <div className="h-full bg-gradient-to-r from-indigo-600 to-indigo-500 rounded-l-full" style={{ width: '70%' }} title="Train Set: 70k" />
+                <div className="h-full bg-gradient-to-r from-purple-500 to-purple-600 ml-0.5" style={{ width: '15%' }} title="Validation Set: 15k" />
+                <div className="h-full bg-gradient-to-r from-emerald-500 to-teal-500 rounded-r-full ml-0.5" style={{ width: '15%' }} title="Test Set: 15k" />
+              </div>
 
-                    {/* Center: Slim Segmented Bar */}
-                    <div className="w-full sm:w-48 lg:w-60">
-                      <div className="h-2.5 w-full rounded-full overflow-hidden flex bg-gray-200 dark:bg-gray-800 p-0.5 shadow-inner">
-                        {p.weights.map((w, idx) =>
-                          w.pct > 0 ? (
-                            <div
-                              key={w.label}
-                              style={{ width: `${w.pct}%` }}
-                              className={`h-full ${w.color} rounded-full transition-all duration-300 ${idx > 0 ? 'ml-0.5' : ''}`}
-                              title={`${w.label}: ${w.pct.toFixed(1)}%`}
-                            />
-                          ) : null
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Right: Exact Percentage Numbers */}
-                    <div className="flex items-center gap-2 font-mono text-[11px] font-black shrink-0 sm:min-w-[170px] justify-end">
-                      {p.weights.map((w) =>
-                        w.pct > 0 ? (
-                          <span key={w.label} className={w.textCol}>
-                            {w.pct.toFixed(1)}% <span className="text-[9.5px] font-sans font-normal text-[var(--text-muted)]">{w.label}</span>
-                          </span>
-                        ) : null
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Clean 1-Line Subtext Insight */}
-                  <p className="text-[10px] text-[var(--text-muted)] mt-1 truncate">
-                    {p.note}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5 pt-1 text-xs">
+                <div className="p-2.5 rounded-xl bg-indigo-50/50 dark:bg-indigo-950/20 border border-indigo-200/60 dark:border-indigo-900/40 space-y-1">
+                  <strong className="text-indigo-950 dark:text-indigo-200 font-bold block">1. Training Set (70k Patients)</strong>
+                  <p className="text-[11px] text-[var(--text-muted)] leading-relaxed">
+                    Used strictly for fitting preprocessors (StandardScaler, Median Imputers) and training candidate classifiers across all 3 modalities. Class weights applied for prevalence balance.
                   </p>
                 </div>
-              ))}
+
+                <div className="p-2.5 rounded-xl bg-purple-50/50 dark:bg-purple-950/20 border border-purple-200/60 dark:border-purple-900/40 space-y-1">
+                  <strong className="text-purple-950 dark:text-purple-200 font-bold block">2. Validation Set (15k Patients)</strong>
+                  <p className="text-[11px] text-[var(--text-muted)] leading-relaxed">
+                    Used for hyperparameter tuning, optimal classification threshold selection (Youden's Index / F1), and training the Level-1 Stacking Meta-Learners.
+                  </p>
+                </div>
+
+                <div className="p-2.5 rounded-xl bg-emerald-50/50 dark:bg-emerald-950/20 border border-emerald-200/60 dark:border-emerald-900/40 space-y-1">
+                  <strong className="text-emerald-950 dark:text-emerald-200 font-bold block">3. Untouched Test Set (15k Patients)</strong>
+                  <p className="text-[11px] text-[var(--text-muted)] leading-relaxed">
+                    Strictly held out until final publication evaluation. All reported AUROC, AUPRC, and F1 scores are derived here with 1,000 paired bootstrap 95% Confidence Intervals.
+                  </p>
+                </div>
+              </div>
             </div>
 
-            {/* Ultra-Compact Footer: Baselines & Quick Clinical Takeaway */}
-            <div className="pt-1 flex flex-col sm:flex-row sm:items-center justify-between gap-1 text-[10.5px] text-[var(--text-muted)]">
-              <span className="font-mono">
-                <strong>Baselines:</strong> C (100% · 18 feats) · W (100% · 15 feats) · G (100% · 49 feats)
-              </span>
-              <span className="text-[10px]">
-                💡 In <strong>Remote Triage (W+G)</strong>, Gut surrogacy surges up to <strong>63.7%</strong> when blood tests are missing.
-              </span>
+            {/* Modality Panels Breakdown */}
+            <div className="space-y-2 pt-2 border-t border-[var(--border-subtle)]">
+              <strong className="text-xs font-black uppercase text-[var(--text-main)] tracking-wider">
+                Multi-Modal Data Panel Architecture (82 Total Biomarkers)
+              </strong>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+                {/* Clinical Panel */}
+                <div className="p-3 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-subtle)] space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-violet-700 dark:text-violet-300 flex items-center gap-1.5">
+                      <Activity className="w-3.5 h-3.5 text-violet-500" />
+                      Clinical Panel (18 Features)
+                    </span>
+                    <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-violet-100 text-violet-800 dark:bg-violet-950/60 dark:text-violet-300">
+                      Primary Anchor
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-[var(--text-muted)] leading-relaxed">
+                    Fasting Blood Glucose, HbA1c, Triglycerides, HDL, LDL, ALT, AST, Systolic/Diastolic BP, BMI, Waist Circumference, Height, Weight, Age, Gender, and 3 Family History flags.
+                  </p>
+                </div>
+
+                {/* Wearable Panel */}
+                <div className="p-3 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-subtle)] space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-cyan-700 dark:text-cyan-300 flex items-center gap-1.5">
+                      <Watch className="w-3.5 h-3.5 text-cyan-500" />
+                      Wearable & CGM (15 Features)
+                    </span>
+                    <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-cyan-100 text-cyan-800 dark:bg-cyan-950/60 dark:text-cyan-300">
+                      Telemetry Stream
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-[var(--text-muted)] leading-relaxed">
+                    10 smartwatch metrics (Daily Steps, Active Minutes, Sedentary Minutes, Resting HR, HRV RMSSD, Sleep Duration, Sleep Efficiency, Stress Score, Energy Expenditure, Exercise Days) + 5 continuous CGM metrics (Mean Glucose, CV, TIR, TAR, TBR).
+                  </p>
+                </div>
+
+                {/* Gut Microbiome Panel */}
+                <div className="p-3 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-subtle)] space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-emerald-700 dark:text-emerald-300 flex items-center gap-1.5">
+                      <Dna className="w-3.5 h-3.5 text-emerald-500" />
+                      Gut Microbiome (49 Features)
+                    </span>
+                    <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
+                      Multiomics
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-[var(--text-muted)] leading-relaxed">
+                    40 scientifically justified taxa relative abundances (100% Dirichlet-Multinomial simplex normalized) + 9 derived indices (Shannon, Simpson, Richness, Evenness, SCFA Producer, Butyrate, Barrier, Inflammation, Log Firmicutes/Bacteroidetes).
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Validation Protocol & Rigor Card */}
+            <div className="p-3 rounded-xl bg-gradient-to-r from-[var(--bg-primary)] to-[var(--bg-surface)] border border-[var(--border-subtle)] space-y-2 text-xs">
+              <strong className="text-xs font-black uppercase text-[var(--text-main)] tracking-wider">
+                Rigorous Evaluation & Data Leakage Prevention Protocol
+              </strong>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-[11px] text-[var(--text-muted)]">
+                <div className="space-y-1">
+                  <span className="font-bold text-[var(--text-main)] block">&bull; Out-Of-Fold (OOF) Stacking:</span>
+                  <span>Level-0 predictions used to train the Level-1 meta-learners were generated via 5-fold cross-validation out-of-fold folds to prevent target leakage and overconfident stacking coefficients.</span>
+                </div>
+                <div className="space-y-1">
+                  <span className="font-bold text-[var(--text-main)] block">&bull; Isotonic Probability Calibration:</span>
+                  <span>Raw model logits are calibrated via Isotonic Regression, ensuring that a predicted probability of 60% corresponds to an empirical 60% observed prevalence (Brier score loss &lt; 0.20 across all targets).</span>
+                </div>
+              </div>
             </div>
           </div>
-        );
-      })()}
+        </div>
+      )}
 
       {/* =========================================================================
-          TAB 4: STATISTICAL RIGOR & AUDIT SCORECARD
+          TAB 5: STATISTICAL RIGOR & AUDIT SCORECARD
           ========================================================================= */}
       {activeTab === 'statistical_audit' && (
         <div className="space-y-4">
-          <div className="p-4 rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] space-y-3">
+          <div className="p-3.5 rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] space-y-3">
             <div className="flex items-center justify-between pb-2 border-b border-[var(--border-subtle)]">
               <div>
                 <strong className="text-xs font-black uppercase text-[var(--text-main)] tracking-wider">
@@ -1008,15 +1201,15 @@ export default function ModelResultsPage({ session, predictionData, xaiData, onN
                     <th className="py-1.5 px-2.5">Interpretation</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-[var(--border-subtle)]">
+                <tbody className="divide-y divide-[var(--border-subtle)] font-mono text-[11px]">
                   {STATISTICAL_SIGNIFICANCE_DATA.map((r) => (
                     <tr key={r.disease} className="hover:bg-[var(--bg-primary)]/50">
-                      <td className="py-1.5 px-2.5 font-bold text-[var(--text-main)]">{r.diseaseTitle}</td>
-                      <td className="py-1.5 px-2.5 text-right font-mono text-[var(--text-muted)]">{r.clinAUROC.toFixed(4)}</td>
-                      <td className="py-1.5 px-2.5 text-right font-mono font-bold text-indigo-600 dark:text-indigo-400">{r.fusionAUROC.toFixed(4)}</td>
-                      <td className="py-1.5 px-2.5 text-right font-mono font-bold text-emerald-600 dark:text-emerald-400">+{r.gain.toFixed(4)}</td>
-                      <td className="py-1.5 px-2.5 text-right font-mono font-bold text-[var(--text-main)]">{r.pVal.toFixed(4)}</td>
-                      <td className="py-1.5 px-2.5 text-[11px] text-[var(--text-muted)]">{r.interpretation}</td>
+                      <td className="py-1.5 px-2.5 font-sans font-bold text-[var(--text-main)]">{r.diseaseTitle}</td>
+                      <td className="py-1.5 px-2.5 text-right text-[var(--text-muted)]">{r.clinAUROC.toFixed(4)}</td>
+                      <td className="py-1.5 px-2.5 text-right font-bold text-indigo-600 dark:text-indigo-400">{r.fusionAUROC.toFixed(4)}</td>
+                      <td className="py-1.5 px-2.5 text-right font-bold text-emerald-600 dark:text-emerald-400">+{r.gain.toFixed(4)}</td>
+                      <td className="py-1.5 px-2.5 text-right font-bold text-[var(--text-main)]">{r.pVal.toFixed(4)}</td>
+                      <td className="py-1.5 px-2.5 font-sans text-[11px] text-[var(--text-muted)]">{r.interpretation}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -1045,7 +1238,7 @@ export default function ModelResultsPage({ session, predictionData, xaiData, onN
       )}
 
       {/* =========================================================================
-          TAB 5: LIVE PATIENT ASSESSMENT DEMO
+          TAB 6: LIVE PATIENT ASSESSMENT DEMO
           ========================================================================= */}
       {activeTab === 'patient_results' && (
         <div className="space-y-4">
