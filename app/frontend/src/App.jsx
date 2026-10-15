@@ -412,7 +412,7 @@ export default function App() {
       navigate(`/xai?disease=${diseaseKey}`, { state: { disease: diseaseKey } });
       return;
     }
-    if (primaryNav === 'analysis' || primaryNav === 'intake' || subNav === 'new_analysis') {
+    if (subNav === 'new_analysis' || (primaryNav === 'analysis' && subNav === 'new_analysis')) {
       handleStartNewAssessment();
       return;
     }
@@ -507,8 +507,12 @@ export default function App() {
       };
 
       setPredictionData(enrichedPred);
+      try {
+        sessionStorage.setItem('telemed_pred', JSON.stringify(enrichedPred));
+      } catch (e) {}
+
       // P0 FIX: Create a CLEAN session object — do NOT spread prev session to prevent stale data leaking.
-      setSession({
+      const cleanSession = {
         session_id: v3Payload.patient_id,
         assessment_id: assessmentId,
         confirmed_features: confirmed,
@@ -517,14 +521,26 @@ export default function App() {
         v3_payload: v3Payload,
         data_quality_scores: enrichedPred.data_quality_scores,
         status: 'ANALYZED'
-      });
+      };
+      setSession(cleanSession);
+      try {
+        sessionStorage.setItem('telemed_session', JSON.stringify(cleanSession));
+      } catch (e) {}
+
       // Clear assessmentId guard — the new assessment is now the active result.
       setAssessmentId(null);
 
       try {
         const xai = await fetchXAIV3(v3Payload, 'Type2_Diabetes');
         setXaiData(xai);
-        setSession((prev) => ({ ...prev, status: 'XAI_READY' }));
+        try {
+          sessionStorage.setItem('telemed_xai', JSON.stringify(xai));
+        } catch (e) {}
+        setSession((prev) => {
+          const next = { ...prev, status: 'XAI_READY' };
+          try { sessionStorage.setItem('telemed_session', JSON.stringify(next)); } catch (e) {}
+          return next;
+        });
       } catch (xaiErr) {
         setSession((prev) => ({ ...prev, status: 'ANALYZED' }));
       }

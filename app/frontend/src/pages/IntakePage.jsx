@@ -118,15 +118,11 @@ export default function IntakePage({
     setOtherTaxa(4.5);
   };
 
-  // P0 FIX: Auto-reset all local form/file/modality state when a new assessment begins.
-  // Triggered when App.jsx sets session=null + new assessmentId via handleStartNewAssessment,
-  // or if session is already in ANALYZED state (meaning it's from a previous finished analysis).
+  // Auto-reset all local form/file/modality state when a new assessment begins.
+  // Triggered when App.jsx sets session=null + new assessmentId via handleStartNewAssessment.
   useEffect(() => {
-    if ((session === null && assessmentId) || session?.status === 'ANALYZED') {
+    if (session === null && assessmentId) {
       handleFullReset();
-      if (session?.status === 'ANALYZED' && onResetSession) {
-        onResetSession();
-      }
     }
   }, [session, assessmentId]);
 
