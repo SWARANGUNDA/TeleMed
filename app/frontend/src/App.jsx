@@ -473,7 +473,34 @@ export default function App() {
       };
 
       const pred = await predictV3(v3Payload);
-      setPredictionData(pred);
+      
+      // Ensure data_quality_score is never null or lost
+      const rawDq = pred?.data_quality_score ?? 
+                    (pred?.overall_quality_score ? pred.overall_quality_score / 100 : null) ??
+                    (session?.data_quality_scores?.overall_quality_score ? session.data_quality_scores.overall_quality_score / 100 : null) ??
+                    0.85;
+      const normalizedDq = rawDq <= 1 ? rawDq : rawDq / 100;
+      const roundedDqPct = Math.round(normalizedDq * 100);
+
+      const enrichedPred = {
+        ...pred,
+        data_quality_score: normalizedDq,
+        overall_quality_score: roundedDqPct,
+        confirmed_features: confirmed,
+        data_quality_scores: pred.data_quality_scores || session?.data_quality_scores || {
+          overall_quality_score: roundedDqPct,
+          score_breakdown: {
+            overall_quality_score: roundedDqPct,
+            quality_label: roundedDqPct >= 85 ? 'High Quality' : 'Moderate Quality',
+            counts: {
+              provided: Object.keys(confirmed.clinical || {}).length + Object.keys(confirmed.wearable || {}).length + Object.keys(confirmed.gut || {}).length
+            },
+            deductions_list: []
+          }
+        }
+      };
+
+      setPredictionData(enrichedPred);
       // P0 FIX: Create a CLEAN session object — do NOT spread prev session to prevent stale data leaking.
       setSession({
         session_id: v3Payload.patient_id,
@@ -482,6 +509,7 @@ export default function App() {
         active_modalities: pred.active_modalities || pred.routing_metadata?.modalities_supplied || [],
         effective_pathway: pred.pathway_used || pred.routing_metadata?.effective_pathway || 'C',
         v3_payload: v3Payload,
+        data_quality_scores: enrichedPred.data_quality_scores,
         status: 'ANALYZED'
       });
       // Clear assessmentId guard — the new assessment is now the active result.

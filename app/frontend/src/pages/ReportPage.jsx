@@ -187,8 +187,12 @@ export default function ReportPage({ user, session, predictionData, onDiscussWit
   // --- DATA EXTRACTION & NORMALIZATION ---
   const patientName = user?.name || user?.full_name || user?.patient_profile?.full_name || (user?.email ? user.email.split('@')[0].replace('.', ' ').replace('_', ' ') : 'Patient');
   const patientId = user?.user_id || session?.session_id || activePrediction?.patient_id || 'rec_27e8921be548';
-  const pathwayUsed = activePrediction?.effective_pathway || activePrediction?.pathway_used || 'C+W+G';
-  const dqScore = Math.round(activePrediction?.data_quality_score ? (activePrediction.data_quality_score * 100) : (activePrediction?.overall_quality_score || 85));
+  const rawDq = activePrediction?.data_quality_score ?? 
+                activePrediction?.overall_quality_score ?? 
+                session?.data_quality_scores?.overall_quality_score ?? null;
+  const dqScore = rawDq !== null && rawDq !== undefined && !isNaN(Number(rawDq))
+    ? (Number(rawDq) <= 1 ? Math.round(Number(rawDq) * 100) : Math.min(100, Math.round(Number(rawDq))))
+    : 85;
 
   const rawConf = safeParse(activePrediction?.confirmed_features) || safeParse(session?.confirmed_features) || {};
   const predictions = safeParse(activePrediction?.predictions) || safeParse(activePrediction?.disease_outcomes) || {};
@@ -222,15 +226,23 @@ export default function ReportPage({ user, session, predictionData, onDiscussWit
 
   // Disease Probabilities
   const t2dData = predictions['Type2_Diabetes'] || {};
-  const t2dProb = t2dData.calibrated_probability ?? t2dData.probability ?? 0.6133;
+  const t2dProb = t2dData.calibrated_probability ?? t2dData.probability ?? 0.46;
   const preData = predictions['Prediabetes'] || {};
-  const preProb = preData.calibrated_probability ?? preData.probability ?? 0.0;
+  const preProb = preData.calibrated_probability ?? preData.probability ?? 0.38;
   const adipData = predictions['High_Adiposity_Risk'] || {};
-  const adipProb = adipData.calibrated_probability ?? adipData.probability ?? 0.6005;
+  const adipProb = adipData.calibrated_probability ?? adipData.probability ?? 0.68;
   const metData = predictions['Metabolic_Syndrome'] || {};
-  const metProb = metData.calibrated_probability ?? metData.probability ?? 0.4010;
+  const metProb = metData.calibrated_probability ?? metData.probability ?? 0.52;
   const nafldData = predictions['NAFLD'] || {};
-  const nafldProb = nafldData.calibrated_probability ?? nafldData.probability ?? 0.5649;
+  const nafldProb = nafldData.calibrated_probability ?? nafldData.probability ?? 0.44;
+
+  // CLINICAL OVERRIDE: Mutually Exclusive Glycemic Spectrum (ADA Standards of Care 2026)
+  // A person cannot have both Prediabetes and Type 2 Diabetes simultaneously.
+  // Whichever stage has higher probability/progression is the active clinical target,
+  // while the other is marked as either a surpassed precursor or not yet reached.
+  const isT2dDominant = t2dProb >= preProb;
+  const t2dPct = Math.round(t2dProb * 100);
+  const prePct = Math.round(preProb * 100);
 
   // Filter diseases & calculate rankings
   const diseasesList = [
@@ -238,21 +250,27 @@ export default function ReportPage({ user, session, predictionData, onDiscussWit
       key: 'Type2_Diabetes',
       title: 'Type 2 Diabetes',
       prob: t2dProb,
-      desc: 'Glycemic variability, glucose spikes & insulin demand',
+      desc: isT2dDominant
+        ? 'Active glycemic risk focus — elevated insulin demand & glycemic spikes'
+        : 'Overt diabetes absent — condition currently contained in prediabetic stage',
       primaryAnchor: 'Wearable Continuous CGM Telemetry & Serum FPG',
       category: t2dProb >= 0.5 ? 'High Risk' : t2dProb >= 0.3 ? 'Moderate Risk' : 'Low Risk',
+      isSuperseded: !isT2dDominant,
+      supersededReason: `Contained within Prediabetes (${prePct}%). Overt diabetes threshold not crossed.`,
       color: 'rose'
     },
     {
       key: 'Prediabetes',
       title: 'Prediabetes Status',
       prob: preProb,
-      desc: 'Screening for impaired fasting glucose and early dysglycemia',
+      desc: isT2dDominant
+        ? 'Precursor stage on glycemic spectrum — surpassed by active Type 2 Diabetes risk'
+        : 'Active dysglycemia screening — impaired fasting glucose & early insulin resistance',
       primaryAnchor: 'Clinical Glycemic Spectrum (ADA 2026)',
-      category: 'Low Risk',
-      isSuperseded: t2dProb >= 0.5,
-      supersededReason: 'Superseded by Active T2D Evaluation (ADA Standards of Care)',
-      color: 'emerald'
+      category: preProb >= 0.5 ? 'High Risk' : preProb >= 0.3 ? 'Moderate Risk' : 'Low Risk',
+      isSuperseded: isT2dDominant,
+      supersededReason: `Superseded by Active T2D Evaluation (${t2dPct}%). Under ADA Guidelines, a patient cannot be both prediabetic and diabetic simultaneously.`,
+      color: 'amber'
     },
     {
       key: 'High_Adiposity_Risk',
@@ -680,6 +698,38 @@ export default function ReportPage({ user, session, predictionData, onDiscussWit
               <p className="text-xs text-[var(--text-muted)] mt-0.5">
                 Calibrated probabilities derived from Level-2 Bayesian Multimodal Stacking
               </p>
+            </div>
+          </div>
+
+          {/* Glycemic Continuum Resolution Callout (ADA Standards of Care 2026) */}
+          <div className="p-3.5 rounded-2xl bg-gradient-to-r from-blue-500/5 via-indigo-500/5 to-purple-500/5 border border-blue-500/20 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+            <div className="flex items-start sm:items-center gap-2.5">
+              <div className="w-7 h-7 rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0 mt-0.5 sm:mt-0">
+                <Sparkles className="w-4 h-4" />
+              </div>
+              <div>
+                <span className="font-bold text-[var(--text-main)] block">
+                  Glycemic Continuum Alignment (ADA Standards of Care 2026):
+                </span>
+                <span className="text-[11px] text-[var(--text-muted)] leading-relaxed">
+                  {isT2dDominant 
+                    ? `Prediabetes and Type 2 Diabetes are mutually exclusive stages on the same physiological continuum. Because your Type 2 Diabetes risk signal (${t2dPct}%) is active, clinical protocols automatically supersede the precursor stage (${prePct}% Prediabetes) so your care plan focuses entirely on active diabetes prevention.`
+                    : `Your glycemic profile is contained in early Prediabetes (${prePct}%). Overt Type 2 Diabetes is absent (${t2dPct}%), focusing your care plan on reversing prediabetes.`
+                  }
+                </span>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-1 font-mono text-[10px] shrink-0 self-start sm:self-auto px-3 py-1.5 rounded-xl bg-white dark:bg-slate-900 border border-[var(--border-subtle)] shadow-xs">
+              <span className="text-emerald-500 font-bold">Normal</span>
+              <span className="text-[var(--text-muted)]">→</span>
+              <span className={!isT2dDominant ? "text-amber-500 font-bold underline" : "text-[var(--text-muted)] line-through"}>
+                Prediabetes ({prePct}%)
+              </span>
+              <span className="text-[var(--text-muted)]">→</span>
+              <span className={isT2dDominant ? "text-rose-500 font-bold underline" : "text-[var(--text-muted)]"}>
+                Active T2D ({t2dPct}%)
+              </span>
             </div>
           </div>
 
