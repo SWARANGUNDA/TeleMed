@@ -72,6 +72,16 @@ export default function DashboardPage({
     }
   }, [user]);
 
+  const handleTriggerNewAnalysis = () => {
+    if (onStartNewAnalysis) {
+      onStartNewAnalysis();
+    } else if (onStartAnalysis) {
+      onStartAnalysis();
+    } else if (onNavigate) {
+      onNavigate('analysis', 'new_analysis');
+    }
+  };
+
   // Determine active prediction payload: passed session prediction OR latest saved record snapshot
   const activeRecord = savedRecords.length > 0 ? savedRecords[0] : null;
   const rawPred = predictionData || (activeRecord ? activeRecord.prediction_snapshot : null);
@@ -130,7 +140,7 @@ export default function DashboardPage({
           badge={completionPct === 100 ? 'Profile 100%' : `Profile ${completionPct}%`}
           actions={
             <div className="flex items-center gap-3">
-              <Button variant="primary" size="md" leftIcon={<PlusCircle className="w-4 h-4" />} onClick={onStartAnalysis || (() => onNavigate('analysis'))}>
+              <Button variant="primary" size="md" leftIcon={<PlusCircle className="w-4 h-4" />} onClick={handleTriggerNewAnalysis}>
                 Start New Analysis
               </Button>
             </div>
@@ -175,7 +185,7 @@ export default function DashboardPage({
             title="No Active Health Assessment Found"
             description="Upload your medical reports, wearable telemetry, or gut microbiome data to generate multi-disease predictions and TreeSHAP explainability insights."
             action={
-              <Button variant="primary" size="lg" leftIcon={<PlusCircle className="w-5 h-5" />} onClick={onStartAnalysis || (() => onNavigate('analysis'))}>
+              <Button variant="primary" size="lg" leftIcon={<PlusCircle className="w-5 h-5" />} onClick={handleTriggerNewAnalysis}>
                 Start New Multimodal Analysis
               </Button>
             }
@@ -355,7 +365,7 @@ export default function DashboardPage({
             <Button variant="outline" size="md" leftIcon={<GitCompare className="w-4 h-4" />} onClick={onOpenComparison}>
               Compare History
             </Button>
-            <Button variant="primary" size="md" leftIcon={<PlusCircle className="w-4 h-4" />} onClick={onStartAnalysis || (() => onNavigate('intake'))}>
+            <Button variant="primary" size="md" leftIcon={<PlusCircle className="w-4 h-4" />} onClick={handleTriggerNewAnalysis}>
               New Analysis
             </Button>
           </div>

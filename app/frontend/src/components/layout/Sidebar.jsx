@@ -22,7 +22,7 @@ import {
   FileCheck2
 } from 'lucide-react';
 
-export function Sidebar({ isCollapsed, onToggleCollapse, userRole = 'PATIENT', user, className = '' }) {
+export function Sidebar({ isCollapsed, onToggleCollapse, userRole = 'PATIENT', user, className = '', onStartNewAnalysis }) {
   const location = useLocation();
   const navigate = useNavigate();
   const [, setTick] = useState(0);
@@ -139,7 +139,17 @@ export function Sidebar({ isCollapsed, onToggleCollapse, userRole = 'PATIENT', u
               return (
                 <button
                   key={item.id || `${item.path}-${item.label}`}
-                  onClick={() => navigate(item.path)}
+                  onClick={() => {
+                    if (item.id === 'pat-intake' || item.path === '/intake') {
+                      if (onStartNewAnalysis) {
+                        onStartNewAnalysis();
+                      } else {
+                        navigate('/intake');
+                      }
+                    } else {
+                      navigate(item.path);
+                    }
+                  }}
                   className={`w-full flex items-center gap-3.5 rounded-xl text-[15px] font-semibold transition-all duration-150 group relative cursor-pointer ${
                     isCollapsed ? 'justify-center px-2.5 py-2.5' : 'px-3.5 py-2.5'
                   } ${

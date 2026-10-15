@@ -62,6 +62,24 @@ async def upload_reports(
 
     if not session:
         session = session_mgr.create_session(user_id=current_user.get("user_id"))
+    elif session.state in [SessionState.CONFIRMED, SessionState.ANALYZED, SessionState.XAI_READY, SessionState.REPORT_READY]:
+        # P0 ISOLATION: If session was already confirmed or analyzed, purge old files and state
+        # so previous analysis reports never bleed into new intake uploads.
+        for fp in session.uploaded_files:
+            if fp.exists():
+                try:
+                    fp.unlink()
+                except Exception:
+                    pass
+        session.uploaded_files.clear()
+        session.confirmed_features = None
+        session.imdie_output = None
+        session.quality_scores = None
+        session.prediction_output = None
+        session.xai_output = None
+        session.rag_context = None
+        session.rag_report = None
+        session.state = SessionState.CREATED
 
     saved_file_paths = []
 

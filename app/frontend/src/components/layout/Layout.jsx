@@ -4,7 +4,7 @@ import { Topbar } from './Topbar';
 import { PageContainer } from './PageContainer';
 import { Drawer } from '../ui/Drawer';
 
-export function Layout({ children, user, onLogout, onToggleTheme, theme = 'dark', className = '', noPageContainer = false }) {
+export function Layout({ children, user, onLogout, onToggleTheme, theme = 'dark', className = '', noPageContainer = false, onStartNewAnalysis }) {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
@@ -22,6 +22,7 @@ export function Layout({ children, user, onLogout, onToggleTheme, theme = 'dark'
         onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
         userRole={userRole}
         user={user}
+        onStartNewAnalysis={onStartNewAnalysis}
       />
 
       {/* Main Content Area */}
@@ -71,6 +72,7 @@ export function Layout({ children, user, onLogout, onToggleTheme, theme = 'dark'
             onToggleCollapse={() => {}}
             userRole={userRole}
             user={user}
+            onStartNewAnalysis={onStartNewAnalysis}
             className="!flex !static !w-full !border-none"
           />
         </div>

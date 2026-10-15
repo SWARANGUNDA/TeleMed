@@ -412,6 +412,10 @@ export default function App() {
       navigate(`/xai?disease=${diseaseKey}`, { state: { disease: diseaseKey } });
       return;
     }
+    if (primaryNav === 'analysis' || primaryNav === 'intake' || subNav === 'new_analysis') {
+      handleStartNewAssessment();
+      return;
+    }
     const targetPath = getPathFromNav(primaryNav, subNav, currentUser?.role);
     navigate(targetPath);
   };
@@ -422,7 +426,7 @@ export default function App() {
   };
 
   const handleStartAnalysis = () => {
-    handleNavigate('analysis', 'new_analysis');
+    handleStartNewAssessment();
   };
 
   // P0 FIX: Hard assessment reset. Creates a fresh assessment context.
@@ -449,7 +453,9 @@ export default function App() {
 
   const handleAnalysisComplete = async (payloadData) => {
     try {
-      const confirmed = payloadData?.confirmed_features || session?.confirmed_features || {};
+      // P0 FIX: Only use confirmed_features from the current assessment payload.
+      // Never fall back to previous session confirmed_features to prevent cross-assessment data contamination.
+      const confirmed = payloadData?.confirmed_features || {};
       const sid = payloadData?.session_id || session?.session_id;
 
       if (sid && sid.startsWith('sess_')) {
@@ -579,6 +585,7 @@ export default function App() {
                   predictionData={predictionData}
                   user={currentUser}
                   onNavigate={handleNavigate}
+                  onStartAnalysis={handleStartNewAssessment}
                   onStartNewAnalysis={handleStartNewAssessment}
                   onDiscussWithDoctor={handleDiscussWithDoctor}
                   onOpenComparison={() => setIsComparisonOpen(true)}
@@ -630,6 +637,7 @@ export default function App() {
                   user={currentUser}
                   session={session}
                   predictionData={predictionData}
+                  onStartNewAnalysis={handleStartNewAssessment}
                   onDiscussWithDoctor={(rec) => {
                     setConsultationContext({
                       reason: `Discussion regarding health report findings: ${rec.what || ''}`,
@@ -859,6 +867,7 @@ export default function App() {
       onLogout={handleLogout}
       onToggleTheme={toggleTheme}
       theme={activeTheme}
+      onStartNewAnalysis={handleStartNewAssessment}
       noPageContainer={location.pathname.startsWith('/messages') || location.pathname.includes('/consultations')}
     >
 

@@ -49,7 +49,7 @@ const getNum = (val) => {
   return isNaN(n) ? null : n;
 };
 
-export default function ReportPage({ user, session, predictionData, onDiscussWithDoctor }) {
+export default function ReportPage({ user, session, predictionData, onDiscussWithDoctor, onStartNewAnalysis }) {
   const navigate = useNavigate();
 
   // Mode: 'patient' (Simple, Everyday, Jargon-free) vs 'clinical' (Viva Review, Multi-Omics Science)
@@ -176,7 +176,7 @@ export default function ReportPage({ user, session, predictionData, onDiscussWit
               Please run a multimodal health assessment in the Intake Workspace to generate your personalized AI clinical report.
             </p>
           </div>
-          <Button variant="primary" size="md" onClick={() => navigate('/intake')} leftIcon={<Sparkles className="w-4 h-4" />}>
+          <Button variant="primary" size="md" onClick={onStartNewAnalysis || (() => navigate('/intake'))} leftIcon={<Sparkles className="w-4 h-4" />}>
             Start New Health Assessment →
           </Button>
         </Card>

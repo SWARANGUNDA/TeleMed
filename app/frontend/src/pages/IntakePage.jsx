@@ -119,37 +119,18 @@ export default function IntakePage({
   };
 
   // P0 FIX: Auto-reset all local form/file/modality state when a new assessment begins.
-  // Triggered when App.jsx sets session=null + new assessmentId via handleStartNewAssessment.
+  // Triggered when App.jsx sets session=null + new assessmentId via handleStartNewAssessment,
+  // or if session is already in ANALYZED state (meaning it's from a previous finished analysis).
   useEffect(() => {
-    if (session === null && assessmentId) {
-      setFormClinical(emptyClinical);
-      setFormWearable(emptyWearable);
-      setFormGut(emptyGut);
-      setEnableClinical(false);
-      setEnableWearable(false);
-      setEnableGut(false);
-      setEnableCGM(false);
-      setExtractedMap({ clinical: {}, wearable: {}, gut: {} });
-      setManualMap(new Set());
-      setEditedMap(new Set());
-      setConflictMap({});
-      setVerifyFlags({});
-      setDifferentPatientWarning(null);
-      setFileStatuses([]);
-      setQualityScores(null);
-      setSelectedFiles([]);
-      setFilePreviews([]);
-      setErrorMsg(null);
-      setCurrentStep(1);
-      setUploadStage(null);
-      setJourneyStage('intake');
-      setProvenanceMap({});
-      setSelectedProvenance(null);
-      setFeatureSearchQuery('');
-      setTaxaSearchQuery('');
-      setOtherTaxa(4.5);
+    if ((session === null && assessmentId) || session?.status === 'ANALYZED') {
+      handleFullReset();
+      if (session?.status === 'ANALYZED' && onResetSession) {
+        onResetSession();
+      }
     }
   }, [session, assessmentId]);
+
+
 
   // Add files safely with normalized modality detection
   const handleAddFiles = (filesList) => {
@@ -244,7 +225,9 @@ export default function IntakePage({
       setUploadStage('uploading');
       try {
         setUploadStage('detecting');
-        const res = await uploadReports(selectedFiles, session?.session_id);
+        // P0 ISOLATION: Always pass null for sessionId on Step 1 upload so backend creates
+        // an isolated, fresh session containing ONLY the current selectedFiles.
+        const res = await uploadReports(selectedFiles, null);
 
         setUploadStage('extracting');
         const rawExtracted = res.extracted_features || {};
