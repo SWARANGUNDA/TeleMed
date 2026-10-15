@@ -17,7 +17,6 @@ import AnalysisJourneyView from '../components/AnalysisJourneyView';
 import { AnalysisPipeline } from '../components/AnalysisPipeline';
 import ProvenancePopover from '../components/ProvenancePopover';
 import MissingFeatureModal from '../components/MissingFeatureModal';
-import UploadProgressOverlay from '../components/UploadProgressOverlay';
 import {
   CLINICAL_V4_FEATURES, WEARABLE_V4_FEATURES, GUT_V4_TAXA_40, GUT_V4_INDICES_9,
   computeGutDerivedIndices, normalizeRawKey, normalizeExtractedDict,
@@ -81,7 +80,6 @@ export default function IntakePage({
   const [qualityScores, setQualityScores] = useState(null);
   const [provenanceMap, setProvenanceMap] = useState({});
   const [selectedProvenance, setSelectedProvenance] = useState(null);
-  const [uploadStage, setUploadStage] = useState(null);
   const [journeyStage, setJourneyStage] = useState('intake');
   const [showMissingModal, setShowMissingModal] = useState(false);
   const [pendingMissingFields, setPendingMissingFields] = useState({});
@@ -107,7 +105,6 @@ export default function IntakePage({
     setFilePreviews([]);
     setErrorMsg(null);
     setCurrentStep(1);
-    setUploadStage(null);
     setJourneyStage('intake');
     setProvenanceMap({});
     setSelectedProvenance(null);
@@ -218,28 +215,22 @@ export default function IntakePage({
     setErrorMsg(null);
     if (selectedFiles.length > 0) {
       setLoading(true);
-      setUploadStage('uploading');
       try {
-        setUploadStage('detecting');
         // P0 ISOLATION: Always pass null for sessionId on Step 1 upload so backend creates
         // an isolated, fresh session containing ONLY the current selectedFiles.
         const res = await uploadReports(selectedFiles, null);
 
-        setUploadStage('extracting');
         const rawExtracted = res.extracted_features || {};
 
-        setUploadStage('normalizing');
         const normClinical = normalizeExtractedDict(rawExtracted.clinical || {});
         const normWearable = normalizeExtractedDict(rawExtracted.wearable || {});
         const normGut = normalizeExtractedDict(rawExtracted.gut || {});
 
-        setUploadStage('validating');
         setVerifyFlags(res.verify_flags || {});
         setConflictMap(res.conflict_map || {});
         setDifferentPatientWarning(res.different_patient_warning || null);
         setFileStatuses(res.processed_reports_metadata || []);
 
-        setUploadStage('dq');
         setQualityScores(res.data_quality_scores || null);
         setProvenanceMap(res.provenance || {});
 
@@ -305,11 +296,9 @@ export default function IntakePage({
           },
           data_quality_scores: res.data_quality_scores
         });
-        setUploadStage('ready');
         setCurrentStep(2);
       } catch (err) {
         setErrorMsg(`Report processing failed: ${err.message || 'Server error during intake parsing'}`);
-        setUploadStage(null);
         setCurrentStep(1);
       } finally {
         setLoading(false);
@@ -1386,12 +1375,6 @@ export default function IntakePage({
         }}
         onConfirm={handleMissingModalConfirm}
         onSkipAll={handleMissingModalSkip}
-      />
-
-      {/* Progressive Upload Processing Overlay */}
-      <UploadProgressOverlay
-        uploadStage={uploadStage}
-        isVisible={loading && uploadStage !== null && currentStep === 1}
       />
     </PageContainer>
   );
