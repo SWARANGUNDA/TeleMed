@@ -1410,6 +1410,24 @@ def delete_patient_health_record(user_id: str, record_id: str) -> bool:
         session.close()
 
 
+def delete_all_patient_health_records(user_id: str) -> int:
+    """Delete all health records owned by user_id in database."""
+    session = SessionLocal()
+    try:
+        records = session.query(pg_models.HealthRecord).filter_by(user_id=user_id).all()
+        count = len(records)
+        for r in records:
+            session.delete(r)
+        session.commit()
+        return count
+    except Exception as e:
+        session.rollback()
+        return 0
+    finally:
+        session.close()
+
+
+
 # ------------------------------------------------------------------
 # Level 4: Doctor Credential Verification & Admin Approval DB Layer
 # ------------------------------------------------------------------

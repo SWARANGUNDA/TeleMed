@@ -778,6 +778,14 @@ export async function deleteRecord(recordId) {
   return await handleApiResponse(res, 'Failed to delete health record');
 }
 
+export async function deleteAllRecords() {
+  const res = await fetch(`${API_BASE}/records`, {
+    method: 'DELETE',
+    headers: getAuthHeaders(),
+  });
+  return await handleApiResponse(res, 'Failed to delete all health records');
+}
+
 // ------------------------------------------------------------------
 // Level 4: Doctor Credential Verification & Admin Approval APIs
 // ------------------------------------------------------------------

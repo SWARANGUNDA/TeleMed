@@ -13,7 +13,7 @@ import {
   ProgressBar, Table, TableRow, TableCell, Modal, Tabs, Input, EmptyState, Alert
 } from '../components/ui';
 import { PageContainer, PageHeader, ContentSection } from '../components/layout';
-import { fetchPatientRecords, fetchRecordDetail, exportRecord, deleteRecord } from '../api/client';
+import { fetchPatientRecords, fetchRecordDetail, exportRecord, deleteRecord, deleteAllRecords } from '../api/client';
 import { classifyBiomarker } from '../utils/clinicalRanges';
 
 export default function HealthRecordsPage({ currentUser, session, predictionData, onStartAnalysis, onShareWithDoctor, onClearAssessment }) {
@@ -32,6 +32,10 @@ export default function HealthRecordsPage({ currentUser, session, predictionData
   // Delete Modal state
   const [recordToDelete, setRecordToDelete] = useState(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
+
+  // Delete ALL Modal state
+  const [showDeleteAllModal, setShowDeleteAllModal] = useState(false);
+  const [deleteAllLoading, setDeleteAllLoading] = useState(false);
 
   // Trends Tab state
   const [trendCategory, setTrendCategory] = useState('all'); // 'all' | 'glycemic' | 'cardio' | 'hepatic' | 'scores'
@@ -102,6 +106,41 @@ export default function HealthRecordsPage({ currentUser, session, predictionData
       alert(err.message || 'Failed to delete health record.');
     } finally {
       setDeleteLoading(false);
+    }
+  };
+
+  const handleDeleteAllConfirm = async () => {
+    setDeleteAllLoading(true);
+    try {
+      try {
+        await deleteAllRecords();
+      } catch (apiErr) {
+        console.warn('Bulk delete API fallback to individual deletions:', apiErr);
+        for (const rec of records) {
+          try {
+            await deleteRecord(rec.record_id);
+          } catch (_) {}
+        }
+      }
+      setRecords([]);
+      setSelectedForCompare([]);
+      setSelectedDetailRecord(null);
+      setRecordToDelete(null);
+      setShowDeleteAllModal(false);
+
+      if (onClearAssessment) {
+        onClearAssessment();
+      }
+
+      sessionStorage.removeItem('telemed_records');
+      sessionStorage.removeItem('telemed_last_assessment');
+      sessionStorage.removeItem('telemed_pred');
+      sessionStorage.removeItem('telemed_session');
+      sessionStorage.removeItem('telemed_xai');
+    } catch (err) {
+      alert(err.message || 'Failed to delete all health records.');
+    } finally {
+      setDeleteAllLoading(false);
     }
   };
 
@@ -233,6 +272,16 @@ export default function HealthRecordsPage({ currentUser, session, predictionData
             >
               Interactive Trends
             </Button>
+            {records.length > 0 && (
+              <Button
+                variant="danger"
+                size="sm"
+                leftIcon={<Trash2 className="w-4 h-4" />}
+                onClick={() => setShowDeleteAllModal(true)}
+              >
+                Delete All ({records.length})
+              </Button>
+            )}
           </div>
         }
       />
@@ -262,6 +311,23 @@ export default function HealthRecordsPage({ currentUser, session, predictionData
           {/* TAB 1: HISTORY LIST */}
           {activeTab === 'history' && (
             <div className="space-y-4">
+              <div className="flex items-center justify-between p-3.5 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] shadow-sm">
+                <div className="flex items-center gap-2">
+                  <Database className="w-4 h-4 text-[var(--primary)]" />
+                  <span className="text-xs font-bold text-[var(--text-main)]">
+                    Archived Health Assessments ({records.length})
+                  </span>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="xs"
+                  className="!text-[var(--danger)] hover:bg-red-50 dark:hover:bg-red-900/20 font-semibold"
+                  leftIcon={<Trash2 className="w-3.5 h-3.5" />}
+                  onClick={() => setShowDeleteAllModal(true)}
+                >
+                  Delete All Records
+                </Button>
+              </div>
               {records.map((record) => {
                 const isSelected = selectedForCompare.includes(record.record_id);
                 const outcomes = record.prediction_snapshot?.disease_outcomes || record.prediction_snapshot?.predictions || {};
@@ -810,6 +876,56 @@ export default function HealthRecordsPage({ currentUser, session, predictionData
                 onClick={handleDeleteConfirm}
               >
                 {deleteLoading ? 'Deleting...' : 'Delete Permanently'}
+              </Button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {/* DELETE ALL CONFIRMATION MODAL */}
+      {showDeleteAllModal && (
+        <Modal
+          isOpen={true}
+          onClose={() => !deleteAllLoading && setShowDeleteAllModal(false)}
+          title="Delete All Health Records"
+          size="sm"
+        >
+          <div className="p-4 text-center space-y-4">
+            <div className="w-14 h-14 rounded-2xl bg-red-500/10 text-red-500 border border-red-500/20 flex items-center justify-center mx-auto animate-pulse">
+              <Trash2 className="w-7 h-7" />
+            </div>
+            <div className="space-y-1.5">
+              <h4 className="text-base font-extrabold text-[var(--text-main)]">
+                Delete All {records.length} Health Records?
+              </h4>
+              <p className="text-xs text-[var(--text-muted)] leading-relaxed">
+                This action will permanently delete all <strong>{records.length}</strong> archived health assessments, longitudinal biomarkers, clinical prediction snapshots, and trend histories.
+              </p>
+              <div className="p-2.5 rounded-lg bg-red-500/10 border border-red-500/20 text-[11px] text-red-600 dark:text-red-400 font-semibold mt-2">
+                ⚠️ This action is permanent and cannot be undone.
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3 pt-2">
+              <Button
+                variant="outline"
+                size="md"
+                className="flex-1"
+                disabled={deleteAllLoading}
+                onClick={() => setShowDeleteAllModal(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="danger"
+                size="md"
+                className="flex-1"
+                disabled={deleteAllLoading}
+                isLoading={deleteAllLoading}
+                leftIcon={<Trash2 className="w-4 h-4" />}
+                onClick={handleDeleteAllConfirm}
+              >
+                {deleteAllLoading ? 'Deleting All...' : `Delete All (${records.length})`}
               </Button>
             </div>
           </div>

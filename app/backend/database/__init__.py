@@ -62,6 +62,7 @@ __all__ = [
     "get_patient_health_record",
     "list_patient_health_records",
     "delete_patient_health_record",
+    "delete_all_patient_health_records",
     "attach_report_snapshot_to_record",
     "attach_xai_snapshot_to_record",
     "create_consultation_request",

@@ -122,6 +122,27 @@ def export_record_summary(
     )
 
 
+@router.delete("")
+@router.delete("/")
+def delete_all_patient_records(
+    current_user: dict = Depends(require_clinical_access)
+):
+    """
+    Delete all health records owned by the requesting patient.
+    Requires server-side user_id ownership check.
+    """
+    user_id = current_user.get("user_id")
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Authentication required.")
+
+    deleted_count = database.delete_all_patient_health_records(user_id)
+    return {
+        "status": "SUCCESS",
+        "message": f"Successfully deleted {deleted_count} health record(s).",
+        "deleted_count": deleted_count
+    }
+
+
 @router.delete("/{record_id}")
 def delete_patient_record(
     record_id: str,
