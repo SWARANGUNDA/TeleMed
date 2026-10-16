@@ -31,10 +31,11 @@ class ExpertInferenceEngine:
         if not self.is_loaded:
             self.load()
 
-        feature_order = self.artifacts["feature_order"]
+        feature_order = self.artifacts.get("feature_order") or self.artifacts.get("features", [])
         models = self.artifacts["models"]
-        scalers = self.artifacts["scalers"]
-        thresholds = self.artifacts["thresholds"]
+        scalers = self.artifacts.get("scalers", self.artifacts.get("scaler"))
+        thresholds = self.artifacts.get("thresholds", {d: 0.5 for d in config.TARGET_DISEASES})
+        medians = self.artifacts.get("medians", {})
 
         if isinstance(features_input, dict):
             df_in = pd.DataFrame([features_input])
@@ -42,8 +43,8 @@ class ExpertInferenceEngine:
             df_in = features_input.copy()
 
         for col in feature_order:
-            if col not in df_in.columns:
-                df_in[col] = np.nan
+            if col not in df_in.columns or df_in[col].isna().all():
+                df_in[col] = medians.get(col, 0.0)
 
         df_ordered = df_in[feature_order].copy()
         
@@ -51,12 +52,16 @@ class ExpertInferenceEngine:
         
         for disease in config.TARGET_DISEASES:
             model = models[disease]
-            scaler = scalers[disease]
-            t = float(thresholds[disease])
+            scaler = scalers[disease] if isinstance(scalers, dict) else scalers
+            t = float(thresholds[disease]) if isinstance(thresholds, dict) else float(thresholds)
             
-            X_prep = scaler.transform(df_ordered)
+            clf_name = type(model).__name__
+            if clf_name in ("LGBMClassifier", "RandomForestClassifier", "XGBClassifier", "ExtraTreesClassifier", "DecisionTreeClassifier"):
+                eval_input = df_ordered
+            else:
+                eval_input = scaler.transform(df_ordered)
             
-            prob = float(model.predict_proba(X_prep)[0, 1])
+            prob = float(model.predict_proba(eval_input)[0, 1])
             pred = int(prob >= t)
             
             results[disease] = {

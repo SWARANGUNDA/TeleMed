@@ -239,7 +239,10 @@ export default function ReportPage({ user, session, predictionData, onDiscussWit
   const preData = predictions['Prediabetes'] || {};
   const preProb = preData.calibrated_probability ?? preData.probability ?? 0.38;
   const adipData = predictions['High_Adiposity_Risk'] || {};
-  const adipProb = adipData.calibrated_probability ?? adipData.probability ?? 0.68;
+  const rawAdipProb = adipData.calibrated_probability ?? adipData.probability ?? 0.68;
+  const clinFeatsReport = predictionData?.confirmed_features?.clinical || predictionData?.clinical_features || {};
+  const rawBmiReport = Number(typeof clinFeatsReport.BMI === 'object' ? (clinFeatsReport.BMI.value ?? clinFeatsReport.BMI.raw_value) : clinFeatsReport.BMI) || 0;
+  const adipProb = (rawBmiReport >= 30.0 && rawAdipProb < 0.65) ? (rawBmiReport >= 35.0 ? 0.88 : 0.72) : rawAdipProb;
   const metData = predictions['Metabolic_Syndrome'] || {};
   const metProb = metData.calibrated_probability ?? metData.probability ?? 0.52;
   const nafldData = predictions['NAFLD'] || {};

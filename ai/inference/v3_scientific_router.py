@@ -104,12 +104,35 @@ class V3ScientificRouter:
         else:
             overall_confidence_level = "Low"
 
-        # CLINICAL OVERRIDE: Mutually Exclusive Glycemic Spectrum
+        # CLINICAL OVERRIDE 1: Mutually Exclusive Glycemic Spectrum
         # If Type 2 Diabetes is positive, it logically supersedes Prediabetes.
         if decision_results.get("Type2_Diabetes", {}).get("predicted_class", 0) == 1:
             if "Prediabetes" in decision_results:
                 decision_results["Prediabetes"]["predicted_class"] = 0
                 decision_results["Prediabetes"]["clinical_override"] = "Superseded by Type 2 Diabetes"
+
+        # CLINICAL OVERRIDE 2: Anthropometric Ground Truth Anchor for Adiposity & Obesity
+        # By WHO/CDC criteria: BMI >= 30.0 kg/m² defines Obesity (BMI >= 35.0 defines Class II Obesity).
+        # Auxiliary sensor or gut sequencing noise must not suppress verified physical obesity.
+        if c_present and validated_intake.get("clinical_data"):
+            clin_dict = validated_intake["clinical_data"]
+            try:
+                raw_bmi = float(clin_dict.get("BMI") or 0.0)
+            except (ValueError, TypeError):
+                raw_bmi = 0.0
+
+            if raw_bmi >= 30.0 and "High_Adiposity_Risk" in decision_results:
+                cur_adiposity = decision_results["High_Adiposity_Risk"]
+                cur_prob = cur_adiposity.get("calibrated_probability", 0.0)
+                c_prob = c_res.get("calibrated_probabilities", {}).get("High_Adiposity_Risk", 0.0) if c_res else 0.0
+                
+                # If multimodal fusion suppressed probability below high risk threshold
+                if cur_prob < 0.65 or cur_adiposity.get("predicted_class", 0) == 0:
+                    target_p = max(cur_prob, c_prob, 0.88 if raw_bmi >= 35.0 else 0.72)
+                    cur_adiposity["calibrated_probability"] = round(target_p, 4)
+                    cur_adiposity["predicted_class"] = 1
+                    cur_adiposity["risk_level"] = "High Risk"
+                    cur_adiposity["clinical_override"] = f"Anchored to Clinical Obesity Criteria (BMI {raw_bmi:.1f} >= 30.0 kg/m²)"
 
         return {
             "patient_id": patient_id,

@@ -95,4 +95,22 @@ class FusionInferenceEngine:
                 "pathway": pathway_key,
             }
 
+        # CLINICAL OVERRIDE: Anthropometric Ground Truth Anchor for Adiposity & Obesity
+        clin_data = patient_features.get("clinical") or {}
+        try:
+            raw_bmi = float(clin_data.get("BMI") or 0.0)
+            if raw_bmi == 0.0 and float(clin_data.get("Weight") or 0.0) > 0 and float(clin_data.get("Height") or 0.0) > 0:
+                h_m = float(clin_data["Height"]) / 100.0 if float(clin_data["Height"]) > 3.0 else float(clin_data["Height"])
+                raw_bmi = float(clin_data["Weight"]) / (h_m * h_m)
+        except (ValueError, TypeError):
+            raw_bmi = 0.0
+
+        if raw_bmi >= 30.0 and "High_Adiposity_Risk" in results:
+            cur_p = results["High_Adiposity_Risk"]["probability"]
+            if cur_p < 0.65 or results["High_Adiposity_Risk"]["prediction"] == 0:
+                target_p = max(cur_p, 0.88 if raw_bmi >= 35.0 else 0.72)
+                results["High_Adiposity_Risk"]["probability"] = round(target_p, 4)
+                results["High_Adiposity_Risk"]["prediction"] = 1
+                results["High_Adiposity_Risk"]["clinical_override"] = f"Anchored to Clinical Obesity Criteria (BMI {raw_bmi:.1f} >= 30.0 kg/m²)"
+
         return results

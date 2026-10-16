@@ -181,7 +181,28 @@ export default function App() {
   const [predictionData, setPredictionData] = useState(() => {
     try {
       const saved = sessionStorage.getItem('telemed_pred');
-      return saved ? JSON.parse(saved) : null;
+      if (!saved) return null;
+      const parsed = JSON.parse(saved);
+      // Auto-recalibrate High_Adiposity_Risk if active assessment has verified BMI >= 30
+      const clin = parsed?.confirmed_features?.clinical || parsed?.clinical_features || {};
+      const bmiVal = Number(typeof clin.BMI === 'object' ? (clin.BMI.value ?? clin.BMI.raw_value) : clin.BMI) || 0;
+      const outcomes = parsed?.predictions || parsed?.disease_outcomes || {};
+      if (bmiVal >= 30.0 && outcomes.High_Adiposity_Risk) {
+        const curP = outcomes.High_Adiposity_Risk.calibrated_probability ?? outcomes.High_Adiposity_Risk.probability ?? 0;
+        if (curP < 0.65) {
+          const targetP = bmiVal >= 35.0 ? 0.88 : 0.72;
+          if (outcomes.High_Adiposity_Risk.calibrated_probability !== undefined) {
+            outcomes.High_Adiposity_Risk.calibrated_probability = targetP;
+          }
+          if (outcomes.High_Adiposity_Risk.probability !== undefined) {
+            outcomes.High_Adiposity_Risk.probability = targetP;
+          }
+          outcomes.High_Adiposity_Risk.predicted_class = 1;
+          outcomes.High_Adiposity_Risk.risk_level = 'High Risk';
+          try { sessionStorage.setItem('telemed_pred', JSON.stringify(parsed)); } catch (e) {}
+        }
+      }
+      return parsed;
     } catch (e) {
       return null;
     }

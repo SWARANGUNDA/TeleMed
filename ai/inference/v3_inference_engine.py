@@ -182,7 +182,14 @@ class V3InferenceEngine:
             X_sc = X_scaled_dict[d]
             df_sc = pd.DataFrame(X_sc, columns=features)
 
-            raw_p = float(clf.predict_proba(df_sc)[0, 1])
+            # Tree-based models (LightGBM, RandomForest, XGBoost) split on natural raw units
+            clf_name = type(clf).__name__
+            eval_input = df_raw if clf_name in (
+                "LGBMClassifier", "RandomForestClassifier", "XGBClassifier",
+                "ExtraTreesClassifier", "GradientBoostingClassifier", "DecisionTreeClassifier"
+            ) else df_sc
+
+            raw_p = float(clf.predict_proba(eval_input)[0, 1])
             if calibrators:
                 iso = calibrators[d] if isinstance(calibrators, dict) else calibrators[i]
                 cal_p = float(iso.transform([raw_p])[0]) if iso is not None else raw_p

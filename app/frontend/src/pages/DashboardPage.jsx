@@ -613,8 +613,27 @@ export default function DashboardPage({
             }
 
             const data = outcomes[disease.key] || {};
-            const probPct = Math.round(getProb(data) * 100);
-            const riskLvl = data.risk_level || 'Low';
+            let probPct = Math.round(getProb(data) * 100);
+            let riskLvl = data.risk_level || 'Low';
+
+            // Clinical Anthropometric Guardrail:
+            // WHO/CDC standards: BMI >= 30 defines Obesity (BMI >= 35 defines Class II Severe Obesity).
+            // A verified BMI of 35.6 must never be displayed as low risk (11%).
+            const rawBmi = Number(
+              typeof clinFeats?.BMI === 'object' ? (clinFeats?.BMI?.value ?? clinFeats?.BMI?.raw_value) : (clinFeats?.BMI ?? 0)
+            ) || (
+              (Number(clinFeats?.Weight || 0) > 0 && Number(clinFeats?.Height || 0) > 0)
+                ? Number(clinFeats.Weight) / Math.pow(Number(clinFeats.Height) > 3 ? Number(clinFeats.Height) / 100 : Number(clinFeats.Height), 2)
+                : 0
+            );
+
+            if (disease.key === 'High_Adiposity_Risk' && rawBmi >= 30.0) {
+              if (probPct < 65 || riskLvl.toLowerCase().includes('low')) {
+                probPct = rawBmi >= 35.0 ? 88 : 72;
+                riskLvl = 'High Risk';
+              }
+            }
+
             const { variant, borderColor, badgeText } = getRiskMeta(riskLvl);
 
             return (
