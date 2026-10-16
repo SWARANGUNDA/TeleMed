@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   UploadCloud, Camera, FileText, CheckCircle2, AlertCircle, Trash2, ArrowRight, ShieldCheck,
-  Activity, Watch, Dna, RefreshCw, ChevronRight, Sliders, Check, Eye, Edit3, Sparkles, AlertTriangle, HelpCircle, ShieldAlert, Info, Search, FileSpreadsheet, Lock, Brain, X
+  Activity, Watch, Dna, RefreshCw, ChevronRight, Sliders, Check, Eye, Edit3, Sparkles, AlertTriangle, HelpCircle, ShieldAlert, Info, Search, FileSpreadsheet, Lock, Brain, X, Layers
 } from 'lucide-react';
 import HighlightMatch from '../components/ui/HighlightMatch';
 import {
@@ -571,48 +571,72 @@ export default function IntakePage({
     }
   };
 
-  // Helper V4 CSV Sample loaders with explicit modality metadata
+  // Helper P1 Pavan PDF Sample loaders with explicit modality metadata
   const loadDevClinSample = () => {
-    fetch('/samples/clinical_v4_sample.csv')
-      .then(res => res.blob())
+    fetch('/samples/P1_Pavan_Clinical.pdf')
+      .then(res => {
+        if (!res.ok) throw new Error('File not found');
+        return res.blob();
+      })
       .then(blob => {
-        const file = new File([blob], 'clinical_v4_sample.csv', { type: 'text/csv' });
+        const file = new File([blob], 'P1_Pavan_Clinical.pdf', { type: 'application/pdf' });
         file.modality = 'clinical';
         handleAddFiles([file]);
       })
-      .catch(() => {
-        const f = b64ToFile(CLIN_PDF_B64, 'clinical_v4_sample.pdf');
-        f.modality = 'clinical';
-        handleAddFiles([f]);
+      .catch((err) => {
+        console.error('Failed to load P1_Pavan_Clinical.pdf:', err);
       });
   };
+
   const loadDevWearSample = () => {
-    fetch('/samples/wearable_v4_sample.csv')
-      .then(res => res.blob())
+    fetch('/samples/P1_Pavan_Wearable.pdf')
+      .then(res => {
+        if (!res.ok) throw new Error('File not found');
+        return res.blob();
+      })
       .then(blob => {
-        const file = new File([blob], 'wearable_v4_sample.csv', { type: 'text/csv' });
+        const file = new File([blob], 'P1_Pavan_Wearable.pdf', { type: 'application/pdf' });
         file.modality = 'wearable/cgm';
         handleAddFiles([file]);
       })
-      .catch(() => {
-        const f = b64ToFile(WEAR_PDF_B64, 'wearable_v4_sample.csv');
-        f.modality = 'wearable/cgm';
-        handleAddFiles([f]);
+      .catch((err) => {
+        console.error('Failed to load P1_Pavan_Wearable.pdf:', err);
       });
   };
+
   const loadDevGutSample = () => {
-    fetch('/samples/gut_v4_sample.csv')
-      .then(res => res.blob())
+    fetch('/samples/P1_Pavan_Gut.pdf')
+      .then(res => {
+        if (!res.ok) throw new Error('File not found');
+        return res.blob();
+      })
       .then(blob => {
-        const file = new File([blob], 'gut_v4_sample.csv', { type: 'text/csv' });
+        const file = new File([blob], 'P1_Pavan_Gut.pdf', { type: 'application/pdf' });
         file.modality = 'gut_microbiome';
         handleAddFiles([file]);
       })
-      .catch(() => {
-        const f = b64ToFile(GUT_PDF_B64, 'gut_v4_sample.csv');
-        f.modality = 'gut_microbiome';
-        handleAddFiles([f]);
+      .catch((err) => {
+        console.error('Failed to load P1_Pavan_Gut.pdf:', err);
       });
+  };
+
+  const loadDevAllSample = async () => {
+    try {
+      const [clinBlob, wearBlob, gutBlob] = await Promise.all([
+        fetch('/samples/P1_Pavan_Clinical.pdf').then(r => r.blob()),
+        fetch('/samples/P1_Pavan_Wearable.pdf').then(r => r.blob()),
+        fetch('/samples/P1_Pavan_Gut.pdf').then(r => r.blob())
+      ]);
+      const clinFile = new File([clinBlob], 'P1_Pavan_Clinical.pdf', { type: 'application/pdf' });
+      clinFile.modality = 'clinical';
+      const wearFile = new File([wearBlob], 'P1_Pavan_Wearable.pdf', { type: 'application/pdf' });
+      wearFile.modality = 'wearable/cgm';
+      const gutFile = new File([gutBlob], 'P1_Pavan_Gut.pdf', { type: 'application/pdf' });
+      gutFile.modality = 'gut_microbiome';
+      handleAddFiles([clinFile, wearFile, gutFile]);
+    } catch (err) {
+      console.error('Failed to load all P1 Pavan sample reports:', err);
+    }
   };
 
   const dqOverall = qualityScores?.overall_quality_score ? Math.round(qualityScores.overall_quality_score * 100) : (qualityScores?.data_quality_score ? Math.round(qualityScores.data_quality_score * 100) : null);
@@ -730,21 +754,39 @@ export default function IntakePage({
               </div>
             </Card>
 
-            {/* Quick Sample Dataset Shortcuts */}
-            <Card isGlass={true} className="p-5">
-              <div className="flex items-center justify-between mb-3">
-                <h4 className="text-xs font-mono uppercase font-bold text-[var(--text-muted)]">Instant Test Dataset Shortcuts</h4>
-                <Badge variant="info" size="sm">Sample Datasets</Badge>
+            {/* Quick Sample Dataset Shortcuts - P1 Pavan */}
+            <Card isGlass={true} className="p-5 space-y-3">
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <div>
+                  <h4 className="text-xs font-mono uppercase font-bold text-[var(--text-main)] flex items-center gap-1.5">
+                    <Sparkles className="w-3.5 h-3.5 text-[var(--primary)]" />
+                    P1 Pavan Test Patient Reports
+                  </h4>
+                  <p className="text-[11px] text-[var(--text-muted)] mt-0.5">
+                    Isolated PDF lab reports from test_reports/separated_pdf_reports
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Badge variant="primary" size="sm">Patient: P1 Pavan</Badge>
+                  <Button
+                    variant="primary"
+                    size="xs"
+                    leftIcon={<Layers className="w-3.5 h-3.5" />}
+                    onClick={loadDevAllSample}
+                  >
+                    Load All 3 Reports (C+W+G)
+                  </Button>
+                </div>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <Button variant="outline" size="sm" className="!justify-start text-xs" leftIcon={<FileText className="w-4 h-4 text-blue-500" />} onClick={loadDevClinSample}>
-                  Clinical Dataset (18 Features)
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
+                <Button variant="outline" size="sm" className="!justify-start text-xs font-medium" leftIcon={<FileText className="w-4 h-4 text-blue-500" />} onClick={loadDevClinSample}>
+                  P1 Pavan Clinical PDF
                 </Button>
-                <Button variant="outline" size="sm" className="!justify-start text-xs" leftIcon={<FileSpreadsheet className="w-4 h-4 text-teal-500" />} onClick={loadDevWearSample}>
-                  Wearable Telemetry (15 Features)
+                <Button variant="outline" size="sm" className="!justify-start text-xs font-medium" leftIcon={<Watch className="w-4 h-4 text-teal-500" />} onClick={loadDevWearSample}>
+                  P1 Pavan Wearable PDF
                 </Button>
-                <Button variant="outline" size="sm" className="!justify-start text-xs" leftIcon={<Dna className="w-4 h-4 text-purple-500" />} onClick={loadDevGutSample}>
-                  Gut Microbiome (40 Taxa + 9 Derived)
+                <Button variant="outline" size="sm" className="!justify-start text-xs font-medium" leftIcon={<Dna className="w-4 h-4 text-purple-500" />} onClick={loadDevGutSample}>
+                  P1 Pavan Gut Microbiome PDF
                 </Button>
               </div>
             </Card>
