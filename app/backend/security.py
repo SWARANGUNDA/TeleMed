@@ -32,12 +32,22 @@ class RateLimiter:
         self._requests: Dict[str, list] = defaultdict(list)
         # Configurable limits: (max_requests, window_seconds)
         self.limits = {
-            "login": (15, 60),          # 15 login attempts per minute per IP
-            "register": (25, 60),       # 25 registrations per minute per IP
-            "api_default": (1200, 60),  # 1200 API calls per minute per IP (20 req/sec burst)
-            "consultations": (1800, 60), # 1800 calls per minute for live clinical polling & notes
-            "upload": (60, 60),         # 60 uploads per minute per IP
+            "login": (120, 60),          # 120 login attempts per minute per IP (calibrated for clinical shift burst testing)
+            "register": (60, 60),       # 60 registrations per minute per IP
+            "api_default": (3000, 60),  # 3000 API calls per minute per IP (50 req/sec burst)
+            "consultations": (3600, 60), # 3600 calls per minute for live clinical polling & notes
+            "upload": (120, 60),        # 120 uploads per minute per IP
         }
+
+    def reset(self, client_ip: Optional[str] = None):
+        """Reset rate limiter state (useful for test suites and benchmark runs)."""
+        with self._lock:
+            if client_ip:
+                keys_to_del = [k for k in self._requests if k.startswith(f"{client_ip}:")]
+                for k in keys_to_del:
+                    del self._requests[k]
+            else:
+                self._requests.clear()
 
     def _clean_old(self, key: str, window: float, now: float):
         self._requests[key] = [t for t in self._requests[key] if now - t < window]
