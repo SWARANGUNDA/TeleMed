@@ -42,20 +42,25 @@ def get_ops_metrics(admin_user: Dict[str, Any] = Depends(require_role(["ADMIN"])
     redis_status = "OFFLINE"
     redis_memory = "N/A"
     try:
-        import redis
-        r = None
-        for host, port in [("redis", 6379), ("localhost", 6380), ("localhost", 6379)]:
+        import socket
+        redis_online = False
+        for port in (6379, 6380):
             try:
-                test_r = redis.Redis(host=host, port=port, socket_connect_timeout=1)
-                if test_r.ping():
-                    r = test_r
-                    break
+                s = socket.create_connection(("127.0.0.1", port), timeout=0.05)
+                s.close()
+                redis_online = True
+                break
             except Exception:
-                continue
-        if r:
-            redis_status = "HEALTHY (Connected)"
+                pass
+
+        if redis_online:
+            import redis
+            r = redis.Redis(host="127.0.0.1", port=6379, socket_connect_timeout=0.1, socket_timeout=0.1)
             info = r.info("memory")
+            redis_status = "HEALTHY (Connected)"
             redis_memory = f"{round(info.get('used_memory', 0) / (1024 * 1024), 2)} MB"
+        else:
+            redis_status = "OFFLINE (Local Standalone Mode)"
     except Exception:
         redis_status = "DISCONNECTED (Fallback Mode)"
 
