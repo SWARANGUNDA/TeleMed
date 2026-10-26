@@ -18,7 +18,7 @@ import { AnalysisPipeline } from '../components/AnalysisPipeline';
 import ProvenancePopover from '../components/ProvenancePopover';
 import MissingFeatureModal from '../components/MissingFeatureModal';
 import {
-  CLINICAL_V4_FEATURES, WEARABLE_V4_FEATURES, GUT_V4_TAXA_40, GUT_V4_INDICES_9,
+  CLINICAL_V4_FEATURES, WEARABLE_V4_FEATURES, GUT_V4_TAXA_40, GUT_V4_INDICES_9, GUT_V4_TOTAL_FEATURES,
   computeGutDerivedIndices, normalizeRawKey, normalizeExtractedDict,
   CLIENT_PHYSIOLOGICAL_BOUNDS, validateClientField, detectFileModality
 } from '../utils/intakeValidation';
@@ -63,7 +63,7 @@ export default function IntakePage({
   // EMPTY initial canonical V4 schema states
   const emptyClinical = CLINICAL_V4_FEATURES.reduce((acc, feat) => ({ ...acc, [feat]: '' }), {});
   const emptyWearable = WEARABLE_V4_FEATURES.reduce((acc, feat) => ({ ...acc, [feat]: '' }), {});
-  const emptyGut = GUT_V4_TAXA_40.reduce((acc, feat) => ({ ...acc, [feat]: '' }), {});
+  const emptyGut = GUT_V4_TOTAL_FEATURES.reduce((acc, feat) => ({ ...acc, [feat]: '' }), {});
 
   const [formClinical, setFormClinical] = useState(emptyClinical);
   const [formWearable, setFormWearable] = useState(emptyWearable);
@@ -266,6 +266,13 @@ export default function IntakePage({
           if (hasExtractedGut) {
             Object.entries(normGut).forEach(([k, extVal]) => {
               if (extVal !== '' && extVal !== null && extVal !== undefined) next[k] = extVal;
+            });
+            // Auto-compute derived ecological & functional indices if not explicitly extracted
+            const derived = computeGutDerivedIndices(next);
+            Object.entries(derived).forEach(([ik, iv]) => {
+              if (next[ik] === '' || next[ik] === null || next[ik] === undefined) {
+                next[ik] = iv;
+              }
             });
           }
           return next;
@@ -571,7 +578,7 @@ export default function IntakePage({
     }
   };
 
-  // Helper P1 Pavan PDF Sample loaders with explicit modality metadata
+  // Sample PDF report loaders with explicit modality metadata
   const loadDevClinSample = () => {
     fetch('/samples/P1_Pavan_Clinical.pdf')
       .then(res => {
@@ -579,12 +586,12 @@ export default function IntakePage({
         return res.blob();
       })
       .then(blob => {
-        const file = new File([blob], 'P1_Pavan_Clinical.pdf', { type: 'application/pdf' });
+        const file = new File([blob], 'Sample_Clinical_Report.pdf', { type: 'application/pdf' });
         file.modality = 'clinical';
         handleAddFiles([file]);
       })
       .catch((err) => {
-        console.error('Failed to load P1_Pavan_Clinical.pdf:', err);
+        console.error('Failed to load sample clinical report:', err);
       });
   };
 
@@ -595,12 +602,12 @@ export default function IntakePage({
         return res.blob();
       })
       .then(blob => {
-        const file = new File([blob], 'P1_Pavan_Wearable.pdf', { type: 'application/pdf' });
+        const file = new File([blob], 'Sample_Wearable_Report.pdf', { type: 'application/pdf' });
         file.modality = 'wearable/cgm';
         handleAddFiles([file]);
       })
       .catch((err) => {
-        console.error('Failed to load P1_Pavan_Wearable.pdf:', err);
+        console.error('Failed to load sample wearable report:', err);
       });
   };
 
@@ -611,12 +618,12 @@ export default function IntakePage({
         return res.blob();
       })
       .then(blob => {
-        const file = new File([blob], 'P1_Pavan_Gut.pdf', { type: 'application/pdf' });
+        const file = new File([blob], 'Sample_Gut_Report.pdf', { type: 'application/pdf' });
         file.modality = 'gut_microbiome';
         handleAddFiles([file]);
       })
       .catch((err) => {
-        console.error('Failed to load P1_Pavan_Gut.pdf:', err);
+        console.error('Failed to load sample gut report:', err);
       });
   };
 
@@ -627,15 +634,15 @@ export default function IntakePage({
         fetch('/samples/P1_Pavan_Wearable.pdf').then(r => r.blob()),
         fetch('/samples/P1_Pavan_Gut.pdf').then(r => r.blob())
       ]);
-      const clinFile = new File([clinBlob], 'P1_Pavan_Clinical.pdf', { type: 'application/pdf' });
+      const clinFile = new File([clinBlob], 'Sample_Clinical_Report.pdf', { type: 'application/pdf' });
       clinFile.modality = 'clinical';
-      const wearFile = new File([wearBlob], 'P1_Pavan_Wearable.pdf', { type: 'application/pdf' });
+      const wearFile = new File([wearBlob], 'Sample_Wearable_Report.pdf', { type: 'application/pdf' });
       wearFile.modality = 'wearable/cgm';
-      const gutFile = new File([gutBlob], 'P1_Pavan_Gut.pdf', { type: 'application/pdf' });
+      const gutFile = new File([gutBlob], 'Sample_Gut_Report.pdf', { type: 'application/pdf' });
       gutFile.modality = 'gut_microbiome';
       handleAddFiles([clinFile, wearFile, gutFile]);
     } catch (err) {
-      console.error('Failed to load all P1 Pavan sample reports:', err);
+      console.error('Failed to load all sample reports:', err);
     }
   };
 
@@ -693,6 +700,103 @@ export default function IntakePage({
 
   return (
     <PageContainer className="space-y-8 pb-28">
+      {/* Inline premium CSS for intake page animations */}
+      <style>{`
+        @keyframes intake-gradient-spin {
+          0% { background-position: 0% 50%; }
+          50% { background-position: 100% 50%; }
+          100% { background-position: 0% 50%; }
+        }
+        @keyframes intake-float {
+          0%, 100% { transform: translateY(0px); }
+          50% { transform: translateY(-8px); }
+        }
+        @keyframes intake-shimmer {
+          0% { background-position: -200% 0; }
+          100% { background-position: 200% 0; }
+        }
+        @keyframes intake-pulse-ring {
+          0% { transform: scale(1); opacity: 0.4; }
+          50% { transform: scale(1.15); opacity: 0.15; }
+          100% { transform: scale(1); opacity: 0.4; }
+        }
+        .intake-drop-zone {
+          position: relative;
+          overflow: hidden;
+          background: linear-gradient(135deg, rgba(99,102,241,0.04) 0%, rgba(168,85,247,0.04) 50%, rgba(59,130,246,0.04) 100%);
+          border: 2px dashed transparent;
+          background-clip: padding-box;
+          transition: all 0.4s cubic-bezier(0.4,0,0.2,1);
+        }
+        .intake-drop-zone::before {
+          content: '';
+          position: absolute;
+          inset: -2px;
+          border-radius: inherit;
+          background: linear-gradient(135deg, #6366f1, #a855f7, #3b82f6, #06b6d4, #6366f1);
+          background-size: 300% 300%;
+          animation: intake-gradient-spin 6s ease infinite;
+          -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+          -webkit-mask-composite: xor;
+          mask-composite: exclude;
+          padding: 2px;
+          z-index: 0;
+          opacity: 0.45;
+          transition: opacity 0.4s ease;
+        }
+        .intake-drop-zone:hover::before {
+          opacity: 0.9;
+        }
+        .intake-drop-zone:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 20px 60px -15px rgba(99,102,241,0.15);
+        }
+        .intake-drop-zone > * {
+          position: relative;
+          z-index: 1;
+        }
+        .intake-icon-float {
+          animation: intake-float 3s ease-in-out infinite;
+        }
+        .intake-shimmer-badge {
+          background: linear-gradient(90deg, transparent, rgba(255,255,255,0.08), transparent);
+          background-size: 200% 100%;
+          animation: intake-shimmer 3s linear infinite;
+        }
+        .intake-sample-card {
+          position: relative;
+          overflow: hidden;
+          transition: all 0.35s cubic-bezier(0.4,0,0.2,1);
+          cursor: pointer;
+        }
+        .intake-sample-card:hover {
+          transform: translateY(-3px);
+          box-shadow: 0 12px 40px -10px rgba(0,0,0,0.15);
+        }
+        .intake-sample-card::after {
+          content: '';
+          position: absolute;
+          inset: 0;
+          border-radius: inherit;
+          background: linear-gradient(135deg, transparent 60%, rgba(255,255,255,0.04));
+          pointer-events: none;
+        }
+        .intake-file-card {
+          transition: all 0.3s ease;
+        }
+        .intake-file-card:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 8px 30px -8px rgba(0,0,0,0.12);
+        }
+        .intake-sidebar-stat {
+          transition: all 0.3s ease;
+        }
+        .intake-sidebar-stat:hover {
+          background: var(--bg-surface-hover, rgba(255,255,255,0.04));
+          transform: translateX(2px);
+        }
+      `}</style>
+
       {/* Page Header & Stepper */}
       <PageHeader
         title="Intake & Data Ingestion Workspace"
@@ -709,13 +813,14 @@ export default function IntakePage({
         </Alert>
       )}
 
-      {/* STEP 1: UPLOAD REPORTS VIEW */}
+      {/* STEP 1: UPLOAD REPORTS VIEW — Premium Redesign */}
       {currentStep === 1 && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
           {/* Main Upload Column (2 Cols) */}
-          <div className="lg:col-span-2 space-y-6">
-            {/* Drag & Drop Card Zone */}
-            <Card isGlass={true} className="p-8 text-center border-2 border-dashed border-[var(--primary)]/40 hover:border-[var(--primary)] transition-all">
+          <div className="lg:col-span-2 space-y-5">
+
+            {/* ── Hero Drop Zone with Animated Gradient Border ── */}
+            <div className="intake-drop-zone rounded-2xl p-7 text-center">
               <input
                 ref={fileInputRef}
                 type="file"
@@ -725,26 +830,52 @@ export default function IntakePage({
                 className="hidden"
               />
               <div className="flex flex-col items-center justify-center space-y-4">
-                <div className="w-16 h-16 rounded-2xl bg-[var(--primary-light)] text-[var(--primary)] flex items-center justify-center animate-pulse">
-                  <UploadCloud className="w-8 h-8" />
+                {/* Floating animated icon — compact & balanced */}
+                <div className="relative">
+                  <div className="absolute inset-[-6px] rounded-2xl bg-gradient-to-br from-indigo-500/15 via-purple-500/15 to-cyan-500/15" style={{animation: 'intake-pulse-ring 2.5s ease-in-out infinite'}} />
+                  <div className="intake-icon-float w-14 h-14 rounded-xl bg-gradient-to-br from-indigo-500 via-purple-500 to-cyan-500 text-white flex items-center justify-center shadow-lg shadow-indigo-500/25">
+                    <UploadCloud className="w-7 h-7" />
+                  </div>
                 </div>
+
                 <div>
-                  <h3 className="text-base font-extrabold text-[var(--text-main)]">Drag & Drop Medical Files or Click to Browse</h3>
-                  <p className="text-xs text-[var(--text-muted)] mt-1 max-w-md mx-auto">
-                    Supported: Apollo Lab PDF, Max Healthcare PDF, Thyrocare PDF, Fitbit/Garmin/Apple Watch CSV, Ayumetrix Gut PDF
+                  <h3 className="text-base font-extrabold text-[var(--text-main)] tracking-tight">
+                    Drop Your Medical Files Here
+                  </h3>
+                  <p className="text-[13px] text-[var(--text-muted)] mt-1 max-w-md mx-auto leading-relaxed">
+                    Drag & drop clinical lab reports, wearable telemetry exports, or gut microbiome panels.
+                    Our AI engine auto-detects modality and extracts all biomarkers.
                   </p>
                 </div>
 
-                {/* Format Chips & Badges */}
-                <div className="flex flex-wrap items-center justify-center gap-2 pt-2">
-                  <Badge variant="primary" size="sm">PDF / CSV / TXT / PNG</Badge>
-                  <Badge variant="secondary" size="sm">10 MB Limit</Badge>
-                  <Badge variant="success" size="sm"><Lock className="w-3 h-3 mr-1 inline" /> TLS 1.3 Transport</Badge>
-                  <Badge variant="accent" size="sm"><ShieldCheck className="w-3 h-3 mr-1 inline" /> Server-Side Verified</Badge>
+                {/* Format Chips — proportional text */}
+                <div className="flex flex-wrap items-center justify-center gap-2">
+                  <span className="intake-shimmer-badge inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
+                    <FileText className="w-3.5 h-3.5" /> PDF
+                  </span>
+                  <span className="intake-shimmer-badge inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
+                    <FileSpreadsheet className="w-3.5 h-3.5" /> CSV
+                  </span>
+                  <span className="intake-shimmer-badge inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-purple-500/10 text-purple-400 border border-purple-500/20">
+                    <Camera className="w-3.5 h-3.5" /> PNG / JPG
+                  </span>
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                    <Lock className="w-3.5 h-3.5" /> Encrypted
+                  </span>
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                    10 MB Max
+                  </span>
                 </div>
 
-                <div className="flex items-center gap-3 pt-4">
-                  <Button variant="primary" size="md" leftIcon={<UploadCloud className="w-4 h-4" />} onClick={() => fileInputRef.current?.click()}>
+                {/* Action Buttons */}
+                <div className="flex items-center gap-3 pt-1">
+                  <Button
+                    variant="primary"
+                    size="md"
+                    leftIcon={<UploadCloud className="w-4 h-4" />}
+                    onClick={() => fileInputRef.current?.click()}
+                    className="!bg-gradient-to-r !from-indigo-500 !to-purple-600 hover:!from-indigo-600 hover:!to-purple-700 !shadow-lg !shadow-indigo-500/20"
+                  >
                     Browse Local Files
                   </Button>
                   <Button variant="outline" size="md" leftIcon={<Camera className="w-4 h-4" />} onClick={() => setIsCameraOpen(true)}>
@@ -752,103 +883,168 @@ export default function IntakePage({
                   </Button>
                 </div>
               </div>
-            </Card>
+            </div>
 
-            {/* Quick Sample Dataset Shortcuts - P1 Pavan */}
-            <Card isGlass={true} className="p-5 space-y-3">
-              <div className="flex items-center justify-between flex-wrap gap-2">
-                <div>
-                  <h4 className="text-xs font-mono uppercase font-bold text-[var(--text-main)] flex items-center gap-1.5">
-                    <Sparkles className="w-3.5 h-3.5 text-[var(--primary)]" />
-                    P1 Pavan Test Patient Reports
-                  </h4>
-                  <p className="text-[11px] text-[var(--text-muted)] mt-0.5">
-                    Isolated PDF lab reports from test_reports/separated_pdf_reports
-                  </p>
+            {/* ── Sample Reports Quick-Load Section ── */}
+            <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)]/60 backdrop-blur-sm p-4 space-y-3">
+              <div className="flex items-center justify-between flex-wrap gap-3">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 rounded-lg bg-gradient-to-br from-amber-500/15 to-orange-500/15">
+                    <Sparkles className="w-4 h-4 text-amber-500" />
+                  </div>
+                  <div>
+                    <h4 className="text-[13px] font-bold text-[var(--text-main)]">
+                      Quick-Load Sample Reports
+                    </h4>
+                    <p className="text-xs text-[var(--text-muted)]">
+                      Pre-loaded demo reports for quick pipeline testing
+                    </p>
+                  </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <Badge variant="primary" size="sm">Patient: P1 Pavan</Badge>
-                  <Button
-                    variant="primary"
-                    size="xs"
-                    leftIcon={<Layers className="w-3.5 h-3.5" />}
-                    onClick={loadDevAllSample}
-                  >
-                    Load All 3 Reports (C+W+G)
-                  </Button>
-                </div>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
-                <Button variant="outline" size="sm" className="!justify-start text-xs font-medium" leftIcon={<FileText className="w-4 h-4 text-blue-500" />} onClick={loadDevClinSample}>
-                  P1 Pavan Clinical PDF
-                </Button>
-                <Button variant="outline" size="sm" className="!justify-start text-xs font-medium" leftIcon={<Watch className="w-4 h-4 text-teal-500" />} onClick={loadDevWearSample}>
-                  P1 Pavan Wearable PDF
-                </Button>
-                <Button variant="outline" size="sm" className="!justify-start text-xs font-medium" leftIcon={<Dna className="w-4 h-4 text-purple-500" />} onClick={loadDevGutSample}>
-                  P1 Pavan Gut Microbiome PDF
+                <Button
+                  variant="primary"
+                  size="sm"
+                  leftIcon={<Layers className="w-3.5 h-3.5" />}
+                  onClick={loadDevAllSample}
+                  className="!bg-gradient-to-r !from-indigo-500 !to-purple-600"
+                >
+                  Load All 3 Reports
                 </Button>
               </div>
-            </Card>
 
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                {/* Clinical Sample Card */}
+                <div
+                  className="intake-sample-card rounded-xl p-3.5 border border-blue-500/20 bg-gradient-to-br from-blue-500/5 to-blue-600/10 backdrop-blur-sm"
+                  onClick={loadDevClinSample}
+                >
+                  <div className="flex items-center gap-2.5 mb-2.5">
+                    <div className="w-9 h-9 rounded-lg bg-blue-500/15 text-blue-500 flex items-center justify-center shrink-0">
+                      <FileText className="w-4.5 h-4.5" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h5 className="text-[13px] font-bold text-[var(--text-main)] leading-tight">Sample Clinical Report</h5>
+                      <span className="text-xs text-[var(--text-muted)]">Lab Biomarkers PDF</span>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <Badge variant="primary" size="sm">18 Features</Badge>
+                    <ChevronRight className="w-3.5 h-3.5 text-blue-400/60" />
+                  </div>
+                </div>
 
-            {/* Uploaded File Cards Grid */}
+                {/* Wearable Sample Card */}
+                <div
+                  className="intake-sample-card rounded-xl p-3.5 border border-teal-500/20 bg-gradient-to-br from-teal-500/5 to-cyan-600/10 backdrop-blur-sm"
+                  onClick={loadDevWearSample}
+                >
+                  <div className="flex items-center gap-2.5 mb-2.5">
+                    <div className="w-9 h-9 rounded-lg bg-teal-500/15 text-teal-500 flex items-center justify-center shrink-0">
+                      <Watch className="w-4.5 h-4.5" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h5 className="text-[13px] font-bold text-[var(--text-main)] leading-tight">Sample Wearable Report</h5>
+                      <span className="text-xs text-[var(--text-muted)]">Telemetry Data PDF</span>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <Badge variant="secondary" size="sm">15 Features</Badge>
+                    <ChevronRight className="w-3.5 h-3.5 text-teal-400/60" />
+                  </div>
+                </div>
+
+                {/* Gut Sample Card */}
+                <div
+                  className="intake-sample-card rounded-xl p-3.5 border border-purple-500/20 bg-gradient-to-br from-purple-500/5 to-fuchsia-600/10 backdrop-blur-sm"
+                  onClick={loadDevGutSample}
+                >
+                  <div className="flex items-center gap-2.5 mb-2.5">
+                    <div className="w-9 h-9 rounded-lg bg-purple-500/15 text-purple-500 flex items-center justify-center shrink-0">
+                      <Dna className="w-4.5 h-4.5" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h5 className="text-[13px] font-bold text-[var(--text-main)] leading-tight">Sample Gut Report</h5>
+                      <span className="text-xs text-[var(--text-muted)]">Microbiome Panel PDF</span>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <Badge variant="accent" size="sm">49 Features</Badge>
+                    <ChevronRight className="w-3.5 h-3.5 text-purple-400/60" />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* ── Uploaded File Cards Grid ── */}
             <ContentSection title={`Uploaded Files Queue (${selectedFiles.length})`}>
               {selectedFiles.length > 0 ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {selectedFiles.map((file, idx) => {
                     const modality = detectFileModality(file);
                     const modLabel = modality === 'clinical' ? 'CLINICAL' : (modality === 'gut_microbiome' ? 'GUT MICROBIOME' : 'WEARABLES');
                     const modVar = modality === 'clinical' ? 'primary' : (modality === 'gut_microbiome' ? 'accent' : 'secondary');
+                    const modGradient = modality === 'clinical' ? 'from-blue-500/10 to-indigo-500/5'
+                      : modality === 'gut_microbiome' ? 'from-purple-500/10 to-fuchsia-500/5'
+                      : 'from-teal-500/10 to-cyan-500/5';
 
                     return (
-                      <Card key={idx} isGlass={true} className="p-4 flex flex-col justify-between space-y-3">
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="p-2.5 rounded-xl bg-[var(--primary-light)] text-[var(--primary)] shrink-0">
-                            {modality === 'gut_microbiome' ? <Dna className="w-5 h-5" /> : (modality === 'wearable/cgm' ? <Watch className="w-5 h-5" /> : <FileText className="w-5 h-5" />)}
+                      <div key={idx} className={`intake-file-card rounded-xl p-3.5 border border-[var(--border-subtle)] bg-gradient-to-br ${modGradient} backdrop-blur-sm flex flex-col justify-between space-y-2.5`}>
+                        <div className="flex items-start justify-between gap-2.5">
+                          <div className="p-2 rounded-lg bg-[var(--primary-light)] text-[var(--primary)] shrink-0">
+                            {modality === 'gut_microbiome' ? <Dna className="w-4 h-4" /> : (modality === 'wearable/cgm' ? <Watch className="w-4 h-4" /> : <FileText className="w-4 h-4" />)}
                           </div>
                           <div className="flex-1 min-w-0">
-                            <h5 className="text-xs font-bold text-[var(--text-main)] truncate">{file.name}</h5>
-                            <span className="text-[10px] font-mono text-[var(--text-muted)]">{(file.size / 1024).toFixed(1)} KB</span>
+                            <h5 className="text-[13px] font-semibold text-[var(--text-main)] truncate">{file.name}</h5>
+                            <span className="text-xs font-mono text-[var(--text-muted)]">{(file.size / 1024).toFixed(1)} KB</span>
                           </div>
-                          <button onClick={() => handleRemoveFile(idx)} className="text-[var(--text-muted)] hover:text-[var(--danger)] p-1">
+                          <button onClick={() => handleRemoveFile(idx)} className="text-[var(--text-muted)] hover:text-[var(--danger)] p-1.5 rounded-lg hover:bg-red-500/10 transition-colors">
                             <Trash2 className="w-4 h-4" />
                           </button>
                         </div>
-
                         <div className="flex items-center justify-between">
                           <Badge variant={modVar} size="sm">{modLabel}</Badge>
-                          <span className="text-[10px] font-mono text-[var(--success)] font-semibold flex items-center gap-1">
-                            <CheckCircle2 className="w-3 h-3" /> Ready
+                          <span className="text-xs font-mono text-[var(--success)] font-semibold flex items-center gap-1">
+                            <CheckCircle2 className="w-3.5 h-3.5" /> Ready
                           </span>
                         </div>
-                      </Card>
+                      </div>
                     );
                   })}
                 </div>
               ) : (
-                <EmptyState
-                  icon={<UploadCloud className="w-8 h-8 text-[var(--text-muted)]" />}
-                  title="No Files Queued"
-                  description="Upload your medical reports above to populate the file queue."
-                />
+                <div className="rounded-xl border-2 border-dashed border-[var(--border-subtle)] p-8 text-center">
+                  <div className="w-12 h-12 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] flex items-center justify-center mx-auto mb-3">
+                    <UploadCloud className="w-6 h-6 text-[var(--text-muted)]" />
+                  </div>
+                  <h5 className="text-sm font-bold text-[var(--text-main)]">No Files Queued</h5>
+                  <p className="text-[13px] text-[var(--text-muted)] mt-1 max-w-xs mx-auto">
+                    Upload your medical reports above or load sample data to populate the file queue.
+                  </p>
+                </div>
               )}
             </ContentSection>
           </div>
 
-          {/* Right Live Upload Summary Panel */}
-          <div className="space-y-6">
-            <Card isGlass={true} className="p-6 space-y-6">
-              <CardHeader className="!mb-0 !pb-2">
-                <h4 className="text-sm font-bold text-[var(--text-main)]">Live Modality Summary</h4>
-                <Badge variant="primary" size="sm">Real-time Data</Badge>
-              </CardHeader>
+          {/* ── Right Sidebar: Live Summary Panel ── */}
+          <div className="space-y-5">
+            <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)]/60 backdrop-blur-sm overflow-hidden">
+              {/* Sidebar Header with gradient */}
+              <div className="px-4 py-3.5 bg-gradient-to-r from-indigo-500/8 via-purple-500/8 to-cyan-500/8 border-b border-[var(--border-subtle)]">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-[13px] font-bold text-[var(--text-main)] flex items-center gap-2">
+                    <Activity className="w-4 h-4 text-indigo-500" />
+                    Live Modality Summary
+                  </h4>
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wider bg-emerald-500/15 text-emerald-500 border border-emerald-500/20">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" /> Live
+                  </span>
+                </div>
+              </div>
 
-              <CardBody className="space-y-4">
-                {/* Modality Coverage List */}
+              <div className="p-4 space-y-3.5">
+                {/* Modality Coverage — using inline styles for dynamic colors so Tailwind JIT can resolve them */}
                 {(() => {
-                  // P0 FIX: ONLY use current intake state — never use session?.active_modalities
-                  // which bleeds data from previous assessments
+                  // P0 FIX: ONLY use current intake state
                   const hasClinFile = selectedFiles.some(f => detectFileModality(f) === 'clinical');
                   const hasClinForm = Object.values(formClinical || {}).some(v => v !== '' && v !== null && v !== undefined && !['Patient_ID', 'Gender'].includes(v));
                   const hasClinical = hasClinFile || hasClinForm || enableClinical;
@@ -861,60 +1057,75 @@ export default function IntakePage({
                   const hasGutForm = Object.values(formGut || {}).some(v => v !== '' && v !== null && v !== undefined && v !== 0);
                   const hasGut = hasGutFile || hasGutForm || enableGut;
 
+                  const modalities = [
+                    { name: 'Clinical Lab', icon: <FileText className="w-4 h-4" />, active: hasClinical, iconColor: '#3b82f6', bgActive: 'rgba(59,130,246,0.06)', borderActive: 'rgba(59,130,246,0.2)' },
+                    { name: 'Wearable Telemetry', icon: <Watch className="w-4 h-4" />, active: hasWearable, iconColor: '#14b8a6', bgActive: 'rgba(20,184,166,0.06)', borderActive: 'rgba(20,184,166,0.2)' },
+                    { name: 'Gut Microbiome', icon: <Dna className="w-4 h-4" />, active: hasGut, iconColor: '#a855f7', bgActive: 'rgba(168,85,247,0.06)', borderActive: 'rgba(168,85,247,0.2)' },
+                  ];
+
                   return (
-
-
-                    <div className="space-y-2.5">
-                      <div className="flex items-center justify-between p-3 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-subtle)]">
-                        <div className="flex items-center gap-2">
-                          <FileText className="w-4 h-4 text-blue-500" />
-                          <span className="text-xs font-semibold text-[var(--text-main)]">Clinical Lab PDF</span>
+                    <div className="space-y-2">
+                      {modalities.map((mod) => (
+                        <div
+                          key={mod.name}
+                          className="intake-sidebar-stat flex items-center justify-between p-3 rounded-xl border transition-all"
+                          style={mod.active
+                            ? { borderColor: mod.borderActive, background: mod.bgActive }
+                            : { borderColor: 'var(--border-subtle)', background: 'var(--bg-primary)' }
+                          }
+                        >
+                          <div className="flex items-center gap-2.5">
+                            <span style={{ color: mod.iconColor }}>{mod.icon}</span>
+                            <span className="text-[13px] font-semibold text-[var(--text-main)]">{mod.name}</span>
+                          </div>
+                          {mod.active ? (
+                            <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-500">
+                              <CheckCircle2 className="w-3.5 h-3.5" /> Uploaded
+                            </span>
+                          ) : (
+                            <span className="text-xs font-mono text-[var(--text-muted)]">Not Provided</span>
+                          )}
                         </div>
-                        <Badge variant={hasClinical ? 'success' : 'outline'} size="sm">
-                          {hasClinical ? 'Uploaded' : 'NOT PROVIDED'}
-                        </Badge>
-                      </div>
-
-                      <div className="flex items-center justify-between p-3 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-subtle)]">
-                        <div className="flex items-center gap-2">
-                          <Watch className="w-4 h-4 text-teal-500" />
-                          <span className="text-xs font-semibold text-[var(--text-main)]">Wearables CSV</span>
-                        </div>
-                        <Badge variant={hasWearable ? 'success' : 'outline'} size="sm">
-                          {hasWearable ? 'Uploaded' : 'NOT PROVIDED'}
-                        </Badge>
-                      </div>
-
-                      <div className="flex items-center justify-between p-3 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-subtle)]">
-                        <div className="flex items-center gap-2">
-                          <Dna className="w-4 h-4 text-purple-500" />
-                          <span className="text-xs font-semibold text-[var(--text-main)]">Gut Microbiome PDF</span>
-                        </div>
-                        <Badge variant={hasGut ? 'success' : 'outline'} size="sm">
-                          {hasGut ? 'Uploaded' : 'NOT PROVIDED'}
-                        </Badge>
-                      </div>
+                      ))}
                     </div>
                   );
                 })()}
 
-                {/* Data Quality Score Preview */}
-                <div className="p-4 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-subtle)] text-center space-y-2">
+                {/* Divider */}
+                <div className="border-t border-[var(--border-subtle)]" />
+
+                {/* Data Quality Score */}
+                <div className="p-4 rounded-xl bg-gradient-to-br from-[var(--bg-primary)] to-[var(--bg-surface)] border border-[var(--border-subtle)] text-center space-y-2.5">
                   {dqOverall !== null ? (
                     <>
-                      <CircularProgress value={dqOverall} size={64} strokeWidth={6} variant="success" />
-                      <p className="text-xs font-mono font-bold text-[var(--text-main)]">Data Quality Score: {dqOverall}%</p>
-                      <p className="text-[10px] text-[var(--text-muted)] font-mono">Calculated from uploaded files.</p>
+                      <CircularProgress value={dqOverall} size={64} strokeWidth={5} variant="success" />
+                      <div>
+                        <p className="text-base font-extrabold text-[var(--text-main)]">{dqOverall}%</p>
+                        <p className="text-xs text-[var(--text-muted)] font-mono uppercase tracking-wider">Data Quality Score</p>
+                      </div>
                     </>
                   ) : (
                     <>
-                      <Badge variant="outline" size="sm">NOT AVAILABLE</Badge>
-                      <p className="text-xs font-mono text-[var(--text-muted)] mt-1">Upload files to calculate quality score</p>
+                      <div className="w-14 h-14 rounded-full border-2 border-dashed border-[var(--border-subtle)] flex items-center justify-center mx-auto">
+                        <ShieldCheck className="w-5 h-5 text-[var(--text-muted)]" />
+                      </div>
+                      <div>
+                        <p className="text-[13px] font-semibold text-[var(--text-muted)]">Awaiting Data</p>
+                        <p className="text-xs text-[var(--text-muted)] mt-0.5">Upload files to compute quality</p>
+                      </div>
                     </>
                   )}
                 </div>
-              </CardBody>
-            </Card>
+
+                {/* Security & Compliance footer */}
+                <div className="flex items-center gap-2 p-3 rounded-xl bg-emerald-500/5 border border-emerald-500/15">
+                  <Lock className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                  <p className="text-xs text-emerald-600 dark:text-emerald-400 font-medium leading-snug">
+                    All uploads encrypted with TLS 1.3 · Isolated sandbox processing
+                  </p>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       )}
@@ -1178,25 +1389,40 @@ export default function IntakePage({
 
                       {/* CONTROLS BAR */}
                       <Card isGlass={true} className="p-4 space-y-3">
-                        <div className="flex items-center gap-2 w-full max-w-sm mb-2 relative">
-                          <Input
-                            placeholder="Search 40 V4 Taxa species..."
-                            leftIcon={<Search className="w-4 h-4 text-[var(--accent)]" />}
-                            rightIcon={
-                              taxaSearchQuery ? (
-                                <button
-                                  type="button"
-                                  onClick={() => setTaxaSearchQuery('')}
-                                  className="p-1 hover:bg-[var(--bg-surface-hover)] rounded-full text-[var(--text-muted)] hover:text-[var(--text-main)] transition-colors"
-                                  title="Clear Search"
-                                >
-                                  <X className="w-3.5 h-3.5" />
-                                </button>
-                              ) : null
-                            }
-                            value={taxaSearchQuery}
-                            onChange={(e) => setTaxaSearchQuery(e.target.value)}
-                          />
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                          <div className="flex items-center gap-2 w-full max-w-sm relative">
+                            <Input
+                              placeholder="Search 40 V4 Taxa species..."
+                              leftIcon={<Search className="w-4 h-4 text-[var(--accent)]" />}
+                              rightIcon={
+                                taxaSearchQuery ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => setTaxaSearchQuery('')}
+                                    className="p-1 hover:bg-[var(--bg-surface-hover)] rounded-full text-[var(--text-muted)] hover:text-[var(--text-main)] transition-colors"
+                                    title="Clear Search"
+                                  >
+                                    <X className="w-3.5 h-3.5" />
+                                  </button>
+                                ) : null
+                              }
+                              value={taxaSearchQuery}
+                              onChange={(e) => setTaxaSearchQuery(e.target.value)}
+                            />
+                          </div>
+
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs text-[var(--text-muted)] font-mono hidden sm:inline">
+                              Showing {displayedTaxa.length} of {filteredTaxa.length} Taxa (49 Model Features)
+                            </span>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setIsShowingAllTaxa(!isShowingAllTaxa)}
+                            >
+                              {isShowingAllTaxa ? 'Show Paginated (10/page)' : `Show All (${filteredTaxa.length}) Taxa`}
+                            </Button>
+                          </div>
                         </div>
 
                         {/* TAXA TABLE */}
@@ -1294,7 +1520,7 @@ export default function IntakePage({
                               <span className="text-[11px] font-semibold text-[var(--text-muted)] block truncate">{idxKey}</span>
                               <div className="flex items-baseline justify-between">
                                 <span className="text-sm font-mono font-extrabold text-[var(--text-main)]">
-                                  {derivedIndices[idxKey] !== undefined ? derivedIndices[idxKey] : '0.00'}
+                                  {formGut[idxKey] !== undefined && formGut[idxKey] !== '' ? formGut[idxKey] : (derivedIndices[idxKey] !== undefined ? derivedIndices[idxKey] : '0.00')}
                                 </span>
                                 <span className="text-[10px] font-mono text-[var(--success)] font-semibold">AUTO</span>
                               </div>
@@ -1322,7 +1548,13 @@ export default function IntakePage({
           featureCounts={{
             clinical: Object.keys(formClinical).filter(k => formClinical[k] !== '' && formClinical[k] !== null).length,
             wearable: Object.keys(formWearable).filter(k => formWearable[k] !== '' && formWearable[k] !== null).length,
-            gut: Object.keys(formGut).filter(k => formGut[k] !== '' && formGut[k] !== null).length,
+            gut: (() => {
+              const directCount = Object.keys(formGut).filter(k => formGut[k] !== '' && formGut[k] !== null).length;
+              if (directCount >= 49) return 49;
+              const hasTaxa = GUT_V4_TAXA_40.some(t => formGut[t] !== '' && formGut[t] !== null);
+              if (hasTaxa) return 49;
+              return directCount;
+            })(),
           }}
           currentDocument={selectedFiles[0]?.name || 'apollo_clinical_lab_sample.pdf'}
           onNavigateDashboard={() => navigate('/dashboard')}
@@ -1413,7 +1645,7 @@ export default function IntakePage({
         allFeatures={{
           clinical: enableClinical ? CLINICAL_V4_FEATURES : [],
           wearable: enableWearable ? WEARABLE_V4_FEATURES : [],
-          gut: enableGut ? GUT_V4_TAXA_40 : []
+          gut: enableGut ? GUT_V4_TOTAL_FEATURES : []
         }}
         onConfirm={handleMissingModalConfirm}
         onSkipAll={handleMissingModalSkip}
