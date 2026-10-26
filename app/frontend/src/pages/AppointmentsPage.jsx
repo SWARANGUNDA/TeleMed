@@ -75,7 +75,8 @@ export default function AppointmentsPage({ user, onNavigate }) {
   const searchContainerRef = useRef(null);
   const [sortBy, setSortBy] = useState('date');
   const [selectedCalendarDate, setSelectedCalendarDate] = useState(null);
-  const [slotFilter, setSlotFilter] = useState('all'); // 'all', 'available', 'booked'
+  const [slotFilter, setSlotFilter] = useState('all'); // 'all', 'upcoming', 'today', 'available', 'booked', 'past'
+  const [slotDateFilter, setSlotDateFilter] = useState('all');
 
   // Real Data States
   const [appointments, setAppointments] = useState([]);
@@ -452,13 +453,6 @@ export default function AppointmentsPage({ user, onNavigate }) {
     return list;
   }, [normalizedAppointments, activeTab, todayStr, selectedCalendarDate, searchQuery, sortBy]);
 
-  const filteredAvailabilitySlots = useMemo(() => {
-    let slots = [...availabilitySlots];
-    if (slotFilter === 'available') slots = slots.filter(s => !s.is_booked);
-    if (slotFilter === 'booked') slots = slots.filter(s => s.is_booked);
-    return slots;
-  }, [availabilitySlots, slotFilter]);
-
   const tomorrowStr = useMemo(() => {
     const tm = new Date();
     tm.setDate(tm.getDate() + 1);
@@ -467,6 +461,124 @@ export default function AppointmentsPage({ user, onNavigate }) {
     const d = String(tm.getDate()).padStart(2, '0');
     return `${y}-${m}-${d}`;
   }, []);
+
+  const processedAvailabilitySlots = useMemo(() => {
+    const now = new Date();
+    const nowIso = now.toISOString();
+
+    return availabilitySlots.map(slot => {
+      const startIso = slot.slot_start || '';
+      const endIso = slot.slot_end || slot.slot_start || '';
+      const startDate = startIso ? startIso.split('T')[0] : '';
+      const startTime = startIso && startIso.includes('T') ? startIso.split('T')[1].slice(0, 5) : '';
+      const endTime = endIso && endIso.includes('T') ? endIso.split('T')[1].slice(0, 5) : '';
+
+      const isPast = endIso ? endIso < nowIso : false;
+      const isToday = startDate === todayStr || startDate === utcTodayStr;
+      const isTomorrow = startDate === tomorrowStr;
+
+      const matchedApt = appointments.find(a => 
+        (a.slot_id && slot.slot_id && a.slot_id === slot.slot_id) ||
+        (a.slot_start && a.slot_start === slot.slot_start)
+      );
+
+      return {
+        ...slot,
+        startDate,
+        startTime,
+        endTime,
+        isPast,
+        isToday,
+        isTomorrow,
+        matchedApt,
+        displayStatus: slot.is_booked 
+          ? (isPast ? 'COMPLETED' : 'BOOKED')
+          : (isPast ? 'EXPIRED' : 'AVAILABLE')
+      };
+    }).sort((a, b) => (a.slot_start || '').localeCompare(b.slot_start || ''));
+  }, [availabilitySlots, todayStr, utcTodayStr, tomorrowStr, appointments]);
+
+  const uniqueSlotDates = useMemo(() => {
+    const dates = new Set();
+    processedAvailabilitySlots.forEach(s => {
+      if (s.startDate) dates.add(s.startDate);
+    });
+    return Array.from(dates).sort();
+  }, [processedAvailabilitySlots]);
+
+  const slotMetrics = useMemo(() => {
+    const total = processedAvailabilitySlots.length;
+    const upcomingAvailable = processedAvailabilitySlots.filter(s => !s.isPast && !s.is_booked);
+    const upcomingBooked = processedAvailabilitySlots.filter(s => !s.isPast && s.is_booked);
+    const todaySlots = processedAvailabilitySlots.filter(s => s.isToday);
+    const pastSlots = processedAvailabilitySlots.filter(s => s.isPast && !s.is_booked);
+    const completedSlots = processedAvailabilitySlots.filter(s => s.isPast && s.is_booked);
+    const totalHours = (upcomingAvailable.length * 0.5).toFixed(1);
+
+    return {
+      total,
+      upcomingAvailable: upcomingAvailable.length,
+      upcomingBooked: upcomingBooked.length,
+      todayCount: todaySlots.length,
+      pastCount: pastSlots.length,
+      completedCount: completedSlots.length,
+      totalHours
+    };
+  }, [processedAvailabilitySlots]);
+
+  const filteredAvailabilitySlots = useMemo(() => {
+    let list = [...processedAvailabilitySlots];
+
+    if (slotFilter === 'upcoming') {
+      list = list.filter(s => !s.isPast || s.isToday);
+    } else if (slotFilter === 'today') {
+      list = list.filter(s => s.isToday);
+    } else if (slotFilter === 'available') {
+      list = list.filter(s => !s.is_booked && (!s.isPast || s.isToday));
+    } else if (slotFilter === 'booked') {
+      list = list.filter(s => s.is_booked);
+    } else if (slotFilter === 'past') {
+      list = list.filter(s => s.isPast);
+    }
+
+    if (slotDateFilter && slotDateFilter !== 'all') {
+      list = list.filter(s => s.startDate === slotDateFilter);
+    }
+
+    return list;
+  }, [processedAvailabilitySlots, slotFilter, slotDateFilter]);
+
+  const groupedSlotsByDate = useMemo(() => {
+    const groups = {};
+    for (const slot of filteredAvailabilitySlots) {
+      const d = slot.startDate || 'Unspecified Date';
+      if (!groups[d]) {
+        groups[d] = [];
+      }
+      groups[d].push(slot);
+    }
+
+    return Object.keys(groups).sort().map(dateKey => {
+      const slots = groups[dateKey];
+      const isToday = dateKey === todayStr || dateKey === utcTodayStr;
+      const isTomorrow = dateKey === tomorrowStr;
+      const isPast = dateKey < todayStr && dateKey < utcTodayStr;
+      const openCount = slots.filter(s => !s.is_booked && !s.isPast).length;
+      const bookedCount = slots.filter(s => s.is_booked).length;
+      const expiredCount = slots.filter(s => !s.is_booked && s.isPast).length;
+
+      return {
+        dateKey,
+        isToday,
+        isTomorrow,
+        isPast,
+        slots,
+        openCount,
+        bookedCount,
+        expiredCount
+      };
+    });
+  }, [filteredAvailabilitySlots, todayStr, utcTodayStr, tomorrowStr]);
 
   const selectedDayAppointments = useMemo(() => {
     if (!selectedCalendarDate) return [];
@@ -680,6 +792,78 @@ export default function AppointmentsPage({ user, onNavigate }) {
       notify("Availability slot deleted.");
     } catch (err) {
       setError(err.message || "Failed to delete slot.");
+    }
+  };
+
+  // Clear Expired Availability Slots Handler
+  const handleClearExpiredSlots = async () => {
+    const nowIso = new Date().toISOString();
+    const expiredUnbooked = availabilitySlots.filter(s => {
+      const end = s.slot_end || s.slot_start;
+      return end < nowIso && !s.is_booked;
+    });
+
+    if (expiredUnbooked.length === 0) {
+      notify("No expired unbooked slots to clear.");
+      return;
+    }
+
+    if (!window.confirm(`Are you sure you want to clear ${expiredUnbooked.length} past expired slots?`)) {
+      return;
+    }
+
+    try {
+      setLoading(true);
+      let deleted = 0;
+      for (const slot of expiredUnbooked) {
+        try {
+          await deleteDoctorAvailabilitySlot(slot.slot_id);
+          deleted++;
+        } catch (e) {}
+      }
+      setAvailabilitySlots(prev => prev.filter(s => !expiredUnbooked.some(e => e.slot_id === s.slot_id)));
+      notify(`Cleared ${deleted} expired slots successfully.`);
+      await loadWorkspaceData(true);
+    } catch (e) {
+      setError("Failed to clear some expired slots.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Quick Generate Shift for Target Date
+  const handleQuickGenerateShift = async (targetDateStr = todayStr) => {
+    try {
+      setLoading(true);
+      const timeWindows = [
+        ['09:00', '09:30'], ['09:40', '10:10'], ['10:20', '10:50'], ['11:00', '11:30'], ['11:40', '12:10'],
+        ['14:00', '14:30'], ['14:40', '15:10'], ['15:20', '15:50'], ['16:00', '16:30']
+      ];
+      let addedCount = 0;
+      const newSlots = [];
+      for (const [startT, endT] of timeWindows) {
+        const startIso = `${targetDateStr}T${startT}:00Z`;
+        const endIso = `${targetDateStr}T${endT}:00Z`;
+        try {
+          const res = await addDoctorAvailabilitySlot(startIso, endIso);
+          const s = res.slot || res;
+          if (s && s.slot_id) {
+            newSlots.push(s);
+            addedCount++;
+          }
+        } catch (e) {}
+      }
+      if (newSlots.length > 0) {
+        setAvailabilitySlots(prev => [...newSlots, ...prev]);
+        notify(`Generated ${addedCount} consultation slots for ${formatDateFull(targetDateStr)}!`);
+      } else {
+        notify(`Slots already exist or overlap for ${formatDateFull(targetDateStr)}.`);
+      }
+      await loadWorkspaceData(true);
+    } catch (err) {
+      setError(err.message || "Failed to generate quick schedule.");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -944,33 +1128,49 @@ export default function AppointmentsPage({ user, onNavigate }) {
       </div>
 
       {/* ── TABS NAVIGATION ────────────────────────────────────────────────── */}
-      <div className="flex items-center justify-between border-b border-slate-200/80 pb-2">
-        <div className="flex items-center space-x-1 overflow-x-auto no-scrollbar py-1">
+      <div className="bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-2xl p-2 shadow-xs flex items-center justify-between gap-3">
+        <div className="flex items-center space-x-1.5 overflow-x-auto no-scrollbar py-0.5">
           {[
-            { id: 'upcoming', label: 'Upcoming' },
-            { id: 'today', label: 'Today' },
-            { id: 'past', label: 'Past & Cancelled' },
-            ...(isDoctor ? [{ id: 'availability', label: `Availability (${availabilitySlots.length})` }] : []),
-            { id: 'calendar', label: 'Calendar View' }
-          ].map(tab => (
-            <button
-              key={tab.id}
-              onClick={() => { setActiveTab(tab.id); setSelectedCalendarDate(null); }}
-              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
-                activeTab === tab.id
-                  ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
+            { id: 'upcoming', label: 'Upcoming', icon: Calendar, count: kpiCounts.upcomingCount },
+            { id: 'today', label: 'Today', icon: Clock, count: kpiCounts.todayCount },
+            { id: 'past', label: 'Past & Cancelled', icon: CheckCircle2, count: kpiCounts.completedCount + kpiCounts.cancelledCount },
+            ...(isDoctor ? [{ 
+              id: 'availability', 
+              label: 'Availability Slots', 
+              icon: Layers, 
+              count: slotMetrics ? slotMetrics.upcomingAvailable : availabilitySlots.length 
+            }] : []),
+            { id: 'calendar', label: 'Calendar View', icon: CalendarDays }
+          ].map(tab => {
+            const Icon = tab.icon;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => { setActiveTab(tab.id); setSelectedCalendarDate(null); }}
+                className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap flex items-center gap-2 ${
+                  activeTab === tab.id
+                    ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
+                    : 'text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--bg-primary)]'
+                }`}
+              >
+                {Icon && <Icon size={14} className={activeTab === tab.id ? 'text-white' : 'text-slate-400'} />}
+                <span>{tab.label}</span>
+                {tab.count !== undefined && (
+                  <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-extrabold ${
+                    activeTab === tab.id ? 'bg-white/20 text-white' : 'bg-[var(--border-subtle)] text-[var(--text-muted)]'
+                  }`}>
+                    {tab.count}
+                  </span>
+                )}
+              </button>
+            );
+          })}
         </div>
 
         {selectedCalendarDate && (
           <button
             onClick={() => setSelectedCalendarDate(null)}
-            className="text-xs text-blue-600 hover:underline font-bold flex items-center gap-1 cursor-pointer"
+            className="text-xs text-blue-600 hover:underline font-bold flex items-center gap-1 cursor-pointer shrink-0 pr-2"
           >
             <X size={14} /> Clear Date Filter ({selectedCalendarDate})
           </button>
@@ -1525,104 +1725,360 @@ export default function AppointmentsPage({ user, onNavigate }) {
 
       {/* 2. DOCTOR AVAILABILITY MANAGEMENT TAB */}
       {activeTab === 'availability' && isDoctor && (
-        <div className="bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-2xl p-5 shadow-lg space-y-5">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[var(--border-subtle)] pb-4">
-            <div>
-              <div className="flex items-center space-x-2">
-                <h2 className="text-base font-extrabold text-[var(--text-main)]">Doctor Consultation Availability Slots</h2>
-                <span className="bg-[var(--primary-light)] text-[var(--primary)] text-[11px] font-extrabold px-2.5 py-0.5 rounded-full">
-                  {availabilitySlots.length} Total Slots
-                </span>
+        <div className="space-y-6 animate-fadeIn">
+          {/* A. Hero Overview & Clinician Action Bar */}
+          <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 border border-slate-700/60 rounded-3xl p-6 text-white shadow-xl relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-80 h-80 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
+            
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-5 relative z-10">
+              <div className="space-y-1.5">
+                <div className="flex items-center gap-2">
+                  <span className="px-3 py-0.5 rounded-full text-[11px] font-black bg-blue-500/20 text-blue-300 border border-blue-400/30 tracking-wide uppercase flex items-center gap-1.5">
+                    <Sparkles className="w-3 h-3 text-cyan-300" />
+                    Doctor Telehealth Dispatch
+                  </span>
+                  <span className="text-xs text-slate-400 font-medium">
+                    Schedule Management • Real-Time Patient Booking
+                  </span>
+                </div>
+                <h2 className="text-xl font-black text-white tracking-tight flex items-center gap-2.5">
+                  Consultation Availability & Telehealth Windows
+                </h2>
+                <p className="text-xs text-slate-300 max-w-2xl leading-relaxed">
+                  Configure real-time booking slots for patient video consultations. Slots scheduled for today and future dates are automatically published to verified patient search.
+                </p>
               </div>
-              <p className="text-xs text-[var(--text-muted)] mt-0.5">Configure time windows where patients can book teleconsultations with you.</p>
+
+              {/* Action Buttons */}
+              <div className="flex items-center flex-wrap gap-2.5">
+                <button
+                  onClick={() => setShowAddAvailabilityModal(true)}
+                  className="px-4 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-xs font-extrabold rounded-xl shadow-lg shadow-blue-600/30 flex items-center space-x-2 transition-all cursor-pointer hover:scale-[1.02] border border-blue-400/30"
+                >
+                  <Plus size={16} />
+                  <span>Add Custom Slot</span>
+                </button>
+
+                <button
+                  onClick={() => handleQuickGenerateShift(todayStr)}
+                  disabled={loading}
+                  className="px-3.5 py-2.5 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 text-xs font-bold rounded-xl transition-all flex items-center space-x-1.5 cursor-pointer hover:scale-[1.02]"
+                  title="Generate standard morning & afternoon slots for today"
+                >
+                  <Zap size={14} className="text-emerald-400" />
+                  <span>+ Quick Shift (Today)</span>
+                </button>
+
+                <button
+                  onClick={() => handleQuickGenerateShift(tomorrowStr)}
+                  disabled={loading}
+                  className="px-3.5 py-2.5 bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-300 border border-indigo-500/40 text-xs font-bold rounded-xl transition-all flex items-center space-x-1.5 cursor-pointer hover:scale-[1.02]"
+                  title="Generate standard morning & afternoon slots for tomorrow"
+                >
+                  <CalendarDays size={14} className="text-indigo-400" />
+                  <span>+ Quick Shift (Tomorrow)</span>
+                </button>
+
+                {slotMetrics.pastCount > 0 && (
+                  <button
+                    onClick={handleClearExpiredSlots}
+                    disabled={loading}
+                    className="px-3 py-2.5 bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40 text-xs font-bold rounded-xl transition-all flex items-center space-x-1.5 cursor-pointer"
+                    title="Clear past unbooked slots"
+                  >
+                    <Trash2 size={14} className="text-rose-400" />
+                    <span>Clear Expired ({slotMetrics.pastCount})</span>
+                  </button>
+                )}
+              </div>
             </div>
 
-            <div className="flex items-center space-x-3">
-              {/* Filter Pills */}
-              <div className="flex items-center p-1 bg-[var(--bg-primary)] border border-[var(--border-subtle)] rounded-xl text-xs font-semibold">
-                {[
-                  { id: 'all', label: 'All Slots' },
-                  { id: 'available', label: 'Available' },
-                  { id: 'booked', label: 'Booked' }
-                ].map(f => (
-                  <button
-                    key={f.id}
-                    onClick={() => setSlotFilter(f.id)}
-                    className={`px-3 py-1 rounded-lg transition-all cursor-pointer ${
-                      slotFilter === f.id ? 'bg-[var(--primary)] text-white shadow-xs font-bold' : 'text-[var(--text-muted)] hover:text-[var(--text-main)]'
-                    }`}
-                  >
-                    {f.label}
-                  </button>
-                ))}
+            {/* 4 Stat KPI Chips */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-5 pt-4 border-t border-slate-800">
+              <div className="bg-white/5 border border-white/10 rounded-2xl p-3 backdrop-blur-xs">
+                <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Active Open Windows</span>
+                <div className="flex items-baseline gap-2 mt-1">
+                  <span className="text-xl font-extrabold text-emerald-400">{slotMetrics.upcomingAvailable}</span>
+                  <span className="text-[10px] text-slate-400 font-medium">({slotMetrics.totalHours} hrs bookable)</span>
+                </div>
               </div>
 
-              <button
-                onClick={() => setShowAddAvailabilityModal(true)}
-                className="px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white text-xs font-bold rounded-xl shadow-md flex items-center space-x-1.5 transition-all cursor-pointer"
-              >
-                <Plus size={16} />
-                <span>Add New Slot</span>
-              </button>
+              <div className="bg-white/5 border border-white/10 rounded-2xl p-3 backdrop-blur-xs">
+                <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Confirmed Bookings</span>
+                <div className="flex items-baseline gap-2 mt-1">
+                  <span className="text-xl font-extrabold text-blue-400">{slotMetrics.upcomingBooked}</span>
+                  <span className="text-[10px] text-slate-400 font-medium">Patients reserved</span>
+                </div>
+              </div>
+
+              <div className="bg-white/5 border border-white/10 rounded-2xl p-3 backdrop-blur-xs">
+                <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Today's Schedule</span>
+                <div className="flex items-baseline gap-2 mt-1">
+                  <span className="text-xl font-extrabold text-amber-400">{slotMetrics.todayCount}</span>
+                  <span className="text-[10px] text-slate-400 font-medium">Slots on {formatDateFull(todayStr)}</span>
+                </div>
+              </div>
+
+              <div className="bg-white/5 border border-white/10 rounded-2xl p-3 backdrop-blur-xs">
+                <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Past / Expired</span>
+                <div className="flex items-baseline gap-2 mt-1">
+                  <span className={`text-xl font-extrabold ${slotMetrics.pastCount > 0 ? 'text-rose-400' : 'text-slate-400'}`}>
+                    {slotMetrics.pastCount}
+                  </span>
+                  <span className="text-[10px] text-slate-400 font-medium">Previous unbooked</span>
+                </div>
+              </div>
             </div>
           </div>
 
-          {filteredAvailabilitySlots.length === 0 ? (
-            <div className="py-16 text-center space-y-3 max-w-md mx-auto">
-              <CalendarDays className="w-10 h-10 text-slate-300 mx-auto" />
-              <p className="text-sm font-bold text-slate-800">No availability slots found</p>
-              <p className="text-xs text-slate-500">Create custom time windows to allow patients to schedule appointments.</p>
-              <button
-                onClick={() => setShowAddAvailabilityModal(true)}
-                className="px-4 py-2 bg-blue-50 text-blue-700 border border-blue-200 text-xs font-bold rounded-xl hover:bg-blue-100 transition-all cursor-pointer mt-1"
-              >
-                Create Availability Slot Now
-              </button>
+          {/* B. Filter and Search Controls */}
+          <div className="bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-2xl p-4 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-3">
+            {/* Filter Tabs */}
+            <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5">
+              {[
+                { id: 'all', label: 'All Windows', count: slotMetrics.total },
+                { id: 'upcoming', label: 'Active & Upcoming', count: slotMetrics.upcomingAvailable + slotMetrics.upcomingBooked },
+                { id: 'today', label: 'Today', count: slotMetrics.todayCount },
+                { id: 'available', label: 'Available (Open)', count: slotMetrics.upcomingAvailable },
+                { id: 'booked', label: 'Booked by Patients', count: slotMetrics.upcomingBooked },
+                { id: 'past', label: 'Past / Expired', count: slotMetrics.pastCount + slotMetrics.completedCount }
+              ].map(f => (
+                <button
+                  key={f.id}
+                  onClick={() => setSlotFilter(f.id)}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
+                    slotFilter === f.id
+                      ? 'bg-[var(--primary)] text-white shadow-xs'
+                      : 'bg-[var(--bg-primary)] text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--bg-card)]'
+                  }`}
+                >
+                  <span>{f.label}</span>
+                  <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-extrabold ${
+                    slotFilter === f.id ? 'bg-white/20 text-white' : 'bg-[var(--border-subtle)] text-[var(--text-muted)]'
+                  }`}>
+                    {f.count}
+                  </span>
+                </button>
+              ))}
+            </div>
+
+            {/* Date filter dropdown if multiple dates exist */}
+            {uniqueSlotDates.length > 1 && (
+              <div className="flex items-center space-x-2 shrink-0">
+                <span className="text-xs font-semibold text-[var(--text-muted)]">Date:</span>
+                <select
+                  value={slotDateFilter}
+                  onChange={(e) => setSlotDateFilter(e.target.value)}
+                  className="px-3 py-1.5 text-xs font-bold rounded-xl bg-[var(--bg-primary)] border border-[var(--border-subtle)] text-[var(--text-main)] focus:outline-none focus:border-[var(--primary)] cursor-pointer"
+                >
+                  <option value="all">All Dates ({filteredAvailabilitySlots.length})</option>
+                  {uniqueSlotDates.map(d => (
+                    <option key={d} value={d}>
+                      {d === todayStr ? `Today • ${formatDateFull(d)}` : d === tomorrowStr ? `Tomorrow • ${formatDateFull(d)}` : formatDateFull(d)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+          </div>
+
+          {/* C. Grouped Slots by Date */}
+          {groupedSlotsByDate.length === 0 ? (
+            <div className="bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-3xl p-12 text-center space-y-4 max-w-lg mx-auto shadow-sm">
+              <div className="w-14 h-14 rounded-2xl bg-blue-500/10 text-blue-600 flex items-center justify-center mx-auto">
+                <CalendarDays className="w-7 h-7" />
+              </div>
+              <div className="space-y-1">
+                <h3 className="text-base font-extrabold text-[var(--text-main)]">
+                  {slotFilter === 'upcoming' ? 'No Upcoming Availability Windows' : 'No Availability Slots Found'}
+                </h3>
+                <p className="text-xs text-[var(--text-muted)] leading-relaxed">
+                  {slotFilter === 'upcoming'
+                    ? 'All previous slots are in the past. Generate a fresh schedule for today or tomorrow so patients can book teleconsultations.'
+                    : 'Adjust your filter or generate new clinical consultation slots.'}
+                </p>
+              </div>
+
+              <div className="flex items-center justify-center gap-3 pt-2">
+                <button
+                  onClick={() => handleQuickGenerateShift(todayStr)}
+                  className="px-4 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 text-white text-xs font-bold rounded-xl shadow-md hover:scale-[1.02] transition-all flex items-center gap-1.5 cursor-pointer"
+                >
+                  <Zap size={14} />
+                  <span>Generate Today's Shift</span>
+                </button>
+                <button
+                  onClick={() => setShowAddAvailabilityModal(true)}
+                  className="px-4 py-2 bg-blue-50 text-blue-700 border border-blue-200 text-xs font-bold rounded-xl hover:bg-blue-100 transition-all flex items-center gap-1.5 cursor-pointer"
+                >
+                  <Plus size={14} />
+                  <span>Custom Slot</span>
+                </button>
+              </div>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
-              {filteredAvailabilitySlots.map((slot, idx) => {
-                const startDate = slot.slot_start ? slot.slot_start.split('T')[0] : '';
-                const startTime = slot.slot_start && slot.slot_start.includes('T') ? slot.slot_start.split('T')[1].slice(0, 5) : '';
-                const endTime = slot.slot_end && slot.slot_end.includes('T') ? slot.slot_end.split('T')[1].slice(0, 5) : '';
-
-                return (
-                  <div
-                    key={`${slot.slot_id || 'slot'}_${idx}`}
-                    className="p-4 rounded-2xl border border-slate-200/80 bg-slate-50/50 hover:bg-white hover:border-blue-300 hover:shadow-md transition-all flex items-center justify-between"
-                  >
-                    <div className="space-y-1">
-                      <div className="flex items-center space-x-2">
-                        <Calendar className="w-3.5 h-3.5 text-blue-600" />
-                        <span className="text-xs font-bold text-slate-900">{formatDateFull(startDate)}</span>
-                      </div>
-                      
-                      <div className="flex items-center space-x-2">
-                        <Clock className="w-3.5 h-3.5 text-slate-400" />
-                        <span className="text-xs font-bold text-blue-700">
-                          {formatTimeOnly(startTime)} - {formatTimeOnly(endTime)}
-                        </span>
-                      </div>
-
-                      <span className={`inline-block text-[10px] font-extrabold px-2.5 py-0.5 rounded-full ${
-                        slot.is_booked ? 'bg-blue-100 text-blue-800 border border-blue-200' : 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+            <div className="space-y-6">
+              {groupedSlotsByDate.map((group) => (
+                <div key={group.dateKey} className="space-y-3.5">
+                  {/* Date Header Banner */}
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 px-1">
+                    <div className="flex items-center space-x-2.5">
+                      <div className={`p-2 rounded-xl flex items-center justify-center ${
+                        group.isToday
+                          ? 'bg-emerald-500/15 text-emerald-600 border border-emerald-500/20'
+                          : group.isTomorrow
+                          ? 'bg-blue-500/15 text-blue-600 border border-blue-500/20'
+                          : group.isPast
+                          ? 'bg-slate-500/15 text-slate-500 border border-slate-500/20'
+                          : 'bg-purple-500/15 text-purple-600 border border-purple-500/20'
                       }`}>
-                        {slot.is_booked ? 'BOOKED BY PATIENT' : 'AVAILABLE FOR BOOKING'}
-                      </span>
+                        <Calendar className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <div className="flex items-center space-x-2">
+                          <h3 className="text-sm font-extrabold text-[var(--text-main)]">
+                            {formatDateFull(group.dateKey)}
+                          </h3>
+                          <span className={`text-[10px] font-extrabold px-2.5 py-0.5 rounded-full ${
+                            group.isToday
+                              ? 'bg-emerald-100 text-emerald-800 border border-emerald-300 animate-pulse'
+                              : group.isTomorrow
+                              ? 'bg-blue-100 text-blue-800 border border-blue-300'
+                              : group.isPast
+                              ? 'bg-slate-200 text-slate-700 border border-slate-300'
+                              : 'bg-purple-100 text-purple-800 border border-purple-300'
+                          }`}>
+                            {group.isToday ? 'TODAY • LIVE' : group.isTomorrow ? 'TOMORROW' : group.isPast ? 'PAST DATE' : 'UPCOMING'}
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-[var(--text-muted)] font-medium mt-0.5">
+                          {group.slots.length} time windows • {group.openCount} available • {group.bookedCount} booked {group.expiredCount > 0 ? `• ${group.expiredCount} expired` : ''}
+                        </p>
+                      </div>
                     </div>
 
-                    {!slot.is_booked && (
+                    {group.isPast && group.expiredCount > 0 && (
                       <button
-                        onClick={() => handleDeleteSlot(slot.slot_id)}
-                        className="p-2 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-xl transition-all cursor-pointer"
-                        title="Delete Availability Slot"
+                        onClick={handleClearExpiredSlots}
+                        className="text-xs text-rose-600 hover:text-rose-700 hover:underline font-bold flex items-center gap-1 cursor-pointer self-start sm:self-auto"
                       >
-                        <Trash2 className="w-4 h-4" />
+                        <Trash2 size={13} />
+                        <span>Purge Past Unbooked Slots</span>
                       </button>
                     )}
                   </div>
-                );
-              })}
+
+                  {/* Grid of Slots for this Date */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
+                    {group.slots.map((slot, idx) => {
+                      const startTime = slot.startTime || '';
+                      const endTime = slot.endTime || '';
+                      const isPast = slot.isPast;
+                      const isBooked = slot.is_booked;
+                      const apt = slot.matchedApt;
+                      const hourNum = parseInt(startTime.split(':')[0] || '12', 10);
+                      const isMorning = hourNum < 12;
+                      const isEvening = hourNum >= 17;
+
+                      return (
+                        <div
+                          key={`${slot.slot_id || 'slot'}_${idx}`}
+                          className={`p-4 rounded-2xl border transition-all flex flex-col justify-between space-y-3 relative overflow-hidden ${
+                            isBooked
+                              ? 'bg-blue-50/40 border-blue-200/90 shadow-sm hover:shadow-md hover:border-blue-400'
+                              : isPast
+                              ? 'bg-slate-100/60 border-slate-200/90 opacity-75'
+                              : 'bg-[var(--bg-surface)] border-[var(--border-subtle)] hover:border-emerald-300 hover:shadow-md'
+                          }`}
+                        >
+                          {/* Card Top: Time & Delete */}
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="space-y-1">
+                              <div className="flex items-center space-x-1.5">
+                                {isMorning ? (
+                                  <Sun className="w-3.5 h-3.5 text-amber-500" />
+                                ) : isEvening ? (
+                                  <Sunset className="w-3.5 h-3.5 text-indigo-500" />
+                                ) : (
+                                  <Clock className="w-3.5 h-3.5 text-blue-500" />
+                                )}
+                                <span className="text-xs font-black text-[var(--text-main)] tracking-tight">
+                                  {formatTimeOnly(startTime)} – {formatTimeOnly(endTime)}
+                                </span>
+                                <span className="text-[10px] font-semibold text-[var(--text-muted)] bg-[var(--bg-primary)] px-2 py-0.5 rounded-md border border-[var(--border-subtle)]">
+                                  30m
+                                </span>
+                              </div>
+
+                              <div className="flex items-center gap-1.5 pt-0.5">
+                                {isBooked ? (
+                                  <span className="inline-flex items-center gap-1 text-[10px] font-black px-2.5 py-0.5 rounded-full bg-blue-100 text-blue-800 border border-blue-300">
+                                    <User size={10} />
+                                    {isPast ? 'COMPLETED VISIT' : 'BOOKED BY PATIENT'}
+                                  </span>
+                                ) : isPast ? (
+                                  <span className="inline-flex items-center gap-1 text-[10px] font-black px-2.5 py-0.5 rounded-full bg-slate-200 text-slate-700 border border-slate-300">
+                                    <Clock size={10} />
+                                    EXPIRED (PAST)
+                                  </span>
+                                ) : (
+                                  <span className="inline-flex items-center gap-1 text-[10px] font-black px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                                    AVAILABLE FOR BOOKING
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+
+                            {!isBooked && (
+                              <button
+                                onClick={() => handleDeleteSlot(slot.slot_id)}
+                                className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all cursor-pointer"
+                                title="Delete Availability Slot"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            )}
+                          </div>
+
+                          {/* Card Body: Patient info if booked, or booking mode */}
+                          {isBooked ? (
+                            <div className="p-2.5 bg-white/80 border border-blue-200/80 rounded-xl space-y-1.5">
+                              <div className="flex items-center justify-between">
+                                <span className="text-[11px] font-extrabold text-slate-900 truncate">
+                                  Patient: {apt?.patient_name || 'Confirmed Telehealth Patient'}
+                                </span>
+                                {apt?.status && (
+                                  <span className="text-[9px] font-bold text-blue-700 uppercase bg-blue-50 px-1.5 py-0.5 rounded">
+                                    {apt.status}
+                                  </span>
+                                )}
+                              </div>
+                              <p className="text-[10px] text-slate-500 truncate">
+                                {apt?.notes || 'Clinical Teleconsultation Session'}
+                              </p>
+                              {apt && (
+                                <button
+                                  onClick={() => handleStartOrJoinConsultation(apt)}
+                                  className="w-full mt-1 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-[11px] rounded-lg flex items-center justify-center space-x-1.5 transition-all cursor-pointer shadow-xs"
+                                >
+                                  <Stethoscope size={12} />
+                                  <span>{isPast ? 'Review Consultation' : 'Launch Video Session'}</span>
+                                </button>
+                              )}
+                            </div>
+                          ) : (
+                            <div className="text-[10px] text-[var(--text-muted)] flex items-center justify-between border-t border-[var(--border-subtle)] pt-2">
+                              <span>Teleconsultation • Video Call</span>
+                              <span className="font-semibold text-emerald-600">Patient Self-Booking</span>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
             </div>
           )}
         </div>
