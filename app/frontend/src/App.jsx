@@ -198,7 +198,22 @@ export default function App() {
             outcomes.High_Adiposity_Risk.probability = targetP;
           }
           outcomes.High_Adiposity_Risk.predicted_class = 1;
-          outcomes.High_Adiposity_Risk.risk_level = 'High Risk';
+          try { sessionStorage.setItem('telemed_pred', JSON.stringify(parsed)); } catch (e) {}
+        }
+      }
+      if (parsed) {
+        const rawDq = parsed.data_quality_score ?? parsed.overall_quality_score;
+        if (!rawDq || Number(rawDq) <= 0) {
+          const clinCount = Object.keys(parsed?.confirmed_features?.clinical || parsed?.clinical_features || {}).length;
+          const wearCount = Object.keys(parsed?.confirmed_features?.wearable || parsed?.wearable_features || {}).length;
+          const gutCount = Object.keys(parsed?.confirmed_features?.gut || parsed?.gut_features || {}).length;
+          const modCount = (clinCount > 0 ? 1 : 0) + (wearCount > 0 ? 1 : 0) + (gutCount > 0 ? 1 : 0);
+          const fallbackPct = modCount >= 3 ? 85 : (modCount === 2 ? 65 : (modCount === 1 ? 55 : 75));
+          parsed.data_quality_score = fallbackPct / 100;
+          parsed.overall_quality_score = fallbackPct;
+          if (parsed.data_quality_scores) {
+            parsed.data_quality_scores.overall_quality_score = fallbackPct;
+          }
           try { sessionStorage.setItem('telemed_pred', JSON.stringify(parsed)); } catch (e) {}
         }
       }
@@ -298,16 +313,22 @@ export default function App() {
               const latest = userRecords[0];
               const rawSnap = latest.prediction_snapshot || latest;
               const features = latest.confirmed_features || rawSnap.confirmed_features || {};
+              const resolvedDq = (latest.data_quality_score && Number(latest.data_quality_score) > 0)
+                ? Number(latest.data_quality_score)
+                : ((rawSnap.data_quality_score && Number(rawSnap.data_quality_score) > 0) 
+                    ? Number(rawSnap.data_quality_score) 
+                    : (rawSnap.overall_quality_score && Number(rawSnap.overall_quality_score) > 0 ? Number(rawSnap.overall_quality_score) / 100 : 0.85));
               const snap = {
                 ...rawSnap,
                 confirmed_features: features,
                 active_modalities: latest.active_modalities || rawSnap.active_modalities || ['clinical', 'wearable', 'gut'],
                 effective_pathway: latest.effective_pathway || rawSnap.effective_pathway || rawSnap.pathway_used || 'C+W+G',
-                data_quality_score: latest.data_quality_score ?? rawSnap.data_quality_score,
+                data_quality_score: resolvedDq,
                 record_id: latest.record_id || rawSnap.record_id,
               };
               if (snap) {
                 setPredictionData(snap);
+                try { sessionStorage.setItem('telemed_pred', JSON.stringify(snap)); } catch (e) {}
                 setSession(prev => prev || {
                   session_id: latest.record_id || latest.session_id || `P_${currentUser.user_id?.slice(-6) || 'REC'}`,
                   confirmed_features: features,

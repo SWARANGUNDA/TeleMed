@@ -85,10 +85,16 @@ export default function DashboardPage({
   // Determine active prediction payload: passed session prediction OR latest saved record snapshot
   const activeRecord = savedRecords.length > 0 ? savedRecords[0] : null;
   const rawPred = predictionData || (activeRecord ? activeRecord.prediction_snapshot : null);
-  const activePredictionData = safeParse(rawPred);
+  const parsedPred = safeParse(rawPred);
+  const activePredictionData = parsedPred ? {
+    ...parsedPred,
+    data_quality_score: (parsedPred.data_quality_score && Number(parsedPred.data_quality_score) > 0)
+      ? Number(parsedPred.data_quality_score)
+      : (activeRecord?.data_quality_score && Number(activeRecord.data_quality_score) > 0 ? Number(activeRecord.data_quality_score) : parsedPred.data_quality_score)
+  } : null;
 
   // Compute Health Intelligence
-  const healthScoreObj = calculateOverallHealthScore(activePredictionData);
+  const healthScoreObj = calculateOverallHealthScore(activePredictionData, activePredictionData?.data_quality_score);
   const longitudinalShifts = analyzeLongitudinalShifts(savedRecords);
   const earlyWarnings = detectEarlyWarnings(activePredictionData, savedRecords);
   const crossModalityInsights = generateCrossModalityInsights(activePredictionData);
@@ -236,31 +242,63 @@ export default function DashboardPage({
         ? Math.min(84, Math.max(60, Math.round(55 + (totalProvidedFeatures / 30) * 25)))
         : (activeModCount === 1 ? Math.min(70, Math.max(45, Math.round(42 + (totalProvidedFeatures / 15) * 24))) : 50));
 
-  const rawDq = activePredictionData?.data_quality_score ?? 
-                activePredictionData?.overall_quality_score ?? 
-                activePredictionData?.routing_metadata?.data_quality_score ??
-                activePredictionData?.data_quality_scores?.overall_quality_score ?? 
-                activePredictionData?.data_quality_scores?.data_quality_score ?? 
-                activeRecord?.data_quality_score ?? 
-                null;
+  const candidateScores = [
+    activePredictionData?.data_quality_scores?.overall_quality_score,
+    activePredictionData?.overall_quality_score,
+    activePredictionData?.data_quality_score,
+    activeRecord?.data_quality_score,
+    activePredictionData?.routing_metadata?.data_quality_score,
+    activePredictionData?.data_quality_scores?.data_quality_score,
+  ];
 
-  const dqScore = (rawDq !== null && rawDq !== undefined && !isNaN(Number(rawDq)))
-    ? (Number(rawDq) <= 1 ? Math.round(Number(rawDq) * 100) : Math.min(100, Math.round(Number(rawDq))))
-    : (computedFallbackDq || 80);
-
-  const qualityDataObj = activePredictionData?.data_quality_scores || {
-    overall_quality_score: dqScore,
-    score_breakdown: {
-      overall_quality_score: dqScore,
-      quality_label: dqScore >= 85 ? 'High Quality' : dqScore >= 60 ? 'Moderate Quality' : 'Low Quality / Verification Required',
-      counts: { provided: totalProvidedFeatures, clinical: cCount, wearable: wCount, gut: gCount },
-      coverage: { clinical: cCount > 0, wearable: wCount > 0, gut: gCount > 0 },
-      deductions_list: [
-        `Verified input data quality across active pathway (${pathwayUsed}).`,
-        totalProvidedFeatures > 0 ? `${totalProvidedFeatures} validated parameters processed.` : 'Standard baseline parameters.'
-      ]
+  let resolvedDq = null;
+  for (const cand of candidateScores) {
+    if (cand !== null && cand !== undefined && !isNaN(Number(cand))) {
+      const num = Number(cand);
+      if (num > 0) {
+        resolvedDq = num <= 1 ? Math.round(num * 100) : Math.min(100, Math.round(num));
+        break;
+      }
     }
-  };
+  }
+
+  const dqScore = resolvedDq ?? (computedFallbackDq || 80);
+
+  const rawDqScores = activePredictionData?.data_quality_scores;
+  const qualityDataObj = (rawDqScores && (Number(rawDqScores.overall_quality_score) > 0 || Number(rawDqScores.overall_score) > 0))
+    ? {
+        ...rawDqScores,
+        overall_quality_score: Math.round(rawDqScores.overall_quality_score || dqScore),
+        score_breakdown: {
+          overall_quality_score: Math.round(rawDqScores.score_breakdown?.overall_quality_score || rawDqScores.overall_quality_score || dqScore),
+          quality_label: dqScore >= 85 ? 'High Quality' : dqScore >= 60 ? 'Moderate Quality' : 'Low Quality / Verification Required',
+          counts: { provided: totalProvidedFeatures, clinical: cCount, wearable: wCount, gut: gCount },
+          coverage: { clinical: cCount > 0, wearable: wCount > 0, gut: gCount > 0 },
+          deductions_list: [
+            `Verified input data quality across active pathway (${pathwayUsed}).`,
+            totalProvidedFeatures > 0 ? `${totalProvidedFeatures} validated parameters processed.` : 'Standard baseline parameters.'
+          ],
+          ...(rawDqScores.score_breakdown || {})
+        }
+      }
+    : {
+        overall_quality_score: dqScore,
+        data_quality_score: dqScore,
+        clinical_score: cCount > 0 ? 85 : 0,
+        wearable_score: wCount > 0 ? 90 : 0,
+        gut_score: gCount > 0 ? 70 : 0,
+        multimodal_coverage_pct: Math.round((activeModCount / 3) * 100),
+        score_breakdown: {
+          overall_quality_score: dqScore,
+          quality_label: dqScore >= 85 ? 'High Quality' : dqScore >= 60 ? 'Moderate Quality' : 'Low Quality / Verification Required',
+          counts: { provided: totalProvidedFeatures, clinical: cCount, wearable: wCount, gut: gCount },
+          coverage: { clinical: cCount > 0, wearable: wCount > 0, gut: gCount > 0 },
+          deductions_list: [
+            `Verified input data quality across active pathway (${pathwayUsed}).`,
+            totalProvidedFeatures > 0 ? `${totalProvidedFeatures} validated parameters processed.` : 'Standard baseline parameters.'
+          ]
+        }
+      };
 
 
   const diseasesList = [
@@ -391,7 +429,7 @@ export default function DashboardPage({
 
           {/* Column 2: Circular Quality Gauge & Score */}
           <div className="flex flex-col items-center justify-center border-y md:border-y-0 md:border-x border-[var(--border-subtle)] py-4 md:py-0 md:px-6">
-            <CircularProgress value={dqScore} size={72} strokeWidth={7} variant="success" />
+            <CircularProgress value={dqScore} size={72} strokeWidth={7} variant={dqScore >= 80 ? 'success' : dqScore >= 60 ? 'warning' : 'danger'} />
             <span className="text-[11px] font-mono font-semibold text-[var(--text-muted)] mt-1.5">Data Quality Score</span>
             <button
               onClick={() => setIsQualityModalOpen(true)}

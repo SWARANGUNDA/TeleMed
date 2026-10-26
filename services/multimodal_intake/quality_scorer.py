@@ -115,22 +115,28 @@ def calculate_data_quality_scores(
     # 3. Input Quality Score & Coverage
     active_mod_count = sum([1 for m in [has_clinical, has_wearable, has_gut] if m])
     multimodal_coverage_pct = round((active_mod_count / 3.0) * 100.0, 1) if active_mod_count > 0 else 0.0
-    input_quality_base = round(0.65 * completeness_pct + 0.35 * mean_conf_pct, 1) if active_mod_count > 0 else 0.0
+    
+    # Technical Formula:
+    # Base Score = 50% Completeness + 30% Extraction Fidelity + 20% Multimodal Cross-Validation
+    input_quality_base = round(
+        0.50 * completeness_pct + 0.30 * mean_conf_pct + 0.20 * multimodal_coverage_pct, 1
+    ) if active_mod_count > 0 else 0.0
 
-    # 4. Imputation Deduction
+    # 4. Epistemic Imputation Uncertainty Deduction
+    # Imputation is bounded to a maximum uncertainty deduction of 15 points, proportional to imputed ratio
     imputed_count = len(imputed_fields) if imputed_fields is not None else 0
-    imputation_deductions = round(imputed_count * 3.0, 1)
+    imputation_deductions = round((imputed_count / max(total_active_target, 1)) * 15.0, 1) if total_active_target > 0 else 0.0
 
     if missing_count > 0:
-        deductions_list.append(f"Missing {missing_count} feature(s) across active modalities (-{round(missing_count * 2.5, 1)}%)")
+        deductions_list.append(f"Missing {missing_count} feature(s) across active modalities (Completeness: {round(completeness_pct, 1)}%)")
     if imputed_count > 0:
-        deductions_list.append(f"{imputed_count} feature(s) backend median-imputed before prediction (-{imputation_deductions}%)")
-    if not (has_clinical and has_wearable and has_gut):
+        deductions_list.append(f"{imputed_count} feature(s) median-imputed (-{imputation_deductions}% uncertainty adjustment)")
+    if not (has_clinical and has_wearable and has_gut) and active_mod_count > 0:
         missing_mods = []
         if not has_clinical: missing_mods.append("Clinical")
         if not has_wearable: missing_mods.append("Wearable")
         if not has_gut: missing_mods.append("Gut")
-        deductions_list.append(f"Multimodal coverage is {multimodal_coverage_pct}% ({', '.join(missing_mods)} missing)")
+        deductions_list.append(f"Pathway coverage is {multimodal_coverage_pct}% ({', '.join(missing_mods)} omitted in current pathway)")
 
     # 5. Capping Rules for Unresolved VERIFY or CONFLICT items
     cap = 100.0
@@ -145,7 +151,11 @@ def calculate_data_quality_scores(
         deductions_list.append("Score capped at 65.0% due to unresolved VERIFY clinical anomalies")
 
     raw_final = input_quality_base - imputation_deductions
-    final_score = round(max(0.0, min(cap, raw_final)), 1)
+    # If valid features are provided, ensure score reflects provided evidence (min 20.0%)
+    if provided_count > 0:
+        final_score = round(max(20.0, min(cap, raw_final)), 1)
+    else:
+        final_score = 0.0
 
     # 6. Quality Label
     if provided_count == 0 or final_score == 0.0:

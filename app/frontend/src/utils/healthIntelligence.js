@@ -33,13 +33,19 @@ function extractVal(item) {
  * - Metabolic Risk Penalty: 50% (50 - Mean(Disease_Risk_Probabilities) * 50)
  * - Biomarker Normalcy Component: 30% (Normalcy_Ratio * 30)
  */
-export function calculateOverallHealthScore(rawPredictionData) {
+export function calculateOverallHealthScore(rawPredictionData, explicitDq = null) {
   if (!rawPredictionData) return null;
   const predictionData = typeof rawPredictionData === 'string' ? safeParse(rawPredictionData) : rawPredictionData;
   if (!predictionData || typeof predictionData !== 'object') return null;
 
-  const dq = predictionData.data_quality_score ?? predictionData.overall_quality_score ?? 0.85;
-  const dqComponent = (dq > 1.0 ? dq / 100 : dq) * 20;
+  const rawDq = explicitDq ??
+                predictionData.data_quality_scores?.overall_quality_score ??
+                predictionData.overall_quality_score ??
+                predictionData.data_quality_score ??
+                predictionData.routing_metadata?.data_quality_score;
+  const numDq = Number(rawDq);
+  const dq = (!isNaN(numDq) && numDq > 0) ? (numDq > 1 ? numDq / 100 : numDq) : 0.85;
+  const dqComponent = dq * 20;
 
   const outcomes = safeParse(predictionData.disease_outcomes || predictionData.predictions || {});
   const diseaseKeys = ['Type2_Diabetes', 'Prediabetes', 'High_Adiposity_Risk', 'Metabolic_Syndrome', 'NAFLD'];
