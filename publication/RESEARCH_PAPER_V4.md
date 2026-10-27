@@ -36,6 +36,10 @@ The exact positive-class prevalence rates for the five targets in the evaluation
 An earlier generator version applied post-label deterministic clinical clamping to diagnostic variables. This created target-feature leakage. The perfect Clinical discrimination in the clamped cohort was attributable to deterministic label-feature coupling and therefore was not interpretable as generalizable predictive performance. Consequently, the clamping logic was removed. The completely de-clamped cohort was used for all final experiments.
 
 ## 6. Methodology
+
+![TeleMed-M3 System Architecture](overleaf_submission/figures/architecture.png)
+*Figure 1: TeleMed-M3 System Architecture depicting 18 Clinical, 15 Wearable/CGM, and 49 Gut Microbiome features, dynamic 7-pathway routing, meta-stacking fusion, 5 metabolic risk predictions, TreeSHAP explainability, and Medical RAG decision support.*
+
 **A. Modality-specific experts:** Specialized models natively predicting based on C, W, or G.
 **B. Preprocessing Pipelines:** Ensuring identical treatment across training and inference.
 **C. OOF predictions:** Expert outputs for the training split used as meta-features.

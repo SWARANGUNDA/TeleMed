@@ -193,7 +193,8 @@ P7 (C+W+G) & Yes & Yes & Yes & Yes \\
 \begin{figure*}[htbp]
 \centering
 \includegraphics[width=\textwidth]{figures/architecture.png}
-\caption{TeleMed-M3 System Architecture. Note: The diagram depicts Gut Model — 50 Features and Calibrated Risk Probabilities; these represent the 49 predictive model features (derived from the 50 dimensions after excluding Other Taxa) and the Risk Probabilities as evaluated in the current protocol.}
+\caption{TeleMed-M3 System Architecture. End-to-end multimodal workflow illustrating preprocessing, dynamic 7-pathway routing, modality-specific expert classifiers (Clinical: 18 features, Wearable/CGM: 15 features, Gut Microbiome: 49 features), meta-stacking fusion engine, prediction output across 5 metabolic conditions, explainability (TreeSHAP), evidence-grounded Medical RAG, and personalized clinical recommendations.}
+\label{fig:arch}
 \end{figure*}
 
 \subsection{15 Expert Models}

@@ -141,8 +141,8 @@ To facilitate rigorous model training, hyperparameter tuning, and final evaluati
 
 \begin{figure*}[t]
 \centering
-\includegraphics[width=\textwidth]{figures/architecture.jpg}
-\caption{Overall workflow of the TeleMed Platform.}
+\includegraphics[width=\textwidth]{figures/architecture.png}
+\caption{End-to-End Multimodal System Architecture of the TeleMed-M3 Platform. Illustrates ingestion of Clinical (18 features), Wearable/CGM (15 features), and Gut Microbiome (49 features) data, preprocessing unit, dynamic 7-pathway routing across observed modalities, late probability-level meta-stacking fusion, 5-disease calibrated risk outputs, TreeSHAP explainability, generative Medical RAG decision support, and personalized interventions.}
 \label{fig:arch}
 \end{figure*}
 
@@ -205,7 +205,7 @@ NAFLD & 0.7743 & 0.5995 & 0.6487 & 0.7745 & 0.7771 & 0.6621 & 0.7772 \\
 \end{tabular}
 \end{table*}
 
-The evaluation of the individual modality experts (Table \ref{tab:fusion}, columns C, W, G) demonstrated that the Clinical modality provided the highest discriminative capacity across all targets. This performance hierarchy—where classical clinical biomarkers provided the strongest standalone predictive signal—was consistent across Prediabetes, High Adiposity Risk, Metabolic Syndrome, and NAFLD. Notably, when Clinical data was entirely unavailable, the Wearable+Gut (W+G) pathway maintained a functional predictive safety net, achieving an AUROC of 0.6894 for T2D.
+The evaluation of the individual modality experts (Table \ref{tab:fusion}, columns C, W, G) demonstrated that the Clinical modality provided the highest discriminative capacity across all targets. This performance hierarchyÂ—where classical clinical biomarkers provided the strongest standalone predictive signalÂ—was consistent across Prediabetes, High Adiposity Risk, Metabolic Syndrome, and NAFLD. Notably, when Clinical data was entirely unavailable, the Wearable+Gut (W+G) pathway maintained a functional predictive safety net, achieving an AUROC of 0.6894 for T2D.
 
 \begin{figure}[t]
 \centering
