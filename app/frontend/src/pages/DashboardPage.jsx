@@ -3,7 +3,7 @@ import {
   ArrowRight, Brain, FileText, Activity, ShieldCheck, ChevronDown, ChevronUp,
   PlusCircle, Watch, Dna, Info, UserCheck, AlertCircle, FileSpreadsheet, Stethoscope,
   Calendar, Clock, CheckCircle, TrendingUp, Sparkles, Filter, ChevronRight, BookmarkCheck,
-  Award, RefreshCw, GitCompare, FolderClock, Heart, ActivitySquare, Droplet, Eye,
+  Award, RefreshCw, FolderClock, Heart, ActivitySquare, Droplet, Eye,
   Compass, Shuffle, Utensils, Moon, Flame, Zap
 } from 'lucide-react';
 import {
@@ -400,9 +400,6 @@ export default function DashboardPage({
         badge={`Pathway: ${pathwayUsed}`}
         actions={
           <div className="flex items-center gap-3">
-            <Button variant="outline" size="md" leftIcon={<GitCompare className="w-4 h-4" />} onClick={onOpenComparison}>
-              Compare History
-            </Button>
             <Button variant="primary" size="md" leftIcon={<PlusCircle className="w-4 h-4" />} onClick={handleTriggerNewAnalysis}>
               New Analysis
             </Button>

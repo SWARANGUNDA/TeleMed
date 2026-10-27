@@ -42,18 +42,26 @@ class ExpertInferenceEngine:
         else:
             df_in = features_input.copy()
 
+        if "Gender" in df_in.columns:
+            df_in["Gender"] = df_in["Gender"].map(
+                lambda x: 1.0 if str(x).strip().lower() in ("1", "1.0", "male", "m") else (0.0 if str(x).strip().lower() in ("0", "0.0", "female", "f") else x)
+            )
+
         for col in feature_order:
             if col not in df_in.columns or df_in[col].isna().all():
                 df_in[col] = medians.get(col, 0.0)
+            else:
+                df_in[col] = pd.to_numeric(df_in[col], errors="coerce").fillna(medians.get(col, 0.0))
 
         df_ordered = df_in[feature_order].copy()
         
         results: Dict[str, Dict[str, Union[float, int]]] = {}
         
-        for disease in config.TARGET_DISEASES:
+        target_diseases = list(models.keys()) if isinstance(models, dict) else config.TARGET_DISEASES
+        for disease in target_diseases:
             model = models[disease]
-            scaler = scalers[disease] if isinstance(scalers, dict) else scalers
-            t = float(thresholds[disease]) if isinstance(thresholds, dict) else float(thresholds)
+            scaler = scalers.get(disease, scalers) if isinstance(scalers, dict) else scalers
+            t = float(thresholds.get(disease, 0.5)) if isinstance(thresholds, dict) else float(thresholds)
             
             clf_name = type(model).__name__
             if clf_name in ("LGBMClassifier", "RandomForestClassifier", "XGBClassifier", "ExtraTreesClassifier", "DecisionTreeClassifier"):
@@ -69,5 +77,10 @@ class ExpertInferenceEngine:
                 "prediction": pred,
                 "threshold": round(t, 4)
             }
+            
+        if "High_Adiposity_Risk" in results and "Obesity" not in results:
+            results["Obesity"] = results["High_Adiposity_Risk"]
+        elif "Obesity" in results and "High_Adiposity_Risk" not in results:
+            results["High_Adiposity_Risk"] = results["Obesity"]
             
         return results

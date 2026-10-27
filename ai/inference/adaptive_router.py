@@ -80,7 +80,15 @@ def assemble_fusion_input(
     for mod_key in active_modalities:
         output = expert_outputs[mod_key]
         for disease in config.TARGET_DISEASES:
-            prob = output[disease]["probability"]
+            d_entry = output.get(disease)
+            if d_entry is None:
+                if disease == "Obesity":
+                    d_entry = output.get("High_Adiposity_Risk", {})
+                elif disease == "High_Adiposity_Risk":
+                    d_entry = output.get("Obesity", {})
+                else:
+                    d_entry = {}
+            prob = d_entry.get("probability", 0.0)
             prob_vector.append(float(prob))
 
     return np.array(prob_vector).reshape(1, -1)

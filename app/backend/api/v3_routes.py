@@ -259,8 +259,8 @@ def qanda_v3(
     Does NOT alter ML model state or probabilities.
     """
     try:
-        from app.backend.services.rag_service_wrapper import RAGServiceWrapper
-        wrapper = RAGServiceWrapper()
+        from app.backend.services.rag_service_wrapper import get_shared_rag_wrapper
+        wrapper = get_shared_rag_wrapper()
         patient_features = {}
         if request.predict_response:
             expert_outs = request.predict_response.get("expert_outputs", {})

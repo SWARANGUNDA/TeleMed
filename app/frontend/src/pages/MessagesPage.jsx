@@ -16,7 +16,9 @@ import {
   fetchConsultationMessages,
   sendConsultationMessage,
   markMessagesAsRead,
-  askRAGQuestion
+  askRAGQuestion,
+  getWsBaseUrl,
+  getAuthToken
 } from '../api/client';
 
 export default function MessagesPage({ user }) {
@@ -147,11 +149,89 @@ export default function MessagesPage({ user }) {
     }
   }, []);
 
+  const wsRef = useRef(null);
+
+  // Real-Time WebSocket & Active Sync for Selected Conversation
   useEffect(() => {
-    if (selectedConversationId) {
+    if (!selectedConversationId || selectedConversationId === 'ai-assistant') return;
+
+    loadActiveMessages(selectedConversationId);
+
+    let ws = null;
+    let pingInterval = null;
+
+    try {
+      const wsBase = getWsBaseUrl();
+      const token = getAuthToken() || user?.user_id || '';
+      const wsUrl = `${wsBase}/ws/chat/${selectedConversationId}?token=${encodeURIComponent(token)}`;
+      ws = new WebSocket(wsUrl);
+      wsRef.current = ws;
+
+      ws.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          const evt = data.event || data.type;
+          if (evt === 'chat_message' || evt === 'NEW_MESSAGE') {
+            const msgId = data.message_id || data.id || `ws_${Date.now()}`;
+            const msgContent = data.content || data.message || '';
+            const msgTime = data.timestamp || new Date().toISOString();
+
+            const incomingMsg = {
+              message_id: msgId,
+              consultation_id: selectedConversationId,
+              sender_user_id: data.sender_id,
+              sender_role: data.sender_role || 'OTHER',
+              sender_name: data.sender_name || 'Physician',
+              content: msgContent,
+              created_at: msgTime,
+              status: 'sent'
+            };
+
+            setMessagesHistory(prev => {
+              const currentList = prev[selectedConversationId] || [];
+              if (currentList.some(m => m.message_id === msgId || (m.content === msgContent && m.sender_user_id === data.sender_id))) {
+                return prev;
+              }
+              return {
+                ...prev,
+                [selectedConversationId]: [...currentList, incomingMsg]
+              };
+            });
+
+            setConversations(prev => prev.map(c =>
+              (c.id === selectedConversationId || c.consultation_id === selectedConversationId)
+                ? { ...c, lastMessage: msgContent, lastMessageTime: 'Just now' }
+                : c
+            ));
+            setTimeout(() => scrollToBottom(true), 40);
+          }
+        } catch (e) {}
+      };
+
+      ws.onopen = () => {
+        pingInterval = setInterval(() => {
+          if (ws.readyState === WebSocket.OPEN) ws.send('ping');
+        }, 15000);
+      };
+    } catch (e) {}
+
+    // Fast adaptive polling fallback (every 3.5 seconds when active)
+    const pollInterval = setInterval(() => {
+      if (typeof document !== 'undefined' && document.hidden) return;
+      if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) return;
       loadActiveMessages(selectedConversationId);
-    }
-  }, [selectedConversationId, loadActiveMessages]);
+    }, 3500);
+
+    return () => {
+      if (ws) {
+        if (ws.readyState === WebSocket.CONNECTING) ws.onopen = () => ws.close();
+        else if (ws.readyState === WebSocket.OPEN) ws.close();
+      }
+      if (pingInterval) clearInterval(pingInterval);
+      clearInterval(pollInterval);
+      wsRef.current = null;
+    };
+  }, [selectedConversationId, user?.user_id, loadActiveMessages, scrollToBottom]);
 
   const handleSendMessage = async (e) => {
     if (e) e.preventDefault();
@@ -224,6 +304,23 @@ export default function MessagesPage({ user }) {
       ...prev,
       [selectedConversationId]: [...(prev[selectedConversationId] || []), newMsg]
     }));
+    setTimeout(() => scrollToBottom(true), 30);
+
+    // Instant WebSocket broadcast if open
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      try {
+        wsRef.current.send(JSON.stringify({
+          event: 'chat_message',
+          type: 'chat_message',
+          consultation_id: selectedConversationId,
+          content: text,
+          sender_name: patientFullName,
+          sender_id: userId,
+          message_id: tempMsgId,
+          timestamp: nowIso
+        }));
+      } catch (wsErr) {}
+    }
 
     try {
       const res = await sendConsultationMessage(selectedConversationId, text);

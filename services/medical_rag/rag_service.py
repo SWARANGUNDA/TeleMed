@@ -25,11 +25,20 @@ from .retriever import EvidenceRetriever
 logger = logging.getLogger("services.medical_rag.rag_service")
 
 
+_shared_xai_engine = None
+
+def get_shared_xai_engine():
+    global _shared_xai_engine
+    if _shared_xai_engine is None:
+        _shared_xai_engine = UnifiedXAIEngine().load()
+    return _shared_xai_engine
+
+
 class MedicalRAGService:
     """High-Level Medical RAG Service supporting Report Mode and Q&A Mode."""
 
     def __init__(self):
-        self.xai_engine = UnifiedXAIEngine().load()
+        self.xai_engine = get_shared_xai_engine()
         self.retriever = EvidenceRetriever()
         self.generator = GroundedRAGGenerator()
         self.post_validator = RAGPostValidator()

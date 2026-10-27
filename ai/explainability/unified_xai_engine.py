@@ -107,9 +107,9 @@ class UnifiedXAIEngine:
         ]
         missing_modalities = [m for m in fusion_config.MODALITY_KEYS if m not in active_modalities]
 
-        pathway_key = fusion_preds[fusion_config.TARGET_DISEASES[0]]["pathway"]
-        meta_learner = self.fusion_engine.pathway_models[pathway_key]
-        model_type = self.fusion_engine.pathway_model_types[pathway_key]
+        pathway_key = fusion_preds.get(fusion_config.TARGET_DISEASES[0], {}).get("pathway", "C+W+G")
+        meta_learner = getattr(self.fusion_engine, "pathway_models", {}).get(pathway_key, None)
+        model_type = getattr(self.fusion_engine, "pathway_model_types", {}).get(pathway_key, "unknown")
 
         # Step 2: Get Fusion Decision Weights for active pathway
         fusion_weights_all = compute_modality_attribution(meta_learner, model_type, pathway_key)
@@ -132,13 +132,15 @@ class UnifiedXAIEngine:
         # Step 4: Assemble RAG Contract Payload
         diseases_xai = {}
         for disease in fusion_config.TARGET_DISEASES:
-            fusion_d = fusion_preds[disease]
+            fusion_d = fusion_preds.get(disease) or fusion_preds.get("High_Adiposity_Risk" if disease == "Obesity" else disease, {})
 
             disease_experts = {}
             for mod_key in active_modalities:
                 exp_name = fusion_config.MODALITY_EXPERT_MAP[mod_key]["expert_name"]
-                exp_pred = self.fusion_engine.expert_engines[exp_name].predict(patient_features[mod_key])[disease]
-                raw_drivers = expert_shap_results[mod_key][disease].get("top_risk_drivers", [])
+                pred_dict = self.fusion_engine.expert_engines[exp_name].predict(patient_features[mod_key])
+                exp_pred = pred_dict.get(disease) or pred_dict.get("High_Adiposity_Risk" if disease == "Obesity" else disease, {})
+                shap_entry = expert_shap_results[mod_key].get(disease) or expert_shap_results[mod_key].get("High_Adiposity_Risk" if disease == "Obesity" else disease, {})
+                raw_drivers = shap_entry.get("top_risk_drivers", [])
 
                 formatted_drivers = []
                 for d in raw_drivers:

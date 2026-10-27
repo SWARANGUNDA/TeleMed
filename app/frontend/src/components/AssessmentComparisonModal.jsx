@@ -5,9 +5,13 @@ import { X, GitCompare, ArrowUpRight, ArrowDownRight, Minus, Activity, ShieldChe
 export default function AssessmentComparisonModal({ isOpen, onClose, currentSession, historicalSession }) {
   if (!isOpen) return null;
 
-  const currentPreds = currentSession?.predictions || {};
-  const currentClinical = currentSession?.input_data?.clinical || currentSession?.extracted_features?.clinical || {};
-  const currentDQ = currentSession?.data_quality_scores?.overall_quality_score ?? 92.5;
+  const rawPreds = currentSession?.predictions || currentSession?.prediction_output?.predictions || currentSession?.disease_outcomes || {};
+  const currentPreds = {
+    ...rawPreds,
+    Obesity: rawPreds.Obesity || rawPreds.High_Adiposity_Risk || { calibrated_probability: 0 }
+  };
+  const currentClinical = currentSession?.input_data?.clinical || currentSession?.extracted_features?.clinical || currentSession?.confirmed_features?.clinical || {};
+  const currentDQ = currentSession?.data_quality_scores?.overall_quality_score ?? currentSession?.prediction_output?.data_quality_score ?? 92.5;
 
   // Default baseline for historical comparison if secondary record is unsupplied
   const basePreds = historicalSession?.predictions || {
@@ -59,8 +63,8 @@ export default function AssessmentComparisonModal({ isOpen, onClose, currentSess
       left: 0,
       right: 0,
       bottom: 0,
-      backgroundColor: 'rgba(15, 23, 42, 0.85)',
-      backdropFilter: 'blur(8px)',
+      backgroundColor: 'rgba(0, 0, 0, 0.55)',
+      backdropFilter: 'blur(6px)',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
@@ -68,57 +72,57 @@ export default function AssessmentComparisonModal({ isOpen, onClose, currentSess
       padding: '20px'
     }}>
       <div style={{
-        background: 'var(--bg-secondary)',
-        border: '1px solid var(--border-subtle)',
+        background: 'var(--bg-surface)',
+        border: '1px solid var(--border-medium)',
         borderRadius: '16px',
         width: '100%',
         maxWidth: '860px',
         maxHeight: '90vh',
         overflowY: 'auto',
         padding: '24px',
-        boxShadow: '0 20px 40px rgba(0,0,0,0.5)',
+        boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
         color: 'var(--text-main)'
       }}>
         {/* Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', borderBottom: '1px solid var(--border-subtle)', paddingBottom: '14px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <GitCompare size={22} style={{ color: 'var(--accent-cyan)' }} />
+            <GitCompare size={22} style={{ color: 'var(--primary)' }} />
             <div>
               <h3 style={{ fontSize: '1.2rem', fontWeight: 800, margin: 0, color: 'var(--text-main)' }}>Historical Assessment Comparison</h3>
-              <p style={{ fontSize: '0.8rem', color: 'var(--text-dim)', margin: '2px 0 0 0' }}>Side-by-side longitudinal metric delta analysis</p>
+              <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: '2px 0 0 0' }}>Side-by-side longitudinal metric delta analysis</p>
             </div>
           </div>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--text-dim)', cursor: 'pointer', padding: '4px' }}>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '4px' }}>
             <X size={20} />
           </button>
         </div>
 
         {/* Overview Bar */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px', marginBottom: '20px', background: 'rgba(30, 41, 59, 0.5)', padding: '14px', borderRadius: '12px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px', marginBottom: '20px', background: 'var(--bg-primary)', border: '1px solid var(--border-subtle)', padding: '14px', borderRadius: '12px' }}>
           <div>
-            <div style={{ fontSize: '0.72rem', color: 'var(--text-dim)', textTransform: 'uppercase' }}>Baseline Assessment</div>
+            <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Baseline Assessment</div>
             <div style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-main)' }}>Prior Session (Baseline)</div>
-            <div style={{ fontSize: '0.78rem', color: 'var(--accent-amber)' }}>Pathway C • DQ: {baseDQ.toFixed(1)}%</div>
+            <div style={{ fontSize: '0.78rem', color: 'var(--warning)' }}>Pathway C • DQ: {baseDQ.toFixed(1)}%</div>
           </div>
           <div style={{ textAlign: 'center', borderLeft: '1px solid var(--border-subtle)', borderRight: '1px solid var(--border-subtle)' }}>
-            <div style={{ fontSize: '0.72rem', color: 'var(--text-dim)', textTransform: 'uppercase' }}>Shift / Delta</div>
-            <div style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--accent-cyan)', marginTop: '2px' }}>Longitudinal Tracker</div>
+            <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Shift / Delta</div>
+            <div style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--primary)', marginTop: '2px' }}>Longitudinal Tracker</div>
           </div>
           <div style={{ textAlign: 'right' }}>
-            <div style={{ fontSize: '0.72rem', color: 'var(--text-dim)', textTransform: 'uppercase' }}>Current Assessment</div>
+            <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Current Assessment</div>
             <div style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-main)' }}>Active Session</div>
-            <div style={{ fontSize: '0.78rem', color: 'var(--accent-cyan)' }}>Pathway C+W+G • DQ: {currentDQ.toFixed(1)}%</div>
+            <div style={{ fontSize: '0.78rem', color: 'var(--primary)' }}>Pathway C+W+G • DQ: {currentDQ.toFixed(1)}%</div>
           </div>
         </div>
 
         {/* 1. Disease Screening Risk Comparison */}
         <div style={{ marginBottom: '24px' }}>
-          <h4 style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--accent-cyan)', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <h4 style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--primary)', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
             <Activity size={16} /> Disease Screening Probabilities Comparison
           </h4>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
             <thead>
-              <tr style={{ borderBottom: '1px solid var(--border-subtle)', textAlign: 'left', color: 'var(--text-dim)' }}>
+              <tr style={{ borderBottom: '1px solid var(--border-subtle)', textAlign: 'left', color: 'var(--text-muted)' }}>
                 <th style={{ padding: '8px' }}>Disease Condition</th>
                 <th style={{ padding: '8px' }}>Baseline Score</th>
                 <th style={{ padding: '8px' }}>Current Score</th>
@@ -130,9 +134,9 @@ export default function AssessmentComparisonModal({ isOpen, onClose, currentSess
                 const baseVal = (basePreds[dKey]?.calibrated_probability ?? basePreds[dKey]?.probability ?? 0) * 100;
                 const currVal = (currentPreds[dKey]?.calibrated_probability ?? currentPreds[dKey]?.probability ?? 0) * 100;
                 return (
-                  <tr key={dKey} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                  <tr key={dKey} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
                     <td style={{ padding: '10px 8px', fontWeight: 700 }}>{dKey.replace(/_/g, ' ')}</td>
-                    <td style={{ padding: '10px 8px', color: 'var(--text-dim)' }}>{baseVal.toFixed(1)}%</td>
+                    <td style={{ padding: '10px 8px', color: 'var(--text-muted)' }}>{baseVal.toFixed(1)}%</td>
                     <td style={{ padding: '10px 8px', color: 'var(--text-main)', fontWeight: 700 }}>{currVal.toFixed(1)}%</td>
                     <td style={{ padding: '10px 8px', textAlign: 'right' }}>{formatDelta(currVal, baseVal, '%')}</td>
                   </tr>
@@ -144,12 +148,12 @@ export default function AssessmentComparisonModal({ isOpen, onClose, currentSess
 
         {/* 2. Key Clinical Measurements Comparison */}
         <div>
-          <h4 style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--accent-emerald)', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <h4 style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--success)', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
             <ShieldCheck size={16} /> Key Clinical Biomarkers Comparison
           </h4>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
             <thead>
-              <tr style={{ borderBottom: '1px solid var(--border-subtle)', textAlign: 'left', color: 'var(--text-dim)' }}>
+              <tr style={{ borderBottom: '1px solid var(--border-subtle)', textAlign: 'left', color: 'var(--text-muted)' }}>
                 <th style={{ padding: '8px' }}>Biomarker / Vital</th>
                 <th style={{ padding: '8px' }}>Baseline Measurement</th>
                 <th style={{ padding: '8px' }}>Current Measurement</th>
@@ -162,9 +166,9 @@ export default function AssessmentComparisonModal({ isOpen, onClose, currentSess
                 const currVal = currentClinical[item.key];
                 const isNum = typeof currVal === 'number' && typeof baseVal === 'number';
                 return (
-                  <tr key={item.key} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                  <tr key={item.key} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
                     <td style={{ padding: '10px 8px', fontWeight: 600 }}>{item.label}</td>
-                    <td style={{ padding: '10px 8px', color: 'var(--text-dim)' }}>{baseVal !== undefined ? baseVal : '—'}</td>
+                    <td style={{ padding: '10px 8px', color: 'var(--text-muted)' }}>{baseVal !== undefined ? baseVal : '—'}</td>
                     <td style={{ padding: '10px 8px', color: 'var(--text-main)', fontWeight: 700 }}>{currVal !== undefined ? currVal : '—'}</td>
                     <td style={{ padding: '10px 8px', textAlign: 'right' }}>
                       {isNum ? formatDelta(currVal, baseVal, '') : <span style={{ color: 'var(--text-dim)' }}>—</span>}

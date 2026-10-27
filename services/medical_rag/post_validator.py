@@ -26,8 +26,8 @@ def clean_rag_response(text: str) -> str:
 
     for line in lines:
         stripped = line.strip()
-        # 1. Remove standalone citation-only lines (e.g. "- [REF_3]" or "[REF_1]")
-        if re.match(r"^[-•*]?\s*\[REF_\d+\]\s*$", stripped):
+        # 1. Remove standalone citation-only lines (e.g. "- [REF_3]" or "[REF_1]" or "[Ref 1]")
+        if re.match(r"^[-•*]?\s*\[(?:ref|citation)[_\s]*\d+\]\s*$", stripped, re.IGNORECASE):
             continue
 
         # 2. Remove empty bullet lines (e.g. "-" or "•")
@@ -36,7 +36,7 @@ def clean_rag_response(text: str) -> str:
 
         # 3. Remove duplicate non-header claim lines
         if stripped.startswith("- ") or stripped.startswith("• "):
-            claim_core = re.sub(r"\s*\[REF_\d+\]", "", stripped).strip().lower()
+            claim_core = re.sub(r"\s*\[(?:ref|citation)[_\s]*\d+\]", "", stripped, flags=re.IGNORECASE).strip().lower()
             if claim_core in seen_claims:
                 continue
             seen_claims.add(claim_core)
@@ -78,9 +78,9 @@ class RAGPostValidator:
         if "research prototype" not in cleaned_text.lower() and "disclaimer" not in cleaned_text.lower():
             errors.append("Mandatory research disclaimer missing from LLM response.")
 
-        # Check 2: Citation Grounding (Verify [REF_X] citations map to retrieved chunks)
+        # Check 2: Citation Grounding (Verify [REF_X] / [Ref X] citations map to retrieved chunks)
         retrieved_ref_ids = {ev["citation_id"] for ev in retrieved_evidence}
-        cited_ref_ids = set(re.findall(r"\[(REF_\d+)\]", cleaned_text))
+        cited_ref_ids = {f"REF_{m}" for m in re.findall(r"\[(?:ref|citation)[_\s]*(\d+)\]", cleaned_text, re.IGNORECASE)}
 
         unsupported_citations = cited_ref_ids - retrieved_ref_ids
         if unsupported_citations:

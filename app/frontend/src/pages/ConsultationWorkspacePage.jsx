@@ -562,9 +562,30 @@ export default function ConsultationWorkspacePage({ user, consultationContext, i
             setIsOtherTyping(false);
           } else if (evt === 'chat_message' || evt === 'NEW_MESSAGE') {
             setIsOtherTyping(false);
-            if (loadMessagesRef.current) {
-              loadMessagesRef.current(activeChatCId, true);
-            }
+            const msgId = data.message_id || data.id || `ws_${Date.now()}`;
+            const msgContent = data.content || data.message || '';
+            const msgTime = data.timestamp ? new Date(data.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Just now';
+            const msgSender = data.sender_name || (data.sender_role === 'PATIENT' ? (selectedConsultation?.patient_name || 'Patient') : (selectedConsultation?.doctor_name || 'Doctor'));
+            const msgRole = data.sender_role || (data.sender_id === user?.user_id ? role : 'OTHER');
+
+            const incomingMsg = {
+              id: msgId,
+              sender: msgSender,
+              role: msgRole,
+              time: msgTime,
+              text: msgContent,
+              status: 'sent'
+            };
+
+            setMessagesThread(prev => {
+              if (prev.some(m => m.id === msgId || (m.text === msgContent && m.role === msgRole))) {
+                return prev;
+              }
+              return [...prev, incomingMsg];
+            });
+
+            // Smooth auto-scroll to bottom
+            setTimeout(() => scrollConsultationToBottom(true), 40);
           }
         } catch (e) {}
       };
@@ -575,7 +596,7 @@ export default function ConsultationWorkspacePage({ user, consultationContext, i
       setConnectionStatus('disconnected');
     }
 
-    // Fallback polling only when WebSocket is inactive/disconnected to eliminate 429 rate limit storms
+    // Fast adaptive fallback polling (every 3 seconds when WebSocket is disconnected)
     const pollInterval = setInterval(() => {
       if (typeof document !== 'undefined' && document.hidden) return;
       // If WebSocket is actively connected, new messages arrive via push events — skip polling
@@ -583,7 +604,7 @@ export default function ConsultationWorkspacePage({ user, consultationContext, i
       if (loadMessagesRef.current) {
         loadMessagesRef.current(activeChatCId, true);
       }
-    }, 15000);
+    }, 3000);
 
     return () => {
       if (ws) {
@@ -645,13 +666,51 @@ export default function ConsultationWorkspacePage({ user, consultationContext, i
     if (!text || messageSending || !activeCons) return;
 
     const cId = activeCons.consultation_id || activeCons.id;
+    const tempId = `temp_${Date.now()}`;
+    const nowTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+    // 1. Optimistic UI Update: Render immediately for the sender (0ms latency!)
+    const optimisticMsg = {
+      id: tempId,
+      sender: user?.full_name || user?.name || (role === 'PATIENT' ? (activeCons?.patient_name || 'Patient') : (activeCons?.doctor_name || 'Doctor')),
+      role: role,
+      time: nowTime,
+      text: text,
+      status: 'sending'
+    };
+
     setPatientNewMessage('');
+    setMessagesThread(prev => [...prev, optimisticMsg]);
+    setTimeout(() => scrollConsultationToBottom(true), 30);
     setMessageSending(true);
 
+    // 2. Instant broadcast via WebSocket if open
+    if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
+      try {
+        socketRef.current.send(JSON.stringify({
+          event: 'chat_message',
+          type: 'chat_message',
+          consultation_id: cId,
+          content: text,
+          sender_name: user?.full_name || user?.name || 'User',
+          sender_id: user?.user_id,
+          message_id: tempId,
+          timestamp: new Date().toISOString()
+        }));
+      } catch (wsErr) {}
+    }
+
+    // 3. Persist to Backend REST API
     try {
-      await sendConsultationMessage(cId, text);
-      await loadMessages(cId, true);
+      const res = await sendConsultationMessage(cId, text);
+      const saved = res?.data || res;
+      setMessagesThread(prev => prev.map(m => m.id === tempId ? {
+        ...m,
+        id: saved?.message_id || tempId,
+        status: 'sent'
+      } : m));
     } catch (err) {
+      setMessagesThread(prev => prev.map(m => m.id === tempId ? { ...m, status: 'error' } : m));
       setErrorMsg(err.message || 'Failed to send message.');
     } finally {
       setMessageSending(false);

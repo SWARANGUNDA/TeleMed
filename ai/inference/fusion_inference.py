@@ -68,22 +68,28 @@ class FusionInferenceEngine:
         scalers = self.artifacts["scalers"][comb_name]
         thresholds = self.artifacts["thresholds"][comb_name]
         
-        mods = [f"{m.capitalize()}_{d}" for m in active_mods for d in config.TARGET_DISEASES]
-        X_df = pd.DataFrame(X_fusion, columns=mods)
+        mods = [m.capitalize() for m in active_mods]
 
         for disease in config.TARGET_DISEASES:
-            model = models[disease]
-            scaler = scalers[disease]
-            t = float(thresholds[disease])
+            model = models.get(disease) or models.get("High_Adiposity_Risk" if disease == "Obesity" else disease)
+            scaler = scalers.get(disease) or scalers.get("High_Adiposity_Risk" if disease == "Obesity" else disease)
+            t = float(thresholds.get(disease, thresholds.get("High_Adiposity_Risk" if disease == "Obesity" else disease, 0.5)))
             
-            clf_type = model.__class__.__name__
-            if clf_type == "LogisticRegression":
-                # Ensure we pass dataframe to scaler to prevent warning and ensure correct scaling
-                X_in = scaler.transform(X_df)
-                # But LogisticRegression expects numpy array if it was trained on scaled numpy array or dataframe.
+            # Extract probability for this disease from each active modality
+            d_probs = {}
+            for m in active_mods:
+                m_cap = m.capitalize()
+                out_m = expert_outputs.get(m, {})
+                d_entry = out_m.get(disease) or out_m.get("High_Adiposity_Risk" if disease == "Obesity" else "Obesity", {})
+                d_probs[m_cap] = [float(d_entry.get("probability", 0.0))]
+            
+            X_disease_df = pd.DataFrame(d_probs, columns=mods)
+            
+            if scaler is not None:
+                X_in = scaler.transform(X_disease_df)
                 X_in_df = pd.DataFrame(X_in, columns=mods)
             else:
-                X_in_df = X_df
+                X_in_df = X_disease_df
                 
             prob = float(model.predict_proba(X_in_df)[0, 1])
             pred = int(prob >= t)
@@ -94,6 +100,11 @@ class FusionInferenceEngine:
                 "threshold": round(t, 4),
                 "pathway": pathway_key,
             }
+
+        if "High_Adiposity_Risk" in results and "Obesity" not in results:
+            results["Obesity"] = results["High_Adiposity_Risk"]
+        elif "Obesity" in results and "High_Adiposity_Risk" not in results:
+            results["High_Adiposity_Risk"] = results["Obesity"]
 
         # CLINICAL OVERRIDE: Anthropometric Ground Truth Anchor for Adiposity & Obesity
         clin_data = patient_features.get("clinical") or {}

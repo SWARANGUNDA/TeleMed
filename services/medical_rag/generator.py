@@ -84,14 +84,18 @@ class GroundedRAGGenerator:
         api_key = self.api_key or os.getenv("GEMINI_API_KEY")
 
         if api_key and genai:
-            try:
-                genai.configure(api_key=api_key)
-                model = genai.GenerativeModel('gemini-1.5-flash')
-                response = model.generate_content(prompt)
-                if response and response.text:
-                    return response.text
-            except Exception as e:
-                raise ValueError(f"Gemini API rejected the key (Are you sure it starts with AIzaSy?): {str(e)}")
+            model_candidates = ["gemini-2.5-flash", "gemini-flash-latest", "gemini-2.5-pro", "gemini-1.5-flash"]
+            for model_name in model_candidates:
+                try:
+                    genai.configure(api_key=api_key)
+                    model = genai.GenerativeModel(model_name)
+                    response = model.generate_content(prompt)
+                    if response and response.text:
+                        logger.info(f"Generated {mode} response using Google Gemini model ({model_name}).")
+                        return response.text
+                except Exception as model_err:
+                    logger.warning(f"Gemini generation notice with {model_name}: {model_err}")
+                    continue
         
         # Fallback to deterministic dummy logic if API key missing or generation fails
         if mode == "REPORT":

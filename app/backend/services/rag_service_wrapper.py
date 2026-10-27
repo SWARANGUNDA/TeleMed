@@ -30,6 +30,15 @@ def sanitize_nans(obj: Any) -> Any:
     return obj
 
 
+_shared_rag_wrapper = None
+
+def get_shared_rag_wrapper() -> "RAGServiceWrapper":
+    global _shared_rag_wrapper
+    if _shared_rag_wrapper is None:
+        _shared_rag_wrapper = RAGServiceWrapper()
+    return _shared_rag_wrapper
+
+
 class RAGServiceWrapper:
     """Service layer wrapping MedicalRAGService."""
 

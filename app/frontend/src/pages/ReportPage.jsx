@@ -473,20 +473,21 @@ export default function ReportPage({ user, session, predictionData, onDiscussWit
     setTimeout(() => setCopiedSchedule(false), 2500);
   };
 
-  // Filter raw features for deep inspection
-  const allRawFeaturesList = useMemo(() => {
-    const list = [];
-    Object.entries(clinFeats).forEach(([k, v]) => list.push({ mod: 'Clinical', name: k, val: v, color: 'blue' }));
-    Object.entries(wearFeats).forEach(([k, v]) => list.push({ mod: 'Wearable', name: k, val: v, color: 'teal' }));
-    Object.entries(gutFeats).forEach(([k, v]) => list.push({ mod: 'Gut', name: k, val: v, color: 'purple' }));
-    return list;
-  }, [clinFeats, wearFeats, gutFeats]);
+  // Filter raw features for deep inspection (computed without conditional hook violation)
+  const allRawFeaturesList = [];
+  if (clinFeats && typeof clinFeats === 'object') {
+    Object.entries(clinFeats).forEach(([k, v]) => allRawFeaturesList.push({ mod: 'Clinical', name: k, val: v, color: 'blue' }));
+  }
+  if (wearFeats && typeof wearFeats === 'object') {
+    Object.entries(wearFeats).forEach(([k, v]) => allRawFeaturesList.push({ mod: 'Wearable', name: k, val: v, color: 'teal' }));
+  }
+  if (gutFeats && typeof gutFeats === 'object') {
+    Object.entries(gutFeats).forEach(([k, v]) => allRawFeaturesList.push({ mod: 'Gut', name: k, val: v, color: 'purple' }));
+  }
 
-  const filteredRawFeatures = useMemo(() => {
-    if (!rawSearchQuery.trim()) return allRawFeaturesList;
-    const q = rawSearchQuery.toLowerCase();
-    return allRawFeaturesList.filter(f => f.name.toLowerCase().includes(q) || f.mod.toLowerCase().includes(q));
-  }, [allRawFeaturesList, rawSearchQuery]);
+  const filteredRawFeatures = !rawSearchQuery.trim()
+    ? allRawFeaturesList
+    : allRawFeaturesList.filter(f => f.name.toLowerCase().includes(rawSearchQuery.toLowerCase()) || f.mod.toLowerCase().includes(rawSearchQuery.toLowerCase()));
 
   return (
     <PageContainer className="space-y-8 pb-24">
