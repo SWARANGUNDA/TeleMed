@@ -46,29 +46,26 @@
 \title{\LARGE \bf TeleMed-M3: Dynamic Imputation-Free Multimodal Learning for Explainable Metabolic Disease Risk Stratification}
 \author{
     Gunda Swaran\textsuperscript{1}, Kolipaka Vishal\textsuperscript{1}, Pagidipalli Sunny Kiran\textsuperscript{1}, \\
-    Chikyala Medhansh Rao\textsuperscript{1}, Aitha Thadhagath Ram\textsuperscript{1} \\
-    \vspace{2pt}
-    \textsuperscript{1}Keshav Memorial Institute of Technology, Hyderabad, India \\
+    Chikyala Medhansh Rao\textsuperscript{1}, Aitha Thadhagath Ram\textsuperscript{1} \\[0.3em]
+    \normalsize\textbf{Guided by: Dr.~K.~V.~Rajini}\textsuperscript{2} \\[0.4em]
+    \small\textsuperscript{1}Department of Computer Science and Engineering, \\
+    \small Keshav Memorial Institute of Technology, Hyderabad, India \\
+    \small\textsuperscript{2}Associate Professor, Department of Computer Science and Engineering, \\
+    \small Keshav Memorial Institute of Technology, Hyderabad, India \\
     {\tt\small \{swarangunda23, kolipakavishal06, sunnykmithyd,}\\ 
     {\tt\small medhanshrao.07, thadhagath.ram.aitha1108\}@gmail.com}
 }
 \date{}
 
 \begin{document}
+\maketitle
 
-\twocolumn[
-  \begin{@twocolumnfalse}
-    \maketitle
-    \vspace{-1.8em}
-    \begin{abstract}
-      \small\noindent
-      Cardiometabolic conditions---Type~2 Diabetes (T2D), Prediabetes, High Adiposity Risk, Metabolic Syndrome, and Non-Alcoholic Fatty Liver Disease (NAFLD)---arise from intricate interactions among laboratory biomarkers, lifestyle patterns, and microbial ecology. Present-day telehealth platforms predominantly leverage clinical records and wearable telemetry, yet seldom incorporate gut microbiome profiles or offer principled strategies for handling absent data channels. We introduce TeleMed-M3, a modular multimodal predictive framework embedded within a Generative-AI-assisted telemedicine system for individualized metabolic risk assessment. The architecture trains fifteen modality-specific expert classifiers---one per combination of three input channels (Clinical, Wearable/CGM, Gut Microbiome) and five disease targets---then fuses their calibrated probability outputs through an L2-regularized logistic regression meta-learner trained on five-fold stratified out-of-fold predictions. A deterministic routing layer directs each patient through one of seven non-empty modality-availability pathways ($2^{3}-1$ subsets), thereby circumventing the need to synthetically reconstruct any wholly absent modality block. TreeSHAP furnishes per-prediction feature attributions for tree-based experts, and an exploratory Medical Retrieval-Augmented Generation module grounds risk summaries in retrieved clinical guidelines. Experiments on a 100{,}000-record synthetic cohort spanning 82 features reveal that the complete Clinical+Wearable+Gut pathway attains AUROCs of 0.7834 (T2D), 0.7586 (Metabolic Syndrome), and 0.7772 (NAFLD), while the routing mechanism sustains an AUROC of 0.7743 for T2D under 30\% modality-level missingness---exceeding a median-imputation baseline by 0.0021. Comparisons with early feature-level fusion confirm that probability-level routing achieves comparable or superior discrimination across all targets, with a notable advantage for Prediabetes (0.5875 vs.\ 0.5470). All findings derive from synthetic data; clinical validation on human cohorts remains a prerequisite for deployment.
-    \end{abstract}
-    \vspace{0.6em}
-    \noindent\textbf{Keywords:} Multimodal Machine Learning, Gut Microbiome, Telemedicine, Dynamic Modality Routing, Explainable AI, TreeSHAP, Retrieval-Augmented Generation, Metabolic Disease Risk Stratification.
-    \vspace{1.3em}
-  \end{@twocolumnfalse}
-]
+\begin{abstract}
+Cardiometabolic diseases---Type~2 Diabetes (T2D), Prediabetes, High Adiposity Risk, Metabolic Syndrome, and Non-Alcoholic Fatty Liver Disease (NAFLD)---arise from complex interactions among clinical biomarkers, continuous behavioral patterns, and intestinal microbial ecology. While contemporary telehealth platforms capture laboratory results and wearable signals, gut microbiome data and robust strategies for handling incomplete modality coverage remain scarce. We present \textbf{TeleMed-M3}, a modular multimodal learning framework for individualized metabolic risk stratification without numerical imputation. The architecture deploys fifteen modality-specific expert classifiers across Clinical (18 features), Wearable/CGM (15 features), and Gut Microbiome (49 features) blocks. An L2-regularized logistic regression meta-learner combines expert probabilities through five-fold stratified out-of-fold stacking. A deterministic routing layer directs each patient through one of seven non-empty modality pathways ($2^{3}-1$ subsets), avoiding artificial reconstruction of missing channels. In an evaluation on a 100{,}000-record synthetic cohort, the trimodal (C+W+G) pathway achieved AUROCs of 0.7834 (T2D), 0.7586 (Metabolic Syndrome), and 0.7772 (NAFLD). Under 30\% simulated missingness, dynamic routing sustained a T2D AUROC of 0.7743, outperforming median imputation by 0.0021. TreeSHAP furnishes per-prediction feature attributions, while an exploratory Medical RAG module grounds outputs in clinical guidelines. All findings derive from synthetic data; clinical validation on human cohorts remains a prerequisite for deployment.
+\end{abstract}
+
+\vspace{0.3em}
+\noindent\textbf{Keywords:} Multimodal Machine Learning, Gut Microbiome, Telemedicine, Dynamic Modality Routing, Explainable AI, TreeSHAP, Retrieval-Augmented Generation.
 
 \section{INTRODUCTION}
 
@@ -178,8 +175,8 @@ A deterministic 70/15/15 split yielded three non-overlapping partitions:
 
 \begin{figure*}[t]
 \centering
-\includegraphics[width=0.86\textwidth,height=0.25\textheight,keepaspectratio]{figures/architecture.png}
-\caption{End-to-end multimodal architecture of TeleMed-M3. Ingested patient data is partitioned into Clinical (18 features), Wearable/CGM (15 features), and Gut Microbiome (49 features). Modality-specific experts emit per-target probabilities, routed across seven pathways to an L2-regularized stacking meta-learner. Downstream modules supply TreeSHAP attributions and Medical RAG summaries.}
+\includegraphics[width=0.98\textwidth,height=0.46\textheight,keepaspectratio]{figures/architecture.png}
+\caption{End-to-end multimodal architecture of the TeleMed-M3 platform. The workflow illustrates data ingestion across Clinical (18 features), Wearable/CGM (15 features), and Gut Microbiome (49 features) channels; preprocessing and feature alignment; deterministic 7-pathway dynamic routing over all $2^{3}-1$ non-empty modality subsets; 15 modality-specific expert classifiers; late probability-level stacking via an L2-regularized meta-learner; calibrated risk predictions for five cardiometabolic conditions; local TreeSHAP feature attributions; and evidence-grounded Medical RAG report generation.}
 \label{fig:arch}
 \end{figure*}
 
@@ -368,6 +365,9 @@ This paper introduced TeleMed-M3, a probability-level multimodal learning framew
 Evaluation on a controlled 100{,}000-patient synthetic cohort demonstrated that clinical biomarkers constitute the dominant predictive signal, while supplementary wearable and microbiome channels yield consistent---though modest---improvements in discrimination. Under simulated MCAR conditions, dynamic routing maintained higher AUROC than median imputation across all tested missingness rates, and probability-level stacking matched or exceeded early feature-level fusion on every target. TreeSHAP attributions provided transparent, per-feature explanations for individual risk assessments, and an exploratory Medical RAG layer illustrated the feasibility of grounding model outputs in authoritative clinical guidelines.
 
 Looking ahead, validation on real-world multimodal clinical datasets, evaluation under informative missingness patterns, benchmarking against advanced imputation and deep fusion methods, and prospective clinical studies are essential steps toward translating this research framework into a deployable telehealth tool. Quantitative evaluation of the RAG module's generation quality and clinician acceptance testing represent additional high-priority directions.
+
+\section*{Acknowledgments and Project Guidance}
+This research was carried out as a major project at Keshav Memorial Institute of Technology (KMIT), Hyderabad, India. The authors express their sincere gratitude to their project mentor, \textbf{Dr.~K.~V.~Rajini}, Associate Professor, Department of Computer Science and Engineering, KMIT, for expert mentorship, valuable insights, and steadfast guidance throughout the system design, experimental validation, and paper development of the TeleMed-M3 project.
 
 \section*{Reproducibility and Data Availability}
 The complete codebase---encompassing synthetic data generation scripts, model training pipelines, fusion and routing logic, evaluation notebooks, and reproducibility audit logs---is available in the project repository. Because the dataset is entirely synthetic, it can be regenerated from the provided configuration parameters without implicating patient privacy. All random seeds, hyperparameter configurations, and train/validation/test split indices are recorded to enable exact replication of the reported results.
