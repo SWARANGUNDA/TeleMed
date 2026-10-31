@@ -20,48 +20,64 @@
 \frenchspacing
 
 % Compact, publication-standard heading spacing
-\titlespacing*{\section}{0pt}{7pt plus 1.5pt minus 1pt}{2.5pt plus 1pt minus 0.5pt}
-\titlespacing*{\subsection}{0pt}{5pt plus 1pt minus 1pt}{2pt plus 0.5pt minus 0.5pt}
+\titlespacing*{\section}{0pt}{6.5pt plus 1.5pt minus 1pt}{2.5pt plus 1pt minus 0.5pt}
+\titlespacing*{\subsection}{0pt}{4.5pt plus 1pt minus 1pt}{2pt plus 0.5pt minus 0.5pt}
 
 % Caption styling
 \captionsetup{font=small,labelfont=bf,skip=4pt}
 
 % Float separation spacing
-\setlength{\floatsep}{6pt plus 2pt minus 1pt}
-\setlength{\textfloatsep}{8pt plus 2pt minus 2pt}
-\setlength{\intextsep}{6pt plus 2pt minus 1pt}
-\setlength{\dblfloatsep}{6pt plus 2pt minus 1pt}
-\setlength{\dbltextfloatsep}{8pt plus 2pt minus 2pt}
+\setlength{\floatsep}{5pt plus 2pt minus 1pt}
+\setlength{\textfloatsep}{7pt plus 2pt minus 2pt}
+\setlength{\intextsep}{5pt plus 2pt minus 1pt}
+\setlength{\dblfloatsep}{5pt plus 2pt minus 1pt}
+\setlength{\dbltextfloatsep}{7pt plus 2pt minus 2pt}
 \setlength{\abovecaptionskip}{3pt}
 \setlength{\belowcaptionskip}{1pt}
 
 % List spacing globally - eliminates excessive blank lines
-\setlist[itemize]{nosep,leftmargin=1.3em,topsep=2pt,partopsep=0pt,itemsep=1.5pt}
-\setlist[enumerate]{nosep,leftmargin=1.3em,topsep=2pt,partopsep=0pt,itemsep=1.5pt}
+\setlist[itemize]{nosep,leftmargin=1.3em,topsep=1.5pt,partopsep=0pt,itemsep=1.2pt}
+\setlist[enumerate]{nosep,leftmargin=1.3em,topsep=1.5pt,partopsep=0pt,itemsep=1.2pt}
 
-% Bibliography spacing
-\setlength{\bibsep}{1.5pt plus 0.5pt minus 0.5pt}
+% Bibliography styling
+\renewcommand{\bibfont}{\footnotesize}
+\setlength{\bibsep}{1.0pt plus 0.3pt minus 0.2pt}
 \setlength{\tabcolsep}{4.5pt}
 
-\title{\LARGE \bf TeleMed-M3: Dynamic Imputation-Free Multimodal Learning for Explainable Metabolic Disease Risk Stratification}
-\author{
-    Gunda Swaran\textsuperscript{1}, Kolipaka Vishal\textsuperscript{1}, Pagidipalli Sunny Kiran\textsuperscript{1}, \\
-    Chikyala Medhansh Rao\textsuperscript{1}, Aitha Thadhagath Ram\textsuperscript{1} \\[0.3em]
-    \normalsize\textbf{Guided by: Dr.~K.~V.~Rajini}\textsuperscript{2} \\[0.4em]
-    \small\textsuperscript{1}Department of Computer Science and Engineering, \\
-    \small Keshav Memorial Institute of Technology, Hyderabad, India \\
-    \small\textsuperscript{2}Associate Professor, Department of Computer Science and Engineering, \\
-    \small Keshav Memorial Institute of Technology, Hyderabad, India \\
-    {\tt\small \{swarangunda23, kolipakavishal06, sunnykmithyd,}\\ 
-    {\tt\small medhanshrao.07, thadhagath.ram.aitha1108\}@gmail.com}
-}
-\date{}
-
 \begin{document}
-\maketitle
+
+\twocolumn[
+  \begin{@twocolumnfalse}
+    \begin{center}
+      {\LARGE \bfseries TeleMed-M3: Dynamic Imputation-Free Multimodal Learning for\\ Explainable Metabolic Disease Risk Stratification \par}
+      \vspace{0.7em}
+      \hrule height 0.6pt
+      \vspace{0.7em}
+      {\large Gunda Swaran\textsuperscript{1}, Kolipaka Vishal\textsuperscript{1}, Pagidipalli Sunny Kiran\textsuperscript{1},\\
+      Chikyala Medhansh Rao\textsuperscript{1}, Aitha Thadhagath Ram\textsuperscript{1} \par}
+      \vspace{0.35em}
+      {\small \textsuperscript{1}Department of Computer Science and Engineering\\
+      Keshav Memorial Institute of Technology, Hyderabad, India \par}
+      \vspace{0.35em}
+      {\tt\small
+      swarangunda23@gmail.com $\cdot$ kolipakavishal06@gmail.com\\
+      sunnykmithyd@gmail.com $\cdot$ medhanshrao.07@gmail.com\\
+      thadhagath.ram.aitha1108@gmail.com \par}
+      \vspace{0.7em}
+      \hrule height 0.6pt
+      \vspace{0.6em}
+      {\bfseries\small Project Supervisor \par}
+      \vspace{0.2em}
+      {\small Dr.~K.~V.~Rajini \\
+      Associate Professor, Department of Computer Science and Engineering\\
+      Keshav Memorial Institute of Technology, Hyderabad, India \par}
+      \vspace{0.9em}
+    \end{center}
+  \end{@twocolumnfalse}
+]
 
 \begin{abstract}
-Cardiometabolic diseases---Type~2 Diabetes (T2D), Prediabetes, High Adiposity Risk, Metabolic Syndrome, and Non-Alcoholic Fatty Liver Disease (NAFLD)---arise from complex interactions among clinical biomarkers, continuous behavioral patterns, and intestinal microbial ecology. While contemporary telehealth platforms capture laboratory results and wearable signals, gut microbiome data and robust strategies for handling incomplete modality coverage remain scarce. We present \textbf{TeleMed-M3}, a modular multimodal learning framework for individualized metabolic risk stratification without numerical imputation. The architecture deploys fifteen modality-specific expert classifiers across Clinical (18 features), Wearable/CGM (15 features), and Gut Microbiome (49 features) blocks. An L2-regularized logistic regression meta-learner combines expert probabilities through five-fold stratified out-of-fold stacking. A deterministic routing layer directs each patient through one of seven non-empty modality pathways ($2^{3}-1$ subsets), avoiding artificial reconstruction of missing channels. In an evaluation on a 100{,}000-record synthetic cohort, the trimodal (C+W+G) pathway achieved AUROCs of 0.7834 (T2D), 0.7586 (Metabolic Syndrome), and 0.7772 (NAFLD). Under 30\% simulated missingness, dynamic routing sustained a T2D AUROC of 0.7743, outperforming median imputation by 0.0021. TreeSHAP furnishes per-prediction feature attributions, while an exploratory Medical RAG module grounds outputs in clinical guidelines. All findings derive from synthetic data; clinical validation on human cohorts remains a prerequisite for deployment.
+Cardiometabolic diseases---Type~2 Diabetes (T2D), Prediabetes, High Adiposity Risk, Metabolic Syndrome, and Non-Alcoholic Fatty Liver Disease (NAFLD)---arise from complex interactions among clinical biomarkers, continuous behavioral patterns, and intestinal microbial ecology. While contemporary telehealth platforms capture laboratory results and wearable signals, gut microbiome data and robust strategies for handling incomplete modality coverage remain scarce. We present \textbf{TeleMed-M3}, a modular multimodal learning framework for individualized metabolic risk stratification without numerical reconstruction of missing modalities. The architecture deploys fifteen modality-specific expert classifiers across Clinical (18 features), Wearable/CGM (15 features), and Gut Microbiome (49 features) blocks, then fuses their probability outputs through an L2-regularized logistic regression meta-learner trained on five-fold stratified out-of-fold predictions. A deterministic routing layer directs each patient through one of seven non-empty modality pathways ($2^{3}-1$ subsets), avoiding artificial imputation of unobserved channels. On a 100{,}000-record synthetic cohort, the complete trimodal (C+W+G) pathway achieved AUROCs of 0.7834 (T2D), 0.7586 (Metabolic Syndrome), and 0.7772 (NAFLD). Under 30\% simulated modality missingness, dynamic routing sustained a T2D AUROC of 0.7743, outperforming median imputation by 0.0021. TreeSHAP furnishes per-prediction feature attributions, while an exploratory Medical RAG module grounds summaries in clinical guidelines. All findings derive from synthetic data; clinical validation on human cohorts remains a prerequisite for deployment.
 \end{abstract}
 
 \vspace{0.3em}
@@ -128,7 +144,7 @@ Metagenome-wide association studies have linked compositional shifts in intestin
 Multimodal learning seeks to exploit the complementarity among heterogeneous data sources \citep{huang2020multimodal}. Fusion can occur at the feature level (early concatenation), the representation level (intermediate shared embeddings), or the decision level (late combination of per-modality predictions). While feature-level fusion is straightforward, it couples the model to a rigid input schema and is sensitive to dimensionality imbalance. Probability-level stacking, originally formalized as stacked generalization \citep{wolpert1992stacked}, decouples modality-specific learning from cross-modal combination and naturally accommodates variable-width input vectors.
 
 \subsection{Handling Missing Modalities}
-Absent data channels pose a distinct challenge from missing individual features. Standard imputation methods---mean/median filling, iterative chained equations, or $k$-nearest-neighbor interpolation---address sporadic feature-level gaps \citep{rubin1976inference}. When an entire modality is unavailable, reconstruction-based methods attempt to hallucinate the absent representation via generative models or cross-modal translation \citep{ma2021smil}. An alternative philosophy is to avoid fabrication altogether by routing patients through pathway-specific fusion models conditioned only on observed modalities. TeleMed-M3 adopts this routing approach, training separate meta-learners for every non-empty modality subset.
+Absent data channels pose a distinct challenge from missing individual features. Standard imputation methods---mean/median filling, iterative chained equations, or $k$-nearest-neighbor interpolation---address sporadic feature-level gaps \citep{rubin1976inference}. When an entire modality is unavailable, reconstruction-based methods attempt to hallucinate the absent representation via generative models or cross-modal translation \citep{ma2021smil}. An alternative philosophy is to avoid fabrication altogether by routing patients through pathway-specific fusion models conditioned only on observed modalities. TeleMed-M3 adopts this routing approach, training separate meta-learners for every non-empty modality subset. Importantly, this structural routing mechanism is distinct from feature-level imputation within an available modality, where standard preprocessing may still be employed.
 
 \subsection{Explainability and Retrieval-Augmented Generation}
 SHAP values, grounded in cooperative game theory, decompose each prediction into additive per-feature contributions \citep{lundberg2017unified}. The TreeSHAP variant achieves exact Shapley computation in polynomial time for tree-ensemble models, making it well suited to the gradient-boosted experts employed in this work. Separately, Retrieval-Augmented Generation (RAG) conditions language-model outputs on passages retrieved from an external corpus, reducing hallucination and anchoring generated text in verifiable sources \citep{lewis2020retrieval}. Combining TreeSHAP attributions with RAG-retrieved clinical guidelines offers a pathway toward risk reports that are simultaneously data-driven and evidence-grounded \citep{esteva2019guide}.
@@ -158,7 +174,7 @@ Five binary classification targets, each representing a distinct yet pathophysio
     \item Metabolic Syndrome
     \item Non-Alcoholic Fatty Liver Disease (NAFLD)
 \end{enumerate}
-Prediabetes and T2D were constrained to be mutually exclusive within the generative model, reflecting standard diagnostic boundaries.
+In the generative pipeline, a clinical override rule explicitly enforces that patients assigned a positive ground-truth label for Type~2 Diabetes are not simultaneously labeled with Prediabetes, reflecting diagnostic boundaries. The remaining conditions may co-occur stochastically.
 
 \subsection{Cohort Prevalence}
 The prevalence rates in the 100{,}000-patient cohort are: T2D 52.6\%, Prediabetes 20.0\%, High Adiposity Risk 39.0\%, Metabolic Syndrome 57.1\%, and NAFLD 59.6\%. These rates were calibrated to approximate epidemiological distributions while maintaining sufficient positive-class representation for stable classifier training.
@@ -175,8 +191,8 @@ A deterministic 70/15/15 split yielded three non-overlapping partitions:
 
 \begin{figure*}[t]
 \centering
-\includegraphics[width=0.98\textwidth,height=0.46\textheight,keepaspectratio]{figures/architecture.png}
-\caption{End-to-end multimodal architecture of the TeleMed-M3 platform. The workflow illustrates data ingestion across Clinical (18 features), Wearable/CGM (15 features), and Gut Microbiome (49 features) channels; preprocessing and feature alignment; deterministic 7-pathway dynamic routing over all $2^{3}-1$ non-empty modality subsets; 15 modality-specific expert classifiers; late probability-level stacking via an L2-regularized meta-learner; calibrated risk predictions for five cardiometabolic conditions; local TreeSHAP feature attributions; and evidence-grounded Medical RAG report generation.}
+\includegraphics[width=0.96\textwidth,height=0.42\textheight,keepaspectratio]{figures/architecture.png}
+\caption{End-to-end multimodal architecture of the TeleMed-M3 platform. Ingested patient data is partitioned into Clinical (18 features), Wearable/CGM (15 features), and Gut Microbiome (49 features) blocks. Fifteen modality-specific expert classifiers emit per-target predicted risk probabilities, routed across seven availability pathways ($2^{3}-1$ subsets) to an L2-regularized stacking meta-learner. Downstream modules provide local TreeSHAP feature attributions and evidence-grounded Medical RAG clinical summaries.}
 \label{fig:arch}
 \end{figure*}
 
@@ -249,11 +265,11 @@ NAFLD & 0.7743 & 0.5995 & 0.6487 & 0.7745 & 0.7771 & 0.6621 & 0.7772 \\
 \subsection{Discrimination Across Seven Pathways}
 Table~\ref{tab:fusion} presents the AUROC achieved by each of the seven modality-availability pathways for all five disease targets, addressing RQ1 through RQ3.
 
-Across all targets, the Clinical expert consistently delivered the highest standalone discrimination, followed by the Wearable expert and then the Gut expert. For T2D, Clinical alone achieved an AUROC of 0.7777, while the complete three-modality pathway reached 0.7834---a net gain of 0.0057. Analogous modest improvements were observed for the remaining targets. Notably, the Wearable+Gut pathway, which operates without any clinical input, sustained a T2D AUROC of 0.6894, demonstrating that non-clinical channels retain meaningful predictive signal when laboratory data is unavailable.
+Across all targets, the Clinical expert delivered the highest standalone discrimination (0.7532--0.7777, with Prediabetes at 0.5839). Between the non-clinical modalities, the Wearable expert outperformed the Gut expert on Type~2 Diabetes (0.6772 vs.\ 0.5949), Prediabetes (0.5429 vs.\ 0.5134), High Adiposity Risk (0.6602 vs.\ 0.5263), and Metabolic Syndrome (0.6207 vs.\ 0.5777). Conversely, for NAFLD, the Gut expert demonstrated superior standalone discrimination over the Wearable expert (0.6487 vs.\ 0.5995), reflecting established biological links between intestinal dysbiosis and hepatic steatosis. Combining modalities yielded modest incremental gains over Clinical alone, reaching 0.7834 on T2D (+0.0057) and 0.7772 on NAFLD (+0.0029). When Clinical data was unavailable, the Wearable+Gut pathway sustained an actionable T2D AUROC of 0.6894.
 
 \begin{figure}[h]
 \centering
-\includegraphics[width=0.92\columnwidth]{figures/fig_pathway_auroc_heatmap.png}
+\includegraphics[width=0.90\columnwidth]{figures/fig_pathway_auroc_heatmap.png}
 \caption{Heatmap of AUROC values across the seven modality-availability pathways and five metabolic disease targets.}
 \label{fig:heatmap}
 \end{figure}
@@ -279,22 +295,22 @@ NAFLD & 0.8239 & 0.7877 & 0.1927 \\
 \end{tabular}
 \end{table}
 
-NAFLD obtained the strongest AUPRC (0.8239) and F1 (0.7877), consistent with its relatively high prevalence and strong hepatic biomarker signals in the clinical block. Prediabetes proved the most challenging target, with an AUPRC of 0.2431 and an F1 of 0.3584, reflecting its lower prevalence (20.0\%) and the subtlety of pre-diabetic physiological signatures in the synthetic cohort. Brier Scores ranged from 0.1898 to 0.2450, indicating moderate probabilistic calibration across targets.
+AUPRC values closely reflected cohort prevalence: targets with higher prevalence like NAFLD (59.6\%, AUPRC 0.8239), Metabolic Syndrome (57.1\%, AUPRC 0.7942), and T2D (52.6\%, AUPRC 0.7880) exhibited strong precision--recall curves. Prediabetes (lowest prevalence at 20.0\%) yielded an AUPRC of 0.2431 against an expected baseline of 0.2000, with an F1 of 0.3584. Brier Scores ranged from 0.1898 to 0.2450, reflecting probabilistic accuracy under default decision thresholds.
 
 \subsection{Robustness Under Simulated Missingness}
 Addressing RQ4 and RQ5, Figure~\ref{fig:miss} illustrates dynamic routing versus median imputation as the fraction of patients with missing modality blocks increases from 10\% to 30\% under MCAR conditions.
 
 \begin{figure}[h]
 \centering
-\includegraphics[width=0.92\columnwidth]{figures/fig_missingness.png}
+\includegraphics[width=0.90\columnwidth]{figures/fig_missingness.png}
 \caption{T2D AUROC for dynamic routing vs.\ median imputation under 10\%, 20\%, and 30\% simulated MCAR modality missingness.}
 \label{fig:miss}
 \end{figure}
 
-At the most severe 30\% missingness rate, dynamic routing achieved a T2D AUROC of 0.7743, compared with 0.7722 for the median-imputation strategy---a difference of 0.0021. This gap widened monotonically from 0.0007 at 10\% missingness through 0.0013 at 20\%. While absolute margins are small, the consistent direction confirms that routing patients through pathway-specific models conditioned on observed data avoids noise introduced by populating absent modality blocks with population-level medians.
+At 30\% missingness, dynamic routing achieved a T2D AUROC of 0.7743 versus 0.7722 for median imputation. Although the absolute margin is modest (0.0021), the advantage was directionally consistent across all levels (0.0007 at 10\%, 0.0013 at 20\%). This indicates that routing through models conditioned strictly on observed modalities avoids the statistical distortion introduced by populating absent channels with uninformative population medians.
 
 \subsection{Comparison with Early Feature-Level Fusion}
-Table~\ref{tab:early} and Figure~\ref{fig:early} contrast the early-fusion baseline---a single classifier on the concatenated 82-feature vector---with dynamic probability-level routing (RQ6).
+Table~\ref{tab:early} and Figure~\ref{fig:early} contrast early feature concatenation with dynamic probability-level routing (RQ6).
 
 \begin{table}[h]
 \centering
@@ -316,15 +332,15 @@ NAFLD & 0.7756 & 0.7772 \\
 
 \begin{figure}[h]
 \centering
-\includegraphics[width=0.92\columnwidth]{figures/fig_early_vs_dynamic.png}
+\includegraphics[width=0.90\columnwidth]{figures/fig_early_vs_dynamic.png}
 \caption{AUROC comparison of early feature-level fusion and dynamic probability-level routing for all five targets.}
 \label{fig:early}
 \end{figure}
 
-The two approaches performed within narrow margins for T2D (0.7836 vs.\ 0.7834), High Adiposity Risk (0.7557 vs.\ 0.7547), and Metabolic Syndrome (0.7591 vs.\ 0.7586). Dynamic routing surpassed early fusion for Prediabetes by 0.0405 (0.5875 vs.\ 0.5470) and for NAFLD by 0.0016 (0.7772 vs.\ 0.7756). Crucially, the early-fusion model is structurally rigid---requiring all 82 features to be present---whereas the routing architecture seamlessly accommodates any combination of available modalities.
+Early fusion achieved minor AUROC advantages on Type~2 Diabetes (0.7836 vs.\ 0.7834), High Adiposity Risk (0.7557 vs.\ 0.7547), and Metabolic Syndrome (0.7591 vs.\ 0.7586). Dynamic routing attained superior discrimination on Prediabetes (0.5875 vs.\ 0.5470, a +0.0405 advantage) and a slight gain on NAFLD (0.7772 vs.\ 0.7756). Overall, performance differences across most conditions were small ($\le 0.0010$). However, the two paradigms differ fundamentally in architectural flexibility: early fusion demands a complete 82-feature vector and fails when modalities are absent, whereas dynamic routing naturally accommodates variable-modality patient encounters.
 
 \subsection{Explainability Outcomes}
-Addressing RQ7, TreeSHAP attributions extracted from tree-based experts consistently identified Fasting Glucose and HbA1c as dominant clinical drivers for T2D risk, while BMI and Waist Circumference dominated High Adiposity Risk. Within the gut microbiome expert, Bacteroidetes relative abundance and Shannon Diversity emerged as leading contributors for several targets. These per-prediction attributions are passed to the Medical RAG module, which retrieves matching clinical guideline passages and composes narrative summaries contextualizing quantitative risk scores within established medical knowledge.
+Addressing RQ7, local feature attributions were extracted using TreeSHAP \citep{lundberg2017unified} for supported tree-based expert models (XGBoost, LightGBM, ExtraTrees). In the Clinical expert, Fasting Blood Glucose and HbA1c consistently emerged as primary positive drivers for T2D risk, while BMI and Waist Circumference dominated High Adiposity. Within the Gut expert, features such as the Inflammation-Associated Taxa Index and Prevotella relative abundances contributed positive attributions for metabolic targets. These per-patient local attributions are ingested by the Medical RAG module to contextualize recommendations within published clinical evidence.
 
 \section{DISCUSSION}
 
@@ -355,19 +371,19 @@ Several constraints bound the generalizability of the reported findings:
 \end{enumerate}
 
 \section{SAFETY AND CLINICAL POSITIONING}
-TeleMed-M3 is expressly designed as a research-stage clinical decision-support framework and must not be misconstrued as an autonomous diagnostic or therapeutic system. Predicted risk probabilities and generated narrative summaries serve as supplementary information for qualified healthcare professionals; they are not substitutes for professional clinical judgment, laboratory confirmation, or guideline-directed patient management.
+TeleMed-M3 is expressly designed as a research-stage clinical decision-support framework and must not be misconstrued as an autonomous diagnostic or treatment system. Predicted risk probabilities and generated narrative summaries serve as supplementary information for qualified healthcare professionals; they are not substitutes for professional clinical judgment, laboratory confirmation, or guideline-directed patient management.
 
 No claims of clinical efficacy, diagnostic accuracy on real populations, or treatment effectiveness are made. Before any patient-facing deployment, the system would require: (i) validation on appropriately consented, diverse human cohorts; (ii) calibration assessment under real-world prevalence and missingness distributions; (iii) evaluation against informative missingness mechanisms; (iv) usability testing with practicing clinicians; and (v) continuous post-deployment monitoring and human oversight.
 
 \section{CONCLUSION}
 This paper introduced TeleMed-M3, a probability-level multimodal learning framework that unifies Clinical, Wearable/CGM, and Gut Microbiome data streams for five-target metabolic risk stratification within a telemedicine architecture. By decoupling modality-specific expert training from cross-modal fusion, the system routes each patient through the appropriate subset of seven non-empty modality-availability pathways, eliminating the need to synthetically reconstruct any wholly absent data channel.
 
-Evaluation on a controlled 100{,}000-patient synthetic cohort demonstrated that clinical biomarkers constitute the dominant predictive signal, while supplementary wearable and microbiome channels yield consistent---though modest---improvements in discrimination. Under simulated MCAR conditions, dynamic routing maintained higher AUROC than median imputation across all tested missingness rates, and probability-level stacking matched or exceeded early feature-level fusion on every target. TreeSHAP attributions provided transparent, per-feature explanations for individual risk assessments, and an exploratory Medical RAG layer illustrated the feasibility of grounding model outputs in authoritative clinical guidelines.
+Evaluation on a controlled 100{,}000-patient synthetic cohort demonstrated that clinical biomarkers constitute the dominant predictive signal, while supplementary wearable and microbiome channels yield consistent---though modest---improvements in discrimination. Under simulated MCAR conditions, dynamic routing maintained higher AUROC than median imputation across all tested missingness rates, and probability-level stacking performed competitively with early feature-level fusion, offering distinct architectural advantages under missing data. TreeSHAP attributions provided transparent, per-feature explanations for individual risk assessments, and an exploratory Medical RAG layer illustrated the feasibility of grounding model outputs in authoritative clinical guidelines.
 
 Looking ahead, validation on real-world multimodal clinical datasets, evaluation under informative missingness patterns, benchmarking against advanced imputation and deep fusion methods, and prospective clinical studies are essential steps toward translating this research framework into a deployable telehealth tool. Quantitative evaluation of the RAG module's generation quality and clinician acceptance testing represent additional high-priority directions.
 
 \section*{Acknowledgments and Project Guidance}
-This research was carried out as a major project at Keshav Memorial Institute of Technology (KMIT), Hyderabad, India. The authors express their sincere gratitude to their project mentor, \textbf{Dr.~K.~V.~Rajini}, Associate Professor, Department of Computer Science and Engineering, KMIT, for expert mentorship, valuable insights, and steadfast guidance throughout the system design, experimental validation, and paper development of the TeleMed-M3 project.
+This research was carried out as a major project at Keshav Memorial Institute of Technology (KMIT), Hyderabad, India. The authors express their sincere gratitude to their project supervisor, \textbf{Dr.~K.~V.~Rajini}, Associate Professor, Department of Computer Science and Engineering, KMIT, for expert mentorship, technical guidance, and continuous supervision throughout the conceptualization, system implementation, and manuscript preparation of the TeleMed-M3 project.
 
 \section*{Reproducibility and Data Availability}
 The complete codebase---encompassing synthetic data generation scripts, model training pipelines, fusion and routing logic, evaluation notebooks, and reproducibility audit logs---is available in the project repository. Because the dataset is entirely synthetic, it can be regenerated from the provided configuration parameters without implicating patient privacy. All random seeds, hyperparameter configurations, and train/validation/test split indices are recorded to enable exact replication of the reported results.
