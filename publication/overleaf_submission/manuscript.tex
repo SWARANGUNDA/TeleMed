@@ -20,8 +20,8 @@
 \frenchspacing
 
 % Compact, publication-standard heading spacing
-\titlespacing*{\section}{0pt}{6.5pt plus 1.5pt minus 1pt}{2.5pt plus 1pt minus 0.5pt}
-\titlespacing*{\subsection}{0pt}{4.5pt plus 1pt minus 1pt}{2pt plus 0.5pt minus 0.5pt}
+\titlespacing*{\section}{0pt}{5.0pt plus 1pt minus 1pt}{2.0pt plus 0.5pt minus 0.5pt}
+\titlespacing*{\subsection}{0pt}{4.0pt plus 1pt minus 1pt}{1.8pt plus 0.5pt minus 0.5pt}
 
 % Caption styling
 \captionsetup{font=small,labelfont=bf,skip=4pt}
@@ -41,7 +41,7 @@
 
 % Bibliography styling
 \renewcommand{\bibfont}{\footnotesize}
-\setlength{\bibsep}{1.0pt plus 0.3pt minus 0.2pt}
+\setlength{\bibsep}{0.5pt plus 0.2pt minus 0.1pt}
 \setlength{\tabcolsep}{4.5pt}
 
 \begin{document}
@@ -53,16 +53,16 @@
       \vspace{0.7em}
       \hrule height 0.6pt
       \vspace{0.7em}
-      {\large Gunda Swaran\textsuperscript{1}, Kolipaka Vishal\textsuperscript{1}, Pagidipalli Sunny Kiran\textsuperscript{1},\\
+      {\large Gunda Swaran\textsuperscript{1,*}, Kolipaka Vishal\textsuperscript{1}, Pagidipalli Sunny Kiran\textsuperscript{1},\\
       Chikyala Medhansh Rao\textsuperscript{1}, Aitha Thadhagath Ram\textsuperscript{1} \par}
       \vspace{0.35em}
       {\small \textsuperscript{1}Department of Computer Science and Engineering\\
       Keshav Memorial Institute of Technology, Hyderabad, India \par}
       \vspace{0.35em}
       {\tt\small
-      swarangunda23@gmail.com $\cdot$ kolipakavishal06@gmail.com\\
-      sunnykmithyd@gmail.com $\cdot$ medhanshrao.07@gmail.com\\
-      thadhagath.ram.aitha1108@gmail.com \par}
+      *Corresponding author: swarangunda23@gmail.com \\
+      kolipakavishal06@gmail.com $\cdot$ sunnykmithyd@gmail.com\\
+      medhanshrao.07@gmail.com $\cdot$ thadhagath.ram.aitha1108@gmail.com \par}
       \vspace{0.7em}
       \hrule height 0.6pt
       \vspace{0.6em}
@@ -86,11 +86,11 @@ Cardiometabolic diseases---Type~2 Diabetes (T2D), Prediabetes, High Adiposity Ri
 \section{INTRODUCTION}
 
 \subsection{Background}
-Metabolic disorders constitute a rapidly expanding global health burden. T2D alone affects hundreds of millions of individuals worldwide, and closely related conditions---Prediabetes, elevated adiposity, Metabolic Syndrome, and NAFLD---frequently co-occur, amplifying cardiovascular and hepatic morbidity \citep{topol2019high}. Accurate risk stratification therefore demands a holistic view of patient physiology that spans multiple measurement domains.
+Metabolic disorders constitute a rapidly expanding global health burden. T2D alone affects hundreds of millions of individuals worldwide, and closely related conditions---Prediabetes, elevated adiposity, Metabolic Syndrome, and NAFLD---frequently co-occur, amplifying cardiovascular and hepatic morbidity \citep{topol2019high, ada2024standards, alberti2009harmonizing, rinella2023aasld}. Accurate risk stratification therefore demands a holistic view of patient physiology that spans multiple measurement domains.
 
-Three complementary data streams are particularly informative. First, standard clinical assessments---encompassing anthropometrics, fasting glucose, glycated hemoglobin, lipid panels, and hepatic enzymes---capture snapshot physiology during clinic visits \citep{rajkomar2018scalable}. Second, wearable sensors and Continuous Glucose Monitoring (CGM) devices record longitudinal behavioral and glycemic patterns that periodic laboratory tests cannot capture \citep{hall2018glucotypes}. Third, metagenomic profiling of the gut microbiome quantifies microbial taxa and ecological indices implicated in insulin resistance, systemic inflammation, and energy harvest \citep{qin2012metagenome, turnbaugh2006obesity}.
+Three complementary data streams are particularly informative. First, standard clinical assessments---encompassing anthropometrics, fasting glucose, glycated hemoglobin, lipid panels, and hepatic enzymes---capture snapshot physiology during clinic visits \citep{rajkomar2018scalable}. Second, wearable sensors and Continuous Glucose Monitoring (CGM) devices record longitudinal behavioral and glycemic patterns that periodic laboratory tests cannot capture \citep{hall2018glucotypes, dunn2021wearable, battelino2019clinical}. Third, metagenomic profiling of the gut microbiome quantifies microbial taxa and ecological indices implicated in insulin resistance, systemic inflammation, and energy harvest \citep{qin2012metagenome, turnbaugh2006obesity, cani2019supplementation, aron2020gut}.
 
-Despite the recognized value of each source, practical telehealth systems rarely unify all three within a single analytic pipeline. Moreover, real-world patient encounters frequently present incomplete modality coverage: a patient may possess laboratory results and wearable logs but lack a recent stool sequencing report, or may have microbiome data without contemporaneous CGM readings. Conventional multimodal architectures that concatenate all features into a monolithic input vector are ill-suited to this scenario, as they require either discarding the patient or fabricating the missing channel through numerical imputation \citep{rubin1976inference, ma2021smil}.
+Despite the recognized value of each source, practical telehealth systems rarely unify all three within a single analytic pipeline. Moreover, real-world patient encounters frequently present incomplete modality coverage: a patient may possess laboratory results and wearable logs but lack a recent stool sequencing report, or may have microbiome data without contemporaneous CGM readings. Conventional multimodal architectures that concatenate all features into a monolithic input vector are ill-suited to this scenario, as they require either discarding the patient or fabricating the missing channel through numerical imputation \citep{rubin1976inference, vanbuuren2011mice, ma2021smil}.
 
 \subsection{Problem Statement}
 Four interrelated obstacles hinder the construction of robust multimodal metabolic risk systems within telehealth environments:
@@ -103,7 +103,7 @@ Four interrelated obstacles hinder the construction of robust multimodal metabol
 An effective framework must therefore accommodate variable modality availability at inference time, supply transparent per-feature explanations, and optionally situate its outputs within established clinical evidence.
 
 \subsection{Research Gap}
-Prior work has advanced healthcare prediction from electronic health records \citep{rajkomar2018scalable, esteva2019guide}, explored wearable-derived biomarkers for glycemic phenotyping \citep{zeevi2015personalized, hall2018glucotypes}, characterized gut microbial signatures of metabolic dysfunction \citep{qin2012metagenome, turnbaugh2006obesity}, and developed general multimodal fusion strategies \citep{huang2020multimodal}. Missing-modality techniques based on reconstruction, dropout regularization, or latent-space alignment have also been proposed \citep{ma2021smil}. However, these threads are typically pursued in isolation or under architectures that presume a fixed set of input modalities.
+Prior work has advanced healthcare prediction from electronic health records \citep{rajkomar2018scalable, esteva2019guide}, explored wearable-derived biomarkers for glycemic phenotyping \citep{zeevi2015personalized, hall2018glucotypes, dunn2021wearable}, characterized gut microbial signatures of metabolic dysfunction \citep{qin2012metagenome, turnbaugh2006obesity, cani2019supplementation}, and developed general multimodal fusion strategies \citep{huang2020multimodal, kline2022multimodal}. Missing-modality techniques based on reconstruction, dropout regularization, or latent-space alignment have also been proposed \citep{ma2021smil, rubin1976inference, vanbuuren2011mice}. However, these threads are typically pursued in isolation or under architectures that presume a fixed set of input modalities.
 
 An integrated framework that (i) trains dedicated per-modality experts across clinical, wearable, and microbiome channels, (ii) fuses their outputs at the probability level through stacking, (iii) dynamically selects among all non-empty modality subsets without imputing absent blocks, (iv) furnishes game-theoretic feature attributions, and (v) incorporates retrieval-augmented report generation---has not been systematically investigated for multi-target metabolic risk stratification.
 
@@ -132,22 +132,22 @@ The principal contributions of this work are:
 \section{RELATED WORK}
 
 \subsection{Machine Learning for Electronic Health Records}
-The application of supervised learning to structured clinical data has demonstrated substantial promise for patient phenotyping, readmission prediction, and mortality forecasting \citep{rajkomar2018scalable}. Deep architectures and gradient-boosted ensembles such as XGBoost \citep{chen2016xgboost} and LightGBM \citep{ke2017lightgbm} have achieved competitive discrimination on tabular health datasets. Nonetheless, models trained exclusively on point-in-time laboratory values may overlook behavioral and biological dynamics captured by complementary measurement modalities \citep{topol2019high}.
+The application of supervised learning to structured clinical data has demonstrated substantial promise for patient phenotyping, readmission prediction, and mortality forecasting \citep{rajkomar2018scalable}. Deep architectures and gradient-boosted ensembles such as XGBoost \citep{chen2016xgboost}, LightGBM \citep{ke2017lightgbm}, and CatBoost \citep{prokhorenkova2018catboost} have achieved competitive discrimination on tabular health datasets. Nonetheless, models trained exclusively on point-in-time laboratory values may overlook behavioral and biological dynamics captured by complementary measurement modalities \citep{topol2019high}.
 
 \subsection{Wearable Sensors and Continuous Glucose Monitoring}
-Ambulatory devices that record heart rate, activity counts, sleep architecture, and interstitial glucose concentration offer a longitudinal physiological perspective unavailable from periodic clinic visits \citep{hall2018glucotypes}. Zeevi et al.\ demonstrated that integrating CGM traces with clinical and microbiome features substantially improved postprandial glycemic response prediction \citep{zeevi2015personalized}. These findings underscore the potential of wearable telemetry as a complementary input channel, while also highlighting challenges of variable device adherence and signal quality across patient populations.
+Ambulatory devices that record heart rate, activity counts, sleep architecture, and interstitial glucose concentration offer a longitudinal physiological perspective unavailable from periodic clinic visits \citep{hall2018glucotypes, dunn2021wearable}. Standardized targets such as Time-in-Range (TIR) and Glycemic Variability (CV) provide sensitive indices of metabolic control \citep{battelino2019clinical}. Zeevi et al.\ demonstrated that integrating CGM traces with clinical and microbiome features substantially improved postprandial glycemic response prediction \citep{zeevi2015personalized}, a paradigm corroborated across larger multi-omic cohorts by Berry et al.\ \citep{berry2020human}. These findings underscore the potential of wearable telemetry as a complementary input channel, while also highlighting challenges of variable device adherence across patient populations.
 
 \subsection{Gut Microbiome and Metabolic Pathophysiology}
-Metagenome-wide association studies have linked compositional shifts in intestinal microbial communities---particularly reduced Bacteroidetes-to-Firmicutes ratios and diminished butyrate-producing taxa---to insulin resistance, obesity, and hepatic steatosis \citep{qin2012metagenome, turnbaugh2006obesity}. Ecological diversity indices and functional pathway abundances can serve as predictive features for metabolic disease classifiers. However, microbiome profiling remains costly and is infrequently available in routine telehealth encounters, motivating architectures that can gracefully operate in its absence.
+Metagenome-wide association studies have linked compositional shifts in intestinal microbial communities---particularly reduced Bacteroidetes-to-Firmicutes ratios, diminished butyrate-producing taxa, and depleted \textit{Akkermansia} abundances---to insulin resistance, obesity, and hepatic steatosis \citep{qin2012metagenome, turnbaugh2006obesity, cani2019supplementation, aron2020gut, leclercq2014intestinal}. Ecological diversity indices and functional pathway abundances can serve as predictive features for metabolic disease classifiers. However, microbiome profiling remains costly and is infrequently available in routine telehealth encounters, motivating architectures that can gracefully operate in its absence.
 
 \subsection{Multimodal Fusion Strategies}
-Multimodal learning seeks to exploit the complementarity among heterogeneous data sources \citep{huang2020multimodal}. Fusion can occur at the feature level (early concatenation), the representation level (intermediate shared embeddings), or the decision level (late combination of per-modality predictions). While feature-level fusion is straightforward, it couples the model to a rigid input schema and is sensitive to dimensionality imbalance. Probability-level stacking, originally formalized as stacked generalization \citep{wolpert1992stacked}, decouples modality-specific learning from cross-modal combination and naturally accommodates variable-width input vectors.
+Multimodal learning seeks to exploit the complementarity among heterogeneous data sources \citep{huang2020multimodal, kline2022multimodal}. Fusion can occur at the feature level (early concatenation), the representation level (intermediate shared embeddings), or the decision level (late combination of per-modality predictions). While feature-level fusion is straightforward, it couples the model to a rigid input schema and is sensitive to dimensionality imbalance. Probability-level stacking, originally formalized as stacked generalization \citep{wolpert1992stacked}, decouples modality-specific learning from cross-modal combination and naturally accommodates variable-width input vectors.
 
 \subsection{Handling Missing Modalities}
-Absent data channels pose a distinct challenge from missing individual features. Standard imputation methods---mean/median filling, iterative chained equations, or $k$-nearest-neighbor interpolation---address sporadic feature-level gaps \citep{rubin1976inference}. When an entire modality is unavailable, reconstruction-based methods attempt to hallucinate the absent representation via generative models or cross-modal translation \citep{ma2021smil}. An alternative philosophy is to avoid fabrication altogether by routing patients through pathway-specific fusion models conditioned only on observed modalities. TeleMed-M3 adopts this routing approach, training separate meta-learners for every non-empty modality subset. Importantly, this structural routing mechanism is distinct from feature-level imputation within an available modality, where standard preprocessing may still be employed.
+Absent data channels pose a distinct challenge from missing individual features. Standard imputation methods---mean/median filling, Multivariate Imputation by Chained Equations (MICE) \citep{vanbuuren2011mice}, or non-parametric MissForest \citep{stekhoven2012missforest}---address sporadic feature-level gaps \citep{rubin1976inference}. When an entire modality is unavailable, reconstruction-based methods attempt to hallucinate the absent representation via generative models or cross-modal translation \citep{ma2021smil}. An alternative philosophy is to avoid fabrication altogether by routing patients through pathway-specific fusion models conditioned only on observed modalities. TeleMed-M3 adopts this routing approach, training separate meta-learners for every non-empty modality subset. Importantly, this structural routing mechanism is distinct from feature-level imputation within an available modality, where standard preprocessing may still be employed.
 
 \subsection{Explainability and Retrieval-Augmented Generation}
-SHAP values, grounded in cooperative game theory, decompose each prediction into additive per-feature contributions \citep{lundberg2017unified}. The TreeSHAP variant achieves exact Shapley computation in polynomial time for tree-ensemble models, making it well suited to the gradient-boosted experts employed in this work. Separately, Retrieval-Augmented Generation (RAG) conditions language-model outputs on passages retrieved from an external corpus, reducing hallucination and anchoring generated text in verifiable sources \citep{lewis2020retrieval}. Combining TreeSHAP attributions with RAG-retrieved clinical guidelines offers a pathway toward risk reports that are simultaneously data-driven and evidence-grounded \citep{esteva2019guide}.
+SHAP values, grounded in cooperative game theory, decompose each prediction into additive per-feature contributions \citep{lundberg2017unified, lundberg2020nature}. The TreeSHAP variant achieves exact Shapley computation in polynomial time for tree-ensemble models, making it well suited to the gradient-boosted experts employed in this work. Separately, Retrieval-Augmented Generation (RAG) and domain-specialized clinical language models condition generative summaries on verifiable medical guidelines, mitigating hallucination risks \citep{lewis2020retrieval, singhal2023large, thirunavukarasu2023large}. Combining TreeSHAP attributions with RAG-retrieved clinical guidelines offers a pathway toward risk reports that are simultaneously data-driven and evidence-grounded \citep{esteva2019guide}.
 
 \section{DATASET AND COHORT}
 
@@ -160,9 +160,9 @@ The generative process deliberately avoided deterministic clamping rules that wo
 \subsection{Feature and Modality Composition}
 The resulting dataset encompasses 82 predictive features partitioned across three modality blocks:
 \begin{itemize}
-    \item \textbf{Clinical (18 features):} Anthropometrics (Age, BMI, Waist Circumference) and laboratory biomarkers (Fasting Glucose, HbA1c, Triglycerides, LDL/HDL Cholesterol, ALT, AST, GGT, among others).
-    \item \textbf{Wearable/CGM (15 features):} Continuous physiological telemetry comprising mean and resting heart rate, HRV, daily step count, active minutes, sleep duration, sleep efficiency, and glucose variability statistics derived from CGM traces.
-    \item \textbf{Gut Microbiome (49 features):} Relative abundances of 40 bacterial taxa (e.g., Firmicutes, Bacteroidetes, \textit{Akkermansia muciniphila}, \textit{Faecalibacterium prausnitzii}) together with 9 ecological and functional indices including Shannon Diversity, Chao1 Richness, and short-chain fatty acid pathway scores.
+    \item \textbf{Clinical (18 features):} Anthropometrics (Age, BMI, Waist Circumference) and laboratory biomarkers (Fasting Glucose, HbA1c, Triglycerides, LDL/HDL Cholesterol, ALT, AST, GGT, among others, aligned with guideline practice \citep{ada2024standards, whelton2018acc, rinella2023aasld}).
+    \item \textbf{Wearable/CGM (15 features):} Continuous physiological telemetry comprising mean and resting heart rate, HRV, daily step count, active minutes, sleep duration, sleep efficiency, and glucose variability statistics derived from CGM traces \citep{hall2018glucotypes, dunn2021wearable, battelino2019clinical}.
+    \item \textbf{Gut Microbiome (49 features):} Relative abundances of 40 bacterial taxa (e.g., Firmicutes, Bacteroidetes, \textit{Akkermansia muciniphila}, \textit{Faecalibacterium prausnitzii}) together with 9 ecological and functional indices including Shannon Diversity, Chao1 Richness, and short-chain fatty acid pathway scores \citep{qin2012metagenome, cani2019supplementation}.
 \end{itemize}
 
 \subsection{Prediction Targets}
@@ -200,7 +200,7 @@ A deterministic 70/15/15 split yielded three non-overlapping partitions:
 Figure~\ref{fig:arch} depicts the end-to-end pipeline of TeleMed-M3. Upon ingestion, each patient record is segmented into its constituent modality blocks. Independent expert classifiers process each block to emit per-target risk probabilities. A deterministic routing layer inspects which modality blocks are present and dispatches the corresponding probability vector to the appropriate pathway-specific meta-learner. Post-fusion, TreeSHAP generates local feature attributions for supported tree-based experts, and an optional Medical RAG module synthesizes the structured outputs into evidence-grounded narrative summaries.
 
 \subsection{Modality-Specific Expert Models}
-Fifteen expert classifiers are trained---one for each pairing of three modalities and five disease targets. For every modality--target combination, the best-performing algorithm was selected from a candidate pool comprising Logistic Regression, XGBoost \citep{chen2016xgboost}, LightGBM \citep{ke2017lightgbm}, CatBoost, and ExtraTrees. Consequently, the expert ensemble is heterogeneous: different modality--target slots may be served by different classifier families, reflecting the varying predictive structure of each subproblem.
+Fifteen expert classifiers are trained---one for each pairing of three modalities and five disease targets. For every modality--target combination, the best-performing algorithm was selected from a candidate pool comprising Logistic Regression, XGBoost \citep{chen2016xgboost}, LightGBM \citep{ke2017lightgbm}, CatBoost \citep{prokhorenkova2018catboost}, and ExtraTrees. Consequently, the expert ensemble is heterogeneous: different modality--target slots may be served by different classifier families, reflecting the varying predictive structure of each subproblem.
 
 Each expert incorporates an internal preprocessing stage that handles feature-level missing values within its modality block---for example, median filling of sporadic NaN entries---using transformations appropriate to the selected estimator. This intra-modality imputation is conceptually distinct from the inter-modality routing mechanism, which addresses the wholesale absence of an entire data channel.
 
@@ -382,11 +382,20 @@ Evaluation on a controlled 100{,}000-patient synthetic cohort demonstrated that 
 
 Looking ahead, validation on real-world multimodal clinical datasets, evaluation under informative missingness patterns, benchmarking against advanced imputation and deep fusion methods, and prospective clinical studies are essential steps toward translating this research framework into a deployable telehealth tool. Quantitative evaluation of the RAG module's generation quality and clinician acceptance testing represent additional high-priority directions.
 
-\section*{Acknowledgments and Project Guidance}
-This research was carried out as a major project at Keshav Memorial Institute of Technology (KMIT), Hyderabad, India. The authors express their sincere gratitude to their project supervisor, \textbf{Dr.~K.~V.~Rajini}, Associate Professor, Department of Computer Science and Engineering, KMIT, for expert mentorship, technical guidance, and continuous supervision throughout the conceptualization, system implementation, and manuscript preparation of the TeleMed-M3 project.
+\section*{Declarations}
+{\small
+\noindent\textbf{Funding:} The authors declare that no external financial support was received during this study. \\
+\textbf{Competing Interests:} The authors have no financial or non-financial competing interests to disclose. \\
+\textbf{Ethics Approval:} Not applicable. This study was conducted entirely in silico using an ethically generated synthetic cohort without human or animal participants. \\
+\textbf{Consent to Participate and Publish:} Not applicable. \\
+\textbf{Data and Code Availability:} The synthetic cohort configurations, expert models, routing logic, and evaluation notebooks are available at \url{https://github.com/SWARANGUNDA/TeleMed-M3}. \\
+\textbf{Authors' Contributions:} G. Swaran and K. Vishal designed the architecture, implemented the routing pipeline, and drafted the manuscript. P. Sunny Kiran, C. Medhansh Rao, and A. Thadhagath Ram conducted model benchmarks, feature engineering, and TreeSHAP analyses. Dr.~K.~V.~Rajini supervised the research project, provided technical guidance, and reviewed the manuscript. All authors approved the final version.
+}
 
-\section*{Reproducibility and Data Availability}
-The complete codebase---encompassing synthetic data generation scripts, model training pipelines, fusion and routing logic, evaluation notebooks, and reproducibility audit logs---is available in the project repository. Because the dataset is entirely synthetic, it can be regenerated from the provided configuration parameters without implicating patient privacy. All random seeds, hyperparameter configurations, and train/validation/test split indices are recorded to enable exact replication of the reported results.
+\section*{Acknowledgments}
+{\small
+This research was conducted as a major project at Keshav Memorial Institute of Technology (KMIT), Hyderabad, India. The authors express their sincere gratitude to their project supervisor, \textbf{Dr.~K.~V.~Rajini}, Associate Professor, Department of Computer Science and Engineering, KMIT, for continuous mentorship and guidance throughout the TeleMed-M3 project.
+}
 
 \balance
 \bibliographystyle{apalike}
