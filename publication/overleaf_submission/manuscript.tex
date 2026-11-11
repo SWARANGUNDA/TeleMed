@@ -206,19 +206,24 @@ Fifteen expert classifiers are trained---one for each pairing of three modalitie
 Each expert incorporates an internal preprocessing stage that handles feature-level missing values within its modality block---for example, median filling of sporadic NaN entries---using transformations appropriate to the selected estimator. This intra-modality imputation is conceptually distinct from the inter-modality routing mechanism, which addresses the wholesale absence of an entire data channel.
 
 \subsection{Out-of-Fold Probability Stacking}
-To prevent information leakage between the expert and fusion stages, meta-learner training features are constructed through five-fold stratified cross-validation over the 70{,}000-patient training partition. In each fold, an expert model fitted on four folds produces predicted probabilities for the held-out fifth fold. Concatenating these out-of-fold (OOF) probabilities across all five folds yields a complete set of uncontaminated meta-features \citep{wolpert1992stacked}.
+To prevent information leakage between the expert and fusion stages, meta-learner training features are constructed through five-fold stratified cross-validation over the 70{,}000-patient training partition $\mathcal{D}_{\text{train}} = \bigcup_{v=1}^{V} \mathcal{D}_v$ ($V=5$). In each fold $v$, an expert model $f_t^{(m,-v)}$ fitted on the remaining four folds $\mathcal{D}_{\text{train}} \setminus \mathcal{D}_v$ produces predicted probabilities for the held-out partition $\mathcal{D}_v$. The uncontaminated out-of-fold (OOF) probability for patient $i \in \mathcal{D}_v$ is defined as:
+\begin{equation}
+\label{eq:oof}
+p_{i,t}^{\text{OOF},(m)} = f_t^{(m,-v)}\left(\mathbf{x}_i^{(m)}\right), \quad \text{for } i \in \mathcal{D}_v
+\end{equation}
+Concatenating these out-of-fold predictions across all five folds yields a complete set of uncontaminated meta-features \citep{wolpert1992stacked}.
 
-An L2-regularized Logistic Regression meta-learner then learns to optimally combine the expert probabilities for each target. Let $\hat{p}_{i,t}^{(m)} \in [0, 1]$ denote the risk probability emitted by expert $f_t^{(m)}$ for target condition $t$ and available modality $m \in \mathcal{M}_k$. For pathway $k$, the meta-learner computes the fused posterior risk score $\hat{y}_{i,t}^{(k)}$ via:
+An L2-regularized Logistic Regression meta-learner then learns to optimally combine the expert probabilities for each target. For active pathway $k$ with modality subset $\mathcal{M}_k \subseteq \{\text{C}, \text{W}, \text{G}\}$, the meta-learner computes the fused posterior risk score $\hat{y}_{i,t}^{(k)}$ via:
 \begin{equation}
 \label{eq:stacking}
-\hat{y}_{i,t}^{(k)} = \sigma \left( w_{0,t}^{(k)} + \sum_{m \in \mathcal{M}_k} w_{m,t}^{(k)} \hat{p}_{i,t}^{(m)} \right)
+\hat{y}_{i,t}^{(k)} = \sigma \left( w_{0,t}^{(k)} + \sum_{m \in \mathcal{M}_k} w_{m,t}^{(k)} \, p_{i,t}^{\text{OOF},(m)} \right)
 \end{equation}
 where $\sigma(z) = (1 + e^{-z})^{-1}$ is the logistic sigmoid function. The parameter vector $\mathbf{w}_t^{(k)} = [w_{0,t}^{(k)}, \{w_{m,t}^{(k)}\}_{m \in \mathcal{M}_k}]^\top$ is estimated on the OOF probability matrix by minimizing the $L_2$-penalized negative log-likelihood:
 \begin{equation}
 \label{eq:loss}
-\mathcal{L}\left(\mathbf{w}_t^{(k)}\right) = -\frac{1}{N} \sum_{i=1}^{N} \left[ y_{i,t} \ln \hat{y}_{i,t}^{(k)} + (1 - y_{i,t}) \ln \left(1 - \hat{y}_{i,t}^{(k)}\right) \right] + \frac{\lambda}{2} \left\|\mathbf{w}_t^{(k)}\right\|_2^2
+\mathcal{L}\left(\mathbf{w}_t^{(k)}\right) = \frac{1}{N} \sum_{i=1}^{N} \ell_{\text{BCE}}\left(y_{i,t}, \, \hat{y}_{i,t}^{(k)}\right) + \frac{\lambda}{2} \left\|\mathbf{w}_t^{(k)}\right\|_2^2
 \end{equation}
-where $\lambda > 0$ governs the regularization penalty (empirically set to $C = 1/\lambda = 1.0$), ensuring numerical stability and preventing variance inflation. This probability-level stacking preserves the calibration properties of each expert's output and avoids the curse of dimensionality that arises when concatenating 82 raw features directly.
+where $\ell_{\text{BCE}}(y, \hat{y}) = -\left[ y \ln \hat{y} + (1 - y) \ln (1 - \hat{y}) \right]$ denotes the binary cross-entropy loss, and $\lambda > 0$ governs the regularization penalty (empirically set to $C = 1/\lambda = 1.0$), ensuring numerical stability and preventing variance inflation. This probability-level stacking preserves the calibration properties of each expert's output and avoids the curse of dimensionality that arises when concatenating 82 raw features directly.
 
 \subsection{Seven-Pathway Dynamic Routing}
 Three binary modality-availability indicators generate $2^{3}-1=7$ non-empty subsets: C, W, G, C+W, C+G, W+G, and C+W+G. For each subset and each target, a dedicated meta-learner is trained on the corresponding column subset of the OOF probability matrix.
