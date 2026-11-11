@@ -4,7 +4,7 @@ GUNDA SWARAN
 CSE
 Keshav Memorial Institute of Technology
 Hyderabad, India
-swarangunda23@gmail.com
+swarangunda023@gmail.com
 
 KOLIPAKA VISHAL
 CSE
