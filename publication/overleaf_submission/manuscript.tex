@@ -8,6 +8,7 @@
 \usepackage{booktabs}
 \usepackage{multirow}
 \usepackage{amsmath}
+\usepackage{amssymb}
 \usepackage{float}
 \usepackage{natbib}
 \usepackage{caption}
@@ -207,15 +208,42 @@ Each expert incorporates an internal preprocessing stage that handles feature-le
 \subsection{Out-of-Fold Probability Stacking}
 To prevent information leakage between the expert and fusion stages, meta-learner training features are constructed through five-fold stratified cross-validation over the 70{,}000-patient training partition. In each fold, an expert model fitted on four folds produces predicted probabilities for the held-out fifth fold. Concatenating these out-of-fold (OOF) probabilities across all five folds yields a complete set of uncontaminated meta-features \citep{wolpert1992stacked}.
 
-An L2-regularized Logistic Regression meta-learner then learns to optimally combine the expert probabilities for each target. This probability-level stacking preserves the calibration properties of each expert's output and avoids the curse of dimensionality that arises when concatenating 82 raw features directly.
+An L2-regularized Logistic Regression meta-learner then learns to optimally combine the expert probabilities for each target. Let $\hat{p}_{i,t}^{(m)} \in [0, 1]$ denote the risk probability emitted by expert $f_t^{(m)}$ for target condition $t$ and available modality $m \in \mathcal{M}_k$. For pathway $k$, the meta-learner computes the fused posterior risk score $\hat{y}_{i,t}^{(k)}$ via:
+\begin{equation}
+\label{eq:stacking}
+\hat{y}_{i,t}^{(k)} = \sigma \left( w_{0,t}^{(k)} + \sum_{m \in \mathcal{M}_k} w_{m,t}^{(k)} \hat{p}_{i,t}^{(m)} \right)
+\end{equation}
+where $\sigma(z) = (1 + e^{-z})^{-1}$ is the logistic sigmoid function. The parameter vector $\mathbf{w}_t^{(k)} = [w_{0,t}^{(k)}, \{w_{m,t}^{(k)}\}_{m \in \mathcal{M}_k}]^\top$ is estimated on the OOF probability matrix by minimizing the $L_2$-penalized negative log-likelihood:
+\begin{equation}
+\label{eq:loss}
+\mathcal{L}\left(\mathbf{w}_t^{(k)}\right) = -\frac{1}{N} \sum_{i=1}^{N} \left[ y_{i,t} \ln \hat{y}_{i,t}^{(k)} + (1 - y_{i,t}) \ln \left(1 - \hat{y}_{i,t}^{(k)}\right) \right] + \frac{\lambda}{2} \left\|\mathbf{w}_t^{(k)}\right\|_2^2
+\end{equation}
+where $\lambda > 0$ governs the regularization penalty (empirically set to $C = 1/\lambda = 1.0$), ensuring numerical stability and preventing variance inflation. This probability-level stacking preserves the calibration properties of each expert's output and avoids the curse of dimensionality that arises when concatenating 82 raw features directly.
 
 \subsection{Seven-Pathway Dynamic Routing}
 Three binary modality-availability indicators generate $2^{3}-1=7$ non-empty subsets: C, W, G, C+W, C+G, W+G, and C+W+G. For each subset and each target, a dedicated meta-learner is trained on the corresponding column subset of the OOF probability matrix.
 
+Formally, patient $i$'s input record is partitioned into three modality blocks: $\mathbf{x}_i = (\mathbf{x}_i^{(\text{C})}, \mathbf{x}_i^{(\text{W})}, \mathbf{x}_i^{(\text{G})}) \in \mathbb{R}^{18} \times \mathbb{R}^{15} \times \mathbb{R}^{49}$. Modality presence is represented by a binary availability indicator mask:
+\begin{equation}
+\label{eq:mask}
+\mathbf{m}_i = \left[m_i^{(\text{C})}, m_i^{(\text{W})}, m_i^{(\text{G})}\right]^\top \in \{0, 1\}^3 \setminus \{(0,0,0)\}
+\end{equation}
+The deterministic routing function $k(\mathbf{m}_i)$ maps the availability mask directly to one of the seven discrete active pathways:
+\begin{equation}
+\label{eq:routing}
+k(\mathbf{m}_i) = \sum_{j=1}^{3} m_{i,j} \cdot 2^{j-1} \in \{1, 2, \dots, 7\}
+\end{equation}
+where $k \in \{1, \dots, 7\}$ activates the corresponding expert probability subset $\mathcal{M}_k \subseteq \{\text{C}, \text{W}, \text{G}\}$.
+
 At inference, the router examines which modality blocks are present for a given patient and forwards only the corresponding expert probabilities to the matching pathway meta-learner. If a modality is entirely absent, its expert is never invoked and no synthetic probability is fabricated. This structural routing approach contrasts with imputation-based alternatives, which would fill the absent block with estimated values and feed them through a single fixed-input model.
 
 \subsection{TreeSHAP Explainability}
-For each tree-based expert, TreeSHAP \citep{lundberg2017unified} computes exact Shapley values in time polynomial in the number of leaves, decomposing each prediction into signed per-feature contributions. These attributions identify which clinical biomarkers, wearable signals, or microbial taxa most influenced the risk score for an individual patient. The explanations are intended as interpretive aids for healthcare professionals and do not imply causal relationships.
+For each tree-based expert, TreeSHAP \citep{lundberg2017unified} computes exact Shapley values in time polynomial in the number of leaves, decomposing each prediction into signed per-feature contributions. For a given modality expert $f_t^{(m)}$ operating on patient feature vector $\mathbf{x}_i^{(m)}$, TreeSHAP satisfies the efficiency and additivity axioms of cooperative game theory:
+\begin{equation}
+\label{eq:treeshap}
+f_t^{(m)}\left(\mathbf{x}_i^{(m)}\right) = \phi_0 + \sum_{j=1}^{D_m} \phi_j\left(\mathbf{x}_i^{(m)}\right)
+\end{equation}
+where $\phi_0 = \mathbb{E}[f_t^{(m)}(\mathbf{x})]$ is the expected baseline risk across the cohort, $D_m$ is the dimensionality of modality $m$ ($D_{\text{C}}=18$, $D_{\text{W}}=15$, $D_{\text{G}}=49$), and $\phi_j \in \mathbb{R}$ represents the additive attribution of the $j$-th feature to the patient's risk deviation. These attributions identify which clinical biomarkers, wearable signals, or microbial taxa most influenced the risk score for an individual patient. The explanations are intended as interpretive aids for healthcare professionals and do not imply causal relationships.
 
 \subsection{Medical Retrieval-Augmented Generation}
 An exploratory Medical RAG module augments the structured model outputs with contextual clinical knowledge. A FAISS-indexed corpus of medical guidelines---drawing on resources such as ADA Standards of Care and AHA cardiovascular risk recommendations---supplies relevant passages at inference time. A large language model then synthesizes the retrieved evidence, TreeSHAP attributions, and predicted probabilities into a coherent, patient- or clinician-facing narrative. This component is positioned as a proof-of-concept reporting layer; its retrieval precision, generation fidelity, and hallucination rate were not quantitatively benchmarked in the current study.
